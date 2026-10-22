@@ -8,7 +8,7 @@
   --cta:var(--MI_THEME-cta,#E8603F); --btn:var(--MI_THEME-buttonBg,#EFE8DA); --btnH:var(--MI_THEME-buttonHoverBg,#E6DDCB);
   --mustard:#F2C14E; --ok:#2F7D5B; --okBg:color-mix(in srgb,#2F7D5B 16%,var(--panel)); --ctaBg:color-mix(in srgb,var(--cta) 12%,var(--panel));
   --goldBg:color-mix(in srgb,#F2C14E 22%,var(--panel)); --gold:color-mix(in srgb,#B8871B 72%,var(--fg)); --dotc:color-mix(in srgb,var(--fg) 13%,transparent);
-  --l1:#E8603F; --l2:#2340A3; --l3:#B8871B; --l4:#3F8F86; --l5:#6E4F8F; --l6:#2F5D4A;
+  --l1:#E8603F; --l2:#2340A3; --l3:#B8871B; --l4:#3F8F86; --l5:#6E4F8F; --l6:#2F5D4A; --l7:#B4457E; --l8:#5C6F91;
   --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","Noto Serif CJK SC",STSong,serif;
   --sans:-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
   --shadow:0 1px 2px rgba(20,32,79,.06),0 10px 28px -10px rgba(20,32,79,.25);

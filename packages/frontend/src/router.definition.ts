@@ -43,7 +43,18 @@ export const ROUTE_DEF = [{
 	path: '/guides',
 	component: page(() => import('@/pages/lojo/guides/index.vue')),
 }, {
-	// The route map (线路图). Station hashes such as /map#1.6 are kept by RouterView.
+	// All route maps: every course grouped by subject, with search and "my maps".
+	name: 'lojo',
+	path: '/maps',
+	component: page(() => import('@/pages/lojo/maps.vue')),
+	loginRequired: true,
+}, {
+	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
+	name: 'lojo',
+	path: '/map/:course',
+	component: page(() => import('@/pages/lojo/route.vue')),
+}, {
+	// The default course's route map (线路图), e.g. /map#1.6.
 	name: 'lojo',
 	path: '/map',
 	component: page(() => import('@/pages/lojo/route.vue')),
