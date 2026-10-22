@@ -43,9 +43,14 @@ export const ROUTE_DEF = [{
 	path: '/lojo/guides',
 	component: page(() => import('@/pages/lojo/guides/index.vue')),
 }, {
+	// The 落脚地图 is off the navigation while LOJO focuses on the AP route map; old links still land here.
+	name: 'lojo-map',
+	path: '/lojo/map',
+	component: page(() => import('@/pages/lojo/map.vue')),
+}, {
 	name: 'lojo',
 	path: '/lojo',
-	component: page(() => import('@/pages/lojo/map.vue')),
+	component: page(() => import('@/pages/lojo/route.vue')),
 }, {
 	name: 'index',
 	path: '/',

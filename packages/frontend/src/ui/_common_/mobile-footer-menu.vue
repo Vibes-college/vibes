@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/lojo" :aria-label="lojoLabels.map" :aria-current="routeName === 'lojo' ? 'page' : undefined">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-map"></i>
+			<i :class="$style.itemIcon" class="ti ti-road"></i>
 		</div>
 	</MkA>
 

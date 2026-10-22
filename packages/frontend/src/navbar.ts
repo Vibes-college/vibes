@@ -29,7 +29,7 @@ export const navbarItemDef = reactive<{
 }>({
 	lojo: {
 		title: lojoLabels.map,
-		icon: 'ti ti-map',
+		icon: 'ti ti-road',
 		to: '/lojo',
 	},
 	lojoGuides: {

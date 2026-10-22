@@ -95,7 +95,7 @@ export async function composeLojoNote(contribution: MapContribution): Promise<vo
 	if (contribution.entityKey) {
 		try {
 			const entity = await lojoApi.entity(contribution.entityKey);
-			canonicalUrl = new URL(entity.route.startsWith('#') ? `/lojo${entity.route}` : entity.route, instanceUrl).href;
+			canonicalUrl = new URL(entity.route.startsWith('#') ? `/lojo/map${entity.route}` : entity.route, instanceUrl).href;
 		} catch (error) {
 			await os.alert({ type: 'error', text: lojoLabels.unsupportedEntity });
 			return;

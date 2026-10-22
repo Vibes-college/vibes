@@ -6,7 +6,13 @@
 // LOJO's Chinese product copy is kept apart from upstream Crowdin translations.
 export const lojoLabels = {
 	openSource: '开源与致谢',
-	map: '地图',
+	map: '线路图',
+	routeTitle: 'AP 微观经济学 · 线路图',
+	routeLogin: '登录后，就能在线路图上记录你走到哪一站。',
+	routeLoadFailed: '线路图未能加载',
+	routeTour: '带我走一遍',
+	routeFit: '回到全图',
+	routeLegend: '图例',
 	title: '落脚地图',
 	housing: '租房',
 	food: '吃饭',

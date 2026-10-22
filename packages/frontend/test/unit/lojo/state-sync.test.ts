@@ -57,7 +57,8 @@ describe('LOJO account state synchronization', () => {
 describe('LOJO note map context', () => {
 	test('accepts only canonical entity links on this instance', () => {
 		const origin = 'https://lojo.example';
-		expect(mapRouteFromText('My experience\nhttps://lojo.example/lojo#building/h1', origin)).toBe('/lojo#building/h1');
+		expect(mapRouteFromText('My experience\nhttps://lojo.example/lojo#building/h1', origin)).toBe('/lojo/map#building/h1');
+		expect(mapRouteFromText('https://lojo.example/lojo/map#place/p1', origin)).toBe('/lojo/map#place/p1');
 		expect(mapRouteFromText('https://elsewhere.example/lojo#building/h1', origin)).toBeNull();
 		expect(mapRouteFromText('https://lojo.example/lojo#planner/private-plan', origin)).toBeNull();
 		expect(mapRouteFromText('https://lojo.example/lojo?redirect=evil#building/h1', origin)).toBeNull();

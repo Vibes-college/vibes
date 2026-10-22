@@ -224,13 +224,13 @@ function beforeUnload(event: BeforeUnloadEvent) {
 }
 
 function rememberHash() {
-	if (active && !redirectingGuide && router.currentRoute.value.path === '/lojo' && window.location.pathname === '/lojo' && window.location.hash) {
+	if (active && !redirectingGuide && router.currentRoute.value.path === '/lojo/map' && window.location.pathname === '/lojo/map' && window.location.hash) {
 		if (isLegacyGuideHash(window.location.hash)) {
 			returnHash = '#map/housing';
 			currentHash.value = returnHash;
 			redirectingGuide = true;
 			void nextTick(() => {
-				if (active && router.currentRoute.value.path === '/lojo' && isLegacyGuideHash(window.location.hash)) router.replaceByPath('/lojo/guides');
+				if (active && router.currentRoute.value.path === '/lojo/map' && isLegacyGuideHash(window.location.hash)) router.replaceByPath('/lojo/guides');
 				redirectingGuide = false;
 			});
 			return;
@@ -249,7 +249,7 @@ onMounted(() => {
 });
 onActivated(() => {
 	active = true;
-	if (runtime && !window.location.hash) window.history.replaceState(window.history.state, '', `/lojo${returnHash}`);
+	if (runtime && !window.location.hash) window.history.replaceState(window.history.state, '', `/lojo/map${returnHash}`);
 	rememberHash();
 	runtime?.resume();
 });
@@ -271,7 +271,7 @@ onBeforeUnmount(() => {
 router.useListener('change', () => {
 	rememberHash();
 	void nextTick(() => {
-		if (active && window.location.pathname === '/lojo') {
+		if (active && window.location.pathname === '/lojo/map') {
 			runtime?.resume();
 			rememberHash();
 		}
