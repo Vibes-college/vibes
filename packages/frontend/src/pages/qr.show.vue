@@ -19,8 +19,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div><MkCondensedLine :minScale="2 / 3">{{ acct }}</MkCondensedLine></div>
 			</div>
 		</div>
-		<img v-if="deviceMotionPermissionNeeded" v-flip :class="$style.logo" src="/static-assets/lojo-brand/mark-rounded.png" alt="LOJO" @click="requestDeviceMotion"/>
-		<img v-else v-flip :class="$style.logo" src="/static-assets/lojo-brand/mark-rounded.png" alt="LOJO"/>
+		<img v-if="deviceMotionPermissionNeeded" v-flip :class="$style.logo" src="/static-assets/vibes-brand/icon-rounded.png" alt="Vibes" @click="requestDeviceMotion"/>
+		<img v-else v-flip :class="$style.logo" src="/static-assets/vibes-brand/icon-rounded.png" alt="Vibes"/>
 	</div>
 </div>
 </template>

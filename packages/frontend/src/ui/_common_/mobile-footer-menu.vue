@@ -17,13 +17,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</MkA>
 
-	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/lojo" :aria-label="lojoLabels.map" :aria-current="routeName === 'lojo' ? 'page' : undefined">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/map" :aria-label="lojoLabels.map" :aria-current="routeName === 'lojo' ? 'page' : undefined">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-road"></i>
 		</div>
 	</MkA>
 
-	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/lojo/guides" aria-label="攻略" :aria-current="routeName === 'lojo-guides' ? 'page' : undefined">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/guides" aria-label="攻略" :aria-current="routeName === 'lojo-guides' ? 'page' : undefined">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-book"></i>
 		</div>

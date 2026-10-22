@@ -84,7 +84,7 @@ const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.
 const XAnnouncements = defineAsyncComponent(() => import('@/ui/_common_/announcements.vue'));
 
 const isRoot = computed(() => mainRouter.currentRoute.value.name === 'index');
-const isGuideList = computed(() => mainRouter.currentRoute.value.path === '/lojo/guides');
+const isGuideList = computed(() => mainRouter.currentRoute.value.path === '/guides');
 
 const DESKTOP_THRESHOLD = 1100;
 const MOBILE_THRESHOLD = 500;

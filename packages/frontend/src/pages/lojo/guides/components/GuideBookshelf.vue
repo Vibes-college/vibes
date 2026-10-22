@@ -51,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkA
 							v-for="(guide, i) in books[shelf.id]"
 							:key="guide.id"
-							:to="`/lojo/guides/${guide.id}`"
+							:to="`/guides/${guide.id}`"
 							:data-id="guide.id"
 							role="option"
 							:aria-selected="active[shelf.id] === guide.id"
@@ -96,7 +96,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</span>
 						</MkA>
 						<span v-for="(label, i) in ghostsOf(shelf)" :key="label" :class="$style.ghost" aria-hidden="true" :style="{ '--hr': ghostShape[i].hr, '--t': `${ghostShape[i].t}px`, '--i': (books[shelf.id]?.length ?? 0) + i }"><span>{{ label }}</span></span>
-						<MkA :to="`/lojo/guides/new?category=${shelf.id}`" :class="$style.write" :style="{ '--i': (books[shelf.id]?.length ?? 0) + ghostsOf(shelf).length }" :aria-label="`为「${shelf.title}」写一本攻略`">
+						<MkA :to="`/guides/new?category=${shelf.id}`" :class="$style.write" :style="{ '--i': (books[shelf.id]?.length ?? 0) + ghostsOf(shelf).length }" :aria-label="`为「${shelf.title}」写一本攻略`">
 							<span :class="$style.writePlus" aria-hidden="true">+</span>
 							<span :class="$style.writeText" aria-hidden="true">{{ books[shelf.id]?.length ? '写一本' : '写第一本' }}</span>
 						</MkA>
@@ -120,12 +120,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<button type="button" :class="[$style.save, { [$style.on]: activeGuide(shelf.id)!.isSaved }]" :aria-label="activeGuide(shelf.id)!.isSaved ? guideLabels.unbookmark : guideLabels.bookmark" :aria-pressed="activeGuide(shelf.id)!.isSaved" :disabled="bookmarkBusy.has(activeGuide(shelf.id)!.id)" @click="bookmark(activeGuide(shelf.id)!)">
 							<i :class="activeGuide(shelf.id)!.isSaved ? 'ti ti-bookmark-filled' : 'ti ti-bookmark'" aria-hidden="true"></i>
 						</button>
-						<MkA :to="`/lojo/guides/${activeGuide(shelf.id)!.id}`" :class="$style.read" @click.capture="onReadClick(shelf.id, activeGuide(shelf.id)!, $event)">翻开 <span aria-hidden="true">→</span></MkA>
+						<MkA :to="`/guides/${activeGuide(shelf.id)!.id}`" :class="$style.read" @click.capture="onReadClick(shelf.id, activeGuide(shelf.id)!, $event)">翻开 <span aria-hidden="true">→</span></MkA>
 					</div>
 				</div>
 				<div v-else-if="!books[shelf.id]?.length" :class="$style.emptyNote">
 					<p>还没有人写这一排。</p>
-					<MkA :to="`/lojo/guides/new?category=${shelf.id}`" :class="$style.read">写第一本 <span aria-hidden="true">→</span></MkA>
+					<MkA :to="`/guides/new?category=${shelf.id}`" :class="$style.read">写第一本 <span aria-hidden="true">→</span></MkA>
 				</div>
 			</div>
 		</section>
@@ -275,7 +275,7 @@ function onReadClick(shelfId: string, guide: Guide, event: MouseEvent) {
 // away over the article, so opening a book feels like stepping into it.
 function enterBook(shelfId: string, guide: Guide) {
 	if (leaving.value) return;
-	const destination = `/lojo/guides/${guide.id}`;
+	const destination = `/guides/${guide.id}`;
 	const cover = bookEl(shelfId, guide.id)?.querySelector<HTMLElement>(`.${CSS.escape(style.cover)}`);
 	const look = looks.value[shelfId][books[shelfId].indexOf(guide)];
 	if (reduceMotion || !cover || !look || !canAnimateCoverVeil()) {

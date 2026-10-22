@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.shape1"></div>
 	<div :class="$style.shape2"></div>
 	<div :class="$style.logoWrapper">
-		<img src="/static-assets/lojo-brand/lockup.png" :class="$style.wordmark" alt="LOJO"/>
+		<VibesLogo :class="$style.wordmark"/>
 	</div>
 	<div :class="$style.contents">
 		<MkVisitorDashboard/>
@@ -29,6 +29,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { ref } from 'vue';
+import VibesLogo from '@/lojo/VibesLogo.vue';
 import * as Misskey from 'misskey-js';
 import XTimeline from './welcome.timeline.vue';
 import MkMarqueeText from '@/components/MkMarqueeText.vue';
@@ -124,6 +125,7 @@ misskeyApiGet('federation/instances', {
 }
 
 .wordmark {
+	color: var(--MI_THEME-brandInk, var(--MI_THEME-fg));
 	width: 120px;
 	border-radius: 8px;
 

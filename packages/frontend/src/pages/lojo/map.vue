@@ -115,7 +115,7 @@ const headerActions: PageHeaderItem[] = [{
 	}, {
 		icon: 'ti ti-book',
 		text: lojoLabels.relatedGuides,
-		action: () => { router.pushByPath('/lojo/guides'); },
+		action: () => { router.pushByPath('/guides'); },
 	}], event.currentTarget ?? event.target),
 }];
 
@@ -230,7 +230,7 @@ function rememberHash() {
 			currentHash.value = returnHash;
 			redirectingGuide = true;
 			void nextTick(() => {
-				if (active && router.currentRoute.value.path === '/lojo/map' && isLegacyGuideHash(window.location.hash)) router.replaceByPath('/lojo/guides');
+				if (active && router.currentRoute.value.path === '/lojo/map' && isLegacyGuideHash(window.location.hash)) router.replaceByPath('/guides');
 				redirectingGuide = false;
 			});
 			return;

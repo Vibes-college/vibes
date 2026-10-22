@@ -101,8 +101,8 @@ async function start() {
 			openChannel: (channelId: string) => router.pushByPath(`/channels/${channelId}`),
 			toast: (message: string) => os.toast(message),
 			setHash: (id: string | null) => {
-				if (!active || router.currentRoute.value.path !== '/lojo') return;
-				window.history.replaceState(window.history.state, '', id ? `/lojo#${encodeURIComponent(id)}` : '/lojo');
+				if (!active || router.currentRoute.value.path !== '/map') return;
+				window.history.replaceState(window.history.state, '', id ? `/map#${encodeURIComponent(id)}` : '/map');
 			},
 		});
 		if (current !== generation) { mounted.destroy(); return; }

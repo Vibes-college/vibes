@@ -56,7 +56,7 @@ const emit = defineEmits<{
 	(ev: 'bookmark', guide: Guide): void;
 }>();
 
-const destination = computed(() => `/lojo/guides/${props.guide.id}${props.guide.status === 'draft' ? '/edit' : ''}`);
+const destination = computed(() => `/guides/${props.guide.id}${props.guide.status === 'draft' ? '/edit' : ''}`);
 const cover = computed(() => guideSafeUrl(props.guide.coverUrl) ?? guideSafeUrl(props.guide.blocks.find(block => block.type === 'image')?.url));
 const media = computed(() => props.guide.blocks.find(block => ['video', 'audio'].includes(block.type) && guideSafeUrl(block.url)));
 const card = useTemplateRef('card');

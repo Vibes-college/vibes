@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div v-if="meta" :class="$style.root">
 	<MkFeaturedPhotos :class="$style.bg"/>
 	<div :class="$style.logoWrapper">
-		<img src="/static-assets/lojo-brand/lockup.png" :class="$style.wordmark" alt="LOJO"/>
+		<VibesLogo :class="$style.wordmark"/>
 	</div>
 	<div :class="$style.contents">
 		<MkVisitorDashboard/>
@@ -17,6 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import MkFeaturedPhotos from '@/components/MkFeaturedPhotos.vue';
+import VibesLogo from '@/lojo/VibesLogo.vue';
 import MkVisitorDashboard from '@/components/MkVisitorDashboard.vue';
 import { instance as meta } from '@/instance.js';
 </script>
@@ -48,6 +49,7 @@ import { instance as meta } from '@/instance.js';
 }
 
 .wordmark {
+	color: var(--MI_THEME-brandInk, var(--MI_THEME-fg));
 	width: 120px;
 	border-radius: 8px;
 

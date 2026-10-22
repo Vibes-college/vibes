@@ -107,7 +107,7 @@ const headerActions = computed<PageHeaderItem[]>(() => [{
 
 async function write() {
 	if (!await pleaseLogin()) return;
-	router.pushByPath('/lojo/guides/new');
+	router.pushByPath('/guides/new');
 }
 
 async function load(reset: boolean, background = false) {

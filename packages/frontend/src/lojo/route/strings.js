@@ -10,7 +10,7 @@ export const SHORT = {1:{zh:'基本概念', en:'Basics'}, 2:{zh:'供给与需求
 export const UI = {
 	zh: {
 		boards:[['AP 微观',1],['A-Level 经济',0],['AP 宏观',0],['AP 心理',0]], soon:'即将开通',
-		eyebrow:'LOJO · AP 经济学 · 线路图', title:'AP 微观经济学',
+		eyebrow:'Vibes · AP 经济学 · 线路图', title:'AP 微观经济学',
 		lede:'36 个考点连成 6 条线。金色的边际快线，是整门课反复在讲的那一句话。走到哪一站，都有同行的人。',
 		tiles:['已到站','距考试'], weekZ:'周',
 		linesH:'线路', linesN:'6 条 · 另有快线和冲刺线',
@@ -26,7 +26,7 @@ export const UI = {
 		soonV:'这一站的动画还在做', soonVs:'做好了会出现在这里。',
 		quizHint:'三道题，全对就算到站。', gateOK:'全对，可以出站了。', gateBtn:'标记为已到站', gateNo:(a, b) => `答对 ${a} / ${b}。看看解析，再来一次。`, retry:'再来一次',
 		soonQ:'这一站的检票题还在出', soonQs:'可以先去问问 Moss。', goAsk:'问 Moss →', goQuiz:'去检票 →',
-		moss:'Moss', mossRole:'LOJO AI 编辑部。这里是 Moss 为这一站整理的常见问题；想问别的，发到站台留言，同站的人都能看到。',
+		moss:'Moss', mossRole:'Vibes AI 编辑部。这里是 Moss 为这一站整理的常见问题；想问别的，发到站台留言，同站的人都能看到。',
 		aiHello:t => `这一站讲「${t}」。下面是大家常问的问题。`, aiGen:['用一句话讲讲这一站'],
 		ask:'想问别的？写下来发到站台留言…', send:'发到站台',
 		postsH:'站台留言', postsEmpty:'还没有人在这一站留言。', write:'写一条留言', all:'查看全部', loading:'正在加载站台留言…', loadFail:'站台留言暂时无法加载。',
@@ -47,7 +47,7 @@ export const UI = {
 	},
 	en: {
 		boards:[['AP Micro',1],['A-Level Econ',0],['AP Macro',0],['AP Psych',0]], soon:'soon',
-		eyebrow:'LOJO · AP ECONOMICS · ROUTE MAP', title:'AP Microeconomics',
+		eyebrow:'VIBES · AP ECONOMICS · ROUTE MAP', title:'AP Microeconomics',
 		lede:'36 topics on 6 lines. The gold Marginal Express is the one idea the whole course keeps coming back to. Wherever you are, someone is riding with you.',
 		tiles:['Reached','Exam in'], weekZ:'wks',
 		linesH:'Lines', linesN:'6, plus the express and the final stretch',
@@ -63,7 +63,7 @@ export const UI = {
 		soonV:"This stop's video is in production", soonVs:"It'll appear here when it's ready.",
 		quizHint:'Three questions. Get them all right to reach this stop.', gateOK:'All correct. You can exit.', gateBtn:'Mark as reached', gateNo:(a, b) => `${a} / ${b} correct. Read the explanations and try again.`, retry:'Try again',
 		soonQ:"This stop's ticket check is being written", soonQs:'Ask Moss in the meantime.', goAsk:'Ask Moss →', goQuiz:'Ticket check →',
-		moss:'Moss', mossRole:"LOJO's AI editor. These are Moss's notes on common questions for this stop; for anything else, post on the platform and others at this stop will see it.",
+		moss:'Moss', mossRole:"Vibes' AI editor. These are Moss's notes on common questions for this stop; for anything else, post on the platform and others at this stop will see it.",
 		aiHello:t => `This stop covers "${t}". Here are the questions people ask most.`, aiGen:['Explain this stop in one sentence'],
 		ask:'Something else? Write it and post it on the platform…', send:'Post',
 		postsH:'Platform notes', postsEmpty:'No one has posted at this stop yet.', write:'Write a note', all:'See all', loading:'Loading platform notes…', loadFail:"Platform notes couldn't load.",
@@ -115,7 +115,7 @@ export const TOURTXT = {
 
 export const OBT = {
 	zh: {
-		wEye:'欢迎来到 LOJO · AP 经济学', wTitle:'先坐一圈小火车？', wText:'50 秒看懂这张线路图：36 个考点怎么连在一起，边际快线为什么是主线。',
+		wEye:'欢迎来到 Vibes · AP 经济学', wTitle:'先坐一圈小火车？', wText:'50 秒看懂这张线路图：36 个考点怎么连在一起，边际快线为什么是主线。',
 		wGo:'带我走一遍', wSkip:'先自己逛逛',
 		tEnd:'最后，三个小问题，帮你在图上找到自己的位置。', tGo:'找到我的位置', tLater:'以后再说',
 		qs:[
@@ -133,7 +133,7 @@ export const OBT = {
 		cSay:'去站台留言打个招呼', cSayS:'和同一站的人说一声：我到了', cSayText:'第一站到站！', cNext:'继续下一站',
 	},
 	en: {
-		wEye:'WELCOME TO LOJO · AP ECONOMICS', wTitle:'Ride the little train first?', wText:'In 50 seconds: how the 36 topics connect, and why the Marginal Express is the main line.',
+		wEye:'WELCOME TO VIBES · AP ECONOMICS', wTitle:'Ride the little train first?', wText:'In 50 seconds: how the 36 topics connect, and why the Marginal Express is the main line.',
 		wGo:'Take the tour', wSkip:"I'll look around",
 		tEnd:'Last thing: three quick questions to find where you are on the map.', tGo:'Find my place', tLater:'Later',
 		qs:[

@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.body">
 		<div :class="$style.top">
 			<button v-tooltip.noDelay.right="instance.name ?? i18n.ts.instance" class="_button" :class="$style.instance" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
-				<svg :class="[$style.instanceIcon, $style.wordmark]" viewBox="18 18 235 64" role="img" aria-label="LOJO" style="view-transition-name: navbar-serverIcon;"><g fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M27 27 V64 Q27 73 36 73 H62"/><circle cx="107" cy="50" r="23"/><path d="M176 27 V52 Q176 73 155 73 H152"/><circle cx="221" cy="50" r="23"/></g></svg>
+				<VibesLogo :variant="iconOnly ? 'i' : 'wordmark'" :class="[$style.instanceIcon, $style.wordmark]" style="view-transition-name: navbar-serverIcon;"/>
 			</button>
 			<button v-if="!iconOnly" v-tooltip.noDelay.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" @click="toggleRealtimeMode">
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
@@ -19,13 +19,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 		</div>
 		<div :class="$style.middle">
-			<MkA v-tooltip.noDelay.right="lojoLabels.map" :class="$style.item" :activeClass="$style.active" :aria-label="lojoLabels.map" to="/lojo">
+			<MkA v-tooltip.noDelay.right="lojoLabels.map" :class="$style.item" :activeClass="$style.active" :aria-label="lojoLabels.map" to="/map">
 				<i :class="$style.itemIcon" class="ti ti-road ti-fw"></i><span :class="$style.itemText">{{ lojoLabels.map }}</span>
 			</MkA>
 			<MkA v-tooltip.noDelay.right="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 			</MkA>
-			<MkA v-tooltip.noDelay.right="'攻略'" :class="$style.item" :activeClass="$style.active" aria-label="攻略" to="/lojo/guides">
+			<MkA v-tooltip.noDelay.right="'攻略'" :class="$style.item" :activeClass="$style.active" aria-label="攻略" to="/guides">
 				<i :class="$style.itemIcon" class="ti ti-book ti-fw"></i><span :class="$style.itemText">攻略</span>
 			</MkA>
 			<template v-for="item in prefer.r.menu.value">
@@ -115,6 +115,7 @@ import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
 import { lojoLabels } from '@/lojo/labels.js';
+import VibesLogo from '@/lojo/VibesLogo.vue';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';

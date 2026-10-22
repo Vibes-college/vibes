@@ -23,7 +23,7 @@ function chatPage(...args: Parameters<typeof page>) {
 
 export const ROUTE_DEF = [{
 	name: 'lojo-guides',
-	path: '/lojo/guides/new',
+	path: '/guides/new',
 	component: page(() => import('@/pages/lojo/guides/edit.vue')),
 	loginRequired: true,
 	query: {
@@ -31,26 +31,43 @@ export const ROUTE_DEF = [{
 	},
 }, {
 	name: 'lojo-guides',
-	path: '/lojo/guides/:guideId/edit',
+	path: '/guides/:guideId/edit',
 	component: page(() => import('@/pages/lojo/guides/edit.vue')),
 	loginRequired: true,
 }, {
 	name: 'lojo-guides',
-	path: '/lojo/guides/:guideId',
+	path: '/guides/:guideId',
 	component: page(() => import('@/pages/lojo/guides/detail.vue')),
 }, {
 	name: 'lojo-guides',
-	path: '/lojo/guides',
+	path: '/guides',
 	component: page(() => import('@/pages/lojo/guides/index.vue')),
 }, {
-	// The 落脚地图 is off the navigation while LOJO focuses on the AP route map; old links still land here.
+	// The route map (线路图). Station hashes such as /map#1.6 are kept by RouterView.
+	name: 'lojo',
+	path: '/map',
+	component: page(() => import('@/pages/lojo/route.vue')),
+}, {
+	// The old 落脚地图 is off the navigation; old links still land here.
 	name: 'lojo-map',
 	path: '/lojo/map',
 	component: page(() => import('@/pages/lojo/map.vue')),
 }, {
-	name: 'lojo',
+	// Pre-Vibes addresses. Static redirects keep the query and #hash.
+	path: '/lojo/guides/new',
+	redirect: '/guides/new',
+}, {
+	path: '/lojo/guides/:guideId/edit',
+	redirect: props => `/guides/${props.get('guideId')}/edit`,
+}, {
+	path: '/lojo/guides/:guideId',
+	redirect: props => `/guides/${props.get('guideId')}`,
+}, {
+	path: '/lojo/guides',
+	redirect: '/guides',
+}, {
 	path: '/lojo',
-	component: page(() => import('@/pages/lojo/route.vue')),
+	redirect: '/map',
 }, {
 	name: 'index',
 	path: '/',

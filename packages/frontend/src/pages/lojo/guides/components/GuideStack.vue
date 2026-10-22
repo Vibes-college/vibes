@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<i class="ti ti-bookmark-off" aria-hidden="true"></i>
 				</button>
 				<MkA
-					:to="`/lojo/guides/${item.guide.id}`"
+					:to="`/guides/${item.guide.id}`"
 					:class="$style.body"
 					:data-id="item.guide.id"
 					:aria-label="`${item.guide.title || guideLabels.untitled}，${item.look.minutes} 分钟`"
@@ -134,7 +134,7 @@ function onOpen(guide: Guide, look: BookLook, event: MouseEvent) {
 	}
 	revealed.value = null;
 	if (leaving.value) return;
-	const destination = `/lojo/guides/${guide.id}`;
+	const destination = `/guides/${guide.id}`;
 	const body = event.currentTarget as HTMLElement;
 	if (!canAnimateCoverVeil()) {
 		router.pushByPath(destination);

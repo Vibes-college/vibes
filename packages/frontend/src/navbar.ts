@@ -30,12 +30,12 @@ export const navbarItemDef = reactive<{
 	lojo: {
 		title: lojoLabels.map,
 		icon: 'ti ti-road',
-		to: '/lojo',
+		to: '/map',
 	},
 	lojoGuides: {
 		title: '攻略',
 		icon: 'ti ti-book',
-		to: '/lojo/guides',
+		to: '/guides',
 	},
 	notifications: {
 		title: i18n.ts.notifications,

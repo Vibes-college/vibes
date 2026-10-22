@@ -176,7 +176,7 @@ async function back() {
 		if (canceled) return;
 	}
 	navigationConfirmed = true;
-	router.pushByPath('/lojo/guides');
+	router.pushByPath('/guides');
 }
 
 async function load() {
@@ -323,9 +323,9 @@ async function save(nextStatus: Guide['status']) {
 		os.toast(nextStatus === 'draft' ? guideLabels.draftSaved : guideLabels.changesSaved);
 		if (active && nextStatus === 'published' && !dirty.value) {
 			navigationConfirmed = true;
-			router.pushByPath(`/lojo/guides/${result.id}`);
+			router.pushByPath(`/guides/${result.id}`);
 		} else if (active && isNew && !dirty.value) {
-			router.replaceByPath(`/lojo/guides/${result.id}/edit`);
+			router.replaceByPath(`/guides/${result.id}/edit`);
 		}
 	} catch (error) {
 		const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';

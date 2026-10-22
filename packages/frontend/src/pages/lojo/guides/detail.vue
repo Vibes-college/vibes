@@ -93,7 +93,7 @@ const selectionThread = computed(() => threads.value.find(thread => thread.ancho
 const headerActions = computed<PageHeaderItem[]>(() => [
 	{ icon: 'ti ti-list', text: '目录', handler: showContents },
 	{ icon: 'ti ti-message-circle', text: '讨论', handler: () => openDiscussion() },
-	...(guide.value?.author.id === $i?.id ? [{ icon: 'ti ti-pencil', text: '编辑攻略', handler: () => router.pushByPath(`/lojo/guides/${props.guideId}/edit`) }] : []),
+	...(guide.value?.author.id === $i?.id ? [{ icon: 'ti ti-pencil', text: '编辑攻略', handler: () => router.pushByPath(`/guides/${props.guideId}/edit`) }] : []),
 	...($i?.isAdmin || $i?.isModerator ? [{ icon: 'ti ti-star', text: guide.value?.featured ? '移出精选' : '加入精选', highlighted: !!guide.value?.featured, handler: feature }] : []),
 ]);
 const toolbarStyle = computed<CSSProperties>(() => {
@@ -251,7 +251,7 @@ async function copyText(text: string) {
 
 function copySelection() { if (selection.value) { void copyText(selection.value.anchor.exact); clearSelection(); } }
 
-function copyLink() { void copyText(`${window.location.origin}/lojo/guides/${props.guideId}`); }
+function copyLink() { void copyText(`${window.location.origin}/guides/${props.guideId}`); }
 
 function goToHeading(id: string) {
 	const node = pageRoot.value?.querySelector(`[data-guide-block="${CSS.escape(id)}"]`);
@@ -267,7 +267,7 @@ watch(() => props.guideId, () => { dialogDispose?.(); dialogDispose = undefined;
 onActivated(() => { if (guide.value) void refreshGuide(); });
 onDeactivated(() => { dialogDispose?.(); dialogDispose = undefined; pendingAnchor.value = null; activeThreadId.value = undefined; clearSelection(); });
 onBeforeUnmount(() => { generation++; dialogDispose?.(); clearSelection(); });
-definePage(() => ({ title: guide.value?.title ?? '攻略', icon: 'ti ti-book', path: `/lojo/guides/${props.guideId}` }));
+definePage(() => ({ title: guide.value?.title ?? '攻略', icon: 'ti ti-book', path: `/guides/${props.guideId}` }));
 </script>
 
 <style lang="scss" module>

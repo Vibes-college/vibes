@@ -57,7 +57,7 @@ const front = useTemplateRef('front');
 const opening = ref(false);
 const coverFailed = ref(false);
 const title = computed(() => props.guide.title || guideLabels.untitled);
-const destination = computed(() => `/lojo/guides/${props.guide.id}${props.guide.status === 'draft' ? '/edit' : ''}`);
+const destination = computed(() => `/guides/${props.guide.id}${props.guide.status === 'draft' ? '/edit' : ''}`);
 const cover = computed(() => coverFailed.value ? undefined : guideSafeUrl(props.guide.coverUrl) ?? guideSafeUrl(props.guide.blocks.find(block => block.type === 'image')?.url));
 const media = computed(() => props.guide.blocks.find(block => ['video', 'audio'].includes(block.type) && guideSafeUrl(block.url)));
 const cardStyle = computed(() => ({ '--c': props.look.c, '--ink': props.look.ink, '--ribbon': props.look.ribbon, '--i': Math.min(props.index, 12) }));
