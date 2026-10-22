@@ -15,6 +15,11 @@ export const DI = {
 	viewId: Symbol() as InjectionKey<string>,
 	currentStickyTop: Symbol() as InjectionKey<Ref<number>>,
 	currentStickyBottom: Symbol() as InjectionKey<Ref<number>>,
+	mobileTimelineChrome: Symbol() as InjectionKey<{
+		enabled: ComputedRef<boolean>;
+		blocked: ComputedRef<boolean>;
+		hidden: Ref<boolean>;
+	}>,
 	mfmEmojiReactCallback: Symbol() as InjectionKey<(emoji: string) => void>,
 	inModal: Symbol() as InjectionKey<boolean>,
 	inAppSearchMarkerId: Symbol() as InjectionKey<Ref<string | null>>,

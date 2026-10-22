@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { createApp, defineAsyncComponent, markRaw } from 'vue';
+import { createApp, defineAsyncComponent, markRaw, watch } from 'vue';
 import { ui } from '@@/js/config.js';
 import * as Misskey from 'misskey-js';
 import { compareVersions } from 'compare-versions';
@@ -12,7 +12,7 @@ import type { Component } from 'vue';
 import type { Keymap } from '@/utility/hotkey.js';
 import { i18n } from '@/i18n.js';
 import { alert, confirm, popup, post } from '@/os.js';
-import { useStream } from '@/stream.js';
+import { useStream, useStreamConnectionStatus } from '@/stream.js';
 import * as sound from '@/utility/sound.js';
 import { $i } from '@/i.js';
 import { instance } from '@/instance.js';
@@ -294,24 +294,27 @@ export async function mainBoot() {
 		if (store.s.realtimeMode) {
 			const stream = useStream();
 
-			let reloadDialogShowing = false;
-			stream.on('_disconnected_', async () => {
+			stream.on('_disconnected_', () => {
 				if (prefer.s.serverDisconnectedBehavior === 'reload') {
 					window.location.reload();
-				} else if (prefer.s.serverDisconnectedBehavior === 'dialog') {
-					if (reloadDialogShowing) return;
-					reloadDialogShowing = true;
-					const { canceled } = await confirm({
-						type: 'warning',
-						title: i18n.ts.disconnectedFromServer,
-						text: i18n.ts.reloadConfirm,
-					});
-					reloadDialogShowing = false;
-					if (!canceled) {
-						window.location.reload();
-					}
 				}
 			});
+
+			watch(useStreamConnectionStatus().isDisconnected, (isDisconnected, _previous, onCleanup) => {
+				if (!isDisconnected || prefer.s.serverDisconnectedBehavior !== 'dialog') return;
+				const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkDialog.vue')), {
+					type: 'warning',
+					title: i18n.ts.disconnectedFromServer,
+					text: i18n.ts.reloadConfirm,
+					showCancelButton: true,
+				}, {
+					done: ({ canceled }) => {
+						if (!canceled && stream.state !== 'connected') window.location.reload();
+					},
+					closed: () => dispose(),
+				});
+				onCleanup(dispose);
+			}, { immediate: true });
 
 			stream.on('emojiAdded', emojiData => {
 				addCustomEmoji(emojiData.emoji);

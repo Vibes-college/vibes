@@ -45,6 +45,7 @@ import { FeedService } from './FeedService.js';
 import { UrlPreviewService } from './UrlPreviewService.js';
 import { ClientLoggerService } from './ClientLoggerService.js';
 import { HtmlTemplateService } from './HtmlTemplateService.js';
+import { createLojoPlaceSearch, LojoPlaceSearchError } from './LojoPlaceSearch.js';
 
 import { BasePage } from './views/base.js';
 import { UserPage } from './views/user.js';
@@ -256,6 +257,65 @@ export class ClientServerService {
 		//#region static assets
 
 		fastify.register(fastifyStatic, {
+			root: resolve(this.staticAssets, 'lojo'),
+			prefix: '/lojo-assets/',
+			maxAge: 0,
+			decorateReply: false,
+		});
+
+		// LOJO rent map: AMap JS API. The public JS key is handed to the page; the security code
+		// stays on the server and is added by this fixed-upstream proxy (AMap's serviceHost mode).
+		const amapKey = process.env.LOJO_AMAP_KEY ?? '';
+		const amapJsCode = process.env.LOJO_AMAP_JSCODE ?? '';
+		const sameSite = (request: { headers: Record<string, string | string[] | undefined> }) =>
+			request.headers['sec-fetch-site'] !== 'cross-site' && (!request.headers.origin || request.headers.origin === `${request.headers['x-forwarded-proto'] ?? 'http'}://${request.headers.host}` || request.headers.origin === configUrl.origin);
+		fastify.get('/lojo-amap/config', async (request, reply) => {
+			reply.header('Cache-Control', 'no-store');
+			return { key: amapKey, configured: Boolean(amapKey && amapJsCode), serviceHost: '/_AMapService' };
+		});
+		fastify.get<{ Params: { '*': string } }>('/_AMapService/*', async (request, reply) => {
+			reply.header('Cache-Control', 'no-store');
+			reply.header('X-Content-Type-Options', 'nosniff');
+			const suffix = '/' + request.params['*'];
+			if (!sameSite(request)) { reply.code(403); return { error: 'FORBIDDEN' }; }
+			if (!/^\/v[345]\/[a-zA-Z0-9/_-]+$/.test(suffix)) { reply.code(400); return { error: 'INVALID_PATH' }; }
+			if (!amapKey || !amapJsCode) { reply.code(503); return { error: 'AMAP_NOT_CONFIGURED' }; }
+			const query = new URLSearchParams(request.url.split('?')[1] ?? '');
+			const callback = query.get('callback');
+			if (callback && !/^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$/.test(callback)) { reply.code(400); return { error: 'INVALID_CALLBACK' }; }
+			const upstream = new URL(suffix, suffix.startsWith('/v4/map/styles') ? 'https://webapi.amap.com' : 'https://restapi.amap.com');
+			query.forEach((v, k) => upstream.searchParams.set(k, v));
+			upstream.searchParams.set('key', amapKey);
+			upstream.searchParams.set('jscode', amapJsCode);
+			try {
+				const res = await fetch(upstream, { headers: { Referer: `http://${request.headers.host}/` }, signal: AbortSignal.timeout(15000), redirect: 'error' });
+				reply.code(res.status);
+				reply.header('Content-Type', callback ? 'application/javascript; charset=utf-8' : (res.headers.get('content-type') ?? 'application/json'));
+				return reply.send(Buffer.from(await res.arrayBuffer()));
+			} catch {
+				reply.code(502);
+				return { error: 'AMAP_UNAVAILABLE' };
+			}
+		});
+
+		const searchLojoPlaces = createLojoPlaceSearch();
+		fastify.get<{ Querystring: { q?: string } }>('/lojo-places', async (request, reply) => {
+			reply.header('Cache-Control', 'no-store');
+			reply.header('X-Content-Type-Options', 'nosniff');
+			try {
+				if (request.headers['sec-fetch-site'] === 'cross-site') throw new LojoPlaceSearchError('无法从此页面进行搜索', 403, 'CROSS_ORIGIN');
+				if (request.headers.origin && request.headers.origin !== configUrl.origin) throw new LojoPlaceSearchError('无法从此页面进行搜索', 403, 'CROSS_ORIGIN');
+				if (Object.keys(request.query).some(key => key !== 'q')) throw new LojoPlaceSearchError('请输入地点名称', 400, 'INVALID_QUERY');
+				return await searchLojoPlaces(request.query.q);
+			} catch (error) {
+				const known = error instanceof LojoPlaceSearchError;
+				if (known && error.retryAfter) reply.header('Retry-After', String(error.retryAfter));
+				reply.code(known ? error.status : 502);
+				return { error: known ? error.message : '地点搜索暂时不可用，请稍后重试', code: known ? error.code : 'SEARCH_UNAVAILABLE' };
+			}
+		});
+
+		fastify.register(fastifyStatic, {
 			root: this.staticAssets,
 			prefix: '/static-assets/',
 			maxAge: ms('7 days'),
@@ -289,10 +349,12 @@ export class ClientServerService {
 		});
 
 		fastify.get('/favicon.ico', async (request, reply) => {
+			if (this.meta.iconUrl) return reply.redirect(this.meta.iconUrl);
 			return reply.sendFile('/favicon.ico', this.staticAssets);
 		});
 
 		fastify.get('/apple-touch-icon.png', async (request, reply) => {
+			if (this.meta.app192IconUrl) return reply.redirect(this.meta.app192IconUrl);
 			return reply.sendFile('/apple-touch-icon.png', this.staticAssets);
 		});
 

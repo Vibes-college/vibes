@@ -6,6 +6,8 @@
 import { Module } from '@nestjs/common';
 
 import { CoreModule } from '@/core/CoreModule.js';
+import { LojoGuideService } from '@/core/LojoGuideService.js';
+import { LojoService } from '@/core/LojoService.js';
 import * as endpointsObject from './endpoint-list.js';
 import { GetterService } from './GetterService.js';
 import { ApiLoggerService } from './ApiLoggerService.js';
@@ -19,6 +21,8 @@ const endpointProviders = endpoints.map(([path, endpoint]): Provider => ({ provi
 		CoreModule,
 	],
 	providers: [
+		LojoService,
+		LojoGuideService,
 		GetterService,
 		ApiLoggerService,
 		...endpointProviders,

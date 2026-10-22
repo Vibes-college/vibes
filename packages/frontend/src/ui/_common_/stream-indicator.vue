@@ -4,18 +4,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="hasDisconnected && prefer.s.serverDisconnectedBehavior === 'quiet'" :class="$style.root" class="_panel _shadow" @click="resetDisconnected">
-	<div><i class="ti ti-alert-triangle"></i> {{ i18n.ts.disconnectedFromServer }}</div>
+<div v-if="isDisconnected && prefer.s.serverDisconnectedBehavior === 'quiet'" :class="$style.root" class="_panel _shadow">
+	<div role="status"><i class="ti ti-alert-triangle" aria-hidden="true"></i> {{ i18n.ts.disconnectedFromServer }}</div>
 	<div :class="$style.command" class="_buttons">
 		<MkButton small primary @click="reload">{{ i18n.ts.reload }}</MkButton>
-		<MkButton small>{{ i18n.ts.doNothing }}</MkButton>
+		<MkButton small @click="resetDisconnected">{{ i18n.ts.doNothing }}</MkButton>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onUnmounted, ref } from 'vue';
-import { useStream } from '@/stream.js';
+import { ref } from 'vue';
+import { useStreamConnectionStatus } from '@/stream.js';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
@@ -24,27 +24,17 @@ import { store } from '@/store.js';
 
 const zIndex = os.claimZIndex('high');
 
-const hasDisconnected = ref(false);
-
-function onDisconnected() {
-	hasDisconnected.value = true;
-}
+const connectionStatus = store.s.realtimeMode ? useStreamConnectionStatus() : null;
+const isDisconnected = connectionStatus?.isDisconnected ?? ref(false);
 
 function resetDisconnected() {
-	hasDisconnected.value = false;
+	connectionStatus?.dismiss();
 }
 
 function reload() {
 	window.location.reload();
 }
 
-if (store.s.realtimeMode) {
-	useStream().on('_disconnected_', onDisconnected);
-
-	onUnmounted(() => {
-		useStream().off('_disconnected_', onDisconnected);
-	});
-}
 </script>
 
 <style lang="scss" module>

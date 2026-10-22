@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="show" ref="el" :class="[$style.root]">
+<div v-if="show" ref="el" :class="[$style.root, { [$style.tabsStart]: tabsAlign === 'start' }]">
 	<div :class="[$style.upper, { [$style.slim]: narrow, [$style.thin]: thin_ }]">
 		<div v-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
 			<MkAvatar :class="$style.avatar" :user="$i"/>
@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 		<div v-if="(!thin_ && narrow && !hideTitle) || (actions && actions.length > 0)" :class="$style.buttons">
 			<template v-for="action in actions">
-				<button v-tooltip.noDelay="action.text" class="_button" :class="[$style.button, { [$style.highlighted]: action.highlighted }]" @click.stop="action.handler" @touchstart="preventDrag"><i :class="action.icon"></i></button>
+				<button v-tooltip.noDelay="action.text" class="_button" :class="[$style.button, { [$style.highlighted]: action.highlighted }]" :aria-label="action.text" @click.stop="action.handler" @touchstart="preventDrag"><i :class="action.icon"></i></button>
 			</template>
 		</div>
 	</div>
@@ -52,6 +52,7 @@ export type PageHeaderProps = {
 	actions?: PageHeaderItem[] | null;
 	thin?: boolean;
 	hideTitle?: boolean;
+	tabsAlign?: 'start' | 'center';
 	canOmitTitle?: boolean;
 	displayMyAvatar?: boolean;
 };
@@ -113,20 +114,28 @@ function onTabClick(): void {
 }
 
 let ro: ResizeObserver | null;
+let resizeFrame: number | undefined;
 
 onMounted(() => {
 	if (el.value && el.value.parentElement) {
 		narrow.value = el.value.parentElement.offsetWidth < 500;
-		ro = new ResizeObserver((entries, observer) => {
-			if (el.value && el.value.parentElement && window.document.body.contains(el.value as HTMLElement)) {
-				narrow.value = el.value.parentElement.offsetWidth < 500;
-			}
+		ro = new ResizeObserver(() => {
+			if (resizeFrame != null) return;
+			// Moving tabs between rows changes the observed parent's height. Update
+			// outside resize delivery so ancestor observers receive that change next frame.
+			resizeFrame = window.requestAnimationFrame(() => {
+				resizeFrame = undefined;
+				if (el.value?.parentElement && window.document.body.contains(el.value)) {
+					narrow.value = el.value.parentElement.offsetWidth < 500;
+				}
+			});
 		});
 		ro.observe(el.value.parentElement as HTMLElement);
 	}
 });
 
 onUnmounted(() => {
+	if (resizeFrame != null) window.cancelAnimationFrame(resizeFrame);
 	if (ro) ro.disconnect();
 });
 </script>
@@ -190,6 +199,12 @@ onUnmounted(() => {
 			max-width: 100%;
 		}
 	}
+}
+
+.tabsStart .upper {
+	gap: 4px;
+	.tabs { margin-left: 0; padding: 0 4px; text-align: left; }
+	.buttons { margin-left: auto; margin-right: 4px; }
 }
 
 .lower {

@@ -1,0 +1,341 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+/* The map canvas and collectible artwork keep their own visual language.
+ * Application surfaces inherit the same live theme as the Misskey shell.
+ * Also loaded inside the native dialog host, where .lojo-native is the dialog.
+ */
+:host,
+.lojo-native {
+	--paper: var(--MI_THEME-bg);
+	--card: var(--MI_THEME-panel);
+	--ink: var(--MI_THEME-fg);
+	--green: var(--MI_THEME-accent);
+	--muted: color-mix(in srgb, var(--MI_THEME-fg) 68%, transparent);
+	--line: var(--MI_THEME-divider);
+	--sage: var(--MI_THEME-accentedBg);
+	--radius: var(--MI-radius);
+	--shadow: 0 4px 16px var(--MI_THEME-shadow);
+	font-family: inherit !important;
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-bg);
+}
+
+/* Native navigation owns the page edges. Keep these nodes for route wiring. */
+.lojo-native :is(.rail, .topbar, .map-switch, .housing-switch) { display: none !important; }
+.lojo-native #app { min-height: 100%; }
+.lojo-native #main { margin: 0; padding: 0; min-height: 100%; }
+.lojo-native #page-view { min-height: 100%; background: var(--MI_THEME-bg); }
+.lojo-native :is(#map-root, #map-ui, .housing-screen, .planner-workspace) { inset: 0; }
+.lojo-native :is(#map-root, .housing-screen, .planner-map-wrap) { background: var(--MI_THEME-bg); }
+.lojo-native .content-page { max-width: 1120px; padding: 24px; }
+.lojo-native .event-create-footer { bottom: 0; background: var(--MI_THEME-bg); }
+.lojo-native .event-cover-upload:has([data-lojo-native="file"]) { height: auto; min-height: 0; padding: 0; border: 0; background: transparent; align-items: flex-start; border-radius: 0; cursor: default; }
+.lojo-native .event-cover-upload:has([data-lojo-native="file"]) > :is(.lojo-icon, span:not([data-lojo-native])) { display: none; }
+.lojo-native .event-cover-upload:has([data-lojo-native="file"]) > img:not(.icon) { height: 180px; width: 100%; object-fit: cover; border-radius: var(--MI-radius); }
+.lojo-native :is(h1, h2, h3) { letter-spacing: normal; }
+.lojo-native :is(.page-heading h1, .planner-new h1, .capture-heading h1) { font-size: 1.5em; }
+.lojo-native :is(.panel-intro h1, .detail-body h1) { font-size: 1.4em; }
+.lojo-native :is(.section-heading h2, .planner-new h2) { font-size: 1.15em; }
+.lojo-native :is(button, input, select, textarea) { font-family: inherit; }
+.lojo-native [hidden], .lojo-native [data-lojo-backing] { display: none !important; }
+.lojo-native :is(button, a, input, select, textarea):not([data-lojo-native], [data-lojo-native] *):focus-visible {
+	outline: 2px solid var(--MI_THEME-focus) !important;
+	outline-offset: 2px;
+}
+.lojo-native :is(button, a):disabled { cursor: default; }
+
+/* Ordinary controls follow MkButton / MkInput sizing and colors. */
+.lojo-native :is(.button, .pill, .frame-option, .panel-close, .housing-expand, .housing-inline-compare),
+.lojo-native :is(.housing-building-actions, .housing-check-options, .housing-area-choices, .dialog-tags) > :is(button, a, label),
+.lojo-native .housing-contact-bar > :is(button, a) {
+	border-color: transparent;
+	border-radius: 6px;
+	background: var(--MI_THEME-buttonBg);
+	color: var(--MI_THEME-fg);
+	box-shadow: none;
+	font-weight: 500;
+}
+.lojo-native .button { min-height: 36px; padding: 8px 16px; transition: background .15s; }
+.lojo-native .button:hover,
+.lojo-native :is(.pill, .frame-option, .panel-close, .icon-button, .housing-close, .housing-back, .housing-expand):hover,
+.lojo-native :is(.housing-building-actions, .housing-area-choices) > :is(button, a):hover {
+	background: var(--MI_THEME-buttonHoverBg);
+	transform: none;
+}
+.lojo-native :is(.button.dark, .map-record-fab, .housing-add),
+.lojo-native .housing-contact-bar > :last-child,
+.lojo-native #housing-compare-dock > a {
+	background: var(--MI_THEME-cta);
+	border-color: transparent;
+	color: var(--MI_THEME-fgOnAccent);
+	font-weight: 700;
+}
+.lojo-native :is(.button.dark, .map-record-fab, .housing-add):hover,
+.lojo-native .housing-contact-bar > :last-child:hover {
+	background: color-mix(in srgb, var(--MI_THEME-cta) 90%, var(--MI_THEME-fgOnAccent));
+	filter: none;
+}
+.lojo-native :is(.button, .icon-button) { text-decoration: none; }
+.lojo-native :is(.text-link, .back-link, .housing-text-button, .housing-community-actions > a, .housing-discussion > a) { color: var(--MI_THEME-accent); }
+.lojo-native :is(.selected, .pill.active, .frame-option.active, .match-option.active, .housing-save.active, .housing-area-choices > button.active),
+.lojo-native :is(.housing-building-actions, .dialog-tags) > .active {
+	background: var(--MI_THEME-accentedBg) !important;
+	color: var(--MI_THEME-accent) !important;
+	border-color: var(--MI_THEME-accent);
+}
+.lojo-native :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea):not([data-lojo-native], [data-lojo-native] *) {
+	color: var(--MI_THEME-fg) !important;
+	background-color: var(--MI_THEME-panel) !important;
+	border-color: var(--MI_THEME-inputBorder) !important;
+	border-radius: 6px;
+	box-shadow: none;
+	font-size: 1em;
+}
+.lojo-native :is(input, select, textarea):not([data-lojo-native], [data-lojo-native] *):hover { border-color: var(--MI_THEME-inputBorderHover) !important; }
+.lojo-native :is(input, select, textarea):not([data-lojo-native], [data-lojo-native] *):focus { border-color: var(--MI_THEME-accent) !important; }
+.lojo-native :is(input, textarea):not([data-lojo-native], [data-lojo-native] *)::placeholder { color: var(--muted); opacity: 1; }
+.lojo-native :is(input[type=checkbox], input[type=radio]):not([data-lojo-native], [data-lojo-native] *) { accent-color: var(--MI_THEME-accent); }
+.lojo-native .search-wrap { background: var(--MI_THEME-panelHighlight); border-color: var(--MI_THEME-divider); border-radius: 6px; }
+.lojo-native .search-wrap input { background: transparent !important; }
+.lojo-native select:not([data-lojo-native], [data-lojo-native] *) { background-image: none !important; appearance: auto; }
+.lojo-native :is(.event-form-error, .planner-error, .modal-error, .planner-danger) { color: var(--MI_THEME-error) !important; }
+
+/* Map overlays are compact application panels, without a second app header. */
+.lojo-native :is(.map-list-launcher, .map-tools, .map-legend, .event-date-trigger, .trip-toolbar, .housing-list-launcher, .housing-toolbar > button, .housing-toolbar > label, .housing-toolbar > select, .housing-chip),
+.lojo-native #housing-map-actions > :is(button, div, .button) {
+	color: var(--MI_THEME-fg);
+	background-color: var(--MI_THEME-panel);
+	border: 1px solid var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
+	box-shadow: var(--shadow);
+}
+.lojo-native .map-list-launcher { left: 16px; bottom: 24px; min-height: 48px; min-width: 0; padding: 12px 16px; gap: 10px; }
+.lojo-native .map-list-launcher strong { font-size: 1em; font-weight: 600; color: inherit; }
+.lojo-native .map-record-fab { right: 16px; bottom: 24px; width: 52px; height: 52px; padding: 0; border-radius: 50%; box-shadow: var(--shadow); }
+.lojo-native .map-record-fab > span:not(.icon) { display: none; }
+.lojo-native .map-record-fab:hover { transform: none; }
+.lojo-native #map-ui:has(.detail-panel[data-open=true], .event-detail[data-open=true], .trip-detail[data-open=true]) .map-record-fab { visibility: hidden; pointer-events: none; }
+.lojo-native .map-tools { right: 16px; top: 16px; bottom: auto; }
+.lojo-native .map-legend { right: 84px; bottom: 34px; }
+.lojo-native .event-filterbar { left: 16px; top: 16px; }
+.lojo-native .event-date-trigger { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+.lojo-native .event-date-trigger:hover { background: var(--MI_THEME-buttonHoverBg); }
+.lojo-native .trip-toolbar { left: 16px; top: 16px; max-width: calc(100% - 84px); padding: 4px; }
+.lojo-native .trip-map-key { left: 16px; top: 66px; background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); }
+.lojo-native .housing-map-top { top: 16px; left: 16px; right: 64px; }
+.lojo-native .housing-screen .maplibregl-ctrl-top-right { top: 150px; right: 14px; }
+.lojo-native #housing-bottom { left: 16px; right: 16px; bottom: 24px; }
+.lojo-native .housing-add { height: 52px; width: 52px; min-width: 52px; padding: 0; border-radius: 50%; box-shadow: var(--shadow); }
+.lojo-native .housing-add > span:not(.icon) { display: none; }
+.lojo-native .housing-list-launcher { min-height: 48px; }
+.lojo-native :is(.housing-toolbar .active, .housing-chip.active, .trip-toolbar button.active, .event-time-tabs button.active, .event-source-tabs .active, .date-presets .active) {
+	color: var(--MI_THEME-accent);
+	background: var(--MI_THEME-accentedBg);
+	border-color: var(--MI_THEME-accent);
+}
+.lojo-native :is(.trip-toolbar button, .event-source-tabs button, .event-category-tabs button, .housing-toolbar > button, .housing-toolbar > label) { color: var(--MI_THEME-fg); }
+.lojo-native :is(.event-category-tabs, .event-time-tabs) { background: var(--MI_THEME-panel); border-color: var(--MI_THEME-divider); }
+.lojo-native .event-panel .event-category-tabs button { background: var(--MI_THEME-buttonBg); border-radius: 6px; }
+.lojo-native .event-panel .event-category-tabs button.active,
+.lojo-native #housing-map-actions .active { color: var(--MI_THEME-fgOnAccent); background: var(--MI_THEME-accent); }
+
+/* Common panels, detail surfaces and reading pages. Artwork is not reset. */
+.lojo-native :is(.explore-panel, .housing-panel, .guide-card, .guide-summary, .city-card, .saved-grid, .my-event-list, .my-housing, .planner-saved-card, .planner-template, .event-form-section, .my-trip-grid > article) {
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
+	border-color: var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
+	box-shadow: none;
+}
+.lojo-native :is(.explore-panel, .housing-panel) { box-shadow: var(--shadow); }
+.lojo-native .explore-panel { top: 16px; left: 16px; bottom: 90px; }
+.lojo-native :is(.event-panel, .event-detail, .trip-panel, .trip-detail) { top: 64px; }
+.lojo-native :is(.detail-panel, .event-detail, .trip-detail) { bottom: 16px; }
+.lojo-native .housing-panel { left: 16px; top: 68px; bottom: 90px; max-height: calc(100% - 90px); }
+.lojo-native :is(.panel-handle-row, .housing-panel-head, .housing-panel-actions, .panel-actions, .trip-detail-actions, .event-rsvp-bar, .housing-contact-bar, .housing-detail > .housing-tabs) {
+	background: var(--MI_THEME-panel);
+	border-color: var(--MI_THEME-divider);
+	box-shadow: none;
+}
+.lojo-native :is(.panel-close, .housing-close, .housing-back) { color: var(--MI_THEME-fg); }
+.lojo-native .sheet-grip span { background: var(--MI_THEME-divider); }
+.lojo-native :is(.place-row, .event-row, .trip-row, .housing-building-row, .housing-discussion, .observation, .itinerary, .housing-contact-facts, .housing-contact-facts > div, .housing-record-section, .housing-tabs, .planner-result, .planner-main-tabs, .planner-budget, .planner-preview section, .trip-stop) { border-color: var(--MI_THEME-divider); }
+.lojo-native :is(.trip-row, .planner-template, .housing-area-card):hover { background: var(--MI_THEME-panelHighlight); box-shadow: none; transform: none; }
+.lojo-native :is(.text-tab.active, .housing-tabs > button.active, .planner-main-tabs > button.active, .trip-section-tabs > button.active) { color: var(--MI_THEME-accent); border-color: var(--MI_THEME-accent); }
+.lojo-native :is(.text-tab.active::after, .trip-section-tabs > button.active::after) { background: var(--MI_THEME-accent); }
+
+/* Remove residual green text from the old prototype without flattening artwork. */
+.lojo-native :is(.explore-panel, .housing-panel, .planner-workspace, .content-page, .lojo-dialog-content) :is(h1, h2, h3, p, small, label, dt, dd, time, li, summary),
+dialog.lojo-native :is(h2, h3, p, small, label, dt, dd, time, li, summary) {
+	color: inherit;
+}
+.lojo-native :is(.body-copy, .info-line, .fine-print, .eyebrow, .detail-tag, .place-main p, .place-meta, .list-meta, .person small, .section-heading p, .event-pin-meta, .event-row-meta, .event-seats, .event-host, .event-public-status, .event-source-note, .event-row .event-price, .trip-row-meta, .trip-duration, .trip-stop-meta, .trip-stop-description, .trip-detail-meta, .planner-stop-meta, .planner-stop-note, .planner-title > div > span, .planner-day-heading > div > span, .planner-attribution, .planner-coordinates, .housing-reference-date, .housing-reference-source, .housing-reference-meta, .housing-listing-state, .housing-history-summary, .housing-history-notice, .housing-contact-meta, .housing-field-note, .housing-contact-footer, .housing-discussion-meta, .housing-archive-summary, .housing-building-source > summary, .housing-other-listings > summary) {
+	color: var(--muted) !important;
+}
+.lojo-native :is(.place-name, .detail-metrics strong, .place-meta strong, .housing-cost, .housing-total > strong, .housing-facts dd, .housing-panel-head h2, .housing-contact-meta h3, .housing-contact-context h3, .planner-day-heading h2, .trip-title, .event-pin-main strong, .discovery-progress strong) { color: var(--MI_THEME-fgHighlighted); }
+.lojo-native :is(.housing-tabs > button, .trip-section-tabs > button, .planner-main-tabs > button, .text-tab) { color: var(--MI_THEME-fg); }
+.lojo-native :is(.housing-experience-grid ul, .housing-record-section ul, .housing-contact-card details, .housing-contact-card details ul, .trip-row strong) { color: var(--MI_THEME-fg); }
+.lojo-native :is(.detail-metrics > span:not(.rating), .event-row-copy > span:not(.event-seats), .event-source-mark, .event-pin-price, .trip-pin-meta, .trip-row > div > span, .trip-row small, .event-list-options, .trip-panel-intro > span) { color: var(--muted); }
+.lojo-native :is(.housing-letter, .housing-source-link, .luma-status) { color: var(--MI_THEME-accent) !important; }
+.lojo-native .luma-status.unavailable { color: var(--MI_THEME-infoWarnFg) !important; }
+.lojo-native .event-kind-tabs button { color: var(--MI_THEME-fg); }
+.lojo-native .event-kind-tabs button.active { color: var(--MI_THEME-accent); border-color: var(--MI_THEME-accent); }
+.lojo-native .avatar { background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); }
+.lojo-native :is(.green, .purple, .blue, .orange) { --event-tint: var(--MI_THEME-panelHighlight); --event-wash: var(--MI_THEME-panelHighlight); --event-ink: var(--MI_THEME-fg); }
+.lojo-native .event-avatar { background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); border-color: var(--MI_THEME-panel); }
+.lojo-native :is(.demo-label, .subtle-pill, .tag, .mood-tag, .housing-badge, .housing-tags > span, .housing-tag, .housing-contact-commitments > span, .trip-stop-number, .planner-main-tabs span, .planner-preview article > b) {
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-buttonBg);
+	border-color: var(--MI_THEME-divider);
+	border-radius: 6px;
+}
+.lojo-native :is(.dish-card, .related-guide, .reply-item, .loading-photo, .alias-box, .little-goals, .event-attendees, .event-confirm-facts, .post-event-link, .invite-parent-link, .event-guide-link, .trip-guide-link, .trip-post-link, .trip-dish, .trip-list-empty-note, .planner-undo, .planner-result-icon, .housing-note-card, .housing-source-notice, .housing-history-note, .housing-contact-card, .housing-costs, .housing-experience-grid > *, .housing-my-saved > a) {
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panelHighlight);
+	border-color: var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
+}
+.lojo-native :is(.housing-listing-card, .housing-area-card, .housing-saved-card, .housing-checklist > label, .housing-compare-scroll, .planner-stop, .trip-parent, .trip-guide-columns aside) {
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
+	border-color: var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
+	box-shadow: none;
+}
+.lojo-native .housing-detail .housing-listing-card { background: var(--MI_THEME-panelHighlight); border-color: var(--MI_THEME-divider); }
+.lojo-native :is(.housing-letter, .housing-building-thumb, .housing-contact-avatar, .housing-floorplan, .housing-listing-card > .housing-floorplan, .housing-detail .housing-listing-card > .housing-floorplan, .housing-room-art, .planner-saved-cover) {
+	color: var(--MI_THEME-accent);
+	background: var(--MI_THEME-accentedBg);
+	border-color: var(--MI_THEME-divider);
+}
+.lojo-native :is(.housing-floorplan > span, .housing-room-art > span, .planner-saved-cover > span, .panel-cover > span, .cover-label, .circle) { background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); }
+.lojo-native :is(.housing-compare-table th, .housing-compare-table td) { color: var(--MI_THEME-fg); border-color: var(--MI_THEME-divider); }
+.lojo-native :is(.housing-compare-table th, .housing-compare-table th:first-child, .housing-compare-table td:first-child, .housing-compare-table thead th) { background: var(--MI_THEME-panelHighlight); }
+.lojo-native :is(.housing-fee-promise, .success-pill) { color: var(--MI_THEME-accent); background: var(--MI_THEME-accentedBg); border-color: var(--MI_THEME-divider); }
+.lojo-native :is(.housing-warning, .housing-contact-status, .trip-warning, .trip-draft-note, .map-error, .housing-sample) { color: var(--MI_THEME-infoWarnFg); background: var(--MI_THEME-infoWarnBg); border-color: var(--MI_THEME-divider); }
+.lojo-native .rating.good { background: var(--MI_THEME-accentedBg); color: var(--MI_THEME-accent); }
+.lojo-native .rating.okay { background: var(--MI_THEME-infoWarnBg); color: var(--MI_THEME-infoWarnFg); }
+.lojo-native .rating.bad { background: color-mix(in srgb, var(--MI_THEME-error) 15%, var(--MI_THEME-panel)); color: var(--MI_THEME-error); }
+
+/* Map objects retain recognizable photos and game cards. Their labels adapt. */
+.lojo-native .photo-marker .marker-name,
+.lojo-native .photo-marker.pet-marker .marker-name,
+.lojo-native .photo-marker .price-tag {
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fg);
+}
+.lojo-native .photo-marker.is-selected .marker-name { background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); }
+.lojo-native .photo-marker.is-selected .marker-image { border-color: var(--MI_THEME-accent); }
+.lojo-native :is(.event-pin-card, .event-pin-stem, .event-group-count, .trip-map-card, .trip-map-card::after, .trip-stop-marker > strong, .trip-base-marker, .planner-pin > strong) { background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); border-color: var(--MI_THEME-panel); }
+.lojo-native :is(.event-marker.is-selected .event-pin-card, .event-marker:hover .event-pin-card, .trip-marker.is-selected .trip-map-card) { border-color: var(--MI_THEME-accent); }
+.lojo-native :is(.event-group-marker.is-selected .event-group-count, .event-group-marker:hover .event-group-count) { background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); }
+.lojo-native .event-pin-bottom { background: var(--MI_THEME-panelHighlight); border-color: var(--MI_THEME-divider); }
+.lojo-native :is(.event-pin-meta, .event-pin-bottom .event-seats, .trip-map-card p, .trip-map-card small) { color: var(--MI_THEME-fg); }
+.lojo-native .trip-base-marker i { background: var(--MI_THEME-accent); }
+.lojo-native :is(.housing-price-marker, .housing-area-marker) { background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); border-color: var(--MI_THEME-divider); border-radius: var(--MI-radius); box-shadow: var(--shadow); }
+.lojo-native :is(.housing-price-marker, .housing-area-marker) small { color: var(--muted); border-color: var(--MI_THEME-divider); }
+.lojo-native .housing-price-marker.is-selected { background: var(--MI_THEME-accent); color: var(--MI_THEME-fgOnAccent); border-color: var(--MI_THEME-accent); box-shadow: var(--shadow); }
+.lojo-native .housing-price-marker.is-selected small { color: var(--MI_THEME-fgOnAccent); }
+.lojo-native .animal-tile { background: var(--MI_THEME-panelHighlight); border-color: var(--MI_THEME-divider); border-radius: var(--MI-radius); color: var(--MI_THEME-fg); }
+.lojo-native :is(.animal-type, .animal-tile.known .animal-type) { background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); }
+.lojo-native .discovery-progress i { background: var(--MI_THEME-divider); }
+.lojo-native .discovery-progress i.found { background: var(--MI_THEME-accent); }
+/* Collectible frame colors are intentional artwork, including in dark mode. */
+.lojo-native .encounter-card.sage { --sage: #e6ecdf; }
+.lojo-native :is(.encounter-card, .discovery-card) { --ink: #263e34; --green: #315d46; --line: #e5e7dd; }
+
+/* Planner uses native surfaces; day colors remain route-identification data. */
+.lojo-native .planner-workspace { background: var(--MI_THEME-bg); }
+.lojo-native :is(#planner-header, .planner-sidebar, .planner-budget, #planner-pick-bar) { color: var(--MI_THEME-fg); background: var(--MI_THEME-panel); border-color: var(--MI_THEME-divider); }
+.lojo-native #planner-header { min-height: 72px; height: 72px; padding: 12px 16px 12px 8px; }
+.lojo-native .planner-title h1 { font-size: 1.25em; letter-spacing: normal; }
+.lojo-native .planner-day-tabs > button { color: var(--MI_THEME-fg); background: var(--MI_THEME-buttonBg); border-color: transparent; border-radius: 6px; }
+.lojo-native .planner-day-tabs > button.active { color: var(--MI_THEME-fgOnAccent); background: var(--MI_THEME-accent); }
+.lojo-native .planner-day-tabs > button.active small { color: inherit; }
+.lojo-native .planner-stop.is-selected { border-color: var(--MI_THEME-accent); box-shadow: 0 0 0 2px var(--MI_THEME-accentedBg); }
+.lojo-native .planner-order > button { color: var(--MI_THEME-fg); }
+.lojo-native .planner-order > button:hover { background: var(--MI_THEME-buttonHoverBg); }
+.lojo-native :is(.planner-map-toolbar .button, .planner-map-toolbar .icon-button, .planner-map-key, .planner-map-error) { color: var(--MI_THEME-fg); background: var(--MI_THEME-panel); border-color: var(--MI_THEME-divider); box-shadow: var(--shadow); }
+.lojo-native .planner-pin.is-selected { box-shadow: 0 0 0 4px var(--MI_THEME-panel), 0 4px 16px var(--MI_THEME-shadow); }
+
+/* Native modal wrapper supplies backdrop, title bar, close and focus trapping. */
+dialog.lojo-native,
+.lojo-native dialog:not(.discovery-overlay) {
+	color: var(--MI_THEME-fg);
+	background: var(--MI_THEME-panel);
+	border: 0;
+	border-radius: var(--MI-radius);
+	box-shadow: none;
+	font: inherit;
+}
+.lojo-native :is(.planner-dialog-head, .housing-dialog-head) { background: var(--MI_THEME-panel); border-color: var(--MI_THEME-divider); }
+.lojo-native :is(.planner-dialog-head, .housing-dialog-head) .dialog-close { color: var(--MI_THEME-fg); background: var(--MI_THEME-buttonBg); }
+
+/* External SVGs are replaced by the runtime's currentColor mask icons. */
+.lojo-icon,
+.lojo-native .icon.lojo-icon {
+	display: inline-block;
+	background: currentColor;
+	mask: var(--lojo-icon) center / contain no-repeat;
+	-webkit-mask: var(--lojo-icon) center / contain no-repeat;
+	filter: none !important;
+	vertical-align: middle;
+}
+.lojo-native .maplibregl-ctrl-group { background: var(--MI_THEME-panel); border-color: var(--MI_THEME-divider); border-radius: var(--MI-radius); box-shadow: var(--shadow); }
+.lojo-native .maplibregl-ctrl-group button { color: var(--MI_THEME-fg); }
+.lojo-native .maplibregl-ctrl-group button + button { border-color: var(--MI_THEME-divider); }
+.lojo-native .maplibregl-ctrl-group button:hover { background: var(--MI_THEME-buttonHoverBg); }
+.lojo-native .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+	background: currentColor !important;
+	mask: var(--lojo-map-control) center / 18px no-repeat;
+	-webkit-mask: var(--lojo-map-control) center / 18px no-repeat;
+}
+.lojo-native .maplibregl-ctrl-zoom-in { --lojo-map-control: url('/lojo-assets/icons/plus.svg'); }
+.lojo-native .maplibregl-ctrl-zoom-out { --lojo-map-control: url('/lojo-assets/icons/minus.svg'); }
+.lojo-native .maplibregl-ctrl-compass { --lojo-map-control: url('/lojo-assets/icons/current-location.svg'); }
+.lojo-native .maplibregl-ctrl-attrib { color: var(--MI_THEME-fg); background-color: var(--MI_THEME-panel); }
+.lojo-native .maplibregl-ctrl-attrib a { color: var(--MI_THEME-fg); }
+
+@media (max-width: 760px) {
+	.lojo-native { font-size: inherit; }
+	.lojo-native .content-page { padding: 20px 16px; }
+	.lojo-native :is(#map-root, #map-ui, .housing-screen, .planner-workspace) { inset: 0; }
+	.lojo-native #main { padding: 0; margin: 0; }
+	.lojo-native #page-view { min-height: 100%; }
+	.lojo-native :is(.map-list-launcher, .housing-list-launcher) { min-height: 44px; padding: 10px 12px; }
+	.lojo-native :is(.map-record-fab, .housing-add) { width: 48px; height: 48px; min-width: 48px; }
+	.lojo-native .map-list-launcher { left: 12px; bottom: 22px; max-width: calc(100% - 82px); }
+	.lojo-native .map-record-fab { right: 12px; bottom: 20px; }
+	.lojo-native .map-tools { top: 12px; right: 12px; }
+	.lojo-native .event-filterbar { top: 12px; left: 12px; }
+	.lojo-native .trip-toolbar { top: 12px; left: 12px; right: 58px; max-width: none; overflow-x: auto; scrollbar-width: none; }
+	.lojo-native .trip-map-key { top: 58px; left: 12px; }
+	.lojo-native .housing-map-top { top: 12px; left: 12px; right: 12px; }
+	.lojo-native .housing-toolbar { max-width: 100%; }
+	.lojo-native .housing-screen .maplibregl-ctrl-top-right { top: 190px; right: 2px; }
+	.lojo-native #housing-bottom { left: 12px; right: 12px; bottom: 22px; }
+	.lojo-native :is(.explore-panel, .explore-panel[data-snap], .housing-panel, .housing-panel.is-detail, .housing-panel.is-compare) {
+		top: auto;
+		left: 8px;
+		right: 8px;
+		bottom: 80px;
+		width: auto;
+		height: 62%;
+		min-height: 0;
+		max-height: calc(100% - 76px);
+		border-radius: var(--MI-radius);
+	}
+	.lojo-native :is(.explore-panel.detail-panel, .explore-panel.event-detail, .explore-panel.trip-detail, .housing-panel.is-detail) { bottom: 8px; height: 65%; }
+	.lojo-native .housing-panel.is-expanded { height: calc(100% - 76px); max-height: calc(100% - 76px); }
+	.lojo-native .event-detail { top: auto; }
+	.lojo-native .detail-body { padding: 16px; }
+	.lojo-native .planner-title h1 { max-width: 54vw; }
+	.lojo-native :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea):not([data-lojo-native], [data-lojo-native] *) { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lojo-native :is(.button, .map-record-fab, .map-list-launcher, .explore-panel, .planner-template) { transition: none; }
+}

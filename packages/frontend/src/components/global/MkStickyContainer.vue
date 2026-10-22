@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="rootEl">
-	<div ref="headerEl" :class="$style.header">
+	<div ref="headerEl" :class="[$style.header, { [$style.headerHidden]: hideHeader, [$style.noAnimation]: !prefer.s.animation }]" :inert="hideHeader" :aria-hidden="hideHeader || undefined" data-timeline-navigation>
 		<slot name="header"></slot>
 	</div>
 	<div
@@ -15,8 +15,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	>
 		<slot></slot>
 	</div>
-	<div ref="footerEl" :class="$style.footer">
+	<div ref="footerEl" :class="[$style.footer, { [$style.footerHidden]: hideFooter, [$style.noAnimation]: !prefer.s.animation }]" :inert="hideFooter" :aria-hidden="hideFooter || undefined" data-timeline-navigation>
 		<slot name="footer"></slot>
+	</div>
+	<div v-if="$slots.floating" :class="[$style.floating, { [$style.noAnimation]: !prefer.s.animation }]">
+		<slot name="floating"></slot>
 	</div>
 </div>
 </template>
@@ -24,6 +27,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { onMounted, onUnmounted, provide, inject, ref, watch, useTemplateRef } from 'vue';
 import { DI } from '@/di.js';
+import { prefer } from '@/preferences.js';
+
+const props = defineProps<{
+	hideHeader?: boolean;
+	hideFooter?: boolean;
+}>();
 
 const rootEl = useTemplateRef('rootEl');
 const headerEl = useTemplateRef('headerEl');
@@ -42,14 +51,16 @@ provide(DI.currentStickyBottom, childStickyBottom);
 const calc = () => {
 	// コンポーネントが表示されてないけどKeepAliveで残ってる場合などは null になる
 	if (headerEl.value != null) {
-		childStickyTop.value = parentStickyTop.value + headerEl.value.offsetHeight;
-		headerHeight.value = headerEl.value.offsetHeight.toString();
+		const height = props.hideHeader ? 0 : headerEl.value.offsetHeight;
+		childStickyTop.value = parentStickyTop.value + height;
+		headerHeight.value = height.toString();
 	}
 
 	// コンポーネントが表示されてないけどKeepAliveで残ってる場合などは null になる
 	if (footerEl.value != null) {
-		childStickyBottom.value = parentStickyBottom.value + footerEl.value.offsetHeight;
-		footerHeight.value = footerEl.value.offsetHeight.toString();
+		const height = props.hideFooter ? 0 : footerEl.value.offsetHeight;
+		childStickyBottom.value = parentStickyBottom.value + height;
+		footerHeight.value = height.toString();
 	}
 };
 
@@ -62,7 +73,7 @@ const observer = new ResizeObserver(() => {
 onMounted(() => {
 	calc();
 
-	watch([parentStickyTop, parentStickyBottom], calc);
+	watch([parentStickyTop, parentStickyBottom, () => props.hideHeader, () => props.hideFooter], calc);
 
 	if (headerEl.value != null) {
 		observer.observe(headerEl.value);
@@ -100,5 +111,42 @@ defineExpose({
 	position: sticky;
 	bottom: var(--MI-stickyBottom, 0);
 	z-index: 1;
+}
+
+.header, .footer {
+	transition: transform 200ms ease, visibility 0s;
+}
+
+.headerHidden, .footerHidden {
+	visibility: hidden;
+	pointer-events: none;
+	transition: transform 200ms ease, visibility 0s 200ms;
+}
+
+.headerHidden {
+	transform: translateY(-100%);
+}
+
+.footerHidden {
+	transform: translateY(100%);
+}
+
+.floating {
+	position: sticky;
+	bottom: calc(var(--MI-floatingBottom, var(--MI-stickyBottom, 0px)) + v-bind("(footerHeight ?? '0') + 'px'"));
+	height: 0;
+	z-index: 2;
+	pointer-events: none;
+	transition: bottom 200ms ease;
+}
+
+.noAnimation {
+	transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.header, .footer, .floating {
+		transition: none;
+	}
 }
 </style>

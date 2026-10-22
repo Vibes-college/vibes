@@ -27,6 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { useTemplateRef } from 'vue';
+import type * as Misskey from 'misskey-js';
 import type { PostFormProps } from '@/types/post-form.js';
 import MkModal from '@/components/MkModal.vue';
 import MkPostForm from '@/components/MkPostForm.vue';
@@ -41,12 +42,14 @@ const props = withDefaults(defineProps<PostFormProps & {
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
+	(ev: 'posted', note: Misskey.entities.Note): void;
 }>();
 
 const modal = useTemplateRef('modal');
 const form = useTemplateRef('form');
 
-function onPosted() {
+function onPosted(note: Misskey.entities.Note) {
+	emit('posted', note);
 	modal.value?.close({
 		useSendAnimation: true,
 	});

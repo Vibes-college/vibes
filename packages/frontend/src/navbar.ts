@@ -14,6 +14,7 @@ import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
+import { lojoLabels } from '@/lojo/labels.js';
 
 export const navbarItemDef = reactive<{
 	[key: string]: {
@@ -26,6 +27,16 @@ export const navbarItemDef = reactive<{
 		action?: (ev: PointerEvent) => void;
 	};
 }>({
+	lojo: {
+		title: lojoLabels.map,
+		icon: 'ti ti-map',
+		to: '/lojo',
+	},
+	lojoGuides: {
+		title: '攻略',
+		icon: 'ti ti-book',
+		to: '/lojo/guides',
+	},
 	notifications: {
 		title: i18n.ts.notifications,
 		icon: 'ti ti-bell',

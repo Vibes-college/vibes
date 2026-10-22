@@ -2017,6 +2017,39 @@ declare namespace entities {
         InviteLimitResponse,
         InviteListRequest,
         InviteListResponse,
+        LojoEntitiesImportRequest,
+        LojoEntitiesImportResponse,
+        LojoEntitiesListRequest,
+        LojoEntitiesListResponse,
+        LojoEntitiesShowRequest,
+        LojoEntitiesShowResponse,
+        LojoGuidesBookmarkRequest,
+        LojoGuidesBookmarkResponse,
+        LojoGuidesCommentsCreateRequest,
+        LojoGuidesCommentsCreateResponse,
+        LojoGuidesCommentsDeleteRequest,
+        LojoGuidesCommentsDeleteResponse,
+        LojoGuidesCommentsListRequest,
+        LojoGuidesCommentsListResponse,
+        LojoGuidesFeatureRequest,
+        LojoGuidesFeatureResponse,
+        LojoGuidesListRequest,
+        LojoGuidesListResponse,
+        LojoGuidesSaveRequest,
+        LojoGuidesSaveResponse,
+        LojoGuidesShowRequest,
+        LojoGuidesShowResponse,
+        LojoGuidesThreadsLikeRequest,
+        LojoGuidesThreadsLikeResponse,
+        LojoGuidesThreadsListRequest,
+        LojoGuidesThreadsListResponse,
+        LojoNotesLinkRequest,
+        LojoNotesLinkResponse,
+        LojoNotesListRequest,
+        LojoNotesListResponse,
+        LojoStateShowResponse,
+        LojoStateUpdateRequest,
+        LojoStateUpdateResponse,
         MetaRequest,
         MetaResponse,
         MiauthGenTokenRequest,
@@ -2853,6 +2886,105 @@ type IWebhooksTestRequest = operations['i___webhooks___test']['requestBody']['co
 
 // @public (undocumented)
 type IWebhooksUpdateRequest = operations['i___webhooks___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEntitiesImportRequest = operations['lojo___entities___import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEntitiesImportResponse = operations['lojo___entities___import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEntitiesListRequest = operations['lojo___entities___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEntitiesListResponse = operations['lojo___entities___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEntitiesShowRequest = operations['lojo___entities___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEntitiesShowResponse = operations['lojo___entities___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesBookmarkRequest = operations['lojo___guides___bookmark']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesBookmarkResponse = operations['lojo___guides___bookmark']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesCommentsCreateRequest = operations['lojo___guides___comments___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesCommentsCreateResponse = operations['lojo___guides___comments___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesCommentsDeleteRequest = operations['lojo___guides___comments___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesCommentsDeleteResponse = operations['lojo___guides___comments___delete']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesCommentsListRequest = operations['lojo___guides___comments___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesCommentsListResponse = operations['lojo___guides___comments___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesFeatureRequest = operations['lojo___guides___feature']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesFeatureResponse = operations['lojo___guides___feature']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesListRequest = operations['lojo___guides___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesListResponse = operations['lojo___guides___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesSaveRequest = operations['lojo___guides___save']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesSaveResponse = operations['lojo___guides___save']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesShowRequest = operations['lojo___guides___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesShowResponse = operations['lojo___guides___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesThreadsLikeRequest = operations['lojo___guides___threads___like']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesThreadsLikeResponse = operations['lojo___guides___threads___like']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesThreadsListRequest = operations['lojo___guides___threads___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGuidesThreadsListResponse = operations['lojo___guides___threads___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoNotesLinkRequest = operations['lojo___notes___link']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoNotesLinkResponse = operations['lojo___notes___link']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoNotesListRequest = operations['lojo___notes___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoNotesListResponse = operations['lojo___notes___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoStateShowResponse = operations['lojo___state___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoStateUpdateRequest = operations['lojo___state___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoStateUpdateResponse = operations['lojo___state___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];

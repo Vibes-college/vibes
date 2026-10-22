@@ -4,11 +4,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="[$style.root, { [$style.iconOnly]: iconOnly }]">
+<div :class="[$style.root, { [$style.iconOnly]: iconOnly, [$style.drawer]: props.asDrawer }]">
 	<div :class="$style.body">
 		<div :class="$style.top">
-			<button v-tooltip.noDelay.right="instance.name ?? i18n.ts.instance" class="_button" :class="$style.instance" @click="openInstanceMenu">
-				<img :src="instance.iconUrl || '/favicon.ico'" alt="" :class="$style.instanceIcon" style="view-transition-name: navbar-serverIcon;"/>
+			<button v-tooltip.noDelay.right="instance.name ?? i18n.ts.instance" class="_button" :class="$style.instance" :aria-label="instance.name ?? i18n.ts.instance" @click="openInstanceMenu">
+				<svg :class="[$style.instanceIcon, $style.wordmark]" viewBox="18 18 235 64" role="img" aria-label="LOJO" style="view-transition-name: navbar-serverIcon;"><g fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M27 27 V64 Q27 73 36 73 H62"/><circle cx="107" cy="50" r="23"/><path d="M176 27 V52 Q176 73 155 73 H152"/><circle cx="221" cy="50" r="23"/></g></svg>
 			</button>
 			<button v-if="!iconOnly" v-tooltip.noDelay.right="i18n.ts.realtimeMode" class="_button" :class="[$style.realtimeMode, store.r.realtimeMode.value ? $style.on : null]" @click="toggleRealtimeMode">
 				<i v-if="store.r.realtimeMode.value" class="ti ti-bolt ti-fw"></i>
@@ -19,14 +19,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 		</div>
 		<div :class="$style.middle">
+			<MkA v-tooltip.noDelay.right="lojoLabels.map" :class="$style.item" :activeClass="$style.active" :aria-label="lojoLabels.map" to="/lojo">
+				<i :class="$style.itemIcon" class="ti ti-map ti-fw"></i><span :class="$style.itemText">{{ lojoLabels.map }}</span>
+			</MkA>
 			<MkA v-tooltip.noDelay.right="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
+			</MkA>
+			<MkA v-tooltip.noDelay.right="'攻略'" :class="$style.item" :activeClass="$style.active" aria-label="攻略" to="/lojo/guides">
+				<i :class="$style.itemIcon" class="ti ti-book ti-fw"></i><span :class="$style.itemText">攻略</span>
 			</MkA>
 			<template v-for="item in prefer.r.menu.value">
 				<div v-if="item === '-'" :class="$style.divider"></div>
 				<component
 					:is="navbarItemDef[item].to ? 'MkA' : 'button'"
-					v-else-if="navbarItemDef[item] && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)"
+					v-else-if="item !== 'lojo' && item !== 'lojoGuides' && navbarItemDef[item] && (navbarItemDef[item].show == null || navbarItemDef[item].show.value !== false)"
 					v-tooltip.noDelay.right="navbarItemDef[item].title"
 					class="_button"
 					:class="[$style.item]"
@@ -108,6 +114,7 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
+import { lojoLabels } from '@/lojo/labels.js';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
 import { instance } from '@/instance.js';
@@ -199,6 +206,11 @@ function menuEdit() {
 </script>
 
 <style lang="scss" module>
+.wordmark {
+	color: var(--MI_THEME-brandInk);
+	border-radius: 0 !important;
+}
+
 .root {
 	--nav-width: 250px;
 	--nav-icon-only-width: 80px;
@@ -419,19 +431,22 @@ function menuEdit() {
 
 	.instance {
 		position: relative;
-		width: var(--top-height);
+		width: 128px;
+		flex-shrink: 0;
 	}
 
 	.instanceIcon {
 		display: inline-block;
-		width: 38px;
-		aspect-ratio: 1;
+		width: 108px;
+		height: auto;
+		vertical-align: middle;
 		border-radius: 8px;
 	}
 
 	.realtimeMode {
 		display: inline-block;
-		width: var(--top-height);
+		width: 48px;
+		flex-shrink: 0;
 		margin-left: auto;
 
 		&.on {
@@ -441,7 +456,8 @@ function menuEdit() {
 
 	.widget {
 		display: inline-block;
-		width: var(--top-height);
+		width: 48px;
+		flex-shrink: 0;
 		margin-left: auto;
 	}
 
@@ -486,7 +502,7 @@ function menuEdit() {
 
 		&:hover, &.active {
 			&::before {
-				background: hsl(from var(--MI_THEME-accent) h s calc(l + 10));
+				background: hsl(from var(--MI_THEME-cta) h s calc(l + 10));
 			}
 		}
 	}
@@ -623,6 +639,16 @@ function menuEdit() {
 	}
 }
 
+.root.drawer:not(.iconOnly) {
+	.instance {
+		width: 88px;
+	}
+
+	.instanceIcon {
+		width: 64px;
+	}
+}
+
 .root.iconOnly {
 	flex: 0 0 var(--nav-icon-only-width);
 	width: var(--nav-icon-only-width);
@@ -642,6 +668,7 @@ function menuEdit() {
 		display: block;
 		text-align: center;
 		width: 100%;
+		min-height: 40px;
 
 		&:focus-visible {
 			outline: none;
@@ -655,8 +682,10 @@ function menuEdit() {
 
 	.instanceIcon {
 		display: inline-block;
-		width: 30px;
-		aspect-ratio: 1;
+		width: 48px;
+		max-width: calc(100% - 12px);
+		height: auto;
+		vertical-align: middle;
 		border-radius: 8px;
 	}
 
@@ -719,7 +748,7 @@ function menuEdit() {
 
 		&:hover, &.active {
 			&::before {
-				background: hsl(from var(--MI_THEME-accent) h s calc(l + 10));
+				background: hsl(from var(--MI_THEME-cta) h s calc(l + 10));
 			}
 		}
 	}

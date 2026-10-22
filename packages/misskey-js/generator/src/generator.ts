@@ -55,9 +55,11 @@ async function generateBaseTypes(
 		},
 	});
 
-	const filteredAst = removeNeverPropertiesFromAST(generatedTypesAst);
-
-	lines.push(astToString(filteredAst));
+	// Some openapi-typescript enum unions contain quoted Identifier nodes instead
+	// of TypeNodes. Reparse its valid printed TypeScript before compiler visitors.
+	const source = ts.createSourceFile('api.ts', astToString(generatedTypesAst), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+	const filteredAst = removeNeverPropertiesFromAST(source.statements);
+	lines.push(ts.createPrinter().printFile(ts.factory.updateSourceFile(source, filteredAst as ts.Statement[])));
 
 	lines.push('');
 

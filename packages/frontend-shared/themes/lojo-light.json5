@@ -1,0 +1,40 @@
+// LOJO light: cut-paper cream ground, cobalt for navigation/links, coral for primary actions.
+{
+	id: 'abe7f5b7-9fc9-42d2-b944-bc350091801a',
+
+	name: 'LOJO Light',
+	author: 'LOJO',
+
+	base: 'light',
+
+	props: {
+		accent: '#2340A3',
+		accentedBg: ':alpha<0.1<@accent',
+		cta: '#E8603F',
+		buttonGradateA: '#E8603F',
+		buttonGradateB: '#F27A55',
+		brandInk: '#14204F',
+		bg: '#F6F1E7',
+		panel: '#FFFDF8',
+		popup: '#FFFDF8',
+		navBg: '#FFFDF8',
+		panelHeaderBg: '#FFFDF8',
+		panelHighlight: '#F7F1E6',
+		pageHeaderBg: '#F6F1E7',
+		messageBg: '#F6F1E7',
+		deckBg: '#EFE9DC',
+		header: ':alpha<0.75<@panel',
+		windowHeader: ':alpha<0.85<@panel',
+		divider: '#E9E1D2',
+		buttonBg: '#EFE8DA',
+		buttonHoverBg: '#E6DDCB',
+		fg: '#4A4E63',
+		fgHighlighted: '#2A2F48',
+		fgOnWhite: '@accent',
+		link: '#3557C9',
+		hashtag: '#E8603F',
+		mentionMe: '@accent',
+		badge: '#E8603F',
+		success: '@accent',
+	},
+}

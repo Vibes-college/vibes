@@ -5,34 +5,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div ref="rootEl" :class="$style.root">
-	<button :class="$style.item" class="_button" @click="drawerMenuShowing = true">
+	<button :class="$style.item" class="_button" :aria-label="i18n.ts.menu" @click="drawerMenuShowing = true">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-menu-2"></i><span v-if="menuIndicated" :class="$style.itemIndicator" class="_blink"><i class="_indicatorCircle"></i></span>
 		</div>
 	</button>
 
-	<button :class="$style.item" class="_button" @click="mainRouter.push('/')">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/" :aria-label="i18n.ts.timeline" :aria-current="routeName === 'index' ? 'page' : undefined">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-home"></i>
 		</div>
-	</button>
+	</MkA>
 
-	<button :class="$style.item" class="_button" @click="mainRouter.push('/my/notifications')">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/lojo" :aria-label="lojoLabels.map" :aria-current="routeName === 'lojo' ? 'page' : undefined">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-bell"></i>
-			<span v-if="$i?.hasUnreadNotification" :class="$style.itemIndicator" class="_blink">
-				<span class="_indicateCounter" :class="$style.itemIndicateValueIcon">{{ $i.unreadNotificationsCount > 99 ? '99+' : $i.unreadNotificationsCount }}</span>
-			</span>
+			<i :class="$style.itemIcon" class="ti ti-map"></i>
 		</div>
-	</button>
+	</MkA>
 
-	<button :class="$style.item" class="_button" @click="widgetsShowing = true">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/lojo/guides" aria-label="攻略" :aria-current="routeName === 'lojo-guides' ? 'page' : undefined">
 		<div :class="$style.itemInner">
-			<i :class="$style.itemIcon" class="ti ti-apps"></i>
+			<i :class="$style.itemIcon" class="ti ti-book"></i>
 		</div>
-	</button>
+	</MkA>
 
-	<button :class="[$style.item, $style.post]" class="_button" @click="os.post()">
+	<button :class="[$style.item, $style.post]" class="_button" :aria-label="i18n.ts.note" @click="os.post()">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-pencil"></i>
 		</div>
@@ -42,19 +39,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, ref, useTemplateRef, watch } from 'vue';
-import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { mainRouter } from '@/router.js';
 import { navbarItemDef } from '@/navbar.js';
+import { lojoLabels } from '@/lojo/labels.js';
+import { i18n } from '@/i18n.js';
 
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');
 
 const rootEl = useTemplateRef('rootEl');
+const routeName = computed(() => mainRouter.currentRoute.value.name);
 
 const menuIndicated = computed(() => {
 	for (const def in navbarItemDef) {
-		if (def === 'notifications') continue; // 通知は下にボタンとして表示されてるから
 		if (navbarItemDef[def].indicated) return true;
 	}
 	return false;
@@ -91,6 +89,15 @@ watch(rootEl, () => {
 
 .item {
 	padding: 12px 0;
+	text-align: center;
+
+	&.active {
+		color: var(--MI_THEME-accent);
+
+		.itemInner {
+			background: var(--MI_THEME-accentedBg);
+		}
+	}
 
 	&:first-child {
 		padding-left: 12px;
@@ -106,11 +113,11 @@ watch(rootEl, () => {
 			color: var(--MI_THEME-fgOnAccent);
 
 			&:hover {
-				background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
+				background: linear-gradient(90deg, hsl(from var(--MI_THEME-cta) h s calc(l + 5)), hsl(from var(--MI_THEME-cta) h s calc(l + 5)));
 			}
 
 			&:active {
-				background: linear-gradient(90deg, hsl(from var(--MI_THEME-accent) h s calc(l + 5)), hsl(from var(--MI_THEME-accent) h s calc(l + 5)));
+				background: linear-gradient(90deg, hsl(from var(--MI_THEME-cta) h s calc(l + 5)), hsl(from var(--MI_THEME-cta) h s calc(l + 5)));
 			}
 		}
 	}

@@ -187,14 +187,14 @@ function onMousedown(evt: MouseEvent): void {
 	&.primary {
 		font-weight: bold;
 		color: var(--MI_THEME-fgOnAccent) !important;
-		background: var(--MI_THEME-accent);
+		background: var(--MI_THEME-cta);
 
 		&:not(:disabled):hover {
-			background: hsl(from var(--MI_THEME-accent) h s calc(l + 5));
+			background: hsl(from var(--MI_THEME-cta) h s calc(l + 5));
 		}
 
 		&:not(:disabled):active {
-			background: hsl(from var(--MI_THEME-accent) h s calc(l + 5));
+			background: hsl(from var(--MI_THEME-cta) h s calc(l + 5));
 		}
 	}
 

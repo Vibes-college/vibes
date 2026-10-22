@@ -10,6 +10,7 @@ import * as os from '@/os.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
+import { lojoLabels } from '@/lojo/labels.js';
 
 function toolsMenuItems(): MenuItem[] {
 	const items: MenuItem[] = [{
@@ -166,7 +167,7 @@ export function openInstanceMenu(ev: PointerEvent) {
 
 	menuItems.push({
 		type: 'link',
-		text: i18n.ts.aboutMisskey,
+		text: lojoLabels.openSource,
 		to: '/about-misskey',
 	});
 

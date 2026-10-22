@@ -2937,6 +2937,159 @@ export type paths = {
          */
         post: operations['invite___list'];
     };
+    '/lojo/entities/import': {
+        /**
+         * lojo/entities/import
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:account*
+         */
+        post: operations['lojo___entities___import'];
+    };
+    '/lojo/entities/list': {
+        /**
+         * lojo/entities/list
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___entities___list'];
+    };
+    '/lojo/entities/show': {
+        /**
+         * lojo/entities/show
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___entities___show'];
+    };
+    '/lojo/guides/bookmark': {
+        /**
+         * lojo/guides/bookmark
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:page-likes*
+         */
+        post: operations['lojo___guides___bookmark'];
+    };
+    '/lojo/guides/comments/create': {
+        /**
+         * lojo/guides/comments/create
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:notes*
+         */
+        post: operations['lojo___guides___comments___create'];
+    };
+    '/lojo/guides/comments/delete': {
+        /**
+         * lojo/guides/comments/delete
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:notes*
+         */
+        post: operations['lojo___guides___comments___delete'];
+    };
+    '/lojo/guides/comments/list': {
+        /**
+         * lojo/guides/comments/list
+         * @description No description provided.
+         *
+         *     **Credential required**: *No* / **Permission**: *read:pages*
+         */
+        post: operations['lojo___guides___comments___list'];
+    };
+    '/lojo/guides/feature': {
+        /**
+         * lojo/guides/feature
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:pages*
+         */
+        post: operations['lojo___guides___feature'];
+    };
+    '/lojo/guides/list': {
+        /**
+         * lojo/guides/list
+         * @description No description provided.
+         *
+         *     **Credential required**: *No* / **Permission**: *read:pages*
+         */
+        post: operations['lojo___guides___list'];
+    };
+    '/lojo/guides/save': {
+        /**
+         * lojo/guides/save
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:pages*
+         */
+        post: operations['lojo___guides___save'];
+    };
+    '/lojo/guides/show': {
+        /**
+         * lojo/guides/show
+         * @description No description provided.
+         *
+         *     **Credential required**: *No* / **Permission**: *read:pages*
+         */
+        post: operations['lojo___guides___show'];
+    };
+    '/lojo/guides/threads/like': {
+        /**
+         * lojo/guides/threads/like
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:reactions*
+         */
+        post: operations['lojo___guides___threads___like'];
+    };
+    '/lojo/guides/threads/list': {
+        /**
+         * lojo/guides/threads/list
+         * @description No description provided.
+         *
+         *     **Credential required**: *No* / **Permission**: *read:pages*
+         */
+        post: operations['lojo___guides___threads___list'];
+    };
+    '/lojo/notes/link': {
+        /**
+         * lojo/notes/link
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:notes*
+         */
+        post: operations['lojo___notes___link'];
+    };
+    '/lojo/notes/list': {
+        /**
+         * lojo/notes/list
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___notes___list'];
+    };
+    '/lojo/state/show': {
+        /**
+         * lojo/state/show
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___state___show'];
+    };
+    '/lojo/state/update': {
+        /**
+         * lojo/state/update
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___state___update'];
+    };
     '/meta': {
         /**
          * meta
@@ -28863,6 +29016,1652 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___entities___import: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    entities: {
+                        id: string;
+                        /** @enum {string} */
+                        type: 'housing' | 'food' | 'pets' | 'events' | 'travel';
+                        title: string;
+                        lat: number;
+                        lng: number;
+                        route: string;
+                        /** @enum {string} */
+                        mapLayer: 'housing' | 'food' | 'pets' | 'events' | 'travel';
+                        /** @enum {string} */
+                        status: 'demo' | 'curated';
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        count: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___entities___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    type?: 'housing' | 'food' | 'pets' | 'events' | 'travel';
+                    /** @default 100 */
+                    limit?: number;
+                    /** @default 0 */
+                    offset?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        /** @enum {string} */
+                        type: 'housing' | 'food' | 'pets' | 'events' | 'travel';
+                        title: string;
+                        lat: number;
+                        lng: number;
+                        route: string;
+                        mapLayer: string;
+                        /** @enum {string} */
+                        status: 'demo' | 'curated';
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___entities___show: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    entityId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        /** @enum {string} */
+                        type: 'housing' | 'food' | 'pets' | 'events' | 'travel';
+                        title: string;
+                        lat: number;
+                        lng: number;
+                        route: string;
+                        mapLayer: string;
+                        /** @enum {string} */
+                        status: 'demo' | 'curated';
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___bookmark: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                    saved: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        saved: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___comments___create: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                    /** Format: misskey:id */
+                    threadId?: string;
+                    anchor?: {
+                        revision: number;
+                        startBlockId: string;
+                        startOffset: number;
+                        endBlockId: string;
+                        endOffset: number;
+                        exact: string;
+                        /** @default  */
+                        prefix?: string;
+                        /** @default  */
+                        suffix?: string;
+                    };
+                    text: string;
+                    /** @default [] */
+                    fileIds?: string[];
+                    /** Format: misskey:id */
+                    replyToId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        thread: {
+                            id: string;
+                            guideId: string;
+                            anchor: {
+                                revision: number;
+                                startBlockId: string;
+                                startOffset: number;
+                                endBlockId: string;
+                                endOffset: number;
+                                exact: string;
+                                prefix: string;
+                                suffix: string;
+                            } | null;
+                            likeCount: number;
+                            isLiked: boolean;
+                            commentCount: number;
+                            /** Format: date-time */
+                            createdAt: string;
+                        };
+                        comment: {
+                            id: string;
+                            threadId: string;
+                            replyToId: string | null;
+                            note: components['schemas']['Note'];
+                            anchor: {
+                                revision: number;
+                                startBlockId: string;
+                                startOffset: number;
+                                endBlockId: string;
+                                endOffset: number;
+                                exact: string;
+                                prefix: string;
+                                suffix: string;
+                            } | null;
+                        };
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___comments___delete: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    commentId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        deleted: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___comments___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                    /** Format: misskey:id */
+                    threadId?: string;
+                    /** @default 30 */
+                    limit?: number;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        threadId: string;
+                        replyToId: string | null;
+                        note: components['schemas']['Note'];
+                        anchor: {
+                            revision: number;
+                            startBlockId: string;
+                            startOffset: number;
+                            endBlockId: string;
+                            endOffset: number;
+                            exact: string;
+                            prefix: string;
+                            suffix: string;
+                        } | null;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___feature: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                    featured: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        title: string;
+                        summary: string;
+                        category: string;
+                        city: string;
+                        coverUrl: string | null;
+                        /** @enum {string} */
+                        status: 'draft' | 'published';
+                        isDemo: boolean;
+                        featured: boolean;
+                        revision: number;
+                        blocks: {
+                            id: string;
+                            /** @enum {string} */
+                            type: 'heading' | 'paragraph' | 'image' | 'video' | 'audio' | 'checklist' | 'resource';
+                            text?: string;
+                            /** @enum {integer} */
+                            level?: 2 | 3;
+                            url?: string;
+                            caption?: string;
+                            items?: string[];
+                            resource?: {
+                                /** @enum {string} */
+                                kind: 'tool' | 'service' | 'map' | 'guide';
+                                title: string;
+                                description: string;
+                                url: string;
+                                meta?: string;
+                            };
+                        }[];
+                        author: components['schemas']['UserLite'];
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        isSaved: boolean;
+                        commentCount: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @default false */
+                    featuredOnly?: boolean;
+                    category?: string;
+                    search?: string;
+                    /** @default false */
+                    savedOnly?: boolean;
+                    /** @default false */
+                    mine?: boolean;
+                    /** @default 30 */
+                    limit?: number;
+                    /** @default 0 */
+                    offset?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        title: string;
+                        summary: string;
+                        category: string;
+                        city: string;
+                        coverUrl: string | null;
+                        /** @enum {string} */
+                        status: 'draft' | 'published';
+                        isDemo: boolean;
+                        featured: boolean;
+                        revision: number;
+                        blocks: {
+                            id: string;
+                            /** @enum {string} */
+                            type: 'heading' | 'paragraph' | 'image' | 'video' | 'audio' | 'checklist' | 'resource';
+                            text?: string;
+                            /** @enum {integer} */
+                            level?: 2 | 3;
+                            url?: string;
+                            caption?: string;
+                            items?: string[];
+                            resource?: {
+                                /** @enum {string} */
+                                kind: 'tool' | 'service' | 'map' | 'guide';
+                                title: string;
+                                description: string;
+                                url: string;
+                                meta?: string;
+                            };
+                        }[];
+                        author: components['schemas']['UserLite'];
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        isSaved: boolean;
+                        commentCount: number;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___save: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId?: string;
+                    expectedRevision?: number;
+                    title: string;
+                    summary: string;
+                    /** @enum {string} */
+                    category: 'housing' | 'life' | 'sport' | 'pets' | 'tech' | 'travel';
+                    city: string;
+                    coverUrl?: string | null;
+                    blocks: {
+                        id: string;
+                        /** @enum {string} */
+                        type: 'heading' | 'paragraph' | 'image' | 'video' | 'audio' | 'checklist' | 'resource';
+                        text?: string;
+                        /** @enum {integer} */
+                        level?: 2 | 3;
+                        url?: string;
+                        caption?: string;
+                        items?: string[];
+                        resource?: {
+                            /** @enum {string} */
+                            kind: 'tool' | 'service' | 'map' | 'guide';
+                            title: string;
+                            description: string;
+                            url: string;
+                            meta?: string;
+                        };
+                    }[];
+                    /** @enum {string} */
+                    status: 'draft' | 'published';
+                    isDemo?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        title: string;
+                        summary: string;
+                        category: string;
+                        city: string;
+                        coverUrl: string | null;
+                        /** @enum {string} */
+                        status: 'draft' | 'published';
+                        isDemo: boolean;
+                        featured: boolean;
+                        revision: number;
+                        blocks: {
+                            id: string;
+                            /** @enum {string} */
+                            type: 'heading' | 'paragraph' | 'image' | 'video' | 'audio' | 'checklist' | 'resource';
+                            text?: string;
+                            /** @enum {integer} */
+                            level?: 2 | 3;
+                            url?: string;
+                            caption?: string;
+                            items?: string[];
+                            resource?: {
+                                /** @enum {string} */
+                                kind: 'tool' | 'service' | 'map' | 'guide';
+                                title: string;
+                                description: string;
+                                url: string;
+                                meta?: string;
+                            };
+                        }[];
+                        author: components['schemas']['UserLite'];
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        isSaved: boolean;
+                        commentCount: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___show: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        title: string;
+                        summary: string;
+                        category: string;
+                        city: string;
+                        coverUrl: string | null;
+                        /** @enum {string} */
+                        status: 'draft' | 'published';
+                        isDemo: boolean;
+                        featured: boolean;
+                        revision: number;
+                        blocks: {
+                            id: string;
+                            /** @enum {string} */
+                            type: 'heading' | 'paragraph' | 'image' | 'video' | 'audio' | 'checklist' | 'resource';
+                            text?: string;
+                            /** @enum {integer} */
+                            level?: 2 | 3;
+                            url?: string;
+                            caption?: string;
+                            items?: string[];
+                            resource?: {
+                                /** @enum {string} */
+                                kind: 'tool' | 'service' | 'map' | 'guide';
+                                title: string;
+                                description: string;
+                                url: string;
+                                meta?: string;
+                            };
+                        }[];
+                        author: components['schemas']['UserLite'];
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        isSaved: boolean;
+                        commentCount: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___threads___like: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                    /** Format: misskey:id */
+                    threadId?: string;
+                    anchor?: {
+                        revision: number;
+                        startBlockId: string;
+                        startOffset: number;
+                        endBlockId: string;
+                        endOffset: number;
+                        exact: string;
+                        /** @default  */
+                        prefix?: string;
+                        /** @default  */
+                        suffix?: string;
+                    };
+                    liked: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        guideId: string;
+                        anchor: {
+                            revision: number;
+                            startBlockId: string;
+                            startOffset: number;
+                            endBlockId: string;
+                            endOffset: number;
+                            exact: string;
+                            prefix: string;
+                            suffix: string;
+                        } | null;
+                        likeCount: number;
+                        isLiked: boolean;
+                        commentCount: number;
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___guides___threads___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    guideId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: string;
+                        guideId: string;
+                        anchor: {
+                            revision: number;
+                            startBlockId: string;
+                            startOffset: number;
+                            endBlockId: string;
+                            endOffset: number;
+                            exact: string;
+                            prefix: string;
+                            suffix: string;
+                        } | null;
+                        likeCount: number;
+                        isLiked: boolean;
+                        commentCount: number;
+                        /** Format: date-time */
+                        createdAt: string;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___notes___link: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    entityId: string;
+                    /** Format: misskey:id */
+                    noteId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        entityId: string;
+                        noteId: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___notes___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    entityId: string;
+                    /** Format: misskey:id */
+                    sinceId?: string;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                    /** @default 20 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Note'][];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___state___show: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        revision: number;
+                        state: {
+                            [key: string]: unknown;
+                        } | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___state___update: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    expectedRevision: number;
+                    state: {
+                        version: number;
+                        discovered?: unknown[];
+                        saved?: unknown[];
+                        visited?: unknown[];
+                        cards?: unknown[];
+                        housingSaved?: unknown[];
+                        housingCompare?: unknown[];
+                        housingVisits?: unknown[];
+                        housingLeads?: unknown[];
+                        housingContactDrafts?: unknown[];
+                        tripDrafts?: unknown[];
+                        tripSaved?: unknown[];
+                        tripPlans?: unknown[];
+                        tripInvites?: unknown[];
+                        tripReports?: unknown[];
+                        eventBookings?: unknown[];
+                        eventSaved?: unknown[];
+                        createdEvents?: unknown[];
+                        observations?: unknown[];
+                        posts?: unknown[];
+                        replies?: unknown[];
+                        liked?: unknown[];
+                        guideSaved?: unknown[];
+                        goals?: unknown[];
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        revision: number;
+                        state: {
+                            [key: string]: unknown;
+                        } | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

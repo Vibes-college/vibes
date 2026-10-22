@@ -1,0 +1,32 @@
+// LOJO dark: night-blue ground, lighter cobalt for navigation/links, coral for primary actions.
+{
+	id: '86c2eacc-fd64-4a9b-8a97-132daf2c311b',
+
+	name: 'LOJO Dark',
+	author: 'LOJO',
+
+	base: 'dark',
+
+	props: {
+		accent: '#6F8BF2',
+		accentedBg: ':alpha<0.16<@accent',
+		cta: '#E8603F',
+		buttonGradateA: '#E8603F',
+		buttonGradateB: '#F27A55',
+		fgOnAccent: '#FFFFFF',
+		brandInk: '#F2EBDD',
+		bg: '#0F1630',
+		panel: '#172045',
+		popup: '#1E2852',
+		navBg: '#121A3A',
+		divider: 'rgba(242, 235, 221, 0.1)',
+		fg: '#DCD7CB',
+		fgHighlighted: '#FFFFFF',
+		fgOnWhite: '@accent',
+		link: '#9DB2FF',
+		hashtag: '#FF8F6E',
+		mentionMe: '#F2C14E',
+		badge: '#E8603F',
+		renote: '@accent',
+	},
+}

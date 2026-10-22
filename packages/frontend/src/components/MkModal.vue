@@ -42,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { nextTick, normalizeClass, onMounted, onUnmounted, provide, watch, ref, useTemplateRef, computed } from 'vue';
+import { nextTick, normalizeClass, onBeforeUnmount, onMounted, onUnmounted, provide, watch, ref, useTemplateRef, computed } from 'vue';
 import type { Keymap } from '@/utility/hotkey.js';
 import * as os from '@/os.js';
 import { isTouchUsing } from '@/utility/touch.js';
@@ -345,6 +345,10 @@ onMounted(() => {
 	nextTick(() => {
 		alignObserver.observe(content.value!);
 	});
+});
+
+onBeforeUnmount(() => {
+	releaseFocusTrap?.();
 });
 
 onUnmounted(() => {

@@ -1,0 +1,15 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+import { travelRoutes } from './travel-data.js';
+import { addDays, localDay, validDateRange } from './event-dates.js';
+export const tripById = id => travelRoutes.find(r => r.id === id);
+export const tripBudget = route => route.budget.reduce((sum, item) => [sum[0] + item.range[0], sum[1] + item.range[1]], [0, 0]);
+export const budgetLabel = route => '¥' + tripBudget(route).join('–');
+export function selectTrips(filter = {}, state = { tripSaved: [] }) {return travelRoutes.filter(r => (!filter.days || filter.days === 'all' || (filter.days === 'long' ? r.days >= 3 : r.days === Number(filter.days))) && (!filter.theme || filter.theme === 'all' || r.theme === filter.theme) && (!filter.transport || filter.transport === 'all' || (filter.transport === 'rail' ? r.rail : !r.rail)) && (!filter.budget || filter.budget === 'all' || tripBudget(r)[1] <= Number(filter.budget)) && (!filter.saved || state.tripSaved.includes(r.id)));}
+export function tripDates(route, start) {if (!validDateRange(start, start)) return []; return route.itinerary.map((_, i) => addDays(start, i));}
+export function dateWarnings(route, start) {return tripDates(route, start).flatMap((date, index) => route.itinerary[index].stops.filter(stop => stop.closedWeekday === new Date(date + 'T12:00Z').getUTCDay()).map(stop => `${date.replaceAll('-', '/')} · ${stop.name}通常周一闭馆，节假日安排需查官方；请先确认或调整这一天。`));}
+export function makeTripPlan(route, start, { now = new Date() } = {}) {if (!route || route.days < 1 || route.days > 5) throw new Error('路线需要在 1–5 天内'); if (!validDateRange(start, start) || start < localDay(now)) throw new Error('请选择今天或之后的出发日期'); return { id: route.id + '-' + start, route: route.id, start, end: addDays(start, route.days - 1), createdAt: now.toISOString() };}
+export function makeTripInvite(route, values, { now = new Date() } = {}) {const plan = makeTripPlan(route, values.start, { now }); const people = Number(values.people); if (!Number.isInteger(people) || people < 1 || people > 10) throw new Error('再找人数需为 1–10 人'); const meeting = String(values.meeting || '').trim(); if (!meeting) throw new Error('请填写拟定集合点'); return { ...plan, id: values.id || 'trip-invite-' + now.getTime(), people, meeting: meeting.slice(0, 140), pace: String(values.pace || '').trim().slice(0, 200), note: String(values.note || '').trim().slice(0, 800), status: 'draft', safety: 'pending', updatedAt: now.toISOString() };}
+export function makeTripReport(route, values, { now = new Date() } = {}) {if (!route) throw new Error('请选择路线'); const date = String(values.date || ''); if (!validDateRange(date, date) || date > localDay(now)) throw new Error('请选择今天或之前的体验日期'); const text = String(values.text || '').trim(); if (!text) throw new Error('请写下路线记录'); const allowed = ['体验记录', '交通变化', '价格变化', '开放变化']; return { id: 'trip-report-' + now.getTime(), route: route.id, date, type: allowed.includes(values.type) ? values.type : '体验记录', text: text.slice(0, 1200), createdAt: now.toISOString(), local: true };}

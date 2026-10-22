@@ -1,0 +1,11 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+export const STORE_KEY = 'lojo-explore-v1';
+export const initialState = () => ({ version: 1, discovered: [], saved: ['coffee'], visited: ['coffee', 'bakery'], cards: [{ id: 'seed-rice', animal: 'rice', name: '年糕', date: '2026-09-28', note: '在午后的窗边，遇见了你。', photo: '/lojo-assets/assets/cat2.jpg', frame: 'sage' }, { id: 'seed-bread', animal: 'bread', name: '吐司', date: '2026-09-30', note: '今天的散步，有个新朋友。', photo: '/lojo-assets/assets/dog.jpg', frame: 'sand' }], housingSaved: [], housingCompare: [], housingVisits: [], housingLeads: [], housingContactDrafts: [], tripDrafts: [], tripSaved: [], tripPlans: [], tripInvites: [], tripReports: [], eventBookings: [], eventSaved: [], createdEvents: [], observations: [], posts: [], replies: [], liked: [], guideSaved: [], goals: [false, false, false] });
+export function validState(value) {if (!value || value.version !== 1) return initialState(); const base = initialState(); for (const k of Object.keys(base)) if (Array.isArray(base[k]) && Array.isArray(value[k]))base[k] = value[k].slice(0, 150); return base;}
+export function filterPlaces(places, { budget = 'all', category = '全部', query = '', rating = '全部', savedOnly = false, saved = [] } = {}) {return places.filter(p => (budget === 'all' || (budget === 'low' ? p.price <= 30 : p.price >= 80)) && (category === '全部' || p.category === category) && (rating === '全部' || p.rating === rating) && (!savedOnly || saved.includes(p.id)) && (!query.trim() || [p.name, p.kind, p.category, p.tag].join(' ').toLowerCase().includes(query.trim().toLowerCase())));}
+export function toggleIn(list, id) {return list.includes(id) ? list.filter(x => x !== id) : [...list, id];}
+export function createEncounter({ animal, name, photo, frame, note, now = new Date() }) {if (!name?.trim()) throw new Error('请给这次相遇起个名字'); return { id: 'card-' + now.getTime(), animal: animal || null, name: name.trim().slice(0, 30), photo, frame: frame || 'apricot', note: (note || '').trim().slice(0, 240), date: now.toISOString().slice(0, 10) };}
+export function escapeHTML(value) {return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));}

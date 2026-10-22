@@ -483,6 +483,39 @@ import type {
 	InviteLimitResponse,
 	InviteListRequest,
 	InviteListResponse,
+	LojoEntitiesImportRequest,
+	LojoEntitiesImportResponse,
+	LojoEntitiesListRequest,
+	LojoEntitiesListResponse,
+	LojoEntitiesShowRequest,
+	LojoEntitiesShowResponse,
+	LojoGuidesBookmarkRequest,
+	LojoGuidesBookmarkResponse,
+	LojoGuidesCommentsCreateRequest,
+	LojoGuidesCommentsCreateResponse,
+	LojoGuidesCommentsDeleteRequest,
+	LojoGuidesCommentsDeleteResponse,
+	LojoGuidesCommentsListRequest,
+	LojoGuidesCommentsListResponse,
+	LojoGuidesFeatureRequest,
+	LojoGuidesFeatureResponse,
+	LojoGuidesListRequest,
+	LojoGuidesListResponse,
+	LojoGuidesSaveRequest,
+	LojoGuidesSaveResponse,
+	LojoGuidesShowRequest,
+	LojoGuidesShowResponse,
+	LojoGuidesThreadsLikeRequest,
+	LojoGuidesThreadsLikeResponse,
+	LojoGuidesThreadsListRequest,
+	LojoGuidesThreadsListResponse,
+	LojoNotesLinkRequest,
+	LojoNotesLinkResponse,
+	LojoNotesListRequest,
+	LojoNotesListResponse,
+	LojoStateShowResponse,
+	LojoStateUpdateRequest,
+	LojoStateUpdateResponse,
 	MetaRequest,
 	MetaResponse,
 	MiauthGenTokenRequest,
@@ -989,6 +1022,23 @@ export type Endpoints = {
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
+	'lojo/entities/import': { req: LojoEntitiesImportRequest; res: LojoEntitiesImportResponse };
+	'lojo/entities/list': { req: LojoEntitiesListRequest; res: LojoEntitiesListResponse };
+	'lojo/entities/show': { req: LojoEntitiesShowRequest; res: LojoEntitiesShowResponse };
+	'lojo/guides/bookmark': { req: LojoGuidesBookmarkRequest; res: LojoGuidesBookmarkResponse };
+	'lojo/guides/comments/create': { req: LojoGuidesCommentsCreateRequest; res: LojoGuidesCommentsCreateResponse };
+	'lojo/guides/comments/delete': { req: LojoGuidesCommentsDeleteRequest; res: LojoGuidesCommentsDeleteResponse };
+	'lojo/guides/comments/list': { req: LojoGuidesCommentsListRequest; res: LojoGuidesCommentsListResponse };
+	'lojo/guides/feature': { req: LojoGuidesFeatureRequest; res: LojoGuidesFeatureResponse };
+	'lojo/guides/list': { req: LojoGuidesListRequest; res: LojoGuidesListResponse };
+	'lojo/guides/save': { req: LojoGuidesSaveRequest; res: LojoGuidesSaveResponse };
+	'lojo/guides/show': { req: LojoGuidesShowRequest; res: LojoGuidesShowResponse };
+	'lojo/guides/threads/like': { req: LojoGuidesThreadsLikeRequest; res: LojoGuidesThreadsLikeResponse };
+	'lojo/guides/threads/list': { req: LojoGuidesThreadsListRequest; res: LojoGuidesThreadsListResponse };
+	'lojo/notes/link': { req: LojoNotesLinkRequest; res: LojoNotesLinkResponse };
+	'lojo/notes/list': { req: LojoNotesListRequest; res: LojoNotesListResponse };
+	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
+	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };

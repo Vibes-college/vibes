@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<header :class="$style.header">
 		<div :class="$style.headerLeft">
 			<button v-if="!fixed" :class="$style.cancel" class="_button" @click="cancel"><i class="ti ti-x"></i></button>
-			<button ref="accountMenuEl" v-click-anime v-tooltip="i18n.ts.account" class="_button" @click="openAccountMenu">
+			<button ref="accountMenuEl" v-click-anime v-tooltip="i18n.ts.account" class="_button" :disabled="lockAccount" @click="openAccountMenu">
 				<img :class="$style.avatar" :src="(postAccount ?? $i).avatarUrl" style="border-radius: 100%;"/>
 			</button>
 		</div>
@@ -176,7 +176,7 @@ const props = withDefaults(defineProps<PostFormProps & {
 provide(DI.mock, props.mock);
 
 const emit = defineEmits<{
-	(ev: 'posted'): void;
+	(ev: 'posted', note: Misskey.entities.Note): void;
 	(ev: 'cancel'): void;
 	(ev: 'esc'): void;
 
@@ -649,8 +649,8 @@ function showOtherSettings() {
 		action: () => {
 			toggleReactionAcceptance();
 		},
-	}, { type: 'divider' }, {
-		type: 'button',
+	}, { type: 'divider' }, ...(!props.disableDrafts ? [{
+		type: 'button' as const,
 		text: i18n.ts._drafts.saveToDraft,
 		icon: 'ti ti-cloud-upload',
 		action: async () => {
@@ -662,7 +662,7 @@ function showOtherSettings() {
 			}
 			saveServerDraft();
 		},
-	}, ...($i.policies.scheduledNoteLimit > 0 ? [{
+	}] : []), ...(!props.disableDrafts && $i.policies.scheduledNoteLimit > 0 ? [{
 		icon: 'ti ti-calendar-time',
 		text: i18n.ts.schedulePost + '...',
 		action: () => {
@@ -906,6 +906,7 @@ function saveDraft() {
 }
 
 function deleteDraft() {
+	if (props.instant || props.mock) return;
 	const draftsData = JSON.parse(miLocalStorage.getItem('drafts') ?? '{}') as StoredDrafts;
 
 	delete draftsData[draftKey.value];
@@ -1088,7 +1089,7 @@ async function post(ev?: PointerEvent) {
 
 		nextTick(() => {
 			deleteDraft();
-			emit('posted');
+			emit('posted', res.createdNote);
 			if (postData.text && postData.text !== '') {
 				const hashtags_ = mfm.parse(postData.text).map(x => x.type === 'hashtag' && x.props.hashtag).filter(x => x) as string[];
 				const history = JSON.parse(miLocalStorage.getItem('hashtags') ?? '[]') as string[];
@@ -1252,7 +1253,7 @@ function showActions(ev: PointerEvent) {
 const postAccount = ref<Misskey.entities.UserDetailed | null>(null);
 
 async function openAccountMenu(ev: PointerEvent) {
-	if (props.mock) return;
+	if (props.mock || props.lockAccount) return;
 
 	function showDraftsDialog(scheduled: boolean) {
 		const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNoteDraftsDialog.vue')), {

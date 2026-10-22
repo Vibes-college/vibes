@@ -22,6 +22,31 @@ function chatPage(...args: Parameters<typeof page>) {
 }
 
 export const ROUTE_DEF = [{
+	name: 'lojo-guides',
+	path: '/lojo/guides/new',
+	component: page(() => import('@/pages/lojo/guides/edit.vue')),
+	loginRequired: true,
+	query: {
+		category: 'category',
+	},
+}, {
+	name: 'lojo-guides',
+	path: '/lojo/guides/:guideId/edit',
+	component: page(() => import('@/pages/lojo/guides/edit.vue')),
+	loginRequired: true,
+}, {
+	name: 'lojo-guides',
+	path: '/lojo/guides/:guideId',
+	component: page(() => import('@/pages/lojo/guides/detail.vue')),
+}, {
+	name: 'lojo-guides',
+	path: '/lojo/guides',
+	component: page(() => import('@/pages/lojo/guides/index.vue')),
+}, {
+	name: 'lojo',
+	path: '/lojo',
+	component: page(() => import('@/pages/lojo/map.vue')),
+}, {
 	name: 'index',
 	path: '/',
 	component: $i ? PageTimeline : page(() => import('@/pages/welcome.vue')),

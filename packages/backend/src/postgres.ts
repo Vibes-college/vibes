@@ -55,6 +55,10 @@ import { MiPromoNote } from '@/models/PromoNote.js';
 import { MiPromoRead } from '@/models/PromoRead.js';
 import { MiRegistrationTicket } from '@/models/RegistrationTicket.js';
 import { MiRegistryItem } from '@/models/RegistryItem.js';
+import { MiLojoGuide, MiLojoGuideThread, MiLojoGuideComment, MiLojoGuideLike, MiLojoGuideBookmark } from '@/models/LojoGuide.js';
+import { MiLojoState } from '@/models/LojoState.js';
+import { MiLojoEntity } from '@/models/LojoEntity.js';
+import { MiLojoEntityNote } from '@/models/LojoEntityNote.js';
 import { MiRelay } from '@/models/Relay.js';
 import { MiSignin } from '@/models/Signin.js';
 import { MiSwSubscription } from '@/models/SwSubscription.js';
@@ -235,6 +239,14 @@ export const entities = [
 	MiChannelFavorite,
 	MiChannelMuting,
 	MiRegistryItem,
+	MiLojoGuide,
+	MiLojoGuideThread,
+	MiLojoGuideComment,
+	MiLojoGuideLike,
+	MiLojoGuideBookmark,
+	MiLojoState,
+	MiLojoEntity,
+	MiLojoEntityNote,
 	MiAd,
 	MiPasswordResetRequest,
 	MiUserPending,

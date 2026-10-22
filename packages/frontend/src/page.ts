@@ -15,6 +15,8 @@ export type PageMetadata = {
 	avatar?: Misskey.entities.User | null;
 	userName?: Misskey.entities.User | null;
 	needWideArea?: boolean;
+	hideMobileFooter?: boolean;
+	hideSidebar?: boolean;
 };
 
 type PageMetadataGetter = () => PageMetadata;

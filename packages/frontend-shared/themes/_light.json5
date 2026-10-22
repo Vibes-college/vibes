@@ -54,6 +54,9 @@
 		buttonHoverBg: ':darken<10<@panel',
 		buttonGradateA: '@accent',
 		buttonGradateB: ':hue<20<@accent',
+		// LOJO: primary call-to-action fill and brand wordmark ink; default to upstream behaviour.
+		cta: '@accent',
+		brandInk: '@fg',
 		switchBg: 'rgba(0, 0, 0, 0.15)',
 		switchOffBg: 'rgba(0, 0, 0, 0.1)',
 		switchOffFg: '@panel',

@@ -160,6 +160,18 @@ export async function common(createVue: () => Promise<App<Element>>) {
 		if (prefer.s.darkTheme == null && instance.defaultDarkTheme != null) prefer.commit('darkTheme', JSON.parse(instance.defaultDarkTheme));
 	}
 
+	// Restore the retired defaults before starting the first theme transition.
+	// Synced personal choices must finish loading before their IDs are checked.
+	if (!isSafeMode && (prefer.s.lightTheme?.id === 'lojo-light-v1' || prefer.s.darkTheme?.id === 'lojo-dark-v1')) {
+		try {
+			await prefer.cloudReady;
+			if (prefer.s.lightTheme?.id === 'lojo-light-v1') prefer.commit('lightTheme', defaultLightTheme);
+			if (prefer.s.darkTheme?.id === 'lojo-dark-v1') prefer.commit('darkTheme', defaultDarkTheme);
+		} catch (error) {
+			console.warn('Could not restore the default theme preferences', error);
+		}
+	}
+
 	// NOTE: この処理は必ずクライアント更新チェック処理より後に来ること(テーマ再構築のため)
 	// NOTE: この処理は必ずダークモード判定処理より後に来ること(初回のテーマ適用のため)
 	// NOTE: この処理は必ずサーバーテーマ適用処理より後に来ること(二重発火を防ぐため)
