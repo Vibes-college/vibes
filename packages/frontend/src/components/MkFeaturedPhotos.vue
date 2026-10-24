@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="instance" :class="$style.root" :style="{ backgroundImage: `url(${ instance.backgroundImageUrl })` }"></div>
+<div v-if="instance" :class="$style.root" :style="{ backgroundImage: instance.backgroundImageUrl ? `url(${ instance.backgroundImageUrl })` : 'none' }"></div>
 </template>
 
 <script lang="ts" setup>

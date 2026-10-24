@@ -36,9 +36,9 @@ export type CommonData = MinimumCommonData & {
 	icon: string | null;
 	appleTouchIcon: string | null;
 	themeColor: string | null;
-	serverErrorImageUrl: string;
-	infoImageUrl: string;
-	notFoundImageUrl: string;
+	serverErrorImageUrl?: string;
+	infoImageUrl?: string;
+	notFoundImageUrl?: string;
 	instanceUrl: string;
 	now: number;
 	federationEnabled: boolean;
