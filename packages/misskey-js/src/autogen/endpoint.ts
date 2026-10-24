@@ -483,6 +483,15 @@ import type {
 	InviteLimitResponse,
 	InviteListRequest,
 	InviteListResponse,
+	LojoEnglishComposeRequest,
+	LojoEnglishComposeResponse,
+	LojoEnglishExplainRequest,
+	LojoEnglishExplainResponse,
+	LojoEnglishReplyIdeasRequest,
+	LojoEnglishReplyIdeasResponse,
+	LojoEnglishSpeechRequest,
+	LojoEnglishSpeechResponse,
+	LojoEnglishStatusResponse,
 	LojoEntitiesImportRequest,
 	LojoEntitiesImportResponse,
 	LojoEntitiesListRequest,
@@ -1022,6 +1031,11 @@ export type Endpoints = {
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
+	'lojo/english/compose': { req: LojoEnglishComposeRequest; res: LojoEnglishComposeResponse };
+	'lojo/english/explain': { req: LojoEnglishExplainRequest; res: LojoEnglishExplainResponse };
+	'lojo/english/reply-ideas': { req: LojoEnglishReplyIdeasRequest; res: LojoEnglishReplyIdeasResponse };
+	'lojo/english/speech': { req: LojoEnglishSpeechRequest; res: LojoEnglishSpeechResponse };
+	'lojo/english/status': { req: EmptyRequest; res: LojoEnglishStatusResponse };
 	'lojo/entities/import': { req: LojoEntitiesImportRequest; res: LojoEntitiesImportResponse };
 	'lojo/entities/list': { req: LojoEntitiesListRequest; res: LojoEntitiesListResponse };
 	'lojo/entities/show': { req: LojoEntitiesShowRequest; res: LojoEntitiesShowResponse };

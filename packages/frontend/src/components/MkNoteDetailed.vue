@@ -110,6 +110,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<Mfm :text="translation.text" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis" class="_selectable"/>
 						</div>
 					</div>
+					<MkLojoEnglishBar v-if="appearNote.text" :note="appearNote"/>
 					<MkLojoEntityLink :text="appearNote.text"/>
 					<div v-if="appearNote.files && appearNote.files.length > 0">
 						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
@@ -241,6 +242,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import MkLojoEntityLink from '@/components/MkLojoEntityLink.vue';
+import MkLojoEnglishBar from '@/components/MkLojoEnglishBar.vue';
 import { inject, provide, ref, useTemplateRef, markRaw, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import { useNote } from '@/composables/use-note.js';

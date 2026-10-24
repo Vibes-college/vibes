@@ -20,6 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</p>
 				<div v-show="note.cw == null || showContent">
 					<MkSubNoteContent :class="$style.text" :note="note"/>
+					<MkLojoEnglishBar v-if="note.text && detail" :note="note"/>
 				</div>
 			</div>
 		</div>
@@ -47,6 +48,7 @@ import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkNoteHeader from '@/components/MkNoteHeader.vue';
 import MkSubNoteContent from '@/components/MkSubNoteContent.vue';
+import MkLojoEnglishBar from '@/components/MkLojoEnglishBar.vue';
 import MkCwButton from '@/components/MkCwButton.vue';
 import { notePage } from '@/filters/note.js';
 import { misskeyApi } from '@/utility/misskey-api.js';

@@ -49,6 +49,12 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/maps.vue')),
 	loginRequired: true,
 }, {
+	// 生词本: expressions saved from the English explanations under posts.
+	name: 'lojo-wordbook',
+	path: '/wordbook',
+	component: page(() => import('@/pages/lojo/wordbook.vue')),
+	loginRequired: true,
+}, {
 	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
 	name: 'lojo',
 	path: '/map/:course',

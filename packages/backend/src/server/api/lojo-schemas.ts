@@ -86,3 +86,66 @@ export const lojoErrors = {
 	noSuchNote: { message: 'No such note.', code: 'NO_SUCH_NOTE', id: '4e572e8b-f80e-4c18-b367-05cd40506887' },
 	notYourNote: { message: 'Only the author may link this note.', code: 'NOT_YOUR_NOTE', id: '99e988aa-40ca-4e5c-a601-7a4570065480' },
 } as const;
+
+export const lojoEnglishErrors = {
+	unavailable: { message: 'The English helper is not configured on this server.', code: 'LOJO_ENGLISH_UNAVAILABLE', id: '79d4b55b-fd55-447e-a477-467c859dffa5' },
+	failed: { message: 'The English helper could not answer. Try again later.', code: 'LOJO_ENGLISH_FAILED', id: 'f5feab2b-7d08-43dc-94fb-0a8c76144c22' },
+	noSuchNote: { message: 'No such note.', code: 'NO_SUCH_NOTE', id: '0d2d55c3-4320-4700-953c-a2c4a1e97adc' },
+	invisibleNote: { message: 'This note is not visible to you.', code: 'INVISIBLE_NOTE', id: '88c5a908-abda-42cb-985c-7aa3c81eafd3' },
+	emptyNote: { message: 'This note has no text.', code: 'EMPTY_NOTE', id: '1701ecb1-46cd-4d5f-8be2-12b9cb291a80' },
+	quotaExceeded: { message: 'The English helper has used up today\'s quota.', code: 'LOJO_ENGLISH_QUOTA_EXCEEDED', id: '6ea5eb7d-ccb8-4499-abf9-d8d634d78033' },
+} as const;
+
+const str = { type: 'string', optional: false, nullable: false } as const;
+
+export const lojoEnglishExplanationRes = {
+	type: 'object', optional: false, nullable: false,
+	properties: {
+		sourceLang: { type: 'string', optional: false, nullable: false, enum: ['en', 'zh', 'other'] },
+		translation: str,
+		tone: str,
+		items: {
+			type: 'array', optional: false, nullable: false,
+			items: {
+				type: 'object', optional: false, nullable: false,
+				properties: {
+					text: str,
+					kind: { type: 'string', optional: false, nullable: false, enum: ['word', 'phrase', 'idiom', 'slang', 'grammar'] },
+					meaning: str, usage: str, example: str, exampleZh: str,
+				},
+			},
+		},
+	},
+} as const;
+
+export const lojoEnglishDraftRes = {
+	type: 'object', optional: false, nullable: false,
+	properties: {
+		sourceLang: { type: 'string', optional: false, nullable: false, enum: ['en', 'zh', 'mixed', 'other'] },
+		feedback: str,
+		versions: {
+			type: 'array', optional: false, nullable: false,
+			items: {
+				type: 'object', optional: false, nullable: false,
+				properties: {
+					style: { type: 'string', optional: false, nullable: false, enum: ['casual', 'slang', 'formal'] },
+					text: str,
+					notes: {
+						type: 'array', optional: false, nullable: false,
+						items: { type: 'object', optional: false, nullable: false, properties: { phrase: str, explanation: str } },
+					},
+				},
+			},
+		},
+	},
+} as const;
+
+export const lojoEnglishReplyIdeasRes = {
+	type: 'object', optional: false, nullable: false,
+	properties: {
+		ideas: {
+			type: 'array', optional: false, nullable: false,
+			items: { type: 'object', optional: false, nullable: false, properties: { angle: str, text: str, zh: str } },
+		},
+	},
+} as const;

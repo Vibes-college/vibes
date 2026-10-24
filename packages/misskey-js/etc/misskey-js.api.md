@@ -2017,6 +2017,15 @@ declare namespace entities {
         InviteLimitResponse,
         InviteListRequest,
         InviteListResponse,
+        LojoEnglishComposeRequest,
+        LojoEnglishComposeResponse,
+        LojoEnglishExplainRequest,
+        LojoEnglishExplainResponse,
+        LojoEnglishReplyIdeasRequest,
+        LojoEnglishReplyIdeasResponse,
+        LojoEnglishSpeechRequest,
+        LojoEnglishSpeechResponse,
+        LojoEnglishStatusResponse,
         LojoEntitiesImportRequest,
         LojoEntitiesImportResponse,
         LojoEntitiesListRequest,
@@ -2886,6 +2895,33 @@ type IWebhooksTestRequest = operations['i___webhooks___test']['requestBody']['co
 
 // @public (undocumented)
 type IWebhooksUpdateRequest = operations['i___webhooks___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishComposeRequest = operations['lojo___english___compose']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishComposeResponse = operations['lojo___english___compose']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishExplainRequest = operations['lojo___english___explain']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishExplainResponse = operations['lojo___english___explain']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishReplyIdeasRequest = operations['lojo___english___reply-ideas']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishReplyIdeasResponse = operations['lojo___english___reply-ideas']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishSpeechRequest = operations['lojo___english___speech']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishSpeechResponse = operations['lojo___english___speech']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoEnglishStatusResponse = operations['lojo___english___status']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoEntitiesImportRequest = operations['lojo___entities___import']['requestBody']['content']['application/json'];

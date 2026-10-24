@@ -456,6 +456,11 @@ export * as 'lojo/entities/show' from './endpoints/lojo/entities/show.js';
 export * as 'lojo/entities/import' from './endpoints/lojo/entities/import.js';
 export * as 'lojo/notes/link' from './endpoints/lojo/notes/link.js';
 export * as 'lojo/notes/list' from './endpoints/lojo/notes/list.js';
+export * as 'lojo/english/status' from './endpoints/lojo/english/status.js';
+export * as 'lojo/english/explain' from './endpoints/lojo/english/explain.js';
+export * as 'lojo/english/compose' from './endpoints/lojo/english/compose.js';
+export * as 'lojo/english/reply-ideas' from './endpoints/lojo/english/reply-ideas.js';
+export * as 'lojo/english/speech' from './endpoints/lojo/english/speech.js';
 
 export * as 'lojo/guides/list' from './endpoints/lojo/guides/list.js';
 export * as 'lojo/guides/show' from './endpoints/lojo/guides/show.js';

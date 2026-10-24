@@ -28,6 +28,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA v-tooltip.noDelay.right="'攻略'" :class="$style.item" :activeClass="$style.active" aria-label="攻略" to="/guides">
 				<i :class="$style.itemIcon" class="ti ti-book ti-fw"></i><span :class="$style.itemText">攻略</span>
 			</MkA>
+			<MkA v-if="$i != null" v-tooltip.noDelay.right="englishLabels.wordbook" :class="$style.item" :activeClass="$style.active" :aria-label="englishLabels.wordbook" to="/wordbook">
+				<i :class="$style.itemIcon" class="ti ti-notebook ti-fw"></i><span :class="$style.itemText">{{ englishLabels.wordbook }}</span>
+			</MkA>
 			<template v-for="item in prefer.r.menu.value">
 				<div v-if="item === '-'" :class="$style.divider"></div>
 				<component
@@ -115,6 +118,7 @@ import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
 import { lojoLabels } from '@/lojo/labels.js';
+import { englishLabels } from '@/lojo/english/labels.js';
 import VibesLogo from '@/lojo/VibesLogo.vue';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';

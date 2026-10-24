@@ -90,6 +90,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<MkPollEditor v-if="poll" v-model="poll" @destroyed="poll = null"/>
 	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="text" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
+	<button v-if="!mock && englishStatus.available && englishPanel == null && looksChinese(text)" class="_button" :class="$style.englishHint" @click="toggleEnglish('compose')"><i class="ti ti-language"></i> {{ englishLabels.composeHint }}</button>
+	<button v-else-if="!mock && englishStatus.available && englishPanel == null && replyTargetNote && splitMentions(text).body.trim() === ''" class="_button" :class="$style.englishHint" @click="toggleEnglish('ideas')"><i class="ti ti-bulb"></i> {{ englishLabels.ideasHint }}</button>
+	<MkLojoEnglishCompose v-if="englishPanel" :key="`${englishPanel}:${englishPanelKey}`" :mode="englishPanel" :text="splitMentions(text).body" :replyNoteId="replyTargetNote?.id" @use="useEnglish" @close="englishPanel = null"/>
 	<div v-if="showingOptions" style="padding: 8px 16px;">
 	</div>
 	<footer ref="footerEl" :class="$style.footer">
@@ -100,6 +103,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" @click="useCw = !useCw"><i class="ti ti-eye-off"></i></button>
 			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
 			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" @click="insertMention"><i class="ti ti-at"></i></button>
+			<button v-if="!mock && englishStatus.available" v-tooltip="englishLabels.composeButton" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: englishPanel === 'compose' }]" :aria-label="englishLabels.composeButton" @click="toggleEnglish('compose')"><i class="ti ti-language"></i></button>
 			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
 			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" @click="showActions"><i class="ti ti-plug"></i></button>
 		</div>
@@ -158,6 +162,10 @@ import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import { useUploader } from '@/composables/use-uploader.js';
 import { startTour } from '@/utility/tour.js';
 import { closeTip } from '@/tips.js';
+import MkLojoEnglishCompose from '@/components/MkLojoEnglishCompose.vue';
+import { englishLabels } from '@/lojo/english/labels.js';
+import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
+import { looksChinese, splitMentions } from '@/lojo/english/text.js';
 
 const $i = ensureSignin();
 
@@ -225,6 +233,42 @@ const replyTargetNote: ShallowRef<PostFormProps['reply'] | null> = shallowRef(pr
 const targetChannel = shallowRef(props.channel);
 
 const serverDraftId = ref<string | null>(null);
+
+// Vibes: the timeline is mostly English, so Chinese drafts get offered an English version.
+const englishPanel = ref<'compose' | 'ideas' | null>(null);
+const englishPanelKey = ref(0);
+const postChineseAnyway = ref(false);
+loadEnglishStatus();
+
+function toggleEnglish(mode: 'compose' | 'ideas') {
+	if (englishPanel.value === mode) {
+		englishPanel.value = null;
+		return;
+	}
+	openEnglish(mode);
+}
+
+function openEnglish(mode: 'compose' | 'ideas') {
+	const body = splitMentions(text.value).body.trim();
+	if (mode === 'compose' && body === '') {
+		os.toast(englishLabels.composeEmpty);
+		return;
+	}
+	if (mode === 'compose' && body.length > 1000) {
+		os.toast(englishLabels.composeTooLong);
+		return;
+	}
+	englishPanel.value = mode;
+	englishPanelKey.value++;
+}
+
+// The English version replaces the body; leading @mentions are kept exactly as they were.
+function useEnglish(english: string) {
+	text.value = splitMentions(text.value).prefix + english;
+	englishPanel.value = null;
+	nextTick(() => textareaEl.value?.focus());
+}
+
 const postFormActions = getPluginHandlers('post_form_action');
 
 let textAutocomplete: Autocomplete | null = null;
@@ -719,6 +763,8 @@ function clear() {
 	poll.value = null;
 	quoteId.value = null;
 	scheduledAt.value = null;
+	postChineseAnyway.value = false;
+	englishPanel.value = null;
 	uploader.reset();
 }
 
@@ -965,6 +1011,27 @@ async function post(ev?: PointerEvent) {
 				end: () => dispose(),
 			});
 		}
+	}
+
+	if (!props.mock && englishStatus.value.available && !postChineseAnyway.value && looksChinese(text.value)) {
+		const { canceled, result } = await os.actions({
+			type: 'question',
+			text: englishLabels.chineseDraftAsk,
+			actions: [{
+				value: 'translate',
+				text: englishLabels.chineseDraftTranslate,
+				primary: true,
+			}, {
+				value: 'post',
+				text: englishLabels.chineseDraftPost,
+			}],
+		});
+		if (canceled) return;
+		if (result === 'translate') {
+			openEnglish('compose');
+			return;
+		}
+		postChineseAnyway.value = true;
 	}
 
 	if (scheduledAt.value != null) {
@@ -1645,6 +1712,22 @@ defineExpose({
 	}
 }
 //#endregion
+
+.englishHint {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 16px 8px;
+	padding: 6px 10px;
+	border-radius: 8px;
+	font-size: 0.85em;
+	color: var(--MI_THEME-accent);
+	background: var(--MI_THEME-accentedBg);
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+	}
+}
 
 .preview {
 	padding: 16px 20px 0 20px;
