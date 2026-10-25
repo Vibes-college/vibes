@@ -4,13 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="!mock && text !== '' && (canSpeak || englishStatus.available)" :class="$style.root">
+<div v-if="!mock && sourceText !== '' && (canSpeak || englishStatus.available)" :class="[$style.root, { [$style.alignEnd]: align === 'end' }]">
 	<div :class="$style.actions">
-		<button v-if="canSpeak" class="_button" :class="[$style.action, { [$style.active]: speakingKey === `${uid}:post` }]" :aria-pressed="speakingKey === `${uid}:post`" @click="toggleSpeak(`${uid}:post`, text, { noteId })">
+		<button v-if="canSpeak" class="_button" :class="[$style.action, { [$style.active]: speakingKey === `${uid}:post` }]" :aria-pressed="speakingKey === `${uid}:post`" @click="speakPost">
 			<i :class="[speakIcon(`${uid}:post`), { [$style.spin]: loadingKey === `${uid}:post` }]"></i>
 			{{ loadingKey === `${uid}:post` ? englishLabels.loadingVoice : speakingKey === `${uid}:post` ? englishLabels.stop : englishLabels.listen }}
 		</button>
-		<button v-if="canSpeak" class="_button" :class="$style.action" :aria-label="englishLabels.voiceTitle" @click="openVoiceMenu">
+		<!-- Chats keep the row short: the voice picked on the timeline is used there too. -->
+		<button v-if="canSpeak && note" class="_button" :class="$style.action" :aria-label="englishLabels.voiceTitle" @click="openVoiceMenu">
 			<i class="ti ti-microphone"></i>
 			{{ currentVoice?.name ?? englishLabels.voice }}
 		</button>
@@ -80,23 +81,31 @@ import type * as Misskey from 'misskey-js';
 import type { EnglishExplanation } from '@/lojo/english/api.js';
 import { DI } from '@/di.js';
 import { englishLabels } from '@/lojo/english/labels.js';
-import { englishErrorText, englishStatus, explainNote, loadEnglishStatus } from '@/lojo/english/api.js';
+import { englishErrorText, englishStatus, explainNote, explainText, loadEnglishStatus } from '@/lojo/english/api.js';
 import { currentVoice, loadingKey, openVoiceMenu, speakingKey, speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
-import { looksEnglish } from '@/lojo/english/text.js';
+import { looksEnglish, speechText } from '@/lojo/english/text.js';
 import { isSaved, loadWordbook, reloadWordbook, toggleWord } from '@/lojo/english/wordbook.js';
 import * as os from '@/os.js';
 
+// Either a note, or (in chats) a message's text, which is read and explained without a note.
 const props = defineProps<{
-	note: Misskey.entities.Note;
+	note?: Misskey.entities.Note;
+	text?: string | null;
+	align?: 'start' | 'end';
+	// A voice message's transcript already has its own audio.
+	noListen?: boolean;
 }>();
 
 const mock = inject(DI.mock, false);
 // Per instance, so the same note shown twice (e.g. original and renote) keeps separate play buttons.
 const uid = `note-${useId()}`;
 
-const noteId = computed(() => props.note.id);
-const text = computed(() => [props.note.cw, props.note.text].filter(x => x != null && x !== '').join('\n'));
-const canSpeak = computed(() => speechSupported.value && looksEnglish(text.value));
+const noteId = computed(() => props.note?.id ?? null);
+const sourceText = computed(() => {
+	if (props.note == null) return props.text ?? '';
+	return [props.note.cw, props.note.text].filter(x => x != null && x !== '').join('\n');
+});
+const canSpeak = computed(() => !props.noListen && speechSupported.value && looksEnglish(sourceText.value));
 
 const panelOpen = ref(false);
 const loading = ref(false);
@@ -115,12 +124,18 @@ async function load() {
 	loading.value = true;
 	error.value = null;
 	try {
-		data.value = await explainNote(noteId.value);
+		data.value = noteId.value != null ? await explainNote(noteId.value) : await explainText(sourceText.value);
 	} catch (err) {
 		error.value = englishErrorText(err);
 	} finally {
 		loading.value = false;
 	}
+}
+
+// The server reads a note itself; chat text is sent as the words to say, without links or markup.
+function speakPost() {
+	if (noteId.value != null) toggleSpeak(`${uid}:post`, sourceText.value, { noteId: noteId.value });
+	else toggleSpeak(`${uid}:post`, speechText(sourceText.value));
 }
 
 function toggle() {
@@ -147,6 +162,11 @@ function speakIcon(key: string): string {
 <style lang="scss" module>
 .root {
 	margin-top: 6px;
+
+	// My own chat messages sit on the right.
+	&.alignEnd .actions {
+		justify-content: flex-end;
+	}
 }
 
 .actions {
@@ -185,6 +205,8 @@ function speakIcon(key: string): string {
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-panelHighlight);
 	font-size: 0.9em;
+	// Chat rows of my own messages are right-aligned; the explanation still reads left to right.
+	text-align: left;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;

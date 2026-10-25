@@ -6,9 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div :class="[$style.root, { [$style.isMe]: isMe }]">
 	<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="message.fromUser!" :link="!isMe" :preview="false"/>
-	<div :class="[$style.body, message.file != null ? $style.fullWidth : null]" @contextmenu.stop="onContextmenu">
+	<div :class="[$style.body, message.file != null && voiceFile == null ? $style.fullWidth : null]" @contextmenu.stop="onContextmenu">
 		<div :class="$style.header"><MkUserName v-if="!isMe && prefer.s['chat.showSenderName'] && message.fromUser != null" :user="message.fromUser"/></div>
-		<MkFukidashi :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null" :accented="isMe">
+		<MkFukidashi :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null && voiceFile == null" :accented="isMe">
+			<!-- Vibes: a voice message plays as a voice bubble; the text below it is the transcript. -->
+			<MkChatVoice v-if="voiceFile" :class="$style.voice" :file="voiceFile"/>
 			<Mfm
 				v-if="message.text"
 				ref="text"
@@ -19,8 +21,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:enableEmojiMenu="true"
 				:enableEmojiMenuReaction="true"
 			/>
-			<MkMediaList v-if="message.file" :mediaList="[message.file]" :user="message.fromUser"/>
+			<MkMediaList v-if="message.file && voiceFile == null" :mediaList="[message.file]" :user="message.fromUser"/>
 		</MkFukidashi>
+		<MkLojoEnglishBar v-if="message.text" :text="message.text" :align="isMe ? 'end' : 'start'" :noListen="voiceFile != null"/>
 		<MkUrlPreview v-for="url in urls" :key="url" :url="url" style="margin: 8px 0;"/>
 		<div :class="$style.footer">
 			<button class="_textButton" style="color: currentColor;" @click="showMenu"><i class="ti ti-dots-circle-horizontal"></i></button>
@@ -73,6 +76,10 @@ import MkReactionIcon from '@/components/MkReactionIcon.vue';
 import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
+import MkChatVoice from '@/components/MkChatVoice.vue';
+import MkLojoEnglishBar from '@/components/MkLojoEnglishBar.vue';
+import { isVoiceFile } from '@/lojo/audio.js';
+import { shouldHideFileByDefault } from '@/utility/sensitive-file.js';
 
 const $i = ensureSignin();
 
@@ -83,6 +90,12 @@ const props = defineProps<{
 
 const isMe = computed(() => props.message.fromUserId === $i.id);
 const urls = computed(() => props.message.text ? extractUrlFromMfm(mfm.parse(props.message.text)) : []);
+// Vibes: audio (an AI tutor's spoken reply) gets the voice bubble instead of the media player.
+// Audio that the user's media settings would hide keeps the regular player, which hides it until tapped.
+const voiceFile = computed(() => {
+	const file = props.message.file;
+	return isVoiceFile(file) && !shouldHideFileByDefault(file, true) ? file : null;
+});
 
 provide(DI.mfmEmojiReactCallback, (reaction) => {
 	if ($i.policies.chatAvailability !== 'available') return;
@@ -275,6 +288,11 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 
 .fukidashi {
 	text-align: left;
+}
+
+// Vibes: room between a voice bubble and its transcript.
+.voice:not(:last-child) {
+	margin-bottom: 8px;
 }
 
 .content {

@@ -9,6 +9,7 @@ import { englishLabels } from './labels.js';
 import type { EnglishVoice } from './api.js';
 import type { MenuItem } from '@/types/menu.js';
 import * as os from '@/os.js';
+import { takeAudioFocus } from '@/lojo/audio.js';
 
 // Read-aloud goes through the server (Fish Audio); one shared <audio> element plays everything.
 export const speechSupported = computed(() => englishStatus.value.speech);
@@ -40,11 +41,15 @@ function stop() {
 	loadingKey.value = null;
 }
 
+// A chat voice message that starts playing stops the read-aloud, and the other way round.
+const speechPlayer = { pause: stop };
+
 // Pressing the same button again stops it; starting another one stops the previous.
 export async function toggleSpeak(key: string, text: string, source?: { noteId: string }): Promise<void> {
 	const wasThis = speakingKey.value === key || loadingKey.value === key;
 	stop();
 	if (wasThis || !speechSupported.value) return;
+	takeAudioFocus(speechPlayer);
 
 	const voice = currentVoice.value?.id ?? '';
 	const el = player();

@@ -34,7 +34,7 @@ export const englishLabels = {
 	saveFailed: '没存上，稍后再试。',
 
 	wordbook: '生词本',
-	wordbookEmpty: '在帖子的"翻译讲解"里点书签图标，值得学的说法就会存到这里。',
+	wordbookEmpty: '在帖子或私信的"翻译讲解"里点书签图标，值得学的说法就会存到这里。',
 	wordbookSearch: '搜索单词、短语或中文意思',
 	wordbookCount: (n: number) => `共 ${n} 个`,
 	source: '原帖',
@@ -61,4 +61,11 @@ export const englishLabels = {
 	chineseDraftAsk: '这条是中文。Vibes 的时间线以英文为主，要先变成英文吗？',
 	chineseDraftTranslate: '变成英文',
 	chineseDraftPost: '直接发',
+} as const;
+
+// Chats: voice messages (an AI tutor's replies) and the line shown while the other side is writing.
+export const chatLabels = {
+	voicePlay: '播放语音',
+	voiceFailed: '这条语音没放出来，稍后再试。',
+	typing: '正在输入',
 } as const;

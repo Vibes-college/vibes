@@ -19,11 +19,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 		@keydown="onKeydown"
 		@paste="onPaste"
 	></textarea>
+	<div v-if="englishPanel" class="_acrylic" :class="$style.english">
+		<MkLojoEnglishCompose mode="compose" :text="text" @use="useEnglish" @close="englishPanel = false"/>
+	</div>
 	<footer :class="$style.footer">
 		<div v-if="file" :class="$style.file" @click="file = null">{{ file.name }}</div>
 		<div :class="$style.buttons">
 			<button class="_button" :class="$style.button" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
 			<button class="_button" :class="$style.button" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-if="englishStatus.available" v-tooltip="englishLabels.composeButton" class="_button" :class="[$style.button, { [$style.buttonActive]: englishPanel }]" :aria-label="englishLabels.composeButton" :aria-expanded="englishPanel" @click="toggleEnglish"><i class="ti ti-language"></i></button>
 			<button class="_button" :class="[$style.button, $style.send]" :disabled="!canSend || sending" :title="i18n.ts.send" @click="send">
 				<template v-if="!sending"><i class="ti ti-send"></i></template><template v-if="sending"><MkLoading :em="true"/></template>
 			</button>
@@ -47,6 +51,9 @@ import { prefer } from '@/preferences.js';
 import { Autocomplete } from '@/utility/autocomplete.js';
 import { emojiPicker } from '@/utility/emoji-picker.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
+import MkLojoEnglishCompose from '@/components/MkLojoEnglishCompose.vue';
+import { englishLabels } from '@/lojo/english/labels.js';
+import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
 
 const props = defineProps<{
 	user?: Misskey.entities.UserDetailed | null;
@@ -63,6 +70,33 @@ const textareaReadOnly = ref(false);
 let autocompleteInstance: Autocomplete | null = null;
 
 const canSend = computed(() => (text.value != null && text.value !== '') || file.value != null);
+
+// Vibes: the same "turn it into English" panel as the post form, for the message being written.
+const englishPanel = ref(false);
+loadEnglishStatus();
+
+function toggleEnglish() {
+	if (englishPanel.value) {
+		englishPanel.value = false;
+		return;
+	}
+	const body = text.value.trim();
+	if (body === '') {
+		os.toast(englishLabels.composeEmpty);
+		return;
+	}
+	if (body.length > 1000) {
+		os.toast(englishLabels.composeTooLong);
+		return;
+	}
+	englishPanel.value = true;
+}
+
+function useEnglish(english: string) {
+	text.value = english;
+	englishPanel.value = false;
+	nextTick(() => textareaEl.value?.focus());
+}
 
 function getDraftKey() {
 	return props.user ? 'user:' + props.user.id : 'room:' + props.room?.id;
@@ -223,6 +257,7 @@ function send() {
 function clear() {
 	text.value = '';
 	file.value = null;
+	englishPanel.value = false;
 	deleteDraft();
 }
 
@@ -353,5 +388,17 @@ onBeforeUnmount(() => {
 .send {
 	margin-left: auto;
 	color: var(--MI_THEME-accent);
+}
+
+// Vibes: the English button while its panel is open, and the panel between the textarea and the buttons.
+.buttonActive {
+	color: var(--MI_THEME-accent);
+}
+
+.english {
+	padding-top: 8px;
+	// The form lives in the sticky page footer; a long result must not push the textarea off a small screen.
+	max-height: 40vh;
+	overflow-y: auto;
 }
 </style>
