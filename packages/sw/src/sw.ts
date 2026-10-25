@@ -42,6 +42,32 @@ async function respondToNavigation(request: Request): Promise<Response> {
 	});
 }
 
+// Vibes: the home page opens from the copy kept on the device, and the copy is refreshed in the background for next time.
+// From mainland China loading it takes several round trips of about 0.2 s each (measured 2026-10-24).
+// Only "/" is kept. Other pages still come from the server, and the copy is dropped when a new service worker activates.
+const HOME_CACHE = 'vibes-home';
+
+async function respondToHome(ev: FetchEvent): Promise<Response> {
+	const cache = await caches.open(HOME_CACHE);
+	const kept = await cache.match(ev.request.url, { ignoreVary: true });
+	if (kept == null) {
+		const response = await respondToNavigation(ev.request);
+		if (isServerPage(response)) await cache.put(ev.request.url, response.clone());
+		return response;
+	}
+	ev.waitUntil(fetch(ev.request).then(async response => {
+		if (isServerPage(response)) await cache.put(ev.request.url, response);
+	}).catch(() => {
+		// Offline: keep the copy we have.
+	}));
+	return kept;
+}
+
+// A real page from the server, not the offline page made up above, an error or a redirect.
+function isServerPage(response: Response): boolean {
+	return response.ok && response.type === 'basic' && !response.redirected && (response.headers.get('content-type') ?? '').includes('text/html');
+}
+
 async function offlineContentHTML() {
 	let i18n: Partial<I18n<Locale>>;
 	try {
@@ -99,6 +125,11 @@ globalThis.addEventListener('fetch', ev => {
 	}
 
 	if (!isHTMLRequest) return;
+	const url = new URL(ev.request.url);
+	if (ev.request.method === 'GET' && url.origin === globalThis.location.origin && url.pathname === '/' && url.search === '') {
+		ev.respondWith(respondToHome(ev));
+		return;
+	}
 	ev.respondWith(respondToNavigation(ev.request));
 });
 

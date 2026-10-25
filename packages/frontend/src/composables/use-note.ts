@@ -254,12 +254,7 @@ export function useNote(
 		if (appearNote.reactionAcceptance === 'likeOnly') {
 			sound.playMisskeySfx('reaction');
 			if (props.mock) return;
-			misskeyApi('notes/reactions/create', {
-				noteId: appearNote.id,
-				reaction: '❤️',
-			}).then(() => {
-				noteEvents.emit(`reacted:${appearNote.id}`, { userId: $i!.id, reaction: '❤️' });
-			});
+			sendReaction('❤️');
 			if (els.reactButton != null && els.reactButton.value != null && prefer.s.animation) {
 				const rect = els.reactButton.value.getBoundingClientRect();
 				const { dispose } = os.popup(MkRippleEffect, {
@@ -284,12 +279,7 @@ export function useNote(
 					if (createReactionMock) createReactionMock(reaction);
 					return;
 				}
-				misskeyApi('notes/reactions/create', {
-					noteId: appearNote.id,
-					reaction: reaction,
-				}).then(() => {
-					noteEvents.emit(`reacted:${appearNote.id}`, { userId: $i!.id, reaction: reaction });
-				});
+				sendReaction(reaction);
 				if (appearNote.text && appearNote.text.length > 100 && (Date.now() - new Date(appearNote.createdAt).getTime() < 1000 * 3)) {
 					claimAchievement('reactWithoutRead');
 				}
@@ -303,14 +293,26 @@ export function useNote(
 		if (!isLoggedIn) return;
 		showMovedDialog();
 		sound.playMisskeySfx('reaction');
+		sendReaction(reaction);
+	}
+
+	// Vibes: show a reaction at once instead of after the server replies; from mainland China each round trip takes about 0.2 s.
+	// The capture ignores the same reaction when it comes back from the stream, and a failed request takes it back.
+	// While a request is in flight further taps are ignored, so a quick double tap cannot leave the wrong state.
+	let reactionPending = false;
+
+	function sendReaction(reaction: string): void {
+		if (reactionPending) return;
+		reactionPending = true;
+		noteEvents.emit(`reacted:${appearNote.id}`, { userId: $i!.id, reaction: reaction });
 		misskeyApi('notes/reactions/create', {
 			noteId: appearNote.id,
 			reaction: reaction,
-		}).then(() => {
-			noteEvents.emit(`reacted:${appearNote.id}`, {
-				userId: $i!.id,
-				reaction: reaction,
-			});
+		}).catch(() => {
+			noteEvents.emit(`unreacted:${appearNote.id}`, { userId: $i!.id, reaction: reaction });
+			os.toast(i18n.ts.unableToProcess);
+		}).finally(() => {
+			reactionPending = false;
 		});
 	}
 
@@ -318,8 +320,14 @@ export function useNote(
 		const oldReaction = $appearNote.myReaction;
 		if (!oldReaction) return;
 		if (props.mock) return;
-		misskeyApi('notes/reactions/delete', { noteId: appearNote.id }).then(() => {
-			noteEvents.emit(`unreacted:${appearNote.id}`, { userId: $i!.id, reaction: oldReaction });
+		if (reactionPending) return;
+		reactionPending = true;
+		noteEvents.emit(`unreacted:${appearNote.id}`, { userId: $i!.id, reaction: oldReaction });
+		misskeyApi('notes/reactions/delete', { noteId: appearNote.id }).catch(() => {
+			noteEvents.emit(`reacted:${appearNote.id}`, { userId: $i!.id, reaction: oldReaction });
+			os.toast(i18n.ts.unableToProcess);
+		}).finally(() => {
+			reactionPending = false;
 		});
 	}
 

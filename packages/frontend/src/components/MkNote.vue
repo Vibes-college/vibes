@@ -224,6 +224,7 @@ import MkCwButton from '@/components/MkCwButton.vue';
 import MkPoll from '@/components/MkPoll.vue';
 import MkUrlPreview from '@/components/MkUrlPreview.vue';
 import MkInstanceTicker from '@/components/MkInstanceTicker.vue';
+import { rememberNote } from '@/lojo/note-cache.js';
 
 const props = withDefaults(defineProps<{
 	note: Misskey.entities.Note;
@@ -240,6 +241,12 @@ const emit = defineEmits<{
 }>();
 
 provide(DI.mock, props.mock);
+
+// Vibes: keep what the timeline already has, so opening the note page draws it at once.
+if (!props.mock) {
+	rememberNote(props.note);
+	if (props.note.renote) rememberNote(props.note.renote);
+}
 
 // 周辺コンテキストのインジェクト
 const inTimeline = inject<boolean>('inTimeline', false);

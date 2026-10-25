@@ -71,7 +71,11 @@ const canToggle = computed(() => {
 	return $i != null && emoji != null;
 });
 
+// A request in flight ignores further taps, so a quick double tap cannot leave the wrong state.
+let pending = false;
+
 async function toggleReaction() {
+	if (pending) return;
 	if (!canToggle.value) return;
 	if ($i == null) return;
 
@@ -92,6 +96,22 @@ async function toggleReaction() {
 
 		if (mock) {
 			emit('reactionToggled', props.reaction, (props.count - 1));
+			return;
+		}
+
+		// Vibes: taking back your own reaction shows at once (about 0.2 s per round trip from mainland China).
+		// Switching to another reaction keeps the old order, because the stream would otherwise count the change twice.
+		if (oldReaction === props.reaction) {
+			pending = true;
+			noteEvents.emit(`unreacted:${props.noteId}`, { userId: me.id, reaction: oldReaction });
+			misskeyApi('notes/reactions/delete', {
+				noteId: props.noteId,
+			}).catch(() => {
+				noteEvents.emit(`reacted:${props.noteId}`, { userId: me.id, reaction: oldReaction });
+				os.toast(i18n.ts.unableToProcess);
+			}).finally(() => {
+				pending = false;
+			});
 			return;
 		}
 
@@ -137,20 +157,19 @@ async function toggleReaction() {
 			return;
 		}
 
+		// Vibes: the new reaction shows at once and is taken back if the request fails.
+		pending = true;
+		const emoji = customEmojisMap.get(emojiName.value);
+		const known = emoji != null || getUnicodeEmojiOrNull(props.reaction) != null;
+		if (known) noteEvents.emit(`reacted:${props.noteId}`, { userId: me.id, reaction: props.reaction, emoji: emoji });
 		misskeyApi('notes/reactions/create', {
 			noteId: props.noteId,
 			reaction: props.reaction,
-		}).then(() => {
-			const emoji = customEmojisMap.get(emojiName.value);
-			if (emoji == null && getUnicodeEmojiOrNull(props.reaction) == null) {
-				return;
-			}
-
-			noteEvents.emit(`reacted:${props.noteId}`, {
-				userId: me.id,
-				reaction: props.reaction,
-				emoji: emoji,
-			});
+		}).catch(() => {
+			if (known) noteEvents.emit(`unreacted:${props.noteId}`, { userId: me.id, reaction: props.reaction });
+			os.toast(i18n.ts.unableToProcess);
+		}).finally(() => {
+			pending = false;
 		});
 		// TODO: 上位コンポーネントでやる
 		//if (props.note.text && props.note.text.length > 100 && (Date.now() - new Date(props.note.createdAt).getTime() < 1000 * 3)) {

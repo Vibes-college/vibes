@@ -5,14 +5,17 @@
 
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import type { OnApplicationShutdown } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
+import { bindThis } from '@/decorators.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { RoleService } from '@/core/RoleService.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { GetterService } from '@/server/api/GetterService.js';
 import type { MiLocalUser } from '@/models/User.js';
+import type { Packed } from '@/misc/json-schema.js';
 import type Logger from '@/logger.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoEnglishErrors } from '@/server/api/lojo-schemas.js';
@@ -20,6 +23,7 @@ import {
 	composeSystemPrompt,
 	explainSystemPrompt,
 	LojoEnglishInvalidResponse,
+	looksEnglish,
 	normalizeDraft,
 	normalizeExplanation,
 	normalizeReplyIdeas,
@@ -41,11 +45,13 @@ type ChatCompletion = {
 };
 
 @Injectable()
-export class LojoEnglishService {
+export class LojoEnglishService implements OnApplicationShutdown {
 	private readonly apiKey = process.env.DEEPSEEK_API_KEY ?? '';
 	private readonly model = process.env.LOJO_ENGLISH_MODEL || DEFAULT_MODEL;
 	// Site-wide ceiling on model calls per UTC day, on top of the per-user endpoint limits.
 	private readonly dailyLimit = Number(process.env.LOJO_ENGLISH_DAILY_LIMIT) || 3000;
+	// Explanations made ahead of time for new English posts, per UTC day; 0 turns this off.
+	private readonly warmLimit = process.env.LOJO_ENGLISH_WARM_DAILY_LIMIT != null ? Number(process.env.LOJO_ENGLISH_WARM_DAILY_LIMIT) : 1000;
 	// Many readers opening the same post at once share one model call.
 	private inflight = new Map<string, Promise<unknown>>();
 	private logger: Logger;
@@ -53,6 +59,10 @@ export class LojoEnglishService {
 	constructor(
 		@Inject(DI.redis)
 		private redisClient: Redis.Redis,
+
+		@Inject(DI.redisForSub)
+		private redisForSub: Redis.Redis,
+
 		private httpRequestService: HttpRequestService,
 		private loggerService: LoggerService,
 		private roleService: RoleService,
@@ -60,6 +70,7 @@ export class LojoEnglishService {
 		private noteEntityService: NoteEntityService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-english');
+		this.redisForSub.on('message', this.onRedisMessage);
 	}
 
 	public async status(me: MiLocalUser) {
@@ -87,6 +98,42 @@ export class LojoEnglishService {
 		const input = JSON.stringify({ post: text });
 		return this.cached(`explain:${lang}`, input, EXPLAIN_TTL_SEC, false, () =>
 			this.complete(explainSystemPrompt(lang), input, 0.3, 4000, normalizeExplanation));
+	}
+
+	// A new public English post gets its explanation right away, so the first reader who taps the button
+	// does not wait several seconds for the model. Same text and cache key as the explain endpoint.
+	@bindThis
+	private onRedisMessage(_: string, data: string): void {
+		const obj = JSON.parse(data);
+		if (obj.channel !== 'notesStream') return;
+		this.warmExplanation(obj.message as Packed<'Note'>).catch(err => {
+			this.logger.warn(`explanation ahead of time failed: ${err instanceof Error ? err.message : String(err)}`);
+		});
+	}
+
+	private async warmExplanation(note: Packed<'Note'>): Promise<void> {
+		if (this.apiKey === '' || this.warmLimit <= 0) return;
+		// Only posts anyone can already read; private ones are sent to the model only when a reader asks.
+		if (note.user.host != null || (note.visibility !== 'public' && note.visibility !== 'home')) return;
+		let text = note.text ?? '';
+		if (note.cw != null) text = `${note.cw}\n-----\n${text}`;
+		if (text.trim() === '' || !looksEnglish(text)) return;
+		// Every web process hears the same message; only one of them makes the call.
+		const claimed = await this.redisClient.set(`lojoEnglish:warmed:${note.id}`, '1', 'EX', 60 * 60, 'NX').catch(() => null);
+		if (claimed !== 'OK') return;
+		if (!(await this.spendWarmBudget())) return;
+		await this.explain(text.slice(0, POST_MAX_CHARS), 'zh-CN');
+	}
+
+	// Its own daily cap, and it stops once readers have used 80% of the site-wide limit, so taps always come first.
+	private async spendWarmBudget(): Promise<boolean> {
+		const day = new Date().toISOString().slice(0, 10);
+		const used = Number(await this.redisClient.get(`lojoEnglish:budget:${day}`).catch(() => null) ?? 0);
+		if (used >= this.dailyLimit * 0.8) return false;
+		const key = `lojoEnglish:warm:${day}`;
+		const warmed = await this.redisClient.multi().incr(key).expire(key, 60 * 60 * 48).exec()
+			.then(res => Number(res?.[0]?.[1] ?? 0), () => Number.POSITIVE_INFINITY);
+		return warmed <= this.warmLimit;
 	}
 
 	public async compose(text: string): Promise<LojoEnglishDraft> {
@@ -198,5 +245,10 @@ export class LojoEnglishService {
 		} catch {
 			throw new LojoEnglishInvalidResponse('content is not JSON');
 		}
+	}
+
+	@bindThis
+	public onApplicationShutdown(): void {
+		this.redisForSub.off('message', this.onRedisMessage);
 	}
 }

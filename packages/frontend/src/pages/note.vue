@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 					<div class="_margin _gaps_s">
 						<MkRemoteCaution v-if="note.user.host != null" :href="note.url ?? note.uri"/>
-						<MkNoteDetailed :key="note.id" v-model:note="note" :initialTab="initialTab" :class="$style.note"/>
+						<MkNoteDetailed :key="`${note.id}:${noteRevision}`" v-model:note="note" :initialTab="initialTab" :class="$style.note"/>
 					</div>
 					<div v-if="clips && clips.length > 0" class="_margin">
 						<div style="font-weight: bold; padding: 12px;">{{ i18n.ts.clip }}</div>
@@ -63,6 +63,7 @@ import { getAppearNote } from '@/utility/get-appear-note.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
 import { $i } from '@/i.js';
 import { Paginator } from '@/utility/paginator.js';
+import { recallNote, visibleNoteState } from '@/lojo/note-cache.js';
 
 // contextは非ログイン状態の情報しかないためログイン時は利用できない
 const CTX_NOTE = !$i && assertServerContext(serverContext, 'note') ? serverContext.note : null;
@@ -73,6 +74,7 @@ const props = defineProps<{
 }>();
 
 const note = ref<null | Misskey.entities.Note>(CTX_NOTE);
+const noteRevision = ref(0);
 const clips = ref<Misskey.entities.Clip[]>();
 const showPrev = ref<'user' | 'channel' | false>(false);
 const showNext = ref<'user' | 'channel' | false>(false);
@@ -128,9 +130,15 @@ function fetchNote() {
 		return;
 	}
 
+	// Vibes: draw a note the timeline already showed at once, then swap in the fresh copy.
+	// The note component reads its note only once, so it is redrawn only when something visible changed.
+	const seen = recallNote(props.noteId);
+	if (seen) note.value = seen;
+
 	misskeyApi('notes/show', {
 		noteId: props.noteId,
 	}).then(res => {
+		if (seen && visibleNoteState(seen) !== visibleNoteState(res)) noteRevision.value++;
 		note.value = res;
 		const appearNote = getAppearNote(res) ?? res;
 		// 古いノートは被クリップ数をカウントしていないので、2023-10-01以前のものは強制的にnotes/clipsを叩く
@@ -152,6 +160,7 @@ function fetchNote() {
 				},
 			});
 		}
+		note.value = null;
 		error.value = err;
 	});
 }

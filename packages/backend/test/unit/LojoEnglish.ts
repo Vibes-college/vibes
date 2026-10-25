@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { LojoEnglishInvalidResponse, normalizeDraft, normalizeExplanation, normalizeReplyIdeas, withoutNewLinks } from '@/misc/lojo-english.js';
+import { LojoEnglishInvalidResponse, looksEnglish, normalizeDraft, normalizeExplanation, normalizeReplyIdeas, withoutNewLinks } from '@/misc/lojo-english.js';
 
 describe('LOJO English helper responses', () => {
 	test('keeps a well-formed explanation and drops items without text or meaning', () => {
@@ -57,5 +57,13 @@ describe('LOJO English helper responses', () => {
 		const out = withoutNewLinks({ translation: '看 https://ielts.org/test 和 https://evil.example/x', items: [{ example: 'Go to https://evil.example/y.' }] }, source);
 		expect(out.translation).toBe('看 https://ielts.org/test 和');
 		expect(out.items[0].example).toBe('Go to .');
+	});
+
+	test('tells English posts from Chinese ones the same way as the timeline does', () => {
+		expect(looksEnglish('Fun fact: "add oil" (加油) is in the Oxford English Dictionary.')).toBe(true);
+		expect(looksEnglish('今天终于把雅思口语 Part 2 过了一遍')).toBe(false);
+		expect(looksEnglish('ok 👍')).toBe(false);
+		expect(looksEnglish('@someone https://example.com/abcdef :smile: 好')).toBe(false);
+		expect(looksEnglish(null)).toBe(false);
 	});
 });

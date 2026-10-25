@@ -80,6 +80,10 @@ function onFollowChange(user: Misskey.entities.UserDetailed) {
 	}
 }
 
+// Vibes: the button changes at once and changes back if the request fails; from mainland China each round trip
+// takes about 0.2 s. A request in flight ignores further clicks. `wait` (the spinner) is no longer used here.
+let busy = false;
+
 async function onClick() {
 	const isLoggedIn = await pleaseLogin({
 		openOnRemote: {
@@ -88,23 +92,21 @@ async function onClick() {
 		},
 	});
 	if (!isLoggedIn) return;
-
-	wait.value = true;
+	if (busy) return;
 
 	haptic();
 
+	const before = { isFollowing: isFollowing.value, hasPendingFollowRequestFromYou: hasPendingFollowRequestFromYou.value };
+	busy = true;
 	try {
 		if (isFollowing.value) {
 			const { canceled } = await os.confirm({
 				type: 'warning',
 				text: i18n.tsx.unfollowConfirm({ name: props.user.name || props.user.username }),
 			});
+			if (canceled) return;
 
-			if (canceled) {
-				wait.value = false;
-				return;
-			}
-
+			isFollowing.value = false;
 			await misskeyApi('following/delete', {
 				userId: props.user.id,
 			});
@@ -113,29 +115,27 @@ async function onClick() {
 				type: 'question',
 				text: i18n.tsx.cancelFollowRequestConfirm({ name: props.user.name || props.user.username }),
 			});
+			if (canceled) return;
 
-			if (canceled) {
-				wait.value = false;
-				return;
-			}
-
+			hasPendingFollowRequestFromYou.value = false;
 			await misskeyApi('following/requests/cancel', {
 				userId: props.user.id,
 			});
-			hasPendingFollowRequestFromYou.value = false;
 		} else {
 			if (prefer.s.alwaysConfirmFollow) {
 				const { canceled } = await os.confirm({
 					type: 'question',
 					text: i18n.tsx.followConfirm({ name: props.user.name || props.user.username }),
 				});
-
-				if (canceled) {
-					wait.value = false;
-					return;
-				}
+				if (canceled) return;
 			}
 
+			// A locked account gets a follow request; anyone else is followed straight away.
+			if (props.user.isLocked) {
+				hasPendingFollowRequestFromYou.value = true;
+			} else {
+				isFollowing.value = true;
+			}
 			await misskeyApi('following/create', {
 				userId: props.user.id,
 				withReplies: prefer.s.defaultFollowWithReplies,
@@ -144,12 +144,8 @@ async function onClick() {
 				...props.user,
 				withReplies: prefer.s.defaultFollowWithReplies,
 			});
-			hasPendingFollowRequestFromYou.value = true;
 
-			if ($i == null) {
-				wait.value = false;
-				return;
-			}
+			if ($i == null) return;
 
 			claimAchievement('following1');
 
@@ -168,8 +164,11 @@ async function onClick() {
 		}
 	} catch (err) {
 		console.error(err);
+		isFollowing.value = before.isFollowing;
+		hasPendingFollowRequestFromYou.value = before.hasPendingFollowRequestFromYou;
+		os.toast(i18n.ts.unableToProcess);
 	} finally {
-		wait.value = false;
+		busy = false;
 	}
 }
 

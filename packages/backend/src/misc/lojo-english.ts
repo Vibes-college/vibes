@@ -170,3 +170,19 @@ export function withoutNewLinks<T>(value: T, source: string): T {
 	};
 	return walk(value) as T;
 }
+
+// Same rule as packages/frontend/src/lojo/english/text.ts, which decides when a post gets the English bar.
+// One Chinese character is roughly one English word of about four letters.
+const plainUrlRe = /https?:\/\/\S+/g;
+const mentionRe = /@[\w.-]+(?:@[\w.-]+)?/g;
+const emojiCodeRe = /:[\w+-]+:/g;
+const cjkRe = /[㐀-鿿豈-﫿]/g;
+const latinRe = /[A-Za-z]/g;
+
+export function looksEnglish(text: string | null | undefined): boolean {
+	if (!text) return false;
+	const plain = text.replace(plainUrlRe, ' ').replace(mentionRe, ' ').replace(emojiCodeRe, ' ');
+	const latin = plain.match(latinRe)?.length ?? 0;
+	const cjk = plain.match(cjkRe)?.length ?? 0;
+	return latin >= 6 && !(cjk >= 2 && cjk * 4 >= latin);
+}
