@@ -23,6 +23,13 @@ export function isVoiceFile<T extends Pick<Misskey.entities.DriveFile, 'type'>>(
 	return file != null && file.type.startsWith('audio/');
 }
 
+// Our read-aloud and tutor voice files are 64 kbit/s mp3 (LojoSpeechService, named vibes-voice-*), so their length
+// follows from the size. A chat full of voice messages then opens without fetching any audio on a slow link.
+export function estimatedVoiceSeconds(file: Pick<Misskey.entities.DriveFile, 'name' | 'size' | 'type'>): number {
+	if (!file.name.startsWith('vibes-voice-') || file.type !== 'audio/mpeg' || !(file.size > 0)) return Number.NaN;
+	return file.size * 8 / 64000;
+}
+
 // 65 seconds reads "1:05". A length the browser does not know (yet) reads as ''.
 export function formatDuration(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) return '';

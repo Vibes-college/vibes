@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test, vi } from 'vitest';
-import { formatDuration, isVoiceFile, playedRatio, releaseAudioFocus, takeAudioFocus, voiceTimeText } from '@/lojo/audio.js';
+import { estimatedVoiceSeconds, formatDuration, isVoiceFile, playedRatio, releaseAudioFocus, takeAudioFocus, voiceTimeText } from '@/lojo/audio.js';
 
 describe('Vibes chat voice messages', () => {
 	test('only audio files play as a voice bubble', () => {
@@ -65,5 +65,11 @@ describe('Vibes chat voice messages', () => {
 		takeAudioFocus(b);
 		expect(a.pause).toHaveBeenCalledTimes(1);
 		expect(b.pause).toHaveBeenCalledTimes(1);
+	});
+
+	test('knows the length of our own 64 kbit/s voice files from their size', () => {
+		expect(estimatedVoiceSeconds({ name: 'vibes-voice-0123abcd.mp3', size: 96000, type: 'audio/mpeg' })).toBe(12);
+		expect(Number.isNaN(estimatedVoiceSeconds({ name: 'recording.mp3', size: 96000, type: 'audio/mpeg' }))).toBe(true);
+		expect(Number.isNaN(estimatedVoiceSeconds({ name: 'vibes-voice-x.mp3', size: 0, type: 'audio/mpeg' }))).toBe(true);
 	});
 });

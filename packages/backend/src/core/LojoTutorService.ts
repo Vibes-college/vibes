@@ -140,9 +140,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// Already answered (another attempt got there first).
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
 			if (!(await this.spendBudget())) return;
-			this.typing(learnerId, tutorId);
 			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText() });
-			const answer = await this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply);
+			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
 			await this.send(tutor, learner, answer.messages, answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
@@ -238,8 +237,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			});
 			// The model needs at least one turn after the system prompt; an empty chat starts from a neutral cue.
 			const turns: ChatTurn[] = history.length > 0 ? history : [{ role: 'user', content: '(The learner has not written yet.)' }];
-			const answer = await this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.9, 600, normalizeTutorReply);
-			this.typing(learnerId, tutorId);
+			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.9, 600, normalizeTutorReply));
 			await this.send(tutor, learner, unanswered ? answer.messages : answer.messages.slice(0, 2), answer.voice, card.extensions.vibes?.voice);
 			if (!unanswered) {
 				const key = this.stateKey(tutorId, learnerId);
@@ -318,6 +316,17 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			.getMany();
 		return notes.filter(note => looksEnglish(note.text)).slice(0, 3)
 			.map(note => `${this.nameOf(note.user!)}: ${note.text!.replace(/\s+/g, ' ').slice(0, 160)}`);
+	}
+
+	// The learner's "typing" hint lasts 8 seconds, so it is renewed while the model writes and stops before the first message.
+	private async whileTyping<T>(learnerId: string, tutorId: string, work: () => Promise<T>): Promise<T> {
+		this.typing(learnerId, tutorId);
+		const renew = setInterval(() => this.typing(learnerId, tutorId), 5000);
+		try {
+			return await work();
+		} finally {
+			clearInterval(renew);
+		}
 	}
 
 	private typing(learnerId: string, tutorId: string): void {

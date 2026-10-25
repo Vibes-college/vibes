@@ -40,6 +40,7 @@ function uiLang(): ExplainLang {
 
 // Explanations are cached on the server too; this only avoids asking again in the same session.
 const explanations = new Map<string, Promise<EnglishExplanation>>();
+
 function memoExplanation(key: string, ask: () => Promise<EnglishExplanation>): Promise<EnglishExplanation> {
 	let p = explanations.get(key);
 	if (p == null) {

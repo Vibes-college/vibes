@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<span :class="$style.time">{{ timeText }}</span>
 	<audio
 		ref="audioEl"
-		:preload="prefer.s.dataSaver.media ? 'none' : 'metadata'"
+		:preload="Number.isFinite(estimate) || prefer.s.dataSaver.media ? 'none' : 'metadata'"
 		:src="file.url"
 		@loadedmetadata="onDuration"
 		@durationchange="onDuration"
@@ -38,18 +38,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, onBeforeUnmount, onDeactivated, ref, useTemplateRef } from 'vue';
 import type * as Misskey from 'misskey-js';
 import { chatLabels } from '@/lojo/english/labels.js';
-import { playedRatio, releaseAudioFocus, takeAudioFocus, voiceTimeText } from '@/lojo/audio.js';
+import { estimatedVoiceSeconds, playedRatio, releaseAudioFocus, takeAudioFocus, voiceTimeText } from '@/lojo/audio.js';
 import { prefer } from '@/preferences.js';
 import * as os from '@/os.js';
 
-defineProps<{
+const props = defineProps<{
 	file: Misskey.entities.DriveFile;
 }>();
 
 const audioEl = useTemplateRef('audioEl');
 const playing = ref(false);
 const position = ref(0);
-const duration = ref(Number.NaN);
+// Known from the size for our own voice files, so they need no download before the first tap.
+const estimate = estimatedVoiceSeconds(props.file);
+const duration = ref(estimate);
 
 const progress = computed(() => playedRatio(position.value, duration.value));
 const timeText = computed(() => voiceTimeText(position.value, duration.value));
@@ -74,7 +76,8 @@ function toggle() {
 }
 
 function onDuration() {
-	duration.value = audioEl.value?.duration ?? Number.NaN;
+	const known = audioEl.value?.duration ?? Number.NaN;
+	if (Number.isFinite(known)) duration.value = known;
 }
 
 function onTimeUpdate() {
