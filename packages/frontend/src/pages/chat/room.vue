@@ -72,6 +72,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<template #footer>
 		<div v-if="tab === 'chat'" :class="$style.footer">
+			<!-- Vibes: the other side is writing a reply (an AI tutor sends this before it answers). -->
+			<div v-if="user" :class="$style.typing" role="status">
+				<span v-if="otherTyping" class="_acrylic" :class="$style.typingPill"><MkUserName :user="user"/> {{ chatLabels.typing }}<MkEllipsis :static="!prefer.s.animation"/></span>
+			</div>
 			<div class="_gaps">
 				<Transition name="fade">
 					<div v-show="showIndicator" :class="$style.new">
@@ -111,6 +115,7 @@ import { useRouter } from '@/router.js';
 import { useMutationObserver } from '@/composables/use-mutation-observer.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { makeDateSeparatedTimelineComputedRef } from '@/utility/timeline-date-separate.js';
+import { chatLabels } from '@/lojo/english/labels.js';
 
 const $i = ensureSignin();
 const router = useRouter();
@@ -138,6 +143,24 @@ const connection = ref<Misskey.IChannelConnection<Misskey.Channels['chatUser']> 
 const showIndicator = ref(false);
 const timelineEl = useTemplateRef('timelineEl');
 const timeline = makeDateSeparatedTimelineComputedRef(messages);
+
+// Vibes: shown until the reply arrives, or for 8 seconds after the last "typing" signal.
+const TYPING_SHOWN_MS = 8000;
+const otherTyping = ref(false);
+let typingTimer: number | null = null;
+
+function onTyping(ctx: Parameters<Misskey.Channels['chatUser']['events']['typing']>[0]) {
+	if (user.value == null || ctx.userId !== user.value.id) return;
+	otherTyping.value = true;
+	if (typingTimer != null) window.clearTimeout(typingTimer);
+	typingTimer = window.setTimeout(stopTyping, TYPING_SHOWN_MS);
+}
+
+function stopTyping() {
+	otherTyping.value = false;
+	if (typingTimer != null) window.clearTimeout(typingTimer);
+	typingTimer = null;
+}
 
 const SCROLL_HEAD_THRESHOLD = 200;
 
@@ -197,6 +220,7 @@ async function initialize() {
 		connection.value.on('deleted', onDeleted);
 		connection.value.on('react', onReact);
 		connection.value.on('unreact', onUnreact);
+		connection.value.on('typing', onTyping);
 	} else if (props.roomId) {
 		const [rResult, mResult] = await Promise.allSettled([
 			misskeyApi('chat/rooms/show', { roomId: props.roomId }),
@@ -290,6 +314,7 @@ async function fetchMore() {
 function onMessage(message: Misskey.entities.ChatMessageLite) {
 	sound.playMisskeySfx('chatMessage');
 
+	if (message.fromUserId === user.value?.id) stopTyping();
 	messages.value.unshift(normalizeMessage(message));
 
 	// TODO: DOM的にバックグラウンドになっていないかどうかも考慮する
@@ -364,6 +389,7 @@ onActivated(() => {
 onBeforeUnmount(() => {
 	connection.value?.dispose();
 	window.document.removeEventListener('visibilitychange', onVisibilitychange);
+	stopTyping();
 });
 
 async function inviteUser() {
@@ -531,6 +557,27 @@ definePage(computed(() => {
 	margin: 0 auto;
 	width: 100%;
 	max-width: 700px;
+}
+
+// Vibes: lined up with the form, on the other person's side.
+.typing {
+	margin: 0 auto;
+	width: 100%;
+	max-width: 700px;
+}
+
+.typingPill {
+	display: inline-block;
+	box-sizing: border-box;
+	max-width: calc(100% - 16px);
+	margin: 0 0 8px 8px;
+	padding: 4px 12px;
+	border-radius: 999px;
+	font-size: 85%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	vertical-align: top;
 }
 
 .fade-enter-active, .fade-leave-active {

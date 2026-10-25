@@ -32,20 +32,32 @@ export function loadEnglishStatus(): Promise<void> {
 	return statusPromise;
 }
 
-function lang(): 'zh-CN' | 'zh-TW' {
+export type ExplainLang = 'zh-CN' | 'zh-TW';
+
+function uiLang(): ExplainLang {
 	return (miLocalStorage.getItem('lang') ?? navigator.language).startsWith('zh-TW') ? 'zh-TW' : 'zh-CN';
 }
 
 // Explanations are cached on the server too; this only avoids asking again in the same session.
 const explanations = new Map<string, Promise<EnglishExplanation>>();
-export function explainNote(noteId: string): Promise<EnglishExplanation> {
-	let p = explanations.get(noteId);
+function memoExplanation(key: string, ask: () => Promise<EnglishExplanation>): Promise<EnglishExplanation> {
+	let p = explanations.get(key);
 	if (p == null) {
-		p = misskeyApi('lojo/english/explain', { noteId, lang: lang() });
-		p.catch(() => explanations.delete(noteId));
-		explanations.set(noteId, p);
+		p = ask();
+		p.catch(() => explanations.delete(key));
+		explanations.set(key, p);
 	}
 	return p;
+}
+
+export function explainNote(noteId: string): Promise<EnglishExplanation> {
+	return memoExplanation(`note:${noteId}`, () => misskeyApi('lojo/english/explain', { noteId, lang: uiLang() }));
+}
+
+// Chat messages have no note for the server to read, so the text itself is sent (the server takes up to 2000 characters).
+export function explainText(text: string, lang: ExplainLang = uiLang()): Promise<EnglishExplanation> {
+	const body = text.slice(0, 2000);
+	return memoExplanation(`text:${lang}:${body}`, () => misskeyApi('lojo/english/explain', { text: body, lang }));
 }
 
 export function composeEnglish(text: string): Promise<EnglishDraft> {
