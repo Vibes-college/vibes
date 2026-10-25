@@ -2062,6 +2062,8 @@ declare namespace entities {
         LojoStateShowResponse,
         LojoStateUpdateRequest,
         LojoStateUpdateResponse,
+        LojoTutorPokeRequest,
+        LojoTutorPokeResponse,
         MetaRequest,
         MetaResponse,
         MiauthGenTokenRequest,
@@ -3024,6 +3026,12 @@ type LojoStateUpdateRequest = operations['lojo___state___update']['requestBody']
 
 // @public (undocumented)
 type LojoStateUpdateResponse = operations['lojo___state___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPokeResponse = operations['lojo___tutor___poke']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];

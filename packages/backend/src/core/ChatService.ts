@@ -28,6 +28,7 @@ import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { emojiRegex } from '@/misc/emoji-regex.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
+import { isLojoTutor } from '@/misc/lojo-tutor.js';
 
 export class ChatMessageAccessError extends Error {}
 
@@ -155,7 +156,8 @@ export class ChatService {
 		const otherApprovedMe = approvals.some(approval => approval.userId === toUser.id);
 		const iApprovedOther = approvals.some(approval => approval.userId === fromUser.id);
 
-		if (!otherApprovedMe) {
+		// Vibes: AI tutors may write to any learner first; the blocking and policy checks below still apply.
+		if (!otherApprovedMe && !isLojoTutor(fromUser.id)) {
 			if (toUser.chatScope === 'none') {
 				throw new Error('recipient is cannot chat (none)');
 			} else if (toUser.chatScope === 'followers') {

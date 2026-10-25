@@ -8,7 +8,7 @@ import { promises as fs } from 'node:fs';
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
-import type { DriveFilesRepository } from '@/models/_.js';
+import type { DriveFilesRepository, MiDriveFile } from '@/models/_.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { DriveService } from '@/core/DriveService.js';
@@ -30,7 +30,7 @@ export class LojoSpeechService {
 	private readonly latency = process.env.LOJO_TTS_LATENCY || 'low';
 	// Site-wide ceiling on text sent for synthesis per UTC day, in UTF-8 bytes (the unit Fish Audio bills).
 	private readonly dailyBytes = Number(process.env.LOJO_TTS_DAILY_BYTES) || 300000;
-	private inflight = new Map<string, Promise<string>>();
+	private inflight = new Map<string, Promise<MiDriveFile>>();
 	private logger: Logger;
 
 	constructor(
@@ -57,6 +57,11 @@ export class LojoSpeechService {
 	// Each (voice, text) is synthesized once and kept as a drive file that every listener shares.
 	// The model is not part of the key, so audio made with drama-3 keeps being served after switching models.
 	public async speak(text: string, voiceId: string | undefined): Promise<string> {
+		return this.driveFileEntityService.getPublicUrl(await this.speakFile(text, voiceId));
+	}
+
+	// The same audio as a drive file, e.g. to attach to an AI tutor's chat message.
+	public async speakFile(text: string, voiceId: string | undefined): Promise<MiDriveFile> {
 		if (!this.available) throw new ApiError(lojoEnglishErrors.unavailable);
 		const voice = lojoVoices.find(v => v.id === voiceId) ?? lojoVoices.find(v => v.id === lojoDefaultVoice)!;
 		const clean = speechText(text).slice(0, MAX_CHARS);
@@ -64,7 +69,7 @@ export class LojoSpeechService {
 
 		const hash = createHash('sha256').update(clean).digest('hex');
 		const key = `lojoSpeech:1:${voice.referenceId}:${hash}`;
-		const known = await this.cachedUrl(key);
+		const known = await this.cachedFile(key);
 		if (known) return known;
 
 		const pending = this.inflight.get(key);
@@ -76,14 +81,13 @@ export class LojoSpeechService {
 		return promise;
 	}
 
-	private async cachedUrl(key: string): Promise<string | null> {
+	private async cachedFile(key: string): Promise<MiDriveFile | null> {
 		const fileId = await this.redisClient.get(key).catch(() => null);
 		if (fileId == null) return null;
-		const file = await this.driveFilesRepository.findOneBy({ id: fileId });
-		return file ? this.driveFileEntityService.getPublicUrl(file) : null;
+		return this.driveFilesRepository.findOneBy({ id: fileId });
 	}
 
-	private async synthesize(text: string, referenceId: string, hash: string, key: string): Promise<string> {
+	private async synthesize(text: string, referenceId: string, hash: string, key: string): Promise<MiDriveFile> {
 		await this.spendBudget(Buffer.byteLength(text, 'utf8'));
 
 		let audio: Buffer;
@@ -113,7 +117,7 @@ export class LojoSpeechService {
 			await fs.writeFile(path, audio);
 			const file = await this.driveService.addFile({ user: null, path, name: `vibes-voice-${hash.slice(0, 16)}.mp3`, ext: 'mp3' });
 			await this.redisClient.set(key, file.id).catch(err => this.logger.warn(`cache write failed: ${err}`));
-			return this.driveFileEntityService.getPublicUrl(file);
+			return file;
 		} finally {
 			cleanup();
 		}

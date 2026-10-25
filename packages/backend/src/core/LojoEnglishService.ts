@@ -31,6 +31,7 @@ import {
 	withoutNewLinks,
 } from '@/misc/lojo-english.js';
 import type { LojoEnglishDraft, LojoEnglishExplanation, LojoEnglishLang, LojoEnglishReplyIdeas } from '@/misc/lojo-english.js';
+import { LojoTutorInvalidResponse } from '@/misc/lojo-tutor.js';
 
 const ENDPOINT = 'https://api.deepseek.com/chat/completions';
 const DEFAULT_MODEL = 'deepseek-flash';
@@ -201,7 +202,28 @@ export class LojoEnglishService implements OnApplicationShutdown {
 		}
 	}
 
-	private async request(system: string, input: string, temperature: number, maxTokens: number): Promise<unknown> {
+	// A multi-turn JSON chat for the AI tutor, with up to two retries on a malformed or empty answer.
+	// It does not spend the English helper's daily budget: the tutor keeps its own.
+	public async chatJson<T>(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number, normalize: (raw: unknown) => T): Promise<T> {
+		if (this.apiKey === '') throw new ApiError(lojoEnglishErrors.unavailable);
+		for (let attempt = 1; ; attempt++) {
+			try {
+				return normalize(await this.requestMessages(messages, temperature, maxTokens));
+			} catch (err) {
+				if (attempt < 3 && (err instanceof LojoEnglishInvalidResponse || err instanceof LojoTutorInvalidResponse)) continue;
+				throw err;
+			}
+		}
+	}
+
+	private request(system: string, input: string, temperature: number, maxTokens: number): Promise<unknown> {
+		return this.requestMessages([
+			{ role: 'system', content: system },
+			{ role: 'user', content: input },
+		], temperature, maxTokens);
+	}
+
+	private async requestMessages(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number): Promise<unknown> {
 		const res = await this.httpRequestService.send(ENDPOINT, {
 			method: 'POST',
 			headers: {
@@ -211,10 +233,7 @@ export class LojoEnglishService implements OnApplicationShutdown {
 			},
 			body: JSON.stringify({
 				model: this.model,
-				messages: [
-					{ role: 'system', content: system },
-					{ role: 'user', content: input },
-				],
+				messages,
 				response_format: { type: 'json_object' },
 				thinking: { type: 'disabled' },
 				temperature,

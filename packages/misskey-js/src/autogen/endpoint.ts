@@ -525,6 +525,8 @@ import type {
 	LojoStateShowResponse,
 	LojoStateUpdateRequest,
 	LojoStateUpdateResponse,
+	LojoTutorPokeRequest,
+	LojoTutorPokeResponse,
 	MetaRequest,
 	MetaResponse,
 	MiauthGenTokenRequest,
@@ -1053,6 +1055,7 @@ export type Endpoints = {
 	'lojo/notes/list': { req: LojoNotesListRequest; res: LojoNotesListResponse };
 	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
 	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
+	'lojo/tutor/poke': { req: LojoTutorPokeRequest; res: LojoTutorPokeResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };
