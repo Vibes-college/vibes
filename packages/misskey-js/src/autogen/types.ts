@@ -2949,7 +2949,7 @@ export type paths = {
     '/lojo/english/explain': {
         /**
          * lojo/english/explain
-         * @description Translate a note and explain the expressions worth learning.
+         * @description Translate a note (or a chat message's text) and explain the expressions worth learning.
          *
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
@@ -29171,7 +29171,8 @@ export interface operations {
             content: {
                 'application/json': {
                     /** Format: misskey:id */
-                    noteId: string;
+                    noteId?: string;
+                    text?: string;
                     /**
                      * @default zh-CN
                      * @enum {string}

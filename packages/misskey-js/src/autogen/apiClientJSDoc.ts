@@ -3592,7 +3592,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Translate a note and explain the expressions worth learning.
+     * Translate a note (or a chat message's text) and explain the expressions worth learning.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */

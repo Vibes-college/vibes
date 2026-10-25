@@ -160,6 +160,10 @@ export interface AdminEventTypes {
 
 export interface ChatEventTypes {
 	message: Packed<'ChatMessageLite'>;
+	// Vibes: the other side is writing a reply (an AI tutor before it answers).
+	typing: {
+		userId: MiUser['id'];
+	};
 	deleted: Packed<'ChatMessageLite'>['id'];
 	react: {
 		reaction: string;
