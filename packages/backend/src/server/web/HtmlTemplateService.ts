@@ -28,6 +28,8 @@ export class HtmlTemplateService {
 	public frontendEmbedViteFiles: ViteFiles | null = null;
 	public frontendEmbedBootloaderJs: string | null = null;
 	public frontendEmbedBootloaderCss: string | null = null;
+	// Vibes: the UI languages that were actually built (see frontend-builder/ui-langs.ts); all of them in development.
+	private builtLangs: string[] = [...languages];
 
 	constructor(
 		@Inject(DI.config)
@@ -126,6 +128,12 @@ export class HtmlTemplateService {
 
 		if (feViteManifest != null) {
 			this.frontendViteFiles = this.collectViteAssetFiles(feViteManifest);
+			// Offer only languages this build has (langs.json, written by frontend/build.ts), so the boot loader falls back
+			// to English instead of loading a language folder left over from an older build.
+			const langsJson = await fsp.readFile(resolve(this.frontendViteBuilt, 'langs.json'), 'utf-8').catch(() => null);
+			const built: unknown = langsJson ? JSON.parse(langsJson) : null;
+			const available = Array.isArray(built) ? languages.filter(lang => built.includes(lang)) : [];
+			if (available.length > 0) this.builtLangs = available;
 		}
 
 		if (bootJs != null) {
@@ -156,7 +164,7 @@ export class HtmlTemplateService {
 		return {
 			version: this.config.version,
 			config: this.config,
-			langs: [...languages],
+			langs: this.builtLangs,
 			instanceName: this.meta.name ?? 'Misskey',
 			icon: this.meta.iconUrl,
 			appleTouchIcon: this.meta.app512IconUrl,

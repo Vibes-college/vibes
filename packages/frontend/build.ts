@@ -5,6 +5,7 @@ import { execa } from 'execa';
 import locales from 'i18n';
 import { LocaleInliner } from '../frontend-builder/locale-inliner.js'
 import { createLogger } from '../frontend-builder/logger';
+import { pickUiLocales } from '../frontend-builder/ui-langs.js';
 
 // requires node 21 or later
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
@@ -35,7 +36,10 @@ async function buildAllLocale() {
 
 	inliner.collectsModifications();
 
-	await inliner.saveAllLocales(locales);
+	const uiLocales = pickUiLocales(locales);
+	await inliner.saveAllLocales(uiLocales);
+	// Vibes: which languages this build has. The server offers only these; folders left from older builds do not count.
+	await fs.writeFile(path.join(outputDir, 'langs.json'), JSON.stringify(Object.keys(uiLocales)));
 
 	if (logger.errorCount > 0) {
 		throw new Error(`Build failed with ${logger.errorCount} errors and ${logger.warningCount} warnings.`);

@@ -30,7 +30,9 @@
 		if (supportedLangs.includes(navigator.language)) {
 			lang = navigator.language;
 		} else {
-			lang = supportedLangs.find(x => x.split('-')[0] === navigator.language);
+			// Vibes: match on the language part too, so zh-TW and zh-HK get zh-CN rather than English
+			// while only some UI languages are built (VIBES_UI_LANGS).
+			lang = supportedLangs.find(x => x.split('-')[0] === navigator.language.split('-')[0]);
 
 			// Fallback
 			if (lang == null) lang = 'en-US';
