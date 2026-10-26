@@ -83,3 +83,10 @@ vite.config.local-dev.ts.timestamp-*
 
 # Affinity
 *.af~lock~
+
+# Vibes: media kept out of git.
+# Course videos are synced in from the workspace's media/ (apps/community/scripts/sync-course.mjs --media).
+# The LOJO prototype's stock clips, event covers and photos have no license to redistribute.
+packages/backend/assets/lojo/route/video/
+packages/backend/assets/lojo/assets/*.jpg
+packages/backend/assets/lojo/assets/rent/v*
