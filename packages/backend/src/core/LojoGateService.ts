@@ -222,8 +222,11 @@ export class LojoGateService {
 	// Made once per script and shared by every learner; lines are cached one by one, so editing a line redoes only it.
 	public async audioFor(set: GateSet): Promise<GateAudio | null> {
 		if (!set.script.some(l => l.text != null)) return null;
-		const hash = createHash('sha256').update(JSON.stringify([set.voices, set.rate, set.script.map(l => [l.who, l.text, l.pause])])).digest('hex');
-		const key = `lojoGate:audio:1:${hash}`;
+		// What the listener hears, line by line: the voice itself rather than the speaker's letter, so the key doesn't
+		// change when the database hands the voices object back with its keys in another order.
+		const heard = set.script.map(l => [l.who == null ? null : set.voices[l.who], l.text, l.pause]);
+		const hash = createHash('sha256').update(JSON.stringify([set.rate, heard])).digest('hex');
+		const key = `lojoGate:audio:2:${hash}`;
 		const cached = await this.cachedAudio(key);
 		if (cached) return cached;
 		let pending = this.renders.get(key);
