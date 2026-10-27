@@ -5,11 +5,15 @@
 
 // Gates on a route map (IELTS first): every station is a short test at one band level. Pass it to light the
 // station up; passing a later station on the same line lights up the ones before it as well.
+// A listening set comes with a recording script, a reading set with a passage and a time limit; an interchange set
+// can have both, its listening questions first.
 // Question sets are written in the Vibes workspace (courses/<subject>/<course>/gates/, format in its README.md) and
 // imported into the database with apps/community/scripts/gates-import.mjs, so answers and scripts stay on the server.
 
-export const gateTypes = ['form', 'choice', 'multi', 'map', 'match'] as const;
+export const gateTypes = ['form', 'choice', 'multi', 'map', 'match', 'judge', 'bank'] as const;
 export type GateType = typeof gateTypes[number];
+export const gateSkills = ['listening', 'reading'] as const;
+export type GateSkill = typeof gateSkills[number];
 export type GateLimit = { words: number; number: boolean };
 export type GateText = { en: string; zh: string };
 
@@ -17,14 +21,27 @@ export type GateText = { en: string; zh: string };
 export type GateItem = {
 	n: number[]; q: string | null; options: string[]; answer: string[]; ignoreSpaces: boolean; limit: GateLimit | null; tags: string[];
 };
+// letters: what can be picked, for every type but form and the A–C of choice and multi: map letters, A–H of a box,
+// i–x of a list of headings, a passage's paragraph letters, or TRUE / FALSE / NOT GIVEN.
 export type GateGroup = {
 	type: GateType; instructions: GateText; title: string | null; lines: string[]; limit: GateLimit | null;
 	image: string | null; letters: string[]; options: string[]; items: GateItem[];
+	// missing on sets imported before reading: listening
+	skill?: GateSkill;
 };
 export type GateScriptLine = { who: string | null; text: string | null; pause: number | null; answers: number[] };
+// A paragraph (text, with its letter and heading if it has them) or a figure (image) of a reading passage.
+// answers: the questions whose answer is in it, marked once the paper is handed in.
+export type GateParagraph = {
+	label: string | null; heading: string | null; text: string | null; image: string | null; caption: string | null; answers: number[];
+};
+export type GatePassage = { title: string; subtitle: string | null; paragraphs: GateParagraph[]; glossary: { word: string; meaning: string }[] };
 export type GateSet = {
 	id: string; station: string; set: string; band: number; part: number | null; pass: number; total: number;
 	voices: Record<string, string>; rate: number; lines: number[]; script: GateScriptLine[]; groups: GateGroup[];
+	// reading: the passage, and the minutes for the reading questions (missing on sets imported before reading)
+	passage?: GatePassage | null;
+	time?: number | null;
 };
 // A line's placement test: a first part, then a harder or easier second part chosen by its score, and a table from
 // the two parts' total to the station the learner starts at. The stages are papers like any set (station 'placement-1').
@@ -55,6 +72,7 @@ export type GateItemResult = {
 export function publicGroups(set: GateSet, imageUrl: (name: string) => string) {
 	return set.groups.map(g => ({
 		type: g.type,
+		skill: g.skill ?? 'listening',
 		instructions: g.instructions,
 		title: g.title,
 		lines: g.lines,
@@ -66,6 +84,12 @@ export function publicGroups(set: GateSet, imageUrl: (name: string) => string) {
 			n: i.n, q: i.q, options: i.options, choose: g.type === 'multi' ? i.answer.length : 1, limit: i.limit,
 		})),
 	}));
+}
+
+// The passage without what would give answers away: which paragraph holds which answer.
+export function publicPassage(set: GateSet): GatePassage | null {
+	const p = set.passage;
+	return p ? { ...p, paragraphs: p.paragraphs.map(par => ({ ...par, answers: [] })) } : null;
 }
 
 /* ---------- marking ---------- */
@@ -106,6 +130,11 @@ function markText(item: GateItem, groupLimit: GateLimit | null, given: string): 
 }
 
 const letterOf = (value: string) => value.normalize('NFKC').trim().toUpperCase();
+// One of the group's labels, in any case ('iv' for 'IV'), given back as the label itself; anything else as typed.
+const pickOf = (group: GateGroup, value: string) => {
+	const v = letterOf(value);
+	return group.letters.find(l => l.toUpperCase() === v) ?? v;
+};
 
 // answers: question number → what the learner wrote or picked ('' or missing for a blank)
 export function markSet(set: GateSet, answers: Map<number, string>): { score: number; items: GateItemResult[] } {
@@ -134,7 +163,8 @@ export function markSet(set: GateSet, answers: Map<number, string>): { score: nu
 					});
 				});
 			} else {
-				const n = item.n[0], given = letterOf(answers.get(n) ?? '');
+				const n = item.n[0], raw = answers.get(n) ?? '';
+				const given = group.type === 'choice' ? letterOf(raw) : pickOf(group, raw);
 				const correct = given !== '' && given === item.answer[0];
 				items.push({ n, correct, given, expected: item.answer[0], accepted: item.answer, reason: correct ? null : given === '' ? 'blank' : 'wrong', tags: item.tags });
 			}
@@ -163,6 +193,8 @@ export type GateStationState = 'passed' | 'open' | 'locked' | 'soon';
 export type GateStationProgress = {
 	id: string; line: number; gate: string; state: GateStationState;
 	sets: number; attempts: number; best: number | null; total: number | null; pass: number | null;
+	// reading: minutes for the reading questions
+	time: number | null;
 	failStreak: number; passedAt: Date | null; via: 'gate' | 'higher' | 'placement' | null;
 };
 
@@ -225,7 +257,7 @@ export function gateProgress(course: GateCourse, attempts: GateAttemptFact[]) {
 			const sets = setsFor(course, id);
 			return {
 				id, line: line.n, gate, sets: line.live ? sets.length : 0, attempts: here.length,
-				best: best?.score ?? null, total: best?.total ?? sets[0]?.total ?? null, pass: sets[0]?.pass ?? null, failStreak,
+				best: best?.score ?? null, total: best?.total ?? sets[0]?.total ?? null, pass: sets[0]?.pass ?? null, time: sets[0]?.time ?? null, failStreak,
 				passedAt: passes[0]?.submittedAt ?? null,
 			};
 		});
@@ -328,7 +360,20 @@ function isItem(v: unknown): v is GateItem {
 function isGroup(v: unknown): v is GateGroup {
 	return isObj(v) && (gateTypes as readonly unknown[]).includes(v.type) && isObj(v.instructions) && isStr(v.instructions.en) && isStr(v.instructions.zh)
 		&& (v.title === null || isStr(v.title)) && allOf(v.lines, isStr) && isLimit(v.limit) && (v.image === null || isStr(v.image))
-		&& allOf(v.letters, isStr) && allOf(v.options, isStr) && allOf(v.items, isItem) && v.items.length > 0;
+		&& allOf(v.letters, isStr) && allOf(v.options, isStr) && allOf(v.items, isItem) && v.items.length > 0
+		&& (v.skill === undefined || (gateSkills as readonly unknown[]).includes(v.skill));
+}
+
+const isNullStr = (v: unknown) => v === null || isStr(v);
+
+function isParagraph(v: unknown): v is GateParagraph {
+	return isObj(v) && isNullStr(v.label) && isNullStr(v.heading) && isNullStr(v.text) && isNullStr(v.image) && isNullStr(v.caption)
+		&& allOf(v.answers, isNum) && (isStr(v.text) || isStr(v.image));
+}
+
+function isPassage(v: unknown): v is GatePassage {
+	return isObj(v) && isStr(v.title) && isNullStr(v.subtitle) && allOf(v.paragraphs, isParagraph) && v.paragraphs.length > 0
+		&& Array.isArray(v.glossary) && v.glossary.every(g => isObj(g) && isStr(g.word) && isStr(g.meaning));
 }
 
 function isLine(v: unknown): v is GateScriptLine {
@@ -339,7 +384,9 @@ function isLine(v: unknown): v is GateScriptLine {
 function isSet(v: unknown): v is GateSet {
 	return isObj(v) && isStr(v.id) && isStr(v.station) && isStr(v.set) && isNum(v.band) && (v.part === null || isNum(v.part))
 		&& isNum(v.pass) && isNum(v.total) && isObj(v.voices) && Object.values(v.voices).every(isStr) && isNum(v.rate)
-		&& allOf(v.lines, isNum) && allOf(v.script, isLine) && allOf(v.groups, isGroup) && v.groups.length > 0;
+		&& allOf(v.lines, isNum) && allOf(v.script, isLine) && allOf(v.groups, isGroup) && v.groups.length > 0
+		&& (v.passage === undefined || v.passage === null || isPassage(v.passage))
+		&& (v.time === undefined || v.time === null || (isNum(v.time) && v.time > 0));
 }
 
 function isPlacement(v: unknown): v is GatePlacement {

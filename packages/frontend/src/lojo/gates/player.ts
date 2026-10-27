@@ -17,13 +17,17 @@ export type GateResultItem = GateResult['items'][number];
 export type GateReason = NonNullable<GateResultItem['reason']>;
 export type GateScriptLine = GateResult['script'][number];
 export type GateTutor = NonNullable<GateResult['tutor']>;
+export type GatePassage = NonNullable<GateAttempt['passage']>;
+export type GateParagraph = GatePassage['paragraphs'][number];
+export type GateSkill = GateGroup['skill'];
 
 // What the student has put down so far: text or a letter per question number; a multi item's letters sit under its first number.
 export type GateAnswers = Record<number, string | string[] | undefined>;
 
 // The parts of a course pack (lojo/route/courses/<id>) this page reads.
 type Bilingual = { zh: string; en: string };
-export type PackStation = { id: string; band: number; part?: Bilingual; focus?: Bilingual; types?: Bilingual; pace?: Bilingual };
+// pace: speed and accents (listening); length: words and time limit (reading)
+export type PackStation = { id: string; band: number; part?: Bilingual; focus?: Bilingual; types?: Bilingual; pace?: Bilingual; length?: Bilingual };
 export type PackLine = { n: number; id: string; zh: string; en: string; live: boolean; stations: PackStation[] };
 export type PackInterchange = { ids: string[]; zh: string; en: string; dzh: string; den: string; why: Bilingual };
 export type PracticeApp = { path: string; zh: string; en: string };
@@ -149,28 +153,36 @@ export function formGaps(lines: string[]): number[] {
 	return lines.flatMap(line => [...line.matchAll(GAP)].map(m => Number(m[1])));
 }
 
+// Groups whose questions are gaps in their lines: a form (typed) or a summary with a box of words (picked).
+export const gapped = (type: GateGroup['type']): boolean => type === 'form' || type === 'bank';
+
 // The question numbers a group covers, lowest first.
 export function groupNumbers(group: Pick<GateGroup, 'type' | 'items' | 'lines'>): number[] {
 	const numbers = new Set(group.items.flatMap(item => item.n));
-	if (group.type === 'form') for (const n of formGaps(group.lines)) numbers.add(n);
+	if (gapped(group.type)) for (const n of formGaps(group.lines)) numbers.add(n);
 	return [...numbers].sort((a, b) => a - b);
 }
 
 /* ---------- Letters ---------- */
 
-// A map brings the letters printed on it; a match group's letters follow its box of options (A, B, …).
+// What can be picked: the letters on a map, A–H of a box, i–x of a list of headings, a passage's paragraph letters,
+// TRUE / FALSE / NOT GIVEN. The server sends them; a match group from before falls back to its box (A, B, …).
 export function pickLetters(group: { type: GateGroup['type']; letters: string[] | string | null; options: string[] }): string[] {
 	const given = Array.isArray(group.letters) ? group.letters : [...(group.letters ?? '')];
 	if (given.length > 0) return given;
-	return group.type === 'match' ? group.options.map((_, i) => letterAt(i)) : [];
+	return group.type === 'match' || group.type === 'bank' ? group.options.map((_, i) => letterAt(i)) : [];
 }
 
-// The words behind a letter answer: an option of the item (choice, multi) or of the box (match). Maps have none.
-export function letterText(group: Pick<GateGroup, 'type' | 'options'>, item: Pick<GateItem, 'options'> | null, value: string): string | null {
-	if (!/^[A-Z]$/i.test(value)) return null;
-	const index = value.toUpperCase().charCodeAt(0) - 65;
-	const list = group.type === 'match' ? group.options : group.type === 'choice' || group.type === 'multi' ? item?.options ?? [] : [];
-	return list[index] ?? null;
+// The words behind a picked answer: an option of the item (choice, multi) or of the box (match, bank).
+// Maps, paragraph letters and TRUE / FALSE / NOT GIVEN have none.
+export function letterText(group: Pick<GateGroup, 'type' | 'options' | 'letters'>, item: Pick<GateItem, 'options'> | null, value: string): string | null {
+	if (group.type === 'choice' || group.type === 'multi') {
+		if (!/^[A-Z]$/i.test(value)) return null;
+		return item?.options[value.toUpperCase().charCodeAt(0) - 65] ?? null;
+	}
+	if (group.type !== 'match' && group.type !== 'bank') return null;
+	const index = pickLetters(group).findIndex(l => l.toUpperCase() === value.toUpperCase());
+	return index >= 0 ? group.options[index] ?? null : null;
 }
 
 /* ---------- Answers ---------- */
@@ -196,7 +208,7 @@ export function answersPayload(groups: GateGroup[], answers: GateAnswers): GateA
 				for (const n of numbers) values.set(n, text(n));
 			}
 		}
-		if (group.type === 'form') {
+		if (gapped(group.type)) {
 			for (const n of formGaps(group.lines)) if (!values.has(n)) values.set(n, text(n));
 		}
 	}
@@ -204,6 +216,28 @@ export function answersPayload(groups: GateGroup[], answers: GateAnswers): GateA
 }
 
 export const blankCount = (payload: GateAnswer[]): number => payload.filter(a => a.value === '').length;
+
+/* ---------- Reading ---------- */
+
+// The listening groups and the reading groups of a paper. A half-and-half interchange set has both, listening first.
+export function paperParts(groups: GateGroup[]): { listening: GateGroup[]; reading: GateGroup[] } {
+	return { listening: groups.filter(g => g.skill !== 'reading'), reading: groups.filter(g => g.skill === 'reading') };
+}
+
+// Whole seconds left before the deadline, rounded up, so it reads 0:01 until time is really up.
+export function secondsLeft(deadline: number, now: number): number {
+	return Math.max(0, Math.ceil((deadline - now) / 1000 - 1e-6));
+}
+
+// "13:42"; an hour or more as "1:02:05".
+export function clockText(seconds: number): string {
+	const s = Math.max(0, Math.round(seconds));
+	const mm = String(Math.floor((s % 3600) / 60)), ss = String(s % 60).padStart(2, '0');
+	return s >= 3600 ? `${Math.floor(s / 3600)}:${mm.padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+}
+
+// A paragraph's text as lines and tables: "\n" breaks a line, and lines with " | " are table rows, as in a form.
+export const paragraphBlocks = (text: string): FormBlock[] => formBlocks(text.split('\n'));
 
 /* ---------- The recording ---------- */
 
@@ -277,7 +311,7 @@ export type QuestionRef = { group: GateGroup; item: GateItem | null; prompt: str
 export function questionRefs(groups: GateGroup[]): Map<number, QuestionRef> {
 	const refs = new Map<number, QuestionRef>();
 	for (const group of groups) {
-		if (group.type === 'form') {
+		if (gapped(group.type)) {
 			for (const line of group.lines) {
 				const cells = (line.includes(CELL) ? line.split(CELL) : [line]).map(cell => parseSegments(cell.trim()));
 				const prompt = cells.map(cell => cell.map(seg => seg.type === 'text' ? seg.text : '____').join('').trim()).join(' · ');

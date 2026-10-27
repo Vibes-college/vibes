@@ -29902,6 +29902,23 @@ export interface operations {
                         startedAt: string;
                         /** @enum {string|null} */
                         stage: 'first' | 'high' | 'low' | null;
+                        time: number | null;
+                        passage: {
+                            title: string;
+                            subtitle: string | null;
+                            paragraphs: {
+                                label: string | null;
+                                heading: string | null;
+                                text: string | null;
+                                image: string | null;
+                                caption: string | null;
+                                answers: number[];
+                            }[];
+                            glossary: {
+                                word: string;
+                                meaning: string;
+                            }[];
+                        } | null;
                         audio: {
                             url: string;
                             duration: number;
@@ -29912,7 +29929,9 @@ export interface operations {
                         } | null;
                         groups: {
                             /** @enum {string} */
-                            type: 'form' | 'choice' | 'multi' | 'map' | 'match';
+                            type: 'form' | 'choice' | 'multi' | 'map' | 'match' | 'judge' | 'bank';
+                            /** @enum {string} */
+                            skill: 'listening' | 'reading';
                             instructions: {
                                 en: string;
                                 zh: string;
@@ -30037,6 +30056,7 @@ export interface operations {
                             best: number | null;
                             total: number | null;
                             pass: number | null;
+                            time: number | null;
                             failStreak: number;
                             /** Format: date-time */
                             passedAt: string | null;
@@ -30128,6 +30148,23 @@ export interface operations {
                         startedAt: string;
                         /** @enum {string|null} */
                         stage: 'first' | 'high' | 'low' | null;
+                        time: number | null;
+                        passage: {
+                            title: string;
+                            subtitle: string | null;
+                            paragraphs: {
+                                label: string | null;
+                                heading: string | null;
+                                text: string | null;
+                                image: string | null;
+                                caption: string | null;
+                                answers: number[];
+                            }[];
+                            glossary: {
+                                word: string;
+                                meaning: string;
+                            }[];
+                        } | null;
                         audio: {
                             url: string;
                             duration: number;
@@ -30138,7 +30175,9 @@ export interface operations {
                         } | null;
                         groups: {
                             /** @enum {string} */
-                            type: 'form' | 'choice' | 'multi' | 'map' | 'match';
+                            type: 'form' | 'choice' | 'multi' | 'map' | 'match' | 'judge' | 'bank';
+                            /** @enum {string} */
+                            skill: 'listening' | 'reading';
                             instructions: {
                                 en: string;
                                 zh: string;
@@ -30269,6 +30308,22 @@ export interface operations {
                             tag: string;
                             count: number;
                         }[];
+                        passage: {
+                            title: string;
+                            subtitle: string | null;
+                            paragraphs: {
+                                label: string | null;
+                                heading: string | null;
+                                text: string | null;
+                                image: string | null;
+                                caption: string | null;
+                                answers: number[];
+                            }[];
+                            glossary: {
+                                word: string;
+                                meaning: string;
+                            }[];
+                        } | null;
                         script: {
                             who: string | null;
                             text: string | null;

@@ -162,6 +162,30 @@ const req = { optional: false, nullable: false } as const;
 const nul = { optional: false, nullable: true } as const;
 const strings = { type: 'array', ...req, items: { type: 'string', ...req } } as const;
 const gateLimit = { type: 'object', ...nul, properties: { words: { type: 'integer', ...req }, number: { type: 'boolean', ...req } } } as const;
+// A reading passage: paragraphs (or figures) with their letters; `answers` (which questions each one answers) stays
+// empty until the paper is handed in.
+const gatePassage = {
+	type: 'object', ...nul,
+	properties: {
+		title: { type: 'string', ...req },
+		subtitle: { type: 'string', ...nul },
+		paragraphs: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					label: { type: 'string', ...nul },
+					heading: { type: 'string', ...nul },
+					text: { type: 'string', ...nul },
+					image: { type: 'string', ...nul },
+					caption: { type: 'string', ...nul },
+					answers: { type: 'array', ...req, items: { type: 'integer', ...req } },
+				},
+			},
+		},
+		glossary: { type: 'array', ...req, items: { type: 'object', ...req, properties: { word: { type: 'string', ...req }, meaning: { type: 'string', ...req } } } },
+	},
+} as const;
 
 // lojo/gates/start: the paper as the learner sees it, without answers.
 export const lojoGateAttemptSchema = {
@@ -178,6 +202,9 @@ export const lojoGateAttemptSchema = {
 		startedAt: { type: 'string', ...req, format: 'date-time' },
 		// placement tests: which part this is; null for a gate
 		stage: { type: 'string', ...nul, enum: ['first', 'high', 'low'] },
+		// reading: minutes for the reading questions, from when the passage is shown
+		time: { type: 'number', ...nul },
+		passage: gatePassage,
 		audio: {
 			type: 'object', ...nul,
 			properties: {
@@ -191,7 +218,8 @@ export const lojoGateAttemptSchema = {
 			items: {
 				type: 'object', ...req,
 				properties: {
-					type: { type: 'string', ...req, enum: ['form', 'choice', 'multi', 'map', 'match'] },
+					type: { type: 'string', ...req, enum: ['form', 'choice', 'multi', 'map', 'match', 'judge', 'bank'] },
+					skill: { type: 'string', ...req, enum: ['listening', 'reading'] },
 					instructions: { type: 'object', ...req, properties: { en: { type: 'string', ...req }, zh: { type: 'string', ...req } } },
 					title: { type: 'string', ...nul },
 					lines: strings,
@@ -249,6 +277,7 @@ export const lojoGateResultSchema = {
 			},
 		},
 		weak: { type: 'array', ...req, items: { type: 'object', ...req, properties: { tag: { type: 'string', ...req }, count: { type: 'integer', ...req } } } },
+		passage: gatePassage,
 		script: {
 			type: 'array', ...req,
 			items: {
@@ -322,6 +351,7 @@ export const lojoGateProgressSchema = {
 					best: { type: 'integer', ...nul },
 					total: { type: 'integer', ...nul },
 					pass: { type: 'integer', ...nul },
+					time: { type: 'number', ...nul },
 					failStreak: { type: 'integer', ...req },
 					passedAt: { type: 'string', ...nul, format: 'date-time' },
 					via: { type: 'string', ...nul, enum: ['gate', 'higher', 'placement'] },

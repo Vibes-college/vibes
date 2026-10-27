@@ -7,22 +7,26 @@ import { describe, expect, test } from 'vitest';
 import {
 	answersPayload,
 	blankCount,
+	clockText,
 	durationParts,
 	findStation,
 	formBlocks,
 	letterText,
+	paperParts,
+	paragraphBlocks,
 	parseSegments,
 	pickLetters,
 	placementLine,
 	questionRefs,
 	readingTimeLeft,
 	recommendCards,
+	secondsLeft,
 } from '@/lojo/gates/player.js';
 import type { GateGroup } from '@/lojo/gates/player.js';
 
 const text = { en: 'Complete the form.', zh: '补全表格。' };
 const group = (g: Partial<GateGroup> & Pick<GateGroup, 'type' | 'items'>): GateGroup => ({
-	instructions: text, title: null, lines: [], limit: null, image: null, letters: [], options: [], ...g,
+	skill: 'listening', instructions: text, title: null, lines: [], limit: null, image: null, letters: [], options: [], ...g,
 });
 const item = (n: number[], more: Partial<GateGroup['items'][number]> = {}) => ({ n, q: null, options: [], choose: 1, limit: null, ...more });
 
@@ -89,6 +93,32 @@ describe('Vibes gate player', () => {
 		expect(ix?.closedLines.map(l => l.n)).toEqual([2]);
 		expect(findStation(pack, '2.2')?.playable).toBe(false);
 		expect(findStation(pack, '9.9')).toBeNull();
+	});
+
+	test('reading: the clock, the passage\'s tables, and the two parts of a paper', () => {
+		expect(secondsLeft(10_000, 0)).toBe(10);
+		expect(secondsLeft(10_000, 9_001)).toBe(1);
+		expect(secondsLeft(10_000, 12_000)).toBe(0);
+		expect(clockText(14 * 60)).toBe('14:00');
+		expect(clockText(65)).toBe('1:05');
+		expect(clockText(3725)).toBe('1:02:05');
+		const blocks = paragraphBlocks('Ticket | Price\nAdult | £5.50\nStudents pay the child price.');
+		expect(blocks.map(b => b.kind)).toEqual(['table', 'line']);
+		expect(blocks[0].kind === 'table' && blocks[0].head?.length).toBe(2);
+		const listening = group({ type: 'form', lines: ['(1) ______'], items: [item([1])] });
+		const reading = group({ type: 'judge', skill: 'reading', letters: ['TRUE', 'FALSE', 'NOT GIVEN'], items: [item([2])] });
+		expect(paperParts([listening, reading])).toEqual({ listening: [listening], reading: [reading] });
+	});
+
+	test('a summary\'s gaps and a list of headings pick from their box', () => {
+		const bank = group({ type: 'bank', lines: ['Bees spend time (4) ______ and (5) ______.'], letters: ['A', 'B', 'C'], options: ['cleaning', 'outside', 'pollen'], items: [item([4]), item([5])] });
+		expect(answersPayload([bank], { 4: 'B' })).toEqual([{ n: 4, value: 'B' }, { n: 5, value: '' }]);
+		expect(letterText(bank, null, 'C')).toBe('pollen');
+		const headings = group({ type: 'match', letters: ['i', 'ii', 'iii', 'iv'], options: ['one', 'two', 'three', 'four'], items: [item([6])] });
+		expect(pickLetters(headings)).toEqual(['i', 'ii', 'iii', 'iv']);
+		expect(letterText(headings, null, 'iv')).toBe('four');
+		// paragraph letters have no words behind them
+		expect(letterText(group({ type: 'match', letters: ['A', 'B'], items: [item([7])] }), null, 'B')).toBeNull();
 	});
 
 	test('tells a placement test from a station', () => {

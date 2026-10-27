@@ -75,8 +75,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		ORDER.forEach(id => {
 			const s = by[id];
 			SP[id] = s ? { state: STATES.includes(s.state) ? s.state : 'soon', sets: +s.sets || 0, attempts: +s.attempts || 0, best: s.best ?? null, total: s.total ?? null, pass: s.pass ?? null,
-				failStreak: +s.failStreak || 0, passedAt: s.passedAt || null, via: s.via || null }
-				: { state: 'soon', sets: 0, attempts: 0, best: null, total: null, pass: null, failStreak: 0, passedAt: null, via: null };
+				time: s.time ?? null, failStreak: +s.failStreak || 0, passedAt: s.passedAt || null, via: s.via || null }
+				: { state: 'soon', sets: 0, attempts: 0, best: null, total: null, pass: null, time: null, failStreak: 0, passedAt: null, via: null };
 		});
 		const rows = p && Array.isArray(p.lines) ? p.lines : [];
 		LP = {};
@@ -247,7 +247,9 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	const day = iso => new Date(iso).toLocaleDateString(LANG === 'zh' ? 'zh-CN' : 'en', { month: 'short', day: 'numeric' });
 
 	function gateBody(id) {
-		const n = NODES[id], s = SP[id], x = IX[id], o = otherOf(id), extra = (T('lineRule') || {})[n.n] || '';
+		const n = NODES[id], s = SP[id], x = IX[id], o = otherOf(id);
+		// the line's own rule (listening: the recording plays once), and a reading stop's time limit
+		const extra = [(T('lineRule') || {})[n.n], s.time ? T('timeRule')(s.time) : ''].filter(Boolean).join(LANG === 'zh' ? '；' : '; ');
 		const rule = s.total && s.pass ? T('rule')(s.total, s.pass, extra) : s.pass ? T('rulePass')(s.pass, extra) : T('ruleNoNum')(extra), meta = [];
 		if (s.best != null && s.total && s.state !== 'passed') meta.push(`${T('best')} ${s.best} / ${s.total}`);
 		if (s.attempts) meta.push(T('tries')(s.attempts));
@@ -269,7 +271,7 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			const p = prevOf(id);
 			h += `<div class="gst warn"><p>${T('streak')(s.failStreak, p ? band(p) : null)}</p>${p ? `<button class="pillbtn ghost" data-go="${p}">${T('goPrev')(band(p))}</button>` : ''}</div>`;
 		}
-		const rows = ['part', 'focus', 'types', 'pace'].filter(k => n[k]);
+		const rows = ['part', 'focus', 'types', 'pace', 'length'].filter(k => n[k]);
 		if (rows.length) h += `<div class="h4">${T('infoH')}</div><dl class="grows">${rows.map(k => `<div><dt>${T('rows')[k]}</dt><dd>${esc(L(n[k]))}</dd></div>`).join('')}</dl>`;
 		if (x) {
 			h += `<div class="gnote gix-note"><b>${T('ixH')(esc(L(x)))}</b><p>${esc(L({ zh: x.dzh, en: x.den }))}</p>${x.why ? `<p><span>${T('ixWhy')}</span>${esc(L(x.why))}</p>` : ''}`;

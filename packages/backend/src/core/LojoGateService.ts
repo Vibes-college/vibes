@@ -22,7 +22,7 @@ import { InternalStorageService } from '@/core/InternalStorageService.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { createTemp } from '@/misc/create-temp.js';
-import { gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, setsFor, weakTags } from '@/misc/lojo-gates.js';
+import { gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, publicPassage, setsFor, weakTags } from '@/misc/lojo-gates.js';
 import type { GateAttemptFact, GateCourse, GatePlacementPath, GateSet } from '@/misc/lojo-gates.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
@@ -164,6 +164,8 @@ export class LojoGateService {
 		return {
 			attemptId: id, course: courseId, station: set.station, set: set.set, band: set.band, part: set.part,
 			pass: set.pass, total: set.total, startedAt: startedAt.toISOString(), audio,
+			// reading: the passage (without where the answers are) and the minutes for the reading questions
+			passage: publicPassage(set), time: set.time ?? null,
 			groups: publicGroups(set, name => name),
 			stage: (data.stage ?? null) as 'first' | 'high' | 'low' | null,
 		};
@@ -223,7 +225,7 @@ export class LojoGateService {
 			score, total: attempt.total, pass: set.pass, passed: !!attempt.passed,
 			missing: attempt.kind === 'gate' ? Math.max(0, set.pass - score) : 0,
 			durationMs: attempt.submittedAt ? attempt.submittedAt.getTime() - attempt.startedAt.getTime() : 0,
-			items: d.items ?? [], weak: d.weak ?? [], script: set.script,
+			items: d.items ?? [], weak: d.weak ?? [], script: set.script, passage: set.passage ?? null,
 			failStreak: here?.failStreak ?? 0, unlocked, next: next === attempt.station ? null : next,
 			placement,
 			tutor: await this.tutor(),

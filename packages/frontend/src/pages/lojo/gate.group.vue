@@ -3,7 +3,8 @@ SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<!-- One group of questions on the gate's paper: a form with gaps, choices, a map or a matching box. -->
+<!-- One group of questions on the gate's paper: a form with gaps, choices, a map or a matching box; for reading also
+TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, ii, …) and paragraph letters. -->
 <template>
 <section :class="$style.root" :aria-labelledby="headId">
 	<header :class="$style.head">
@@ -15,13 +16,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</p>
 	</header>
 
-	<!-- form, notes, table and sentence completion -->
-	<div v-if="group.type === 'form'" :class="$style.form" lang="en">
+	<!-- a map or plan with letters on it, or a diagram with the question numbers on it -->
+	<figure v-if="(group.type === 'map' || group.type === 'form') && group.image" :class="[$style.map, { [$style.zoomed]: zoomed }]">
+		<img :src="group.image" :alt="group.type === 'map' ? gateLabels.mapAlt : gateLabels.diagramAlt" draggable="false">
+		<button class="_button" :class="$style.zoom" :aria-pressed="zoomed" @click="zoomed = !zoomed">
+			<i :class="zoomed ? 'ti ti-zoom-out' : 'ti ti-zoom-in'"></i> {{ zoomed ? gateLabels.zoomOut : gateLabels.zoomIn }}
+		</button>
+	</figure>
+
+	<!-- form, notes, table and sentence completion (typed); a summary with a box of words (picked) -->
+	<div v-if="gapped(group.type)" :class="$style.form" lang="en">
 		<b v-if="group.title" :class="$style.title">{{ group.title }}</b>
 		<template v-for="(block, bi) in blocks" :key="bi">
 			<p v-if="block.kind === 'line'" :class="$style.line">
 				<template v-for="(seg, si) in block.segments" :key="si">
 					<span v-if="seg.type === 'text'">{{ seg.text }}</span>
+					<XSelect v-else-if="group.type === 'bank'" v-model="text[seg.n]" :n="seg.n" :letters="letters" :options="group.options" :disabled="disabled"/>
 					<XGap v-else v-model="text[seg.n]" :n="seg.n" :limit="gapLimit(seg.n)" :disabled="disabled"/>
 				</template>
 			</p>
@@ -35,6 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<td v-for="(cell, ci) in row" :key="ci">
 								<template v-for="(seg, si) in cell" :key="si">
 									<span v-if="seg.type === 'text'">{{ seg.text }}</span>
+									<XSelect v-else-if="group.type === 'bank'" v-model="text[seg.n]" :n="seg.n" :letters="letters" :options="group.options" :disabled="disabled"/>
 									<XGap v-else v-model="text[seg.n]" :n="seg.n" :limit="gapLimit(seg.n)" :disabled="disabled"/>
 								</template>
 							</td>
@@ -45,16 +56,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</template>
 	</div>
 
-	<!-- a map or plan with letters on it -->
-	<figure v-if="group.type === 'map' && group.image" :class="[$style.map, { [$style.zoomed]: zoomed }]">
-		<img :src="group.image" :alt="gateLabels.mapAlt" draggable="false">
-		<button class="_button" :class="$style.zoom" :aria-pressed="zoomed" @click="zoomed = !zoomed">
-			<i :class="zoomed ? 'ti ti-zoom-out' : 'ti ti-zoom-in'"></i> {{ zoomed ? gateLabels.zoomOut : gateLabels.zoomIn }}
-		</button>
-	</figure>
-
-	<!-- the box of options a matching group picks from -->
-	<div v-if="group.type === 'match'" :class="$style.box" lang="en">
+	<!-- the box of options a matching group or a summary picks from (paragraph letters have none) -->
+	<div v-if="(group.type === 'match' || group.type === 'bank') && group.options.length > 0" :class="$style.box" lang="en">
 		<b v-if="group.title" :class="$style.title">{{ group.title }}</b>
 		<span :class="$style.boxLabel">{{ gateLabels.optionsBox }}</span>
 		<ul :class="$style.boxList">
@@ -62,8 +65,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</ul>
 	</div>
 
-	<!-- one question per item: a choice, several choices, or a letter -->
-	<template v-if="group.type !== 'form'">
+	<!-- one question per item: a choice, several choices, a letter, or TRUE / FALSE / NOT GIVEN -->
+	<template v-if="!gapped(group.type)">
 		<div v-for="item in group.items" :key="item.n.join('-')" :class="$style.item" role="group" :aria-labelledby="`${headId}-${itemKey(item)}`">
 			<p :id="`${headId}-${itemKey(item)}`" :class="$style.q" lang="en">
 				<span :class="$style.num">{{ item.n.length > 1 ? `${item.n[0]}–${item.n[item.n.length - 1]}` : item.n[0] }}</span>
@@ -91,7 +94,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					v-for="letter in letters"
 					:key="letter"
 					class="_button"
-					:class="[$style.letterBtn, { [$style.on]: text[item.n[0]] === letter }]"
+					:class="[group.type === 'judge' ? $style.wordBtn : $style.letterBtn, { [$style.on]: text[item.n[0]] === letter }]"
 					role="radio"
 					:aria-checked="text[item.n[0]] === letter"
 					:aria-label="letterLabel(letter)"
@@ -107,8 +110,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, useId } from 'vue';
 import XGap from './gate.gap.vue';
+import XSelect from './gate.select.vue';
 import { gateLabels } from '@/lojo/gates/labels.js';
-import { formBlocks, groupNumbers, itemKey, letterAt, letterText, pickLetters } from '@/lojo/gates/player.js';
+import { formBlocks, gapped, groupNumbers, itemKey, letterAt, letterText, pickLetters } from '@/lojo/gates/player.js';
 import type { FormCell, GateAnswers, GateGroup, GateItem, GateLimit } from '@/lojo/gates/player.js';
 
 const props = defineProps<{
@@ -122,7 +126,7 @@ const answers = defineModel<GateAnswers>({ required: true });
 const headId = useId();
 const zoomed = ref(false);
 const numbers = computed(() => groupNumbers(props.group));
-const blocks = computed(() => (props.group.type === 'form' ? formBlocks(props.group.lines) : []));
+const blocks = computed(() => (gapped(props.group.type) ? formBlocks(props.group.lines) : []));
 const letters = computed(() => pickLetters(props.group));
 
 // The text boxes write straight into the shared answers.
@@ -418,7 +422,28 @@ function letterLabel(letter: string): string {
 	}
 }
 
-.option, .letterBtn {
+// TRUE / FALSE / NOT GIVEN: three words side by side
+.wordBtn {
+	height: 40px;
+	padding: 0 14px;
+	border: 1px solid var(--MI_THEME-divider);
+	border-radius: 10px;
+	font-weight: bold;
+	white-space: nowrap;
+	background: var(--MI_THEME-panel);
+
+	&:hover:not(:disabled) {
+		border-color: var(--MI_THEME-accent);
+	}
+
+	&.on {
+		color: var(--MI_THEME-fgOnAccent);
+		border-color: var(--MI_THEME-accent);
+		background: var(--MI_THEME-accent);
+	}
+}
+
+.option, .letterBtn, .wordBtn {
 	&:focus-visible {
 		outline: 2px solid var(--MI_THEME-focus);
 		outline-offset: 2px;

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { gateProfileText, gateProgress, isGateCourse, markSet, normalizeAnswer, overLimit, paperOf, pickSet, placeAt, placedStation, publicGroups, weakTags } from '@/misc/lojo-gates.js';
+import { gateProfileText, gateProgress, isGateCourse, markSet, normalizeAnswer, overLimit, paperOf, pickSet, placeAt, placedStation, publicGroups, publicPassage, weakTags } from '@/misc/lojo-gates.js';
 import type { GateAttemptFact, GateCourse, GateGroup, GatePlacement, GateSet } from '@/misc/lojo-gates.js';
 
 const text = { en: 'Complete the form.', zh: '补全表格。' };
@@ -60,6 +60,19 @@ const attempt = (station: string, score: number, more: Partial<GateAttemptFact> 
 };
 const stateOf = (p: ReturnType<typeof gateProgress>, id: string) => p.stations.find(s => s.id === id)?.state;
 
+// A reading paper: a passage with lettered paragraphs, and the types that pick a label.
+const paragraph = (label: string, words: string, answers: number[]) => ({ label, heading: null, text: words, image: null, caption: null, answers });
+const reading = (): GateSet => ({
+	...set('2.1'), id: '2.1-A', time: 10, script: [], voices: {}, total: 5, pass: 4,
+	passage: { title: 'Bees', subtitle: null, glossary: [], paragraphs: [paragraph('A', 'Bees use the sun.', [1]), paragraph('B', 'Young bees clean.', [3, 4])] },
+	groups: [
+		group({ type: 'judge', skill: 'reading', letters: ['TRUE', 'FALSE', 'NOT GIVEN'], items: [item(1, ['TRUE'], ['tfng']), item(2, ['NOT GIVEN'], ['tfng'])] }),
+		group({ type: 'match', skill: 'reading', letters: ['i', 'ii', 'iii', 'iv'], options: ['a', 'b', 'c', 'd'], items: [item(3, ['iv'], ['headings'])] }),
+		group({ type: 'bank', skill: 'reading', lines: ['Bees (4) ______.'], letters: ['A', 'B', 'C'], options: ['clean', 'sing', 'fly'], items: [item(4, ['A'], ['summary'])] }),
+		group({ type: 'match', skill: 'reading', letters: ['A', 'B'], items: [item(5, ['B'], ['matching'])] }),
+	],
+});
+
 describe('Vibes route map gates', () => {
 	test('marks gaps like the real test: case, spaces, a final full stop and full-width input do not matter', () => {
 		expect(normalizeAnswer('  HOLLINS. ')).toBe('hollins');
@@ -101,6 +114,26 @@ describe('Vibes route map gates', () => {
 		expect(json).not.toContain('Hollins');
 		expect(json).not.toContain('tags');
 		expect(groups[2].items[0].choose).toBe(2);
+	});
+
+	test('marks reading picks against their own labels, in any case', () => {
+		const { score, items } = markSet(reading(), new Map([[1, 'TRUE'], [2, 'false'], [3, 'IV'], [4, 'a'], [5, 'B']]));
+		expect(score).toBe(4);
+		expect(items.find(i => i.n === 2)).toMatchObject({ correct: false, given: 'FALSE', expected: 'NOT GIVEN' });
+		// a roman numeral comes back as the list writes it
+		expect(items.find(i => i.n === 3)).toMatchObject({ correct: true, given: 'iv' });
+		expect(items.find(i => i.n === 4)?.given).toBe('A');
+	});
+
+	test('the passage sent to the browser does not say where the answers are', () => {
+		const p = publicPassage(reading());
+		expect(p?.paragraphs.map(x => x.answers)).toEqual([[], []]);
+		expect(p?.paragraphs[0].text).toBe('Bees use the sun.');
+		expect(publicPassage(set('1.1'))).toBeNull();
+		expect(publicGroups(reading(), n => n).map(g => g.skill)).toEqual(['reading', 'reading', 'reading', 'reading']);
+		// sets imported before reading have no skill: listening
+		expect(publicGroups(set('1.1'), n => n)[0].skill).toBe('listening');
+		expect(gateProgress({ ...course, sets: [...course.sets, reading()] }, []).stations.find(s => s.id === '2.1')?.time).toBe(10);
 	});
 
 	test('a new learner can take the first gate; the rest wait, and lines without sets are coming soon', () => {
@@ -172,6 +205,9 @@ describe('Vibes route map gates', () => {
 		expect(isGateCourse(withPlacement)).toBe(true);
 		expect(isGateCourse({ ...withPlacement, placements: [{ ...placement, place: { high: [] } }] })).toBe(false);
 		expect(isGateCourse(course)).toBe(true);
+		expect(isGateCourse({ ...course, sets: [reading()] })).toBe(true);
+		expect(isGateCourse({ ...course, sets: [{ ...reading(), passage: { title: 'Bees', subtitle: null, glossary: [], paragraphs: [] } }] })).toBe(false);
+		expect(isGateCourse({ ...course, sets: [{ ...reading(), groups: [{ ...reading().groups[0], skill: 'speaking' }] }] })).toBe(false);
 		expect(isGateCourse({ ...course, sets: [{ ...set('1.1'), groups: [] }] })).toBe(false);
 		expect(isGateCourse({ id: 'ielts' })).toBe(false);
 	});

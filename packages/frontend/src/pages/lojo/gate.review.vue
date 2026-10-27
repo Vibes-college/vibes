@@ -3,7 +3,8 @@ SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<!-- After handing in one paper: each question with your answer and the right one, then the transcript of its recording. -->
+<!-- After handing in one paper: each question with your answer and the right one, then the transcript of its recording
+and (reading) the passage, with the question numbers where the answers are. -->
 <template>
 <div :class="$style.root">
 	<section :class="$style.review">
@@ -28,7 +29,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</ol>
 	</section>
 
-	<section :class="$style.transcript">
+	<section v-if="result.passage" :class="$style.transcript">
+		<button class="_button" :class="$style.toggle" :aria-expanded="showPassage" @click="showPassage = !showPassage">
+			<i :class="showPassage ? 'ti ti-chevron-up' : 'ti ti-chevron-down'"></i> {{ showPassage ? gateLabels.passageTitle : gateLabels.seePassage }}
+		</button>
+		<XPassage v-if="showPassage" :passage="result.passage" review/>
+	</section>
+
+	<section v-if="spoken" :class="$style.transcript">
 		<button class="_button" :class="$style.toggle" :aria-expanded="showScript" @click="showScript = !showScript">
 			<i :class="showScript ? 'ti ti-chevron-up' : 'ti ti-chevron-down'"></i> {{ showScript ? gateLabels.transcriptTitle : gateLabels.seeTranscript }}
 		</button>
@@ -48,6 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
+import XPassage from './gate.passage.vue';
 import { gateLabels } from '@/lojo/gates/labels.js';
 import { letterText, questionRefs } from '@/lojo/gates/player.js';
 import type { GateAttempt, GateResult, GateResultItem } from '@/lojo/gates/player.js';
@@ -60,7 +69,10 @@ const props = defineProps<{
 }>();
 
 const showScript = ref(false);
+const showPassage = ref(false);
 const refs = computed(() => questionRefs(props.attempt.groups));
+// a reading paper has no recording, so no transcript
+const spoken = computed(() => props.result.script.some(l => l.text != null));
 
 // A letter answer reads with its words: "B: the roof was damaged".
 function shown(n: number, value: string): string {
