@@ -390,11 +390,11 @@ definePage(() => ({ title: title.value, icon: 'ti ti-headphones' }));
 	opacity: 0.75;
 }
 
+// After the last question, like the end of a paper: a floating button would cover the answer buttons on a phone,
+// and the recording bar already holds the top of the screen.
 .submitBar {
-	position: sticky;
-	bottom: 12px;
 	display: flex;
 	justify-content: center;
-	padding-top: 4px;
+	padding-top: 8px;
 }
 </style>
