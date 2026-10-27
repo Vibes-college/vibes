@@ -65,6 +65,12 @@ export const ROUTE_DEF = [{
 	path: '/map',
 	component: page(() => import('@/pages/lojo/route.vue')),
 }, {
+	// One gate (闯关) on a route map with gates: /gate/ielts/1.3. The paper, its recording and the mark.
+	name: 'lojo-gate',
+	path: '/gate/:course/:station',
+	component: page(() => import('@/pages/lojo/gate.vue')),
+	loginRequired: true,
+}, {
 	// The old 落脚地图 is off the navigation; old links still land here.
 	name: 'lojo-map',
 	path: '/lojo/map',

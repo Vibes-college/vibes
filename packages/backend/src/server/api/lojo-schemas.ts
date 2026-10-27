@@ -149,3 +149,164 @@ export const lojoEnglishReplyIdeasRes = {
 		},
 	},
 } as const;
+
+export const lojoGateErrors = {
+	noSuchCourse: { message: 'No such gate course on this server.', code: 'NO_SUCH_COURSE', id: 'c9e7df59-a61e-4f25-a69e-50d497fa08b3' },
+	noSuchStation: { message: 'No such station on this route map.', code: 'NO_SUCH_STATION', id: 'da6e78fa-2cf8-4f9c-9958-b7d8c075d8da' },
+	notReady: { message: 'This gate has no question sets yet.', code: 'GATE_NOT_READY', id: '1f404a59-5db8-4c56-91e3-561baa1dff02' },
+	noSuchAttempt: { message: 'No such attempt.', code: 'NO_SUCH_ATTEMPT', id: '8541081d-f0ee-4db8-87c5-3272196dd9e4' },
+	invalidCourse: { message: 'The gate course data is not valid.', code: 'INVALID_GATE_COURSE', id: '7930866a-c1aa-4870-bd1f-44e63034d7bd' },
+} as const;
+
+const req = { optional: false, nullable: false } as const;
+const nul = { optional: false, nullable: true } as const;
+const strings = { type: 'array', ...req, items: { type: 'string', ...req } } as const;
+const gateLimit = { type: 'object', ...nul, properties: { words: { type: 'integer', ...req }, number: { type: 'boolean', ...req } } } as const;
+
+// lojo/gates/start: the paper as the learner sees it, without answers.
+export const lojoGateAttemptSchema = {
+	type: 'object', ...req,
+	properties: {
+		attemptId: { type: 'string', ...req, format: 'misskey:id' },
+		course: { type: 'string', ...req },
+		station: { type: 'string', ...req },
+		set: { type: 'string', ...req },
+		band: { type: 'number', ...req },
+		part: { type: 'integer', ...nul },
+		pass: { type: 'integer', ...req },
+		total: { type: 'integer', ...req },
+		startedAt: { type: 'string', ...req, format: 'date-time' },
+		audio: {
+			type: 'object', ...nul,
+			properties: {
+				url: { type: 'string', ...req },
+				duration: { type: 'number', ...req },
+				pauses: { type: 'array', ...req, items: { type: 'object', ...req, properties: { at: { type: 'number', ...req }, length: { type: 'number', ...req } } } },
+			},
+		},
+		groups: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					type: { type: 'string', ...req, enum: ['form', 'choice', 'multi', 'map', 'match'] },
+					instructions: { type: 'object', ...req, properties: { en: { type: 'string', ...req }, zh: { type: 'string', ...req } } },
+					title: { type: 'string', ...nul },
+					lines: strings,
+					limit: gateLimit,
+					image: { type: 'string', ...nul },
+					letters: strings,
+					options: strings,
+					items: {
+						type: 'array', ...req,
+						items: {
+							type: 'object', ...req,
+							properties: {
+								n: { type: 'array', ...req, items: { type: 'integer', ...req } },
+								q: { type: 'string', ...nul },
+								options: strings,
+								choose: { type: 'integer', ...req },
+								limit: gateLimit,
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+} as const;
+
+// lojo/gates/submit: the mark, with answers, the transcript and what to do next.
+export const lojoGateResultSchema = {
+	type: 'object', ...req,
+	properties: {
+		attemptId: { type: 'string', ...req, format: 'misskey:id' },
+		course: { type: 'string', ...req },
+		station: { type: 'string', ...req },
+		set: { type: 'string', ...req },
+		band: { type: 'number', ...req },
+		score: { type: 'integer', ...req },
+		total: { type: 'integer', ...req },
+		pass: { type: 'integer', ...req },
+		passed: { type: 'boolean', ...req },
+		missing: { type: 'integer', ...req },
+		durationMs: { type: 'integer', ...req },
+		items: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					n: { type: 'integer', ...req },
+					correct: { type: 'boolean', ...req },
+					given: { type: 'string', ...req },
+					expected: { type: 'string', ...req },
+					accepted: strings,
+					reason: { type: 'string', ...nul, enum: ['blank', 'word-limit', 'wrong'] },
+					tags: strings,
+				},
+			},
+		},
+		weak: { type: 'array', ...req, items: { type: 'object', ...req, properties: { tag: { type: 'string', ...req }, count: { type: 'integer', ...req } } } },
+		script: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					who: { type: 'string', ...nul },
+					text: { type: 'string', ...nul },
+					pause: { type: 'number', ...nul },
+					answers: { type: 'array', ...req, items: { type: 'integer', ...req } },
+				},
+			},
+		},
+		failStreak: { type: 'integer', ...req },
+		unlocked: strings,
+		next: { type: 'string', ...nul },
+		tutor: {
+			type: 'object', ...nul,
+			properties: { id: { type: 'string', ...req, format: 'misskey:id' }, username: { type: 'string', ...req }, name: { type: 'string', ...nul } },
+		},
+	},
+} as const;
+
+// lojo/gates/progress: every station of a gate map with its state for this learner.
+export const lojoGateProgressSchema = {
+	type: 'object', ...req,
+	properties: {
+		course: { type: 'string', ...req },
+		lines: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					line: { type: 'integer', ...req },
+					live: { type: 'boolean', ...req },
+					current: { type: 'string', ...nul },
+					passed: { type: 'integer', ...req },
+					total: { type: 'integer', ...req },
+				},
+			},
+		},
+		stations: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					id: { type: 'string', ...req },
+					line: { type: 'integer', ...req },
+					gate: { type: 'string', ...req },
+					state: { type: 'string', ...req, enum: ['passed', 'open', 'locked', 'soon'] },
+					sets: { type: 'integer', ...req },
+					attempts: { type: 'integer', ...req },
+					best: { type: 'integer', ...nul },
+					total: { type: 'integer', ...nul },
+					pass: { type: 'integer', ...nul },
+					failStreak: { type: 'integer', ...req },
+					passedAt: { type: 'string', ...nul, format: 'date-time' },
+					via: { type: 'string', ...nul, enum: ['gate', 'higher'] },
+				},
+			},
+		},
+		last: { type: 'object', ...nul, properties: { station: { type: 'string', ...req }, at: { type: 'string', ...req, format: 'date-time' } } },
+	},
+} as const;

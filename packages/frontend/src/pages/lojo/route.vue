@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkButton primary @click="start">{{ i18n.ts.retry }}</MkButton>
 			</div>
 			<div v-else-if="loading" :class="$style.loading"><MkLoading/></div>
-			<div ref="mapHost" :class="$style.map" :aria-label="lojoLabels.routeTitle"></div>
+			<div ref="mapHost" :class="$style.map" :aria-label="pageTitle"></div>
 		</template>
 	</div>
 </div>
@@ -28,7 +28,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { lang } from '@@/js/config.js';
 import { lojoLabels } from '@/lojo/labels.js';
-import { mount } from '@/lojo/route/runtime.js';
 import { CATALOG, DEFAULT_COURSE } from '@/lojo/route/courses/index.js';
 import { coursePath, isReady, loadRouteRegistry, myMaps, ROUTE_SCOPE, saveMyMaps, withCourse } from '@/lojo/route/my-maps.js';
 import MkButton from '@/components/MkButton.vue';
@@ -44,20 +43,28 @@ import { pleaseLogin } from '@/utility/please-login.js';
 // /map shows the default course; /map/<id> any other course in courses/index.js.
 const props = defineProps<{ course?: string }>();
 
+// Two runtimes share this page: runtime.js for topic maps (AP), gate-map.js for gate maps (META.kind 'gates', IELTS).
+type RouteRuntime = {
+	fit(): void; legend(): void; pause(): void; resume(): void; resize(): void; destroy(): void;
+	tour?: () => void; // topic maps only
+	refresh?: () => Promise<void>; // gate maps: progress lives on the server, re-read it when the page comes back
+};
+const loadRuntime = (kind: string | undefined) => kind === 'gates' ? import('@/lojo/route/gate-map.js') : import('@/lojo/route/runtime.js');
+
 const router = useRouter();
 const mapHost = useTemplateRef('mapHost');
 const loading = ref(true);
 const loadError = ref(false);
-let runtime: Awaited<ReturnType<typeof mount>> | null = null;
+let runtime: RouteRuntime | null = null;
 let observer: ResizeObserver | null = null;
 let generation = 0;
 let active = true;
 
-// Progress lives in the account's registry, next to Misskey's own synced preferences; one key per course.
+// Topic-map progress (and the gate map's welcome flag) lives in the account's registry, one key per course; gate progress lives on the server.
 const isZh = lang.startsWith('zh');
-const pageTitle = ref<string>(lojoLabels.routeTitle);
+const pageTitle = ref<string>(lojoLabels.map);
 // The course tabs in the page header. Icons are listed here (not in the generated catalog) so the icon font subset picks them up.
-const COURSE_ICON: Record<string, string> = { 'ap-micro': 'ti ti-chart-line', 'ap-calc-ab': 'ti ti-math-function' };
+const COURSE_ICON: Record<string, string> = { ielts: 'ti ti-headphones', 'ap-micro': 'ti ti-chart-line', 'ap-calc-ab': 'ti ti-math-function' };
 const courseId = computed(() => props.course ?? DEFAULT_COURSE);
 // Only the student's own courses ("my maps") become tabs; every other course is one tap away in /maps.
 const myList = ref<string[]>([]);
@@ -81,11 +88,12 @@ const headerActions: PageHeaderItem[] = [{
 }, {
 	icon: 'ti ti-dots',
 	text: i18n.ts.more,
-	handler: (event) => os.popupMenu([{
+	// gate maps have no tour
+	handler: (event) => os.popupMenu([...(runtime?.tour ? [{
 		icon: 'ti ti-train',
 		text: lojoLabels.routeTour,
-		action: () => runtime?.tour(),
-	}, {
+		action: () => runtime?.tour?.(),
+	}] : []), {
 		icon: 'ti ti-arrows-maximize',
 		text: lojoLabels.routeFit,
 		action: () => runtime?.fit(),
@@ -109,6 +117,7 @@ async function start() {
 		const loader = entry && entry.ready && 'load' in entry ? entry.load : null;
 		if (!entry || !loader) { router.replaceByPath('/map'); return; }
 		const [pack, all] = await Promise.all([loader(), loadRouteRegistry()]);
+		const { mount } = await loadRuntime(pack.META.kind);
 		if (current !== generation) return;
 		const registry = { scope: ROUTE_SCOPE, key: pack.META.storeKey };
 		const mine = myMaps(all), next = withCourse(mine, entry.id);
@@ -139,6 +148,9 @@ async function start() {
 			toast: (message: string) => os.toast(message),
 			openCourse: (id: string, station?: string) => router.pushByPath(`${coursePath(id)}${station ? `#${encodeURIComponent(station)}` : ''}`),
 			openCatalog: () => router.pushByPath('/maps'),
+			// gate maps: progress from the server, and each gate on its own page (/gate/ielts/1.4)
+			progress: () => misskeyApi('lojo/gates/progress', { course: entry.id }),
+			openGate: (station: string) => router.pushByPath(`/gate/${entry.id}/${station}`),
 			setHash: (id: string | null) => {
 				if (!active || window.location.pathname !== basePath) return;
 				window.history.replaceState(window.history.state, '', id ? `${basePath}#${encodeURIComponent(id)}` : basePath);
@@ -175,7 +187,8 @@ onMounted(() => {
 });
 // switching between courses reuses this page, so remount the map for the new course
 watch(() => props.course, () => { void start(); });
-onActivated(() => { active = true; runtime?.resume(); });
+// coming back from a gate: show what just changed
+onActivated(() => { active = true; runtime?.resume(); void runtime?.refresh?.(); });
 onDeactivated(() => { active = false; runtime?.pause(); });
 onBeforeUnmount(() => {
 	generation++;

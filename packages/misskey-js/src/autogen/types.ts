@@ -3009,6 +3009,42 @@ export type paths = {
          */
         post: operations['lojo___entities___show'];
     };
+    '/lojo/gates/import': {
+        /**
+         * lojo/gates/import
+         * @description Replace the question sets of a route map with gates. Sent by apps/community/scripts/gates-import.mjs in the Vibes workspace, which checks them first; the sets hold the answers, so they are kept out of the public source.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___gates___import'];
+    };
+    '/lojo/gates/progress': {
+        /**
+         * lojo/gates/progress
+         * @description Every station of a route map with gates (IELTS), and which ones you have passed, can take on or have to wait for.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___gates___progress'];
+    };
+    '/lojo/gates/start': {
+        /**
+         * lojo/gates/start
+         * @description Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers). The first start of a set can take half a minute while the recording is made.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___gates___start'];
+    };
+    '/lojo/gates/submit': {
+        /**
+         * lojo/gates/submit
+         * @description Hand in a gate and get it marked. Handing in the same attempt again returns the first result.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___gates___submit'];
+    };
     '/lojo/guides/bookmark': {
         /**
          * lojo/guides/bookmark
@@ -29738,6 +29774,414 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___gates___import: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    course: Record<string, never>;
+                    /** @default false */
+                    record?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        sets: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___gates___progress: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    course: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        course: string;
+                        lines: {
+                            line: number;
+                            live: boolean;
+                            current: string | null;
+                            passed: number;
+                            total: number;
+                        }[];
+                        stations: {
+                            id: string;
+                            line: number;
+                            gate: string;
+                            /** @enum {string} */
+                            state: 'passed' | 'open' | 'locked' | 'soon';
+                            sets: number;
+                            attempts: number;
+                            best: number | null;
+                            total: number | null;
+                            pass: number | null;
+                            failStreak: number;
+                            /** Format: date-time */
+                            passedAt: string | null;
+                            /** @enum {string|null} */
+                            via: 'gate' | 'higher' | null;
+                        }[];
+                        last: {
+                            station: string;
+                            /** Format: date-time */
+                            at: string;
+                        } | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___gates___start: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    course: string;
+                    station: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        attemptId: string;
+                        course: string;
+                        station: string;
+                        set: string;
+                        band: number;
+                        part: number | null;
+                        pass: number;
+                        total: number;
+                        /** Format: date-time */
+                        startedAt: string;
+                        audio: {
+                            url: string;
+                            duration: number;
+                            pauses: {
+                                at: number;
+                                length: number;
+                            }[];
+                        } | null;
+                        groups: {
+                            /** @enum {string} */
+                            type: 'form' | 'choice' | 'multi' | 'map' | 'match';
+                            instructions: {
+                                en: string;
+                                zh: string;
+                            };
+                            title: string | null;
+                            lines: string[];
+                            limit: {
+                                words: number;
+                                number: boolean;
+                            } | null;
+                            image: string | null;
+                            letters: string[];
+                            options: string[];
+                            items: {
+                                n: number[];
+                                q: string | null;
+                                options: string[];
+                                choose: number;
+                                limit: {
+                                    words: number;
+                                    number: boolean;
+                                } | null;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___gates___submit: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    attemptId: string;
+                    answers: {
+                        n: number;
+                        value: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        attemptId: string;
+                        course: string;
+                        station: string;
+                        set: string;
+                        band: number;
+                        score: number;
+                        total: number;
+                        pass: number;
+                        passed: boolean;
+                        missing: number;
+                        durationMs: number;
+                        items: {
+                            n: number;
+                            correct: boolean;
+                            given: string;
+                            expected: string;
+                            accepted: string[];
+                            /** @enum {string|null} */
+                            reason: 'blank' | 'word-limit' | 'wrong' | null;
+                            tags: string[];
+                        }[];
+                        weak: {
+                            tag: string;
+                            count: number;
+                        }[];
+                        script: {
+                            who: string | null;
+                            text: string | null;
+                            pause: number | null;
+                            answers: number[];
+                        }[];
+                        failStreak: number;
+                        unlocked: string[];
+                        next: string | null;
+                        tutor: {
+                            /** Format: misskey:id */
+                            id: string;
+                            username: string;
+                            name: string | null;
+                        } | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -498,6 +498,14 @@ import type {
 	LojoEntitiesListResponse,
 	LojoEntitiesShowRequest,
 	LojoEntitiesShowResponse,
+	LojoGatesImportRequest,
+	LojoGatesImportResponse,
+	LojoGatesProgressRequest,
+	LojoGatesProgressResponse,
+	LojoGatesStartRequest,
+	LojoGatesStartResponse,
+	LojoGatesSubmitRequest,
+	LojoGatesSubmitResponse,
 	LojoGuidesBookmarkRequest,
 	LojoGuidesBookmarkResponse,
 	LojoGuidesCommentsCreateRequest,
@@ -1041,6 +1049,10 @@ export type Endpoints = {
 	'lojo/entities/import': { req: LojoEntitiesImportRequest; res: LojoEntitiesImportResponse };
 	'lojo/entities/list': { req: LojoEntitiesListRequest; res: LojoEntitiesListResponse };
 	'lojo/entities/show': { req: LojoEntitiesShowRequest; res: LojoEntitiesShowResponse };
+	'lojo/gates/import': { req: LojoGatesImportRequest; res: LojoGatesImportResponse };
+	'lojo/gates/progress': { req: LojoGatesProgressRequest; res: LojoGatesProgressResponse };
+	'lojo/gates/start': { req: LojoGatesStartRequest; res: LojoGatesStartResponse };
+	'lojo/gates/submit': { req: LojoGatesSubmitRequest; res: LojoGatesSubmitResponse };
 	'lojo/guides/bookmark': { req: LojoGuidesBookmarkRequest; res: LojoGuidesBookmarkResponse };
 	'lojo/guides/comments/create': { req: LojoGuidesCommentsCreateRequest; res: LojoGuidesCommentsCreateResponse };
 	'lojo/guides/comments/delete': { req: LojoGuidesCommentsDeleteRequest; res: LojoGuidesCommentsDeleteResponse };

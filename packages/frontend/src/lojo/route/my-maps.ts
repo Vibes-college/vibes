@@ -35,6 +35,15 @@ export function withCourse(list: string[], id: string, keep = id): string[] {
 	return next;
 }
 
+// Gate maps (META.kind 'gates', e.g. IELTS) keep their progress on the server instead of the registry.
+export const isGateCourse = (c: object) => 'kind' in c && c.kind === 'gates';
+
+// Stations passed in a gate course; an interchange counts once per line, so the most is the course's station count.
+export async function gatePassedCount(course: string): Promise<number> {
+	const p = await misskeyApi('lojo/gates/progress', { course });
+	return p.stations.filter(s => s.state === 'passed').length;
+}
+
 // Stations reached in a course, read from its saved progress ({ st: { '1.6': 'done', … } }).
 export function doneCount(all: RouteRegistry, storeKey: string | undefined): number {
 	const s = storeKey ? all[storeKey] as { st?: Record<string, string> } | undefined : undefined;

@@ -218,6 +218,8 @@ export type TutorPromptContext = {
 	learnerName: string;
 	now: string; // e.g. "2026-10-25 Sunday 15:20 (Beijing time)"
 	opener?: { reason: string; recentPosts: string[] };
+	// where they are on the route maps with gates (IELTS listening 1.3 …), from LojoGateService.profileText
+	gates?: string | null;
 };
 
 export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: TutorPromptContext): string {
@@ -241,11 +243,17 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 		'',
 		`What you know about ${ctx.learnerName}:`,
 		describeMemory(memory),
+		...(ctx.gates ? [
+			'',
+			'Their gates on the Vibes route map (short tests at one band level; a practice level, not an official score):',
+			ctx.gates,
+			'If they passed a gate in the last few days, a short well done is nice. If a recent gate went badly, you may offer a little practice on what they missed, once, without nagging. Never quote the test\'s answers.',
+		] : []),
 		'',
 		`Now: ${ctx.now}.`,
 		...(ctx.opener ? [
 			'',
-			`You are writing first to start a conversation (${ctx.opener.reason}). Send one or two short messages that mention something specific: their goal, where you left off, or one of these recent posts on Vibes. End with an easy question.`,
+			`You are writing first to start a conversation (${ctx.opener.reason}). Send one or two short messages that mention something specific: their goal, where you left off, a gate they just took on the route map, or one of these recent posts on Vibes. Never repeat something you already said in this chat. End with an easy question.`,
 			...ctx.opener.recentPosts.map(post => `Recent post: ${post}`),
 		] : []),
 		card.post_history_instructions,

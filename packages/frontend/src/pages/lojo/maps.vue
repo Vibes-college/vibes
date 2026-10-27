@@ -66,7 +66,7 @@ import { computed, onMounted, ref } from 'vue';
 import { lang } from '@@/js/config.js';
 import { lojoLabels } from '@/lojo/labels.js';
 import { CATALOG, SUBJECTS, SYSTEMS, MY_MAX } from '@/lojo/route/courses/index.js';
-import { coursePath, doneCount, loadRouteRegistry, myMaps, saveMyMaps } from '@/lojo/route/my-maps.js';
+import { coursePath, doneCount, gatePassedCount, isGateCourse, loadRouteRegistry, myMaps, saveMyMaps } from '@/lojo/route/my-maps.js';
 import type { RouteRegistry } from '@/lojo/route/my-maps.js';
 import { VIBES_DOTS } from '@/lojo/vibes-logo.js';
 import MkInput from '@/components/MkInput.vue';
@@ -81,15 +81,18 @@ const q = ref('');
 const system = ref('all');
 const registry = ref<RouteRegistry>({});
 const mineIds = ref<string[]>([]);
+// gate courses: stations passed, from the server (course id → count)
+const gatePassed = ref<Record<string, number>>({});
 
 const filters = [{ id: 'all', label: lojoLabels.mapsAll }, ...SYSTEMS.map(s => ({ id: s.id, label: s[lc] }))];
 const systemLabel = (id: string) => SYSTEMS.find(s => s.id === id)?.[lc] ?? id;
 const FALLBACK_SUBJECT: typeof SUBJECTS[number] = { id: 'other', zh: '其他', en: 'Other', color: '#4A4E63' };
 const subjectOf = (c: Course) => SUBJECTS.find(s => s.id === c.subject) ?? FALLBACK_SUBJECT;
-const done = (c: Course) => 'storeKey' in c ? doneCount(registry.value, c.storeKey) : 0;
+const done = (c: Course) => isGateCourse(c) ? gatePassed.value[c.id] ?? 0 : 'storeKey' in c ? doneCount(registry.value, c.storeKey) : 0;
 const total = (c: Course): number => ('stations' in c ? c.stations : 0) ?? 0;
 const progress = (c: Course) => {
 	const d = done(c), n = total(c);
+	if (isGateCourse(c)) return lc === 'zh' ? `${n} 站${d ? ` · 已过关 ${d} 站` : ''}` : `${n} stops${d ? ` · ${d} passed` : ''}`;
 	return lc === 'zh' ? `${n} 站${d ? ` · 已到 ${d} 站` : ''}` : `${n} stops${d ? ` · ${d} reached` : ''}`;
 };
 const pct = (c: Course) => `${total(c) ? Math.round(done(c) / total(c) * 100) : 0}%`;
@@ -127,6 +130,10 @@ async function toggleMine(id: string) {
 
 onMounted(async () => {
 	if (!$i) return;
+	const gates = CATALOG.filter(c => c.ready && isGateCourse(c));
+	void Promise.all(gates.map(c => gatePassedCount(c.id).catch(() => 0))).then(counts => {
+		gatePassed.value = Object.fromEntries(gates.map((c, i) => [c.id, counts[i]]));
+	});
 	registry.value = await loadRouteRegistry();
 	mineIds.value = myMaps(registry.value);
 });

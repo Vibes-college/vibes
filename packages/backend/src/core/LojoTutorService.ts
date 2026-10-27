@@ -18,6 +18,7 @@ import { IdService } from '@/core/IdService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { LojoEnglishService } from '@/core/LojoEnglishService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
+import { LojoGateService } from '@/core/LojoGateService.js';
 import type Logger from '@/logger.js';
 import { looksEnglish } from '@/misc/lojo-english.js';
 import {
@@ -75,6 +76,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private loggerService: LoggerService,
 		private lojoEnglishService: LojoEnglishService,
 		private lojoSpeechService: LojoSpeechService,
+		private lojoGateService: LojoGateService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-tutor');
 	}
@@ -136,11 +138,13 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				}
 				return;
 			}
-			const [card, memory, history] = await Promise.all([this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId)]);
+			const [card, memory, history, gates] = await Promise.all([
+				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId),
+			]);
 			// Already answered (another attempt got there first).
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
 			if (!(await this.spendBudget())) return;
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText() });
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates });
 			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
 			await this.send(tutor, learner, answer.messages, answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
@@ -225,8 +229,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [card, memory, history, recentPosts] = await Promise.all([
-				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.recentPosts(),
+			const [card, memory, history, recentPosts, gates] = await Promise.all([
+				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.recentPosts(), this.gates(learnerId),
 			]);
 			// If the learner's last message is still unanswered, answer it instead of opening a new topic.
 			const unanswered = history.at(-1)?.role === 'user';
@@ -234,9 +238,12 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				learnerName: this.nameOf(learner),
 				now: this.nowText(),
 				opener: unanswered ? undefined : { reason: this.openerReason(memory, history), recentPosts },
+				gates,
 			});
-			// The model needs at least one turn after the system prompt; an empty chat starts from a neutral cue.
-			const turns: ChatTurn[] = history.length > 0 ? history : [{ role: 'user', content: '(The learner has not written yet.)' }];
+			// The model answers the last turn. After the tutor's own messages that has to be a cue, not her last reply,
+			// or she repeats it; an empty chat starts from a neutral cue too.
+			const cue = history.length === 0 ? '(The learner has not written yet.)' : '(The learner has not replied yet. Write first now, as described above.)';
+			const turns: ChatTurn[] = unanswered ? history : [...history, { role: 'user', content: cue }];
 			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.9, 600, normalizeTutorReply));
 			await this.send(tutor, learner, unanswered ? answer.messages : answer.messages.slice(0, 2), answer.voice, card.extensions.vibes?.voice);
 			if (!unanswered) {
@@ -249,6 +256,14 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
 		}
+	}
+
+	// The learning record from the route map; a failure here only leaves it out of the prompt.
+	private gates(learnerId: string): Promise<string | null> {
+		return this.lojoGateService.profileText(learnerId).catch(err => {
+			this.logger.warn(`gate record failed: ${err}`);
+			return null;
+		});
 	}
 
 	private openerReason(memory: TutorMemory, history: ChatTurn[]): string {

@@ -2035,6 +2035,14 @@ declare namespace entities {
         LojoEntitiesListResponse,
         LojoEntitiesShowRequest,
         LojoEntitiesShowResponse,
+        LojoGatesImportRequest,
+        LojoGatesImportResponse,
+        LojoGatesProgressRequest,
+        LojoGatesProgressResponse,
+        LojoGatesStartRequest,
+        LojoGatesStartResponse,
+        LojoGatesSubmitRequest,
+        LojoGatesSubmitResponse,
         LojoGuidesBookmarkRequest,
         LojoGuidesBookmarkResponse,
         LojoGuidesCommentsCreateRequest,
@@ -2945,6 +2953,30 @@ type LojoEntitiesShowRequest = operations['lojo___entities___show']['requestBody
 
 // @public (undocumented)
 type LojoEntitiesShowResponse = operations['lojo___entities___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesImportRequest = operations['lojo___gates___import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesImportResponse = operations['lojo___gates___import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesProgressRequest = operations['lojo___gates___progress']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesProgressResponse = operations['lojo___gates___progress']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesStartRequest = operations['lojo___gates___start']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesStartResponse = operations['lojo___gates___start']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesSubmitRequest = operations['lojo___gates___submit']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesSubmitResponse = operations['lojo___gates___submit']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoGuidesBookmarkRequest = operations['lojo___guides___bookmark']['requestBody']['content']['application/json'];

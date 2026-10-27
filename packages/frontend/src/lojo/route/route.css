@@ -143,7 +143,7 @@
 
 /* station view */
 .back{display:inline-flex;align-items:center;gap:6px;color:var(--weak);font-size:13px;margin:-4px 0 12px;padding:4px 8px 4px 2px;border-radius:999px}
-.back i{width:28px;height:28px;border-radius:50%;background:var(--bg);display:grid;place-items:center;color:var(--ink)}
+.back>i{width:28px;height:28px;border-radius:50%;background:var(--bg);display:grid;place-items:center;color:var(--ink)}
 .tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
 .tg{font-size:11.5px;padding:3px 8px;border-radius:6px;color:#fff;font-weight:600}
 .tg.gold{background:var(--mustard);color:var(--ink)}

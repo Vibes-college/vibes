@@ -462,6 +462,10 @@ export * as 'lojo/english/compose' from './endpoints/lojo/english/compose.js';
 export * as 'lojo/english/reply-ideas' from './endpoints/lojo/english/reply-ideas.js';
 export * as 'lojo/english/speech' from './endpoints/lojo/english/speech.js';
 export * as 'lojo/tutor/poke' from './endpoints/lojo/tutor/poke.js';
+export * as 'lojo/gates/progress' from './endpoints/lojo/gates/progress.js';
+export * as 'lojo/gates/start' from './endpoints/lojo/gates/start.js';
+export * as 'lojo/gates/submit' from './endpoints/lojo/gates/submit.js';
+export * as 'lojo/gates/import' from './endpoints/lojo/gates/import.js';
 
 export * as 'lojo/guides/list' from './endpoints/lojo/guides/list.js';
 export * as 'lojo/guides/show' from './endpoints/lojo/guides/show.js';

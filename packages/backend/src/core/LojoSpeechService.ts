@@ -61,20 +61,22 @@ export class LojoSpeechService {
 	}
 
 	// The same audio as a drive file, e.g. to attach to an AI tutor's chat message.
-	public async speakFile(text: string, voiceId: string | undefined): Promise<MiDriveFile> {
+	// speed slows down or speeds up the voice itself (0.7–1.3), as the listening gates on the route map ask for.
+	public async speakFile(text: string, voiceId: string | undefined, opts: { speed?: number } = {}): Promise<MiDriveFile> {
 		if (!this.available) throw new ApiError(lojoEnglishErrors.unavailable);
 		const voice = lojoVoices.find(v => v.id === voiceId) ?? lojoVoices.find(v => v.id === lojoDefaultVoice)!;
 		const clean = speechText(text).slice(0, MAX_CHARS);
 		if (clean === '') throw new ApiError(lojoEnglishErrors.emptyNote);
+		const speed = Math.min(1.3, Math.max(0.7, Math.round((opts.speed ?? 1) * 100) / 100));
 
 		const hash = createHash('sha256').update(clean).digest('hex');
-		const key = `lojoSpeech:1:${voice.referenceId}:${hash}`;
+		const key = speed === 1 ? `lojoSpeech:1:${voice.referenceId}:${hash}` : `lojoSpeech:1:${voice.referenceId}:x${speed}:${hash}`;
 		const known = await this.cachedFile(key);
 		if (known) return known;
 
 		const pending = this.inflight.get(key);
 		if (pending) return pending;
-		const promise = this.synthesize(clean, voice.referenceId, hash, key).finally(() => {
+		const promise = this.synthesize(clean, voice.referenceId, hash, key, speed).finally(() => {
 			if (this.inflight.get(key) === promise) this.inflight.delete(key);
 		});
 		this.inflight.set(key, promise);
@@ -87,7 +89,7 @@ export class LojoSpeechService {
 		return this.driveFilesRepository.findOneBy({ id: fileId });
 	}
 
-	private async synthesize(text: string, referenceId: string, hash: string, key: string): Promise<MiDriveFile> {
+	private async synthesize(text: string, referenceId: string, hash: string, key: string, speed: number): Promise<MiDriveFile> {
 		await this.spendBudget(Buffer.byteLength(text, 'utf8'));
 
 		let audio: Buffer;
@@ -99,7 +101,10 @@ export class LojoSpeechService {
 					'Content-Type': 'application/json',
 					'model': this.model,
 				},
-				body: JSON.stringify({ text, reference_id: referenceId, format: 'mp3', mp3_bitrate: 64, normalize: true, latency: this.latency }),
+				body: JSON.stringify({
+					text, reference_id: referenceId, format: 'mp3', mp3_bitrate: 64, normalize: true, latency: this.latency,
+					...(speed !== 1 ? { prosody: { speed } } : {}),
+				}),
 				timeout: 90 * 1000,
 				// ENDPOINT is a fixed constant; allowing private addresses keeps it working behind fake-IP proxies (198.18.0.0/15).
 				isLocalAddressAllowed: true,
@@ -115,7 +120,7 @@ export class LojoSpeechService {
 		const [path, cleanup] = await createTemp();
 		try {
 			await fs.writeFile(path, audio);
-			const file = await this.driveService.addFile({ user: null, path, name: `vibes-voice-${hash.slice(0, 16)}.mp3`, ext: 'mp3' });
+			const file = await this.driveService.addFile({ user: null, path, name: `vibes-voice-${hash.slice(0, 16)}${speed !== 1 ? `-x${speed}` : ''}.mp3`, ext: 'mp3' });
 			await this.redisClient.set(key, file.id).catch(err => this.logger.warn(`cache write failed: ${err}`));
 			return file;
 		} finally {
