@@ -500,6 +500,8 @@ import type {
 	LojoEntitiesShowResponse,
 	LojoGatesImportRequest,
 	LojoGatesImportResponse,
+	LojoGatesPlacementRequest,
+	LojoGatesPlacementResponse,
 	LojoGatesProgressRequest,
 	LojoGatesProgressResponse,
 	LojoGatesStartRequest,
@@ -1050,6 +1052,7 @@ export type Endpoints = {
 	'lojo/entities/list': { req: LojoEntitiesListRequest; res: LojoEntitiesListResponse };
 	'lojo/entities/show': { req: LojoEntitiesShowRequest; res: LojoEntitiesShowResponse };
 	'lojo/gates/import': { req: LojoGatesImportRequest; res: LojoGatesImportResponse };
+	'lojo/gates/placement': { req: LojoGatesPlacementRequest; res: LojoGatesPlacementResponse };
 	'lojo/gates/progress': { req: LojoGatesProgressRequest; res: LojoGatesProgressResponse };
 	'lojo/gates/start': { req: LojoGatesStartRequest; res: LojoGatesStartResponse };
 	'lojo/gates/submit': { req: LojoGatesSubmitRequest; res: LojoGatesSubmitResponse };

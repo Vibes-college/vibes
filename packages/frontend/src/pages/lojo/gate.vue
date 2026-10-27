@@ -16,9 +16,46 @@ then the mark, the answers and where to practise. Marking happens on the server;
 			<MkButton rounded @click="toMap"><i class="ti ti-map-2"></i> {{ gateLabels.backToMap }}</MkButton>
 		</div>
 
-		<template v-else-if="pack && info">
+		<template v-else-if="pack && line">
+			<!-- a placement test: what it is, and its rules -->
+			<section v-if="placement != null && (phase === 'intro' || phase === 'preparing')" :class="$style.intro">
+				<p :class="$style.eyebrow"><i class="ti ti-compass" aria-hidden="true"></i> {{ gateLabels.gate }}</p>
+				<h1 :class="$style.title">{{ title }}</h1>
+				<span :class="$style.level">{{ gateLabels.practiceLevel }}</span>
+				<p :class="$style.note">{{ gateLabels.placementLede }}</p>
+				<h2 :class="$style.h2">{{ gateLabels.rulesTitle }}</h2>
+				<ul :class="$style.rules">
+					<li>{{ gateLabels.ruleTwoParts }}</li>
+					<li>{{ gateLabels.ruleAdaptive }}</li>
+					<li>{{ gateLabels.ruleReading }}</li>
+					<li>{{ gateLabels.rulePlaced }}</li>
+					<li>{{ gateLabels.ruleQuiet }}</li>
+				</ul>
+				<MkButton primary rounded large :disabled="phase === 'preparing'" :class="$style.start" @click="begin">
+					<i :class="phase === 'preparing' ? 'ti ti-loader-2' : 'ti ti-player-play-filled'"></i>
+					{{ phase === 'preparing' ? gateLabels.preparing : gateLabels.start }}
+				</MkButton>
+				<p v-if="phase === 'preparing' && slow" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
+				<p v-if="startError" :class="$style.warn" role="alert">{{ startError }}</p>
+				<p :class="$style.legal">{{ pack.TEXT[gateLang].legal }}</p>
+			</section>
+
+			<!-- between the two parts of a placement test -->
+			<section v-else-if="earlier && (phase === 'between' || phase === 'preparingSecond')" :class="$style.intro">
+				<p :class="$style.eyebrow"><i class="ti ti-compass" aria-hidden="true"></i> {{ title }}</p>
+				<h1 :class="$style.title">{{ gateLabels.betweenTitle }}</h1>
+				<p :class="$style.betweenScore">{{ gateLabels.betweenScore(earlier.result.score, earlier.result.total) }}</p>
+				<p :class="$style.sub">{{ earlier.result.placement?.next === 'high' ? gateLabels.betweenHarder : gateLabels.betweenEasier }}</p>
+				<MkButton primary rounded large :disabled="phase === 'preparingSecond'" :class="$style.start" @click="beginSecond">
+					<i :class="phase === 'preparingSecond' ? 'ti ti-loader-2' : 'ti ti-player-play-filled'"></i>
+					{{ phase === 'preparingSecond' ? gateLabels.preparing : gateLabels.startSecond }}
+				</MkButton>
+				<p v-if="phase === 'preparingSecond' && slow" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
+				<p v-if="startError" :class="$style.warn" role="alert">{{ startError }}</p>
+			</section>
+
 			<!-- what this gate is, and the rules -->
-			<section v-if="phase === 'intro' || phase === 'preparing'" :class="$style.intro">
+			<section v-else-if="info && (phase === 'intro' || phase === 'preparing')" :class="$style.intro">
 				<p :class="$style.eyebrow"><i class="ti ti-headphones" aria-hidden="true"></i> {{ gateLabels.gate }}</p>
 				<h1 :class="$style.title">{{ title }}</h1>
 				<span :class="$style.level">{{ gateLabels.practiceLevel }}</span>
@@ -58,7 +95,7 @@ then the mark, the answers and where to practise. Marking happens on the server;
 			<template v-else-if="(phase === 'test' || phase === 'submitting') && attempt">
 				<header :class="$style.paperHead">
 					<h1 :class="$style.paperTitle">{{ title }}</h1>
-					<span :class="$style.paperMeta">{{ gateLabels.setMeta(attempt.set, attempt.total, attempt.pass) }}</span>
+					<span :class="$style.paperMeta">{{ placement != null ? (earlier ? gateLabels.partSecond : gateLabels.partFirst) : gateLabels.setMeta(attempt.set, attempt.total, attempt.pass) }}</span>
 				</header>
 				<XAudio
 					v-if="attempt.audio"
@@ -85,8 +122,9 @@ then the mark, the answers and where to practise. Marking happens on the server;
 				:attempt="attempt"
 				:pack="pack"
 				:title="title"
-				:lineName="info.line[gateLang]"
-				:previous="info.previous"
+				:lineName="line[gateLang]"
+				:previous="info?.previous ?? null"
+				:earlier="earlier"
 				@again="begin"
 				@back="toMap"
 				@go="go"
@@ -104,9 +142,9 @@ import XResult from './gate.result.vue';
 import MkButton from '@/components/MkButton.vue';
 import { CATALOG } from '@/lojo/route/courses/index.js';
 import { coursePath } from '@/lojo/route/my-maps.js';
-import { gateErrorCode, gateErrorText, startGate, submitGate } from '@/lojo/gates/api.js';
+import { gateErrorCode, gateErrorText, startGate, startPlacement, submitGate } from '@/lojo/gates/api.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
-import { answersPayload, bandText, blankCount, DEFAULT_PASS, DEFAULT_TOTAL, findStation } from '@/lojo/gates/player.js';
+import { answersPayload, bandText, blankCount, DEFAULT_PASS, DEFAULT_TOTAL, findStation, placementLine } from '@/lojo/gates/player.js';
 import type { GateAnswers, GateAttempt, GatePack, GateResult } from '@/lojo/gates/player.js';
 import { useRecording } from '@/lojo/gates/recording.js';
 import * as os from '@/os.js';
@@ -116,14 +154,20 @@ import { useRouter } from '@/router.js';
 
 const props = defineProps<{ course: string; station: string }>();
 
-type Phase = 'loading' | 'missing' | 'intro' | 'preparing' | 'test' | 'submitting' | 'result';
+// A placement test hands in two papers: after the first comes 'between', then the second.
+type Phase = 'loading' | 'missing' | 'intro' | 'preparing' | 'between' | 'preparingSecond' | 'test' | 'submitting' | 'result';
 
 const router = useRouter();
 const bodyEl = useTemplateRef('bodyEl');
 const phase = ref<Phase>('loading');
 const problem = ref('');
 const pack = shallowRef<GatePack | null>(null);
-const info = computed(() => (pack.value ? findStation(pack.value, props.station) : null));
+// /gate/ielts/placement-1 is line 1's placement test; any other station is one gate.
+const placement = computed(() => placementLine(props.station));
+const info = computed(() => (pack.value && placement.value == null ? findStation(pack.value, props.station) : null));
+const line = computed(() => (placement.value != null ? pack.value?.LINES.find(l => l.n === placement.value) : info.value?.line) ?? null);
+// A placement test's first part, once handed in: the second part follows, and the result reviews both.
+const earlier = shallowRef<{ result: GateResult; attempt: GateAttempt } | null>(null);
 // Questions and pass mark of this gate, from the map's progress; the paper itself carries the exact numbers.
 const known = ref<{ total: number; pass: number } | null>(null);
 const rules = computed(() => known.value ?? { total: DEFAULT_TOTAL, pass: DEFAULT_PASS });
@@ -134,7 +178,10 @@ const startError = ref<string | null>(null);
 const slow = ref(false);
 const recording = useRecording();
 
-const title = computed(() => (info.value ? gateLabels.stationTitle(info.value.line[gateLang], bandText(info.value.station.band)) : gateLabels.pageTitle));
+const title = computed(() => {
+	if (placement.value != null) return line.value ? gateLabels.placementTitle(line.value[gateLang]) : gateLabels.pageTitle;
+	return info.value ? gateLabels.stationTitle(info.value.line[gateLang], bandText(info.value.station.band)) : gateLabels.pageTitle;
+});
 const facts = computed(() => {
 	const d = info.value?.detail;
 	if (d == null) return [];
@@ -151,6 +198,7 @@ async function load() {
 	phase.value = 'loading';
 	attempt.value = null;
 	result.value = null;
+	earlier.value = null;
 	startError.value = null;
 	const entry = CATALOG.find(c => c.id === props.course);
 	const loader = entry && entry.ready && 'load' in entry ? entry.load : null;
@@ -167,7 +215,11 @@ async function load() {
 		pack.value = loaded as unknown as GatePack;
 		const here = progress?.stations.find(s => s.id === props.station);
 		known.value = here?.total != null && here.pass != null ? { total: here.total, pass: here.pass } : null;
-		if (findStation(pack.value, props.station) == null) {
+		// A placement test needs its line open and a placement paper on the server.
+		const exists = placement.value != null
+			? progress?.lines.find(l => l.line === placement.value)?.placement.available ?? pack.value.LINES.some(l => l.n === placement.value && l.live)
+			: findStation(pack.value, props.station) != null;
+		if (!exists) {
 			problem.value = gateLabels.noStation;
 			phase.value = 'missing';
 			return;
@@ -181,16 +233,17 @@ async function load() {
 
 // Also "再闯一次": the server hands out a set not heard yet (or the one heard longest ago).
 async function begin() {
-	if (!info.value?.playable || phase.value === 'preparing') return;
+	if ((placement.value == null && !info.value?.playable) || phase.value === 'preparing') return;
 	// Inside the tap, before any await: iOS only lets the recording play later if the element played now.
 	recording.unlock();
 	startError.value = null;
 	slow.value = false;
 	result.value = null;
+	earlier.value = null;
 	phase.value = 'preparing';
 	const slowTimer = window.setTimeout(() => { slow.value = true; }, 4000);
 	try {
-		const next = await startGate(props.course, props.station);
+		const next = placement.value != null ? await startPlacement(props.course, placement.value) : await startGate(props.course, props.station);
 		attempt.value = next;
 		answers.value = {};
 		known.value = { total: next.total, pass: next.pass };
@@ -201,6 +254,31 @@ async function begin() {
 		recording.stop();
 		startError.value = gateErrorText(err);
 		phase.value = 'intro';
+	} finally {
+		window.clearTimeout(slowTimer);
+	}
+}
+
+// A placement test's second part: the server picks the harder or easier paper from the first part's mark.
+async function beginSecond() {
+	const first = earlier.value;
+	if (first == null || placement.value == null || phase.value !== 'between') return;
+	recording.unlock();
+	startError.value = null;
+	slow.value = false;
+	phase.value = 'preparingSecond';
+	const slowTimer = window.setTimeout(() => { slow.value = true; }, 4000);
+	try {
+		const next = await startPlacement(props.course, placement.value, first.attempt.attemptId);
+		attempt.value = next;
+		answers.value = {};
+		phase.value = 'test';
+		toTop();
+		if (next.audio) recording.play(next.audio.url, next.audio.duration);
+	} catch (err) {
+		recording.stop();
+		startError.value = gateErrorText(err);
+		phase.value = 'between';
 	} finally {
 		window.clearTimeout(slowTimer);
 	}
@@ -219,10 +297,16 @@ async function handIn() {
 	}
 	phase.value = 'submitting';
 	try {
-		result.value = await submitGate(paper.attemptId, payload);
+		const marked = await submitGate(paper.attemptId, payload);
 		recording.stop();
-		phase.value = 'result';
 		toTop();
+		if (marked.placement?.stage === 'first') {
+			earlier.value = { result: marked, attempt: paper };
+			phase.value = 'between';
+			return;
+		}
+		result.value = marked;
+		phase.value = 'result';
 	} catch (err) {
 		// The answers stay on the page; handing in again is safe (the server returns the first mark).
 		os.toast(gateErrorCode(err) === 'NO_SUCH_ATTEMPT' ? gateErrorText(err) : gateLabels.submitFailed);
@@ -230,8 +314,10 @@ async function handIn() {
 	}
 }
 
+// Back to the map at this station; after a placement test, at the station it put the learner at.
 function toMap() {
-	router.pushByPath(`${coursePath(props.course)}#${encodeURIComponent(props.station)}`);
+	const at = placement.value != null ? result.value?.placement?.placedAt ?? null : props.station;
+	router.pushByPath(at ? `${coursePath(props.course)}#${encodeURIComponent(at)}` : coursePath(props.course));
 }
 
 function go(station: string) {
@@ -248,7 +334,7 @@ watch(() => [props.course, props.station], () => {
 onDeactivated(() => recording.suspend());
 onBeforeUnmount(() => recording.dispose());
 
-definePage(() => ({ title: title.value, icon: 'ti ti-headphones' }));
+definePage(() => ({ title: title.value, icon: placement.value != null ? 'ti ti-compass' : 'ti ti-headphones' }));
 </script>
 
 <style lang="scss" module>
@@ -365,6 +451,17 @@ definePage(() => ({ title: title.value, icon: 'ti ti-headphones' }));
 	margin: 0;
 	color: var(--MI_THEME-warn);
 	font-weight: bold;
+}
+
+.betweenScore {
+	margin: 0;
+	font-size: 1.4em;
+	font-weight: bold;
+	font-variant-numeric: tabular-nums;
+}
+
+.sub {
+	margin: 0;
 }
 
 .legal {

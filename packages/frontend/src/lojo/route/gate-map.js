@@ -4,7 +4,8 @@
  */
 // Gate route map (闯关线路图) for course packs with META.kind 'gates' (IELTS). Renders inside the ShadowRoot owned by pages/lojo/route.vue.
 // Every stop is a gate with one short test: pass it to unlock the next stop, or jump ahead. Progress comes from the server
-// (bridge.progress → lojo/gates/progress) and the gates run on their own page (bridge.openGate → /gate/<course>/<gate>);
+// (bridge.progress → lojo/gates/progress) and the gates run on their own page (bridge.openGate → /gate/<course>/<gate>),
+// as does a line's placement test (/gate/<course>/placement-<n>), offered until the learner has placed or passed a stop on it;
 // the account registry (bridge.load / bridge.save) only remembers that the welcome card was seen.
 // Shares panzoom.js and route.css with the topic map (runtime.js); the gate-only pieces are in gate-map.css.
 import { PanZoom } from './panzoom.js';
@@ -83,7 +84,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			const ids = l.stations.map(s => s.id), r = rows.find(x => x && x.line === l.n);
 			LP[l.n] = { live: r ? !!r.live && !!l.live : !!l.live && ids.some(id => SP[id].state !== 'soon'),
 				current: r && NODES[r.current] ? r.current : ids.find(id => SP[id].state === 'open') ?? null,
-				passed: ids.filter(id => SP[id].state === 'passed').length, total: ids.length };
+				passed: ids.filter(id => SP[id].state === 'passed').length, total: ids.length,
+				placement: { available: !!r?.placement?.available, station: NODES[r?.placement?.station] ? r.placement.station : null } };
 		});
 		LAST = p && p.last && NODES[p.last.station] ? p.last : null;
 	}
@@ -96,6 +98,9 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		const ln = LAST ? NODES[LAST.station].n : (LINES.find(l => LP[l.n].live) || LINES[0]).n;
 		return LP[ln].current || (LAST ? LAST.station : FIRST);
 	}
+	// a line's placement test ("placement-1"), offered until the learner has placed on the line or passed a stop of it
+	const placeTest = n => { const lp = LP[n]; return lp && lp.live && lp.placement.available && !lp.placement.station && !lp.passed ? `placement-${n}` : null; };
+	const placeCard = (pt, button) => `<div class="gst place"><div class="gst-h">${icon('compass')}<b>${T('placeQ')}</b></div><p>${T('placeS')}</p>${button ? `<button class="pillbtn" data-place="${pt}">${T('placeGo')} →</button>` : ''}</div>`;
 	const shownAt = id => IX[id] ? IX[id].ids.reduce((a, b) => RANK[SP[b].state] > RANK[SP[a].state] ? b : a) : id;
 	const behind = id => NODES[id].line.stations.slice(0, NODES[id].i).filter(s => SP[s.id].state !== 'passed').length;
 
@@ -213,8 +218,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	}
 
 	function overview() {
-		const tl = T('tiles'), done = passedN(), me = pinStop();
-		let h = `<div class="eyebrow">${T('eyebrow')}</div><h1 class="ptitle">${T('title')}</h1><p class="lede">${T('lede')}</p>
+		const tl = T('tiles'), done = passedN(), me = pinStop(), pt = placeTest(NODES[me || FIRST].n);
+		let h = `<div class="eyebrow">${T('eyebrow')}</div><h1 class="ptitle">${T('title')}</h1><p class="lede">${T('lede')}</p>${pt ? placeCard(pt, false) : ''}
 			<div class="tiles two"><div class="tile"><small>${tl[0]}</small><b>${done}<span> / ${ORDER.length}</span></b></div>
 			<div class="tile"><small>${tl[1]}</small><b>${triesN()}<span> ${T('timesZ')}</span></b></div></div>
 			<div class="sh"><h3>${T('linesH')}</h3><span>${T('linesN')}</span></div>`;
@@ -227,10 +232,14 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		$('#pbody').innerHTML = h;
 		$('#minibar').innerHTML = `<b>${T('title')}</b><span>${done} / ${ORDER.length}</span>`;
 		const fresh = !LAST && !done, label = !me ? T('startAt')(band(FIRST)) : fresh ? T('startAt')(band(me)) : T('contL') + stTitle(me);
-		$('#pfoot').innerHTML = `<button class="cta" id="gohere">${icon('current-location')}<span class="ctat">${label}</span></button>`;
+		// a newcomer gets the placement test next to "start at 4.0", where the thumb is
+		$('#pfoot').innerHTML = pt
+			? `<div class="gfoot"><button class="cta ghost" id="gohere">${icon('current-location')}<span class="ctat">${label}</span></button><button class="cta" data-place="${pt}">${icon('compass')}<span class="ctat">${T('placeGo')}</span></button></div>`
+			: `<button class="cta" id="gohere">${icon('current-location')}<span class="ctat">${label}</span></button>`;
 		$$('#pbody [data-line]').forEach(b => { b.onclick = () => focusLine(b.dataset.line); });
 		$$('#pbody [data-course]').forEach(b => { b.onclick = () => { if (b.dataset.course !== META.id) bridge.openCourse(b.dataset.course); }; });
 		$('#pbody [data-catalog]').onclick = () => bridge.openCatalog();
+		$$('#panel [data-place]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.place); });
 		$('#gohere').onclick = () => go(pinStop() || FIRST);
 		sheet(SHEET.state === 'full' ? 'half' : SHEET.state);
 	}
@@ -251,6 +260,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			h += metaH + '</div>';
 		} else if (s.state === 'open') {
 			h += `<div class="gst open" style="--c:${COLOR(n.n)}"><div class="gst-h"><i class="gst-ic"></i><b>${T('state').open}</b></div><p>${rule}</p>${metaH}</div>`;
+			const pt = placeTest(n.n);
+			if (pt && !s.attempts) h += placeCard(pt, true);
 		} else if (s.state === 'locked') {
 			h += `<div class="gst locked"><div class="gst-h"><i class="gst-ic"><svg viewBox="-12 -12 24 24">${lockG(0, 1, .95)}</svg></i><b>${T('state').locked}</b></div><p>${T('lockedMsg')(behind(id))}</p><div class="meta">${rule}</div>${metaH}</div>`;
 		} else h += `<div class="soon"><b>${T('soonMsg')}</b><p>${T('soonS')}</p></div>`;
@@ -302,7 +313,7 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		$('#back').onclick = () => { CUR = null; bridge.setHash(null); overview(); renderMap(); };
 		$$('#pbody .tabs button').forEach(b => { b.onclick = () => { TAB = b.dataset.t; station(id); }; });
 		$$('#panel [data-go]').forEach(b => { b.onclick = () => go(b.dataset.go); });
-		$$('#panel [data-gate]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.gate); });
+		$$('#panel [data-gate], #panel [data-place]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.gate ?? b.dataset.place); });
 		if (TAB === 'peers') loadPeers(id);
 		if (SHEET.state === 'peek' || SHEET.state === 'min') sheet('half');
 	}
@@ -386,13 +397,14 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	const closeModal = () => { $('#obm').className = 'obm'; };
 
 	function welcome() {
-		const st = T('state'), me = pinStop() || FIRST, fresh = !LAST && !passedN(), sep = LANG === 'zh' ? '' : ' ';
+		const st = T('state'), me = pinStop() || FIRST, fresh = !LAST && !passedN(), sep = LANG === 'zh' ? '' : ' ', pt = placeTest(NODES[me].n);
 		const live = LINES.filter(l => LP[l.n].live).map(l => T('lineName')(l.n, esc(L(l))));
 		const stops = [['passed', 40], ['open', 130], ['locked', 220]].map(([k, x]) => marker(x, 26, k, 'var(--l1)', 13) + `<text x="${x}" y="68" class="wlab">${st[k]}</text>`).join('');
 		modal(`<svg class="gwel" viewBox="0 0 260 76" aria-hidden="true"><path d="M30 26 H230" class="wtrack"/>${stops}</svg>
 			<div class="obeye">${T('wEye')}</div><h2>${T('wTitle')}</h2>
-			<p>${T('wText')}${live.length && live.length < LINES.length ? sep + T('wLive')(live.join(LANG === 'zh' ? '、' : ', ')) : ''}</p><p class="obnote">${T('wNote')}</p>
-			<div class="obacts"><button class="cta" id="obgo">${fresh ? T('startAt')(band(me)) : T('wGoNext')(stTitle(me))} →</button><button class="obtext" id="obskip">${T('wSkip')}</button></div>`, 'welcome');
+			<p>${T('wText')}${live.length && live.length < LINES.length ? sep + T('wLive')(live.join(LANG === 'zh' ? '、' : ', ')) : ''}</p>${pt ? `<p>${T('wPlace')}</p>` : ''}<p class="obnote">${T('wNote')}</p>
+			<div class="obacts">${pt ? `<button class="cta" id="obplace">${icon('compass')}${T('placeGo')} →</button>` : ''}<button class="cta${pt ? ' ghost' : ''}" id="obgo">${fresh ? T('startAt')(band(me)) : T('wGoNext')(stTitle(me))} →</button><button class="obtext" id="obskip">${T('wSkip')}</button></div>`, 'welcome');
+		if (pt) $('#obplace').onclick = () => { closeModal(); keep('onboarded', true); bridge.openGate(pt); };
 		$('#obgo').onclick = () => { closeModal(); keep('onboarded', true); go(me); };
 		$('#obskip').onclick = () => { closeModal(); keep('onboarded', true); };
 	}

@@ -3018,6 +3018,15 @@ export type paths = {
          */
         post: operations['lojo___gates___import'];
     };
+    '/lojo/gates/placement': {
+        /**
+         * lojo/gates/placement
+         * @description Start a line's placement test: without `after` its first part; with the handed-in first part (`after`), the harder or easier second part it leads to. Hand each part in with lojo/gates/submit.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___gates___placement'];
+    };
     '/lojo/gates/progress': {
         /**
          * lojo/gates/progress
@@ -29861,6 +29870,132 @@ export interface operations {
             };
         };
     };
+    lojo___gates___placement: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    course: string;
+                    line: number;
+                    /** Format: misskey:id */
+                    after?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        attemptId: string;
+                        course: string;
+                        station: string;
+                        set: string;
+                        band: number;
+                        part: number | null;
+                        pass: number;
+                        total: number;
+                        /** Format: date-time */
+                        startedAt: string;
+                        /** @enum {string|null} */
+                        stage: 'first' | 'high' | 'low' | null;
+                        audio: {
+                            url: string;
+                            duration: number;
+                            pauses: {
+                                at: number;
+                                length: number;
+                            }[];
+                        } | null;
+                        groups: {
+                            /** @enum {string} */
+                            type: 'form' | 'choice' | 'multi' | 'map' | 'match';
+                            instructions: {
+                                en: string;
+                                zh: string;
+                            };
+                            title: string | null;
+                            lines: string[];
+                            limit: {
+                                words: number;
+                                number: boolean;
+                            } | null;
+                            image: string | null;
+                            letters: string[];
+                            options: string[];
+                            items: {
+                                n: number[];
+                                q: string | null;
+                                options: string[];
+                                choose: number;
+                                limit: {
+                                    words: number;
+                                    number: boolean;
+                                } | null;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___gates___progress: {
         requestBody: {
             content: {
@@ -29884,6 +30019,12 @@ export interface operations {
                             current: string | null;
                             passed: number;
                             total: number;
+                            placement: {
+                                available: boolean;
+                                station: string | null;
+                                /** Format: date-time */
+                                at: string | null;
+                            };
                         }[];
                         stations: {
                             id: string;
@@ -29900,7 +30041,7 @@ export interface operations {
                             /** Format: date-time */
                             passedAt: string | null;
                             /** @enum {string|null} */
-                            via: 'gate' | 'higher' | null;
+                            via: 'gate' | 'higher' | 'placement' | null;
                         }[];
                         last: {
                             station: string;
@@ -29985,6 +30126,8 @@ export interface operations {
                         total: number;
                         /** Format: date-time */
                         startedAt: string;
+                        /** @enum {string|null} */
+                        stage: 'first' | 'high' | 'low' | null;
                         audio: {
                             url: string;
                             duration: number;
@@ -30135,6 +30278,15 @@ export interface operations {
                         failStreak: number;
                         unlocked: string[];
                         next: string | null;
+                        placement: {
+                            /** @enum {string} */
+                            stage: 'first' | 'high' | 'low';
+                            /** @enum {string|null} */
+                            next: 'high' | 'low' | null;
+                            placedAt: string | null;
+                            score: number;
+                            total: number;
+                        } | null;
                         tutor: {
                             /** Format: misskey:id */
                             id: string;

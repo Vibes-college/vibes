@@ -22,8 +22,8 @@ import { InternalStorageService } from '@/core/InternalStorageService.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { createTemp } from '@/misc/create-temp.js';
-import { gateOf, gateProfileText, gateProgress, lineOf, markSet, pickSet, publicGroups, setsFor, weakTags } from '@/misc/lojo-gates.js';
-import type { GateAttemptFact, GateCourse, GateSet } from '@/misc/lojo-gates.js';
+import { gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, setsFor, weakTags } from '@/misc/lojo-gates.js';
+import type { GateAttemptFact, GateCourse, GatePlacementPath, GateSet } from '@/misc/lojo-gates.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoEnglishErrors, lojoGateErrors } from '@/server/api/lojo-schemas.js';
@@ -101,8 +101,8 @@ export class LojoGateService {
 
 	private fact(a: MiLojoGateAttempt): GateAttemptFact {
 		return {
-			station: a.station, setId: a.setId, lines: a.data.lines, score: a.score, total: a.total, passed: a.passed,
-			startedAt: a.startedAt, submittedAt: a.submittedAt, weak: a.data.weak ?? [],
+			kind: a.kind, station: a.station, setId: a.setId, lines: a.data.lines, score: a.score, total: a.total, passed: a.passed,
+			startedAt: a.startedAt, submittedAt: a.submittedAt, weak: a.data.weak ?? [], placedAt: a.data.placedAt ?? null,
 		};
 	}
 
@@ -117,7 +117,7 @@ export class LojoGateService {
 		const p = await this.progressOf(userId, course);
 		return {
 			course: courseId,
-			lines: p.lines,
+			lines: p.lines.map(l => ({ ...l, placement: { ...l.placement, at: l.placement.at?.toISOString() ?? null } })),
 			stations: p.stations.map(s => ({ ...s, passedAt: s.passedAt?.toISOString() ?? null })),
 			last: p.last ? { station: p.last.station, at: p.last.at.toISOString() } : null,
 		};
@@ -136,18 +136,36 @@ export class LojoGateService {
 		const gate = gateOf(course, station);
 		const heard = (await this.attempts(userId, courseId)).filter(a => a.station === gate);
 		const set = pickSet(sets, heard.map(a => ({ setId: a.setId, startedAt: a.startedAt })))!;
-		// The recording is made before the attempt is written, so a failed synthesis costs the learner nothing.
+		return this.hand(userId, courseId, 'gate', set, {});
+	}
+
+	// A placement test: without `after` its first part; with the handed-in first part, the second part it leads to.
+	public async placement(userId: string, courseId: string, line: number, after: string | undefined) {
+		const course = await this.course(courseId);
+		if (course == null) throw new ApiError(lojoGateErrors.noSuchCourse);
+		const placement = placementOf(course, line);
+		if (placement == null || !course.lines.find(l => l.n === line)?.live) throw new ApiError(lojoGateErrors.notReady);
+		if (after == null) return this.hand(userId, courseId, 'placement', placement.stages.first, { stage: 'first' });
+		const first = await this.db.getRepository(MiLojoGateAttempt).findOneBy({ id: after, userId, kind: 'placement', setId: placement.stages.first.id });
+		if (first == null || first.submittedAt == null) throw new ApiError(lojoGateErrors.noSuchAttempt);
+		const path: GatePlacementPath = (first.score ?? 0) >= placement.next ? 'high' : 'low';
+		return this.hand(userId, courseId, 'placement', placement.stages[path], { stage: path, after: first.id });
+	}
+
+	// Hands out one paper: makes its recording first (a failed synthesis costs the learner nothing), then writes the attempt.
+	private async hand(userId: string, courseId: string, kind: 'gate' | 'placement', set: GateSet, data: { stage?: string; after?: string }) {
 		const audio = await this.audioFor(set);
 		const startedAt = new Date();
 		const id = this.idService.gen(startedAt.getTime());
 		await this.db.getRepository(MiLojoGateAttempt).insert({
-			id, userId, course: courseId, kind: 'gate', station: gate, setId: set.id, score: null, total: set.total,
-			passed: null, startedAt, submittedAt: null, data: { lines: set.lines },
+			id, userId, course: courseId, kind, station: set.station, setId: set.id, score: null, total: set.total,
+			passed: null, startedAt, submittedAt: null, data: { lines: set.lines, ...data },
 		});
 		return {
-			attemptId: id, course: courseId, station: gate, set: set.set, band: set.band, part: set.part,
+			attemptId: id, course: courseId, station: set.station, set: set.set, band: set.band, part: set.part,
 			pass: set.pass, total: set.total, startedAt: startedAt.toISOString(), audio,
 			groups: publicGroups(set, name => name),
+			stage: (data.stage ?? null) as 'first' | 'high' | 'low' | null,
 		};
 	}
 
@@ -156,17 +174,28 @@ export class LojoGateService {
 		const attempt = await repo.findOneBy({ id: attemptId, userId });
 		if (attempt == null) throw new ApiError(lojoGateErrors.noSuchAttempt);
 		const course = await this.course(attempt.course);
-		const set = course?.sets.find(s => s.id === attempt.setId);
+		const set = course ? paperOf(course, attempt.setId) : null;
 		// The set was taken out by a later import: there is nothing left to mark it against.
 		if (course == null || set == null) throw new ApiError(lojoGateErrors.noSuchAttempt);
 		if (attempt.submittedAt != null) return this.result(userId, course, set, attempt, []);
 
 		const before = await this.progressOf(userId, course);
 		const marked = markSet(set, new Map(answers.map(a => [a.n, a.value.slice(0, 200)])));
-		const passed = marked.score >= set.pass;
+		// A placement test is not passed or failed; its second part decides where the learner starts.
+		const passed = attempt.kind === 'gate' ? marked.score >= set.pass : null;
+		const placed: { placedAt?: string; firstScore?: number; firstTotal?: number } = {};
+		if (attempt.kind === 'placement' && attempt.data.after != null) {
+			const placement = placementOf(course, attempt.data.lines[0]);
+			const first = await repo.findOneBy({ id: attempt.data.after, userId });
+			if (placement != null && first != null) {
+				placed.firstScore = first.score ?? 0;
+				placed.firstTotal = first.total;
+				placed.placedAt = placedStation(course, placement, attempt.data.stage as GatePlacementPath, placed.firstScore + marked.score);
+			}
+		}
 		const done = await repo.update({ id: attempt.id, submittedAt: IsNull() }, {
 			score: marked.score, passed, submittedAt: new Date(),
-			data: { ...attempt.data, answers, items: marked.items, weak: weakTags(marked.items) },
+			data: { ...attempt.data, ...placed, answers, items: marked.items, weak: weakTags(marked.items) },
 		});
 		const saved = await repo.findOneByOrFail({ id: attempt.id });
 		// Handed in twice at the same moment: the other request marked it.
@@ -181,16 +210,22 @@ export class LojoGateService {
 
 	private async result(userId: string, course: GateCourse, set: GateSet, attempt: MiLojoGateAttempt, unlocked: string[]) {
 		const progress = await this.progressOf(userId, course);
-		const line = lineOf(course, attempt.station);
+		const line = attempt.kind === 'placement' ? attempt.data.lines[0] : lineOf(course, attempt.station);
 		const here = progress.stations.find(s => s.id === attempt.station);
 		const next = progress.lines.find(l => l.line === line)?.current ?? null;
 		const score = attempt.score ?? 0;
+		const d = attempt.data;
+		const placement = attempt.kind !== 'placement' ? null : d.after == null
+			? { stage: 'first' as const, next: (score >= (placementOf(course, d.lines[0])?.next ?? Infinity) ? 'high' : 'low') as GatePlacementPath, placedAt: null, score, total: attempt.total }
+			: { stage: d.stage as GatePlacementPath, next: null, placedAt: d.placedAt ?? null, score: (d.firstScore ?? 0) + score, total: (d.firstTotal ?? 0) + attempt.total };
 		return {
 			attemptId: attempt.id, course: course.id, station: attempt.station, set: set.set, band: set.band,
-			score, total: attempt.total, pass: set.pass, passed: !!attempt.passed, missing: Math.max(0, set.pass - score),
+			score, total: attempt.total, pass: set.pass, passed: !!attempt.passed,
+			missing: attempt.kind === 'gate' ? Math.max(0, set.pass - score) : 0,
 			durationMs: attempt.submittedAt ? attempt.submittedAt.getTime() - attempt.startedAt.getTime() : 0,
-			items: attempt.data.items ?? [], weak: attempt.data.weak ?? [], script: set.script,
+			items: d.items ?? [], weak: d.weak ?? [], script: set.script,
 			failStreak: here?.failStreak ?? 0, unlocked, next: next === attempt.station ? null : next,
+			placement,
 			tutor: await this.tutor(),
 		};
 	}

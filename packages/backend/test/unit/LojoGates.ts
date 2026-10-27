@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { gateProfileText, gateProgress, isGateCourse, markSet, normalizeAnswer, overLimit, pickSet, publicGroups, weakTags } from '@/misc/lojo-gates.js';
-import type { GateAttemptFact, GateCourse, GateGroup, GateSet } from '@/misc/lojo-gates.js';
+import { gateProfileText, gateProgress, isGateCourse, markSet, normalizeAnswer, overLimit, paperOf, pickSet, placeAt, placedStation, publicGroups, weakTags } from '@/misc/lojo-gates.js';
+import type { GateAttemptFact, GateCourse, GateGroup, GatePlacement, GateSet } from '@/misc/lojo-gates.js';
 
 const text = { en: 'Complete the form.', zh: '补全表格。' };
 const group = (g: Partial<GateGroup> & Pick<GateGroup, 'type' | 'items'>): GateGroup => ({
@@ -41,12 +41,21 @@ const course: GateCourse = {
 	sets: [set('1.1'), set('1.1', 'B'), set('1.2'), set('1.3'), set('1.4')],
 };
 
+// A placement test for line 1: 3 or more right in the first part leads to the high part.
+const stage = (name: string): GateSet => ({ ...set('1.2'), id: `placement-1:${name}`, station: 'placement-1', set: name });
+const placement: GatePlacement = {
+	line: 1, next: 3,
+	place: { high: [[9, '1.5'], [5, '1.4'], [0, '1.3']], low: [[4, '1.2'], [0, '1.1']] },
+	stages: { first: stage('first'), high: stage('high'), low: stage('low') },
+};
+const withPlacement: GateCourse = { ...course, placements: [placement] };
+
 let clock = Date.parse('2026-10-26T08:00:00Z');
 const attempt = (station: string, score: number, more: Partial<GateAttemptFact> = {}): GateAttemptFact => {
 	clock += 60 * 1000;
 	return {
-		station, setId: `${station}-A`, lines: [Number(station[0])], score, total: 6, passed: score >= 4,
-		startedAt: new Date(clock - 30 * 1000), submittedAt: new Date(clock), weak: [], ...more,
+		kind: 'gate', station, setId: `${station}-A`, lines: [Number(station[0])], score, total: 6, passed: score >= 4,
+		startedAt: new Date(clock - 30 * 1000), submittedAt: new Date(clock), weak: [], placedAt: null, ...more,
 	};
 };
 const stateOf = (p: ReturnType<typeof gateProgress>, id: string) => p.stations.find(s => s.id === id)?.state;
@@ -134,7 +143,34 @@ describe('Vibes route map gates', () => {
 		expect(gateProfileText(course, [])).toBeNull();
 	});
 
+	test('a placement test starts the learner at a station and lights the ones before it', () => {
+		expect(placeAt(placement, 'high', 10)).toBe('1.5');
+		expect(placeAt(placement, 'high', 6)).toBe('1.4');
+		expect(placeAt(placement, 'low', 1)).toBe('1.1');
+		// 1.5 has no sets yet: the learner starts at 1.4 instead
+		expect(placedStation(withPlacement, placement, 'high', 10)).toBe('1.4');
+		expect(placedStation(withPlacement, placement, 'low', 4)).toBe('1.2');
+		expect(paperOf(withPlacement, 'placement-1:low')?.set).toBe('low');
+		const placed = attempt('placement-1', 4, { kind: 'placement', setId: 'placement-1:high', lines: [1], passed: null, placedAt: '1.4' });
+		const p = gateProgress(withPlacement, [attempt('placement-1', 4, { kind: 'placement', setId: 'placement-1:first', lines: [1], passed: null }), placed]);
+		expect(['1.1', '1.2', '1.3', '1.4'].map(id => stateOf(p, id))).toEqual(['passed', 'passed', 'passed', 'open']);
+		expect(p.stations.find(s => s.id === '1.2')?.via).toBe('placement');
+		expect(p.lines[0].placement).toMatchObject({ available: true, station: '1.4' });
+		expect(p.lines[1].placement.available).toBe(false);
+		expect(p.last?.station).toBe('1.4');
+		// taking it again and doing worse turns nothing off
+		const lower = attempt('placement-1', 1, { kind: 'placement', setId: 'placement-1:low', lines: [1], passed: null, placedAt: '1.2' });
+		const again = gateProgress(withPlacement, [placed, lower]);
+		expect(['1.3', '1.4'].map(id => stateOf(again, id))).toEqual(['passed', 'open']);
+		expect(again.lines[0].placement.station).toBe('1.4');
+		// a first part alone places nobody
+		expect(gateProgress(withPlacement, [attempt('placement-1', 2, { kind: 'placement', lines: [1], passed: null })]).last).toBeNull();
+		expect(gateProfileText(withPlacement, [placed])).toContain('placement test on');
+	});
+
 	test('accepts only well-formed imports', () => {
+		expect(isGateCourse(withPlacement)).toBe(true);
+		expect(isGateCourse({ ...withPlacement, placements: [{ ...placement, place: { high: [] } }] })).toBe(false);
 		expect(isGateCourse(course)).toBe(true);
 		expect(isGateCourse({ ...course, sets: [{ ...set('1.1'), groups: [] }] })).toBe(false);
 		expect(isGateCourse({ id: 'ielts' })).toBe(false);

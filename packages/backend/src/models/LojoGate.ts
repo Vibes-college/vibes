@@ -41,7 +41,7 @@ export class MiLojoGateAttempt {
 	@Column('varchar', { length: 32 })
 	public course: string;
 
-	// 'gate' for now; placement tests come later
+	// 'gate', or 'placement' for a part of a line's placement test (station 'placement-1')
 	@Column('varchar', { length: 16 })
 	public kind: string;
 
@@ -68,10 +68,17 @@ export class MiLojoGateAttempt {
 	@Column('timestamp with time zone', { nullable: true })
 	public submittedAt: Date | null;
 
-	// lines: the lines this set counts for; the rest is filled in on hand-in
+	// lines: the lines this set counts for; the rest is filled in on hand-in.
+	// Placement tests also keep their stage ('first', 'high' or 'low'), the first part's attempt (after) and,
+	// on the second part, the first part's mark and the station the learner was placed at.
 	@Column('jsonb')
 	public data: {
 		lines: number[];
+		stage?: string;
+		after?: string;
+		firstScore?: number;
+		firstTotal?: number;
+		placedAt?: string;
 		answers?: { n: number; value: string }[];
 		items?: GateItemResult[];
 		weak?: { tag: string; count: number }[];

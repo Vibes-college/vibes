@@ -3680,6 +3680,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Start a line's placement test: without `after` its first part; with the handed-in first part (`after`), the harder or easier second part it leads to. Hand each part in with lojo/gates/submit.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/gates/placement', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Every station of a route map with gates (IELTS), and which ones you have passed, can take on or have to wait for.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*

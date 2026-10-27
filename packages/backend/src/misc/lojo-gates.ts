@@ -26,6 +26,14 @@ export type GateSet = {
 	id: string; station: string; set: string; band: number; part: number | null; pass: number; total: number;
 	voices: Record<string, string>; rate: number; lines: number[]; script: GateScriptLine[]; groups: GateGroup[];
 };
+// A line's placement test: a first part, then a harder or easier second part chosen by its score, and a table from
+// the two parts' total to the station the learner starts at. The stages are papers like any set (station 'placement-1').
+export type GatePlacementPath = 'high' | 'low';
+export type GatePlacement = {
+	line: number; next: number;
+	place: Record<GatePlacementPath, [number, string][]>;
+	stages: { first: GateSet; high: GateSet; low: GateSet };
+};
 export type GateCourse = {
 	id: string;
 	title: string;
@@ -33,6 +41,8 @@ export type GateCourse = {
 	interchanges: string[][];
 	tags: Record<string, GateText>;
 	sets: GateSet[];
+	// missing on courses imported before placement tests existed
+	placements?: GatePlacement[];
 };
 
 export type GateReason = 'blank' | 'word-limit' | 'wrong';
@@ -144,15 +154,24 @@ export function weakTags(items: GateItemResult[]): { tag: string; count: number 
 /* ---------- the map: which stations are lit ---------- */
 
 export type GateAttemptFact = {
-	station: string; setId: string; lines: number[]; score: number | null; total: number; passed: boolean | null;
+	kind: string; station: string; setId: string; lines: number[]; score: number | null; total: number; passed: boolean | null;
 	startedAt: Date; submittedAt: Date | null; weak: { tag: string; count: number }[];
+	// placement tests: the station the second part put the learner at
+	placedAt: string | null;
 };
 export type GateStationState = 'passed' | 'open' | 'locked' | 'soon';
 export type GateStationProgress = {
 	id: string; line: number; gate: string; state: GateStationState;
 	sets: number; attempts: number; best: number | null; total: number | null; pass: number | null;
-	failStreak: number; passedAt: Date | null; via: 'gate' | 'higher' | null;
+	failStreak: number; passedAt: Date | null; via: 'gate' | 'higher' | 'placement' | null;
 };
+
+// A paper by its id: a set ('1.3-B') or a placement stage ('placement-1:high').
+export function paperOf(course: GateCourse, setId: string): GateSet | null {
+	return course.sets.find(s => s.id === setId)
+		?? course.placements?.flatMap(p => [p.stages.first, p.stages.high, p.stages.low]).find(s => s.id === setId)
+		?? null;
+}
 
 export function gateOf(course: GateCourse, id: string): string {
 	return course.interchanges.find(pair => pair.includes(id))?.[0] ?? id;
@@ -168,10 +187,34 @@ export function setsFor(course: GateCourse, id: string): GateSet[] {
 	return course.sets.filter(s => s.station === gate && line != null && s.lines.includes(line));
 }
 
+export const placementStation = (line: number) => `placement-${line}`;
+
+export function placementOf(course: GateCourse, line: number): GatePlacement | null {
+	return course.placements?.find(p => p.line === line) ?? null;
+}
+
+// The station a placement total leads to: the first row of the path's table the total reaches.
+export function placeAt(placement: GatePlacement, path: GatePlacementPath, total: number): string {
+	const table = placement.place[path];
+	return (table.find(([min]) => total >= min) ?? table[table.length - 1])[1];
+}
+
+// Where a placement actually starts the learner: the table's station, or, while that one has no sets yet, the closest
+// station before it that has some. Nobody is sent to a stop that only says "coming soon".
+export function placedStation(course: GateCourse, placement: GatePlacement, path: GatePlacementPath, total: number): string {
+	const station = placeAt(placement, path, total);
+	const stations = course.lines.find(l => l.n === placement.line)?.stations ?? [];
+	for (let i = stations.indexOf(station); i >= 0; i--) if (setsFor(course, stations[i]).length > 0) return stations[i];
+	return station;
+}
+
 export function gateProgress(course: GateCourse, attempts: GateAttemptFact[]) {
 	const done = attempts.filter(a => a.submittedAt != null).sort((a, b) => a.submittedAt!.getTime() - b.submittedAt!.getTime());
 	const stations: GateStationProgress[] = [];
 	const lines = course.lines.map(line => {
+		// The furthest placement on this line (the first time it was reached): a later, lower one never turns stations off.
+		const placed = done.filter(a => a.station === placementStation(line.n) && a.placedAt != null && line.stations.includes(a.placedAt))
+			.reduce<GateAttemptFact | null>((b, a) => (b == null || line.stations.indexOf(a.placedAt!) > line.stations.indexOf(b.placedAt!) ? a : b), null);
 		const rows = line.stations.map(id => {
 			// an interchange keeps one record per line: a listening-only set says nothing about reading
 			const gate = gateOf(course, id), here = done.filter(a => a.station === gate && a.lines.includes(line.n));
@@ -188,7 +231,7 @@ export function gateProgress(course: GateCourse, attempts: GateAttemptFact[]) {
 		});
 		// Passing a station lights up every station before it on the line.
 		let laterPass: Date | null = null;
-		const lit = new Map<string, { at: Date; via: 'gate' | 'higher' }>();
+		const lit = new Map<string, { at: Date; via: 'gate' | 'higher' | 'placement' }>();
 		for (let i = rows.length - 1; i >= 0; i--) {
 			const r = rows[i];
 			if (r.passedAt) {
@@ -196,6 +239,9 @@ export function gateProgress(course: GateCourse, attempts: GateAttemptFact[]) {
 				if (laterPass == null || r.passedAt < laterPass) laterPass = r.passedAt;
 			} else if (laterPass) lit.set(r.id, { at: laterPass, via: 'higher' });
 		}
+		// A placement starts the learner at a station: the ones before it count as passed.
+		const placedIndex = placed ? line.stations.indexOf(placed.placedAt!) : -1;
+		for (let i = 0; i < placedIndex; i++) if (!lit.has(rows[i].id)) lit.set(rows[i].id, { at: placed!.submittedAt!, via: 'placement' });
 		let current: string | null = null;
 		for (const r of rows) {
 			const l = lit.get(r.id);
@@ -205,10 +251,20 @@ export function gateProgress(course: GateCourse, attempts: GateAttemptFact[]) {
 			else if (current == null) { state = 'open'; current = r.id; } else state = 'locked';
 			stations.push({ ...r, state, passedAt: l?.at ?? null, via: l?.via ?? null });
 		}
-		return { line: line.n, live: line.live, current, passed: lit.size, total: rows.length };
+		return {
+			line: line.n, live: line.live, current, passed: lit.size, total: rows.length,
+			placement: {
+				available: line.live && placementOf(course, line.n) != null,
+				station: placed?.placedAt ?? null, at: placed?.submittedAt ?? null,
+			},
+		};
 	});
-	const lastAttempt = done.at(-1);
-	return { lines, stations, last: lastAttempt ? { station: lastAttempt.station, at: lastAttempt.submittedAt! } : null };
+	// Where the learner was last: a gate, or the station a placement put them at (a first part alone says nothing yet).
+	const lastAttempt = done.filter(a => a.kind === 'gate' || a.placedAt != null).at(-1);
+	return {
+		lines, stations,
+		last: lastAttempt ? { station: lastAttempt.placedAt ?? lastAttempt.station, at: lastAttempt.submittedAt! } : null,
+	};
 }
 
 /* ---------- which set to give ---------- */
@@ -241,8 +297,10 @@ export function gateProfileText(course: GateCourse, attempts: GateAttemptFact[])
 		const top = [...rows].reverse().find(s => s.state === 'passed');
 		const parts = [`${course.lines.find(l => l.n === line.line)?.name ?? `Line ${line.line}`}: ${top ? `passed up to the ${bandText(bandOf(top.id) ?? 0)} gate (${top.id})` : 'no gate passed yet'}`];
 		if (line.current) parts.push(`next gate ${line.current} (${bandText(bandOf(line.current) ?? 0)})`);
-		const recent = mine.slice(0, 3);
-		parts.push(`recent tries: ${recent.map(a => `${a.station} ${a.score}/${a.total}${a.passed ? ' passed' : ''} on ${a.submittedAt!.toISOString().slice(0, 10)}`).join(', ')}`);
+		const placed = line.placement.station != null ? line.placement : null;
+		if (placed) parts.push(`the placement test on ${placed.at!.toISOString().slice(0, 10)} started them at ${placed.station} (${bandText(bandOf(placed.station!) ?? 0)})`);
+		const recent = mine.filter(a => a.kind === 'gate').slice(0, 3);
+		if (recent.length > 0) parts.push(`recent tries: ${recent.map(a => `${a.station} ${a.score}/${a.total}${a.passed ? ' passed' : ''} on ${a.submittedAt!.toISOString().slice(0, 10)}`).join(', ')}`);
 		const missed = new Map<string, number>();
 		for (const a of recent) for (const w of a.weak) missed.set(w.tag, (missed.get(w.tag) ?? 0) + w.count);
 		if (missed.size > 0) {
@@ -284,11 +342,20 @@ function isSet(v: unknown): v is GateSet {
 		&& allOf(v.lines, isNum) && allOf(v.script, isLine) && allOf(v.groups, isGroup) && v.groups.length > 0;
 }
 
+function isPlacement(v: unknown): v is GatePlacement {
+	if (!isObj(v) || !isNum(v.line) || !isNum(v.next) || !isObj(v.place) || !isObj(v.stages)) return false;
+	const place = v.place, stages = v.stages;
+	const isTable = (rows: unknown) => Array.isArray(rows) && rows.length > 0
+		&& rows.every((row: unknown) => Array.isArray(row) && row.length === 2 && isNum(row[0]) && isStr(row[1]));
+	return isTable(place.high) && isTable(place.low) && isSet(stages.first) && isSet(stages.high) && isSet(stages.low);
+}
+
 // The import script has already checked the content; this only makes sure the shape can't break the server.
 export function isGateCourse(v: unknown): v is GateCourse {
 	return isObj(v) && isStr(v.id) && isStr(v.title)
 		&& Array.isArray(v.lines) && v.lines.every(l => isObj(l) && isNum(l.n) && typeof l.live === 'boolean' && isStr(l.name) && allOf(l.stations, isStr))
 		&& Array.isArray(v.interchanges) && v.interchanges.every(p => allOf(p, isStr) && p.length === 2)
 		&& isObj(v.tags) && Object.values(v.tags).every(t => isObj(t) && isStr(t.en) && isStr(t.zh))
-		&& allOf(v.sets, isSet);
+		&& allOf(v.sets, isSet)
+		&& (v.placements === undefined || allOf(v.placements, isPlacement));
 }

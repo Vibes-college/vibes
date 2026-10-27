@@ -13,6 +13,7 @@ import {
 	letterText,
 	parseSegments,
 	pickLetters,
+	placementLine,
 	questionRefs,
 	readingTimeLeft,
 	recommendCards,
@@ -88,5 +89,11 @@ describe('Vibes gate player', () => {
 		expect(ix?.closedLines.map(l => l.n)).toEqual([2]);
 		expect(findStation(pack, '2.2')?.playable).toBe(false);
 		expect(findStation(pack, '9.9')).toBeNull();
+	});
+
+	test('tells a placement test from a station', () => {
+		expect(placementLine('placement-1')).toBe(1);
+		expect(placementLine('1.1')).toBeNull();
+		expect(placementLine('placement-')).toBeNull();
 	});
 });

@@ -176,6 +176,8 @@ export const lojoGateAttemptSchema = {
 		pass: { type: 'integer', ...req },
 		total: { type: 'integer', ...req },
 		startedAt: { type: 'string', ...req, format: 'date-time' },
+		// placement tests: which part this is; null for a gate
+		stage: { type: 'string', ...nul, enum: ['first', 'high', 'low'] },
 		audio: {
 			type: 'object', ...nul,
 			properties: {
@@ -262,6 +264,17 @@ export const lojoGateResultSchema = {
 		failStreak: { type: 'integer', ...req },
 		unlocked: strings,
 		next: { type: 'string', ...nul },
+		// placement tests: after the first part, which second part follows; after the second, where the learner starts
+		placement: {
+			type: 'object', ...nul,
+			properties: {
+				stage: { type: 'string', ...req, enum: ['first', 'high', 'low'] },
+				next: { type: 'string', ...nul, enum: ['high', 'low'] },
+				placedAt: { type: 'string', ...nul },
+				score: { type: 'integer', ...req },
+				total: { type: 'integer', ...req },
+			},
+		},
 		tutor: {
 			type: 'object', ...nul,
 			properties: { id: { type: 'string', ...req, format: 'misskey:id' }, username: { type: 'string', ...req }, name: { type: 'string', ...nul } },
@@ -284,6 +297,14 @@ export const lojoGateProgressSchema = {
 					current: { type: 'string', ...nul },
 					passed: { type: 'integer', ...req },
 					total: { type: 'integer', ...req },
+					placement: {
+						type: 'object', ...req,
+						properties: {
+							available: { type: 'boolean', ...req },
+							station: { type: 'string', ...nul },
+							at: { type: 'string', ...nul, format: 'date-time' },
+						},
+					},
 				},
 			},
 		},
@@ -303,7 +324,7 @@ export const lojoGateProgressSchema = {
 					pass: { type: 'integer', ...nul },
 					failStreak: { type: 'integer', ...req },
 					passedAt: { type: 'string', ...nul, format: 'date-time' },
-					via: { type: 'string', ...nul, enum: ['gate', 'higher'] },
+					via: { type: 'string', ...nul, enum: ['gate', 'higher', 'placement'] },
 				},
 			},
 		},

@@ -45,6 +45,12 @@ export const letterAt = (index: number): string => String.fromCharCode(65 + inde
 
 /* ---------- Stations ---------- */
 
+// /gate/ielts/placement-1 is line 1's placement test.
+export function placementLine(station: string): number | null {
+	const m = /^placement-(\d+)$/.exec(station);
+	return m ? Number(m[1]) : null;
+}
+
 export type StationInfo = {
 	line: PackLine;
 	station: PackStation;

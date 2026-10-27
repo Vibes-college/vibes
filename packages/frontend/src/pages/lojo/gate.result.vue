@@ -3,10 +3,21 @@ SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<!-- After handing in: the score, what to do next, where to practise what went wrong, the answers and the transcript. -->
+<!-- After handing in: the score (or, for a placement test, the station to start at), what to do next, where to practise
+what went wrong, the answers and the transcript. -->
 <template>
 <div :class="$style.root">
-	<section :class="[$style.score, result.passed ? $style.pass : $style.fail]" aria-live="polite">
+	<section v-if="placedAt" :class="[$style.score, $style.pass]" aria-live="polite">
+		<i :class="['ti ti-map-pin-filled', $style.scoreIcon]" aria-hidden="true"></i>
+		<p :class="$style.verdict">{{ gateLabels.placedTitle }}</p>
+		<b :class="$style.big">{{ stationTitle(placedAt) }}</b>
+		<p :class="$style.sub">{{ gateLabels.placedAt }}{{ result.unlocked.length > 0 ? `${gateLang === 'zh' ? '' : ' '}${gateLabels.placedLit(result.unlocked.length)}` : '' }}</p>
+		<p :class="$style.meta">
+			{{ gateLabels.placedTotal(result.placement!.score, result.placement!.total) }} · {{ gateLabels.timeUsed(gateLabels.duration(durationMs)) }}
+		</p>
+		<p :class="$style.level">{{ gateLabels.placedNote }}</p>
+	</section>
+	<section v-else :class="[$style.score, result.passed ? $style.pass : $style.fail]" aria-live="polite">
 		<i :class="[result.passed ? 'ti ti-circle-check-filled' : 'ti ti-target-arrow', $style.scoreIcon]" aria-hidden="true"></i>
 		<b :class="$style.big" :aria-label="gateLabels.scoreLabel(result.score, result.total)">{{ gateLabels.score(result.score, result.total) }}</b>
 		<p :class="$style.verdict">{{ result.passed ? gateLabels.passed : gateLabels.missing(result.missing) }}</p>
@@ -18,25 +29,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</section>
 
 	<div :class="$style.actions">
-		<MkButton v-if="result.passed && result.next" primary rounded large @click="emit('go', result.next)">
-			<i class="ti ti-arrow-right"></i> {{ gateLabels.next(stationTitle(result.next)) }}
-		</MkButton>
-		<MkButton :primary="!result.passed" rounded large @click="emit('again')">
-			<i class="ti ti-refresh"></i> {{ gateLabels.again }}
-		</MkButton>
+		<template v-if="placedAt">
+			<MkButton primary rounded large @click="emit('go', placedAt)">
+				<i class="ti ti-arrow-right"></i> {{ gateLabels.goPlaced(stationTitle(placedAt)) }}
+			</MkButton>
+		</template>
+		<template v-else>
+			<MkButton v-if="result.passed && result.next" primary rounded large @click="emit('go', result.next)">
+				<i class="ti ti-arrow-right"></i> {{ gateLabels.next(stationTitle(result.next)) }}
+			</MkButton>
+			<MkButton :primary="!result.passed" rounded large @click="emit('again')">
+				<i class="ti ti-refresh"></i> {{ gateLabels.again }}
+			</MkButton>
+		</template>
 		<MkButton rounded large @click="emit('back')">
 			<i class="ti ti-map-2"></i> {{ gateLabels.backToMap }}
 		</MkButton>
 	</div>
 
-	<section v-if="!result.passed && result.failStreak >= 3" :class="$style.streak">
+	<section v-if="!placedAt && !result.passed && result.failStreak >= 3" :class="$style.streak">
 		<p>{{ gateLabels.streak(result.failStreak, previous != null) }}</p>
 		<MkButton v-if="previous" rounded small @click="emit('go', previous.id)">
 			<i class="ti ti-arrow-left"></i> {{ gateLabels.previous(stationTitle(previous.id)) }}
 		</MkButton>
 	</section>
 
-	<section v-if="cards.length > 0 || result.tutor" :class="$style.practice">
+	<section v-if="anyWrong && (cards.length > 0 || result.tutor)" :class="$style.practice">
 		<h2 :class="$style.h2">{{ gateLabels.practiceTitle }}</h2>
 		<div v-for="card in cards" :key="card.tag" :class="$style.card">
 			<b :class="$style.cardHead">{{ tagName(card.tag) }} <small>{{ gateLabels.wrongCount(card.count) }}</small></b>
@@ -61,53 +79,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</MkA>
 	</section>
 
-	<section :class="$style.review">
-		<h2 :class="$style.h2">{{ gateLabels.reviewTitle }}</h2>
-		<ol :class="$style.items">
-			<li v-for="item in result.items" :key="item.n" :class="[$style.row, item.correct ? $style.right : $style.wrong]">
-				<span :class="$style.n">{{ item.n }}</span>
-				<div :class="$style.rowBody">
-					<p v-if="refs.get(item.n)?.prompt" :class="$style.prompt" lang="en">{{ refs.get(item.n)?.prompt }}</p>
-					<p :class="$style.answerLine">
-						<span :class="$style.label">{{ gateLabels.yours }}</span>
-						<span lang="en">{{ item.given === '' ? gateLabels.blank : shown(item.n, item.given) }}</span>
-						<span :class="[$style.chip, item.correct ? $style.chipOk : $style.chipBad]">{{ item.correct ? gateLabels.right : gateLabels.reasons[item.reason ?? 'wrong'] }}</span>
-					</p>
-					<p v-if="!item.correct" :class="$style.answerLine">
-						<span :class="$style.label">{{ gateLabels.answer }}</span>
-						<b lang="en">{{ shown(item.n, item.expected) }}</b>
-					</p>
-					<p v-if="others(item).length > 0" :class="$style.also">{{ gateLabels.alsoAccepted }}: <span lang="en">{{ others(item).join(' / ') }}</span></p>
-				</div>
-			</li>
-		</ol>
-	</section>
-
-	<section :class="$style.transcript">
-		<button class="_button" :class="$style.toggle" :aria-expanded="showScript" @click="showScript = !showScript">
-			<i :class="showScript ? 'ti ti-chevron-up' : 'ti ti-chevron-down'"></i> {{ showScript ? gateLabels.transcriptTitle : gateLabels.seeTranscript }}
-		</button>
-		<div v-if="showScript" :class="$style.script" lang="en">
-			<template v-for="(line, i) in result.script" :key="i">
-				<p v-if="line.pause != null" :class="$style.pause">{{ gateLabels.pause(line.pause) }}</p>
-				<p v-else :class="[$style.say, { [$style.hit]: line.answers.length > 0 }]">
-					<b :class="$style.who">{{ line.who }}</b>
-					<span>{{ line.text }}</span>
-					<span v-for="n in line.answers" :key="n" :class="$style.qchip">{{ gateLabels.answerChip(n) }}</span>
-				</p>
-			</template>
-		</div>
-	</section>
+	<template v-if="earlier">
+		<XReview :result="earlier.result" :attempt="earlier.attempt" :title="gateLabels.partFirst"/>
+		<XReview :result="result" :attempt="attempt" :title="gateLabels.partSecond"/>
+	</template>
+	<XReview v-else :result="result" :attempt="attempt"/>
 </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
+import XReview from './gate.review.vue';
 import MkButton from '@/components/MkButton.vue';
 import { guideTitle } from '@/lojo/gates/api.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
-import { bandText, letterText, questionRefs, recommendCards, stationBand } from '@/lojo/gates/player.js';
-import type { GateAttempt, GatePack, GateResult, GateResultItem, PackStation } from '@/lojo/gates/player.js';
+import { bandText, recommendCards, stationBand } from '@/lojo/gates/player.js';
+import type { GateAttempt, GatePack, GateResult, PackStation } from '@/lojo/gates/player.js';
 
 const props = defineProps<{
 	result: GateResult;
@@ -117,6 +104,8 @@ const props = defineProps<{
 	title: string;
 	lineName: string;
 	previous: PackStation | null;
+	// a placement test's first part, reviewed above its second
+	earlier?: { result: GateResult; attempt: GateAttempt } | null;
 }>();
 
 const emit = defineEmits<{
@@ -125,28 +114,25 @@ const emit = defineEmits<{
 	(ev: 'go', station: string): void;
 }>();
 
-const showScript = ref(false);
-const refs = computed(() => questionRefs(props.attempt.groups));
-const cards = computed(() => recommendCards(props.result.weak, props.pack.PRACTICE));
+// A placement test's second part says where the learner starts.
+const placedAt = computed(() => props.result.placement?.placedAt ?? null);
+const durationMs = computed(() => props.result.durationMs + (props.earlier?.result.durationMs ?? 0));
+
+// What went wrong in both parts of a placement test, or in this gate.
+const weak = computed(() => {
+	const counts = new Map<string, number>();
+	for (const w of [...(props.earlier?.result.weak ?? []), ...props.result.weak]) counts.set(w.tag, (counts.get(w.tag) ?? 0) + w.count);
+	return [...counts].map(([tag, count]) => ({ tag, count }));
+});
+const cards = computed(() => recommendCards(weak.value, props.pack.PRACTICE));
+// All right: nothing to practise, and nothing to take to the tutor.
+const anyWrong = computed(() => [...(props.earlier?.result.items ?? []), ...props.result.items].some(i => !i.correct));
 const tagName = (tag: string) => props.pack.TAGS[tag]?.[gateLang] ?? tag;
 
 // "听力 · 4.5": stations on the same line are named by their band.
 function stationTitle(id: string): string {
 	const band = stationBand(props.pack, id);
 	return band == null ? id : gateLabels.stationTitle(props.lineName, bandText(band));
-}
-
-// A letter answer reads with its words: "B: the roof was damaged".
-function shown(n: number, value: string): string {
-	const ref = refs.value.get(n);
-	const words = ref ? letterText(ref.group, ref.item, value) : null;
-	return words ? gateLabels.letterOption(value, words) : value;
-}
-
-// Other spellings that also count (for gaps): not the one shown as the answer, nor what was written.
-function others(item: GateResultItem): string[] {
-	if (refs.value.get(item.n)?.group.type !== 'form') return [];
-	return item.accepted.filter(a => a !== item.expected && a.toLowerCase() !== item.given.toLowerCase());
 }
 
 // Guide cards show only once the guide's title has loaded; a guide that is gone is left out.
@@ -311,154 +297,5 @@ watch(cards, list => {
 	small {
 		opacity: 0.75;
 	}
-}
-
-.review {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.items {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.row {
-	display: flex;
-	gap: 10px;
-	padding: 10px 12px;
-	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-panel);
-	border-left: 4px solid transparent;
-
-	&.right {
-		border-left-color: var(--MI_THEME-success);
-	}
-
-	&.wrong {
-		border-left-color: var(--MI_THEME-error);
-	}
-}
-
-.n {
-	flex-shrink: 0;
-	min-width: 1.8em;
-	font-weight: bold;
-	opacity: 0.7;
-}
-
-.rowBody {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	min-width: 0;
-
-	p {
-		margin: 0;
-		overflow-wrap: anywhere;
-	}
-}
-
-.prompt {
-	font-size: 0.85em;
-	opacity: 0.7;
-}
-
-.answerLine {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 6px;
-}
-
-.label {
-	font-size: 0.8em;
-	opacity: 0.65;
-}
-
-.chip {
-	padding: 0 8px;
-	border-radius: 999px;
-	font-size: 0.75em;
-	font-weight: bold;
-}
-
-.chipOk {
-	color: var(--MI_THEME-success);
-	background: color-mix(in srgb, var(--MI_THEME-success) 14%, transparent);
-}
-
-.chipBad {
-	color: var(--MI_THEME-error);
-	background: color-mix(in srgb, var(--MI_THEME-error) 12%, transparent);
-}
-
-.also {
-	font-size: 0.8em;
-	opacity: 0.75;
-}
-
-.transcript {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.toggle {
-	align-self: flex-start;
-	padding: 8px 14px;
-	border-radius: 999px;
-	font-weight: bold;
-	color: var(--MI_THEME-accent);
-	background: var(--MI_THEME-accentedBg);
-}
-
-.script {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	padding: 12px 14px;
-	border-radius: var(--MI-radius);
-	background: var(--MI_THEME-panel);
-	line-height: 1.6;
-
-	p {
-		margin: 0;
-	}
-}
-
-.pause {
-	font-size: 0.85em;
-	opacity: 0.6;
-}
-
-.say.hit {
-	margin: 0 -6px;
-	padding: 2px 6px;
-	border-radius: 6px;
-	background: color-mix(in srgb, var(--MI_THEME-warn) 16%, transparent);
-}
-
-.who {
-	display: inline-block;
-	min-width: 1.4em;
-	margin-right: 6px;
-	opacity: 0.6;
-}
-
-.qchip {
-	margin-left: 6px;
-	padding: 0 6px;
-	border-radius: 999px;
-	font-size: 0.75em;
-	font-weight: bold;
-	color: var(--MI_THEME-fgOnAccent);
-	background: var(--MI_THEME-accent);
-	white-space: nowrap;
 }
 </style>

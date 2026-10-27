@@ -12,6 +12,11 @@ export function startGate(course: string, station: string): Promise<GateAttempt>
 	return misskeyApi('lojo/gates/start', { course, station });
 }
 
+// A line's placement test: its first part, or (after the first part was handed in) the second part it leads to.
+export function startPlacement(course: string, line: number, after?: string): Promise<GateAttempt> {
+	return misskeyApi('lojo/gates/placement', after ? { course, line, after } : { course, line });
+}
+
 // Handing in the same attempt twice returns the stored result.
 export function submitGate(attemptId: string, answers: GateAnswer[]): Promise<GateResult> {
 	return misskeyApi('lojo/gates/submit', { attemptId, answers });

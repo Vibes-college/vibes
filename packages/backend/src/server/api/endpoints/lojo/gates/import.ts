@@ -37,7 +37,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps) => {
 			if (!isGateCourse(ps.course)) throw new ApiError(lojoGateErrors.invalidCourse);
 			const res = await this.lojoGateService.import(ps.course);
-			if (ps.record) for (const set of ps.course.sets) await this.lojoGateService.audioFor(set);
+			if (ps.record) {
+				const papers = [...ps.course.sets, ...(ps.course.placements ?? []).flatMap(p => [p.stages.first, p.stages.high, p.stages.low])];
+				for (const paper of papers) await this.lojoGateService.audioFor(paper);
+			}
 			return res;
 		});
 	}

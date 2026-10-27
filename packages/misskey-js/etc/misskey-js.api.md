@@ -2037,6 +2037,8 @@ declare namespace entities {
         LojoEntitiesShowResponse,
         LojoGatesImportRequest,
         LojoGatesImportResponse,
+        LojoGatesPlacementRequest,
+        LojoGatesPlacementResponse,
         LojoGatesProgressRequest,
         LojoGatesProgressResponse,
         LojoGatesStartRequest,
@@ -2959,6 +2961,12 @@ type LojoGatesImportRequest = operations['lojo___gates___import']['requestBody']
 
 // @public (undocumented)
 type LojoGatesImportResponse = operations['lojo___gates___import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesPlacementRequest = operations['lojo___gates___placement']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGatesPlacementResponse = operations['lojo___gates___placement']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoGatesProgressRequest = operations['lojo___gates___progress']['requestBody']['content']['application/json'];
