@@ -1,8 +1,11 @@
+blank_issues_enabled: true
 contact_links:
-  - name: 💬 Misskey official Discord
-    url: https://discord.gg/Wp8gVStHW3
-    about: Chat freely about Misskey
-  # 仮
-  - name: 💬 Start discussion
-    url: https://github.com/misskey-dev/misskey/discussions
-    about: The official forum to join conversation and ask question
+  - name: 🔒 安全问题 / Security issue
+    url: https://github.com/Vibes-college/vibes/security/advisories/new
+    about: 请私下报告，不要开公开 issue / Please report privately, not in a public issue
+  - name: 📚 课程内容和视频 / Course content and videos
+    url: https://github.com/Vibes-college/vibes-college/issues
+    about: 讲解、题目、视频的问题在这里提 / Problems with lessons, questions or videos
+  - name: 🧩 Misskey 本身的问题 / Misskey itself
+    url: https://github.com/misskey-dev/misskey/issues
+    about: 和我们的改动无关的问题，请报给上游 / Issues unrelated to our changes go upstream

@@ -1,0 +1,22 @@
+name: 💡 想要的功能 / Idea
+description: 想让 Vibes 多一个功能、改一个地方 / Suggest a feature or a change
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题 / What problem does it solve
+      description: 学东西的时候，哪里不方便 / What gets in your way while learning
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你的想法 / Your idea
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: 参考 / References
+      description: 截图、草图、别的产品怎么做的 / Screenshots, sketches, how others do it

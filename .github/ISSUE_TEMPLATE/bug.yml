@@ -1,0 +1,38 @@
+name: 🐛 出问题了 / Bug report
+description: 社区里有东西坏了、不对劲 / Something in the community is broken
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢反馈！先搜一下有没有人提过。**安全问题不要在这里提**，请看 [SECURITY.md](https://github.com/Vibes-college/vibes/blob/main/SECURITY.md)。
+        Thanks! Please search existing issues first. **Do not report security issues here**; see [SECURITY.md](https://github.com/Vibes-college/vibes/blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么 / What happened
+      description: 你做了什么，看到了什么，本来应该怎样 / What you did, what you saw, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么复现 / Steps to reproduce
+      placeholder: |
+        1. 打开 / Open …
+        2. 点 / Click …
+  - type: input
+    id: where
+    attributes:
+      label: 在哪个页面 / Page
+      placeholder: https://app.vibes.college/map
+  - type: input
+    id: device
+    attributes:
+      label: 设备和浏览器 / Device and browser
+      placeholder: iPhone 15, Safari / Windows 11, Chrome
+  - type: textarea
+    id: more
+    attributes:
+      label: 截图或其他 / Screenshots or anything else
+      description: 不要贴密码、邀请码、私信内容这些私人信息 / Don't paste passwords, invite codes or private messages

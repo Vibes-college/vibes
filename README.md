@@ -45,8 +45,8 @@ AGPL-3.0，和 Misskey 一样，见 [LICENSE](LICENSE) 和 [COPYING](COPYING)。
 
 ## 参与和反馈
 
-- 问题和建议在 [Vibes-college/vibes-college](https://github.com/Vibes-college/vibes-college/issues) 提。
-- 参与前先看 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [行为准则](CODE_OF_CONDUCT.md)。
+- 社区的问题和想法，在这里的 [Issues](https://github.com/Vibes-college/vibes/issues) 提；代码的 PR 也提到这里。课程内容和视频的问题，在 [Vibes-college/vibes-college](https://github.com/Vibes-college/vibes-college/issues) 提。
+- 参与前先看 [CONTRIBUTING.md](CONTRIBUTING.md) 和[行为准则](CODE_OF_CONDUCT.md)。
 - 安全问题不要公开，按 [SECURITY.md](SECURITY.md) 私下告诉我们。
 
 ## English
@@ -65,4 +65,4 @@ Our mini apps will live here too.
 
 Built on [Misskey](https://github.com/misskey-dev/misskey). The first commit is Misskey 2026.10.0, unchanged (tag `misskey-2026.10.0`); every commit after it is ours. [See all our changes](https://github.com/Vibes-college/vibes/compare/misskey-2026.10.0...main). Thanks to syuilo and all Misskey contributors.
 
-License: AGPL-3.0, same as Misskey. The Vibes name and logo are not licensed. Build and deploy scripts live in [Vibes-college/vibes-college](https://github.com/Vibes-college/vibes-college).
+Issues and pull requests are welcome here; see [CONTRIBUTING.md](CONTRIBUTING.md). License: AGPL-3.0, same as Misskey. The Vibes name and logo are not licensed. Build and deploy scripts live in [Vibes-college/vibes-college](https://github.com/Vibes-college/vibes-college).
