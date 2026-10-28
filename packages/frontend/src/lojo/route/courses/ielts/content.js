@@ -126,18 +126,24 @@ export const TAGS = {
 
 /* 没过关去哪练：按错题最多的标签推荐（设计文档第五节）。只显示已经有的东西：
    guide 是攻略的 slug（courses/english/ielts/guides/<slug>.js），写好、上了正式站再填；app 是社区里的页面；topics 是时间线话题；tutor 都推荐。
-   攻略在 courses/english/ielts/guides/：听力 8 篇，阅读 5 篇。choice、distractor、matching、form、spelling、numbers、plural 听力和阅读都用，
-   等 PRACTICE 能按线路分别指定攻略，再把听力的 choice、distractor 指到 ielts-listening-choice，form 指到 ielts-listening-predict。选题见 docs/research/english-guides.md。 */
+   攻略在 courses/english/ielts/guides/：听力 8 篇，阅读 6 篇。选题见 docs/research/english-guides.md。 */
 export const PRACTICE = {
- spelling: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
- numbers: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
- 'word-limit': { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
- form: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
- plural: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
+ // 听力和阅读都用的标签，按线分别指定；键是 LINES 里线的 id，写一个值就是两条线都用。
+ spelling: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ numbers: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ 'word-limit': { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ plural: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ form: { guide: { listening: 'ielts-listening-predict', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ sentence: { guide: { reading: 'ielts-reading-completion' }, app: null, topics: { reading: ['雅思阅读'] } },
+ choice: { guide: { listening: 'ielts-listening-choice', reading: 'ielts-reading-choice' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ distractor: { guide: { listening: 'ielts-listening-choice', reading: 'ielts-reading-choice' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ matching: { guide: { listening: 'ielts-listening-discussion', reading: 'ielts-reading-matching' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ paraphrase: { guide: 'ielts-paraphrase', app: { path: '/wordbook', zh: '生词本', en: 'Wordbook' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ // 只有听力用的标签
  map: { guide: 'ielts-listening-maps', app: null, topics: ['雅思听力'] },
- paraphrase: { guide: 'ielts-paraphrase', app: { path: '/wordbook', zh: '生词本', en: 'Wordbook' }, topics: ['雅思阅读', '雅思听力'] },
  discussion: { guide: 'ielts-listening-discussion', app: null, topics: ['雅思听力'] },
  lecture: { guide: 'ielts-listening-lecture', app: null, topics: ['雅思听力'] },
+ // 只有阅读用的标签
  tfng: { guide: 'ielts-reading-judge', app: null, topics: ['雅思阅读'] },
  ynng: { guide: 'ielts-reading-judge', app: null, topics: ['雅思阅读'] },
  headings: { guide: 'ielts-reading-headings', app: null, topics: ['雅思阅读'] },
