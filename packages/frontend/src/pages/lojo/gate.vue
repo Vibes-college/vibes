@@ -23,9 +23,15 @@ practise. Marking happens on the server; the answers never come here before. -->
 				<p :class="$style.eyebrow"><i class="ti ti-compass" aria-hidden="true"></i> {{ gateLabels.gate }}</p>
 				<h1 :class="$style.title">{{ title }}</h1>
 				<span :class="$style.level">{{ gateLabels.practiceLevel }}</span>
-				<p :class="$style.note">{{ gateLabels.placementLede }}</p>
+				<p :class="$style.note">{{ readingLine ? gateLabels.placementLedeReading : gateLabels.placementLede }}</p>
 				<h2 :class="$style.h2">{{ gateLabels.rulesTitle }}</h2>
-				<ul :class="$style.rules">
+				<ul v-if="readingLine" :class="$style.rules">
+					<li>{{ gateLabels.ruleTwoPartsReading }}</li>
+					<li>{{ gateLabels.ruleAdaptive }}</li>
+					<li>{{ gateLabels.ruleTimeUp }}</li>
+					<li>{{ gateLabels.rulePlaced }}</li>
+				</ul>
+				<ul v-else :class="$style.rules">
 					<li>{{ gateLabels.ruleTwoParts }}</li>
 					<li>{{ gateLabels.ruleAdaptive }}</li>
 					<li>{{ gateLabels.ruleReading }}</li>
@@ -34,9 +40,9 @@ practise. Marking happens on the server; the answers never come here before. -->
 				</ul>
 				<MkButton primary rounded large :disabled="phase === 'preparing'" :class="$style.start" @click="begin">
 					<i :class="phase === 'preparing' ? 'ti ti-loader-2' : 'ti ti-player-play-filled'"></i>
-					{{ phase === 'preparing' ? gateLabels.preparing : gateLabels.start }}
+					{{ phase === 'preparing' ? (readingLine ? gateLabels.preparingPaper : gateLabels.preparing) : gateLabels.start }}
 				</MkButton>
-				<p v-if="phase === 'preparing' && slow" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
+				<p v-if="phase === 'preparing' && slow && !readingLine" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
 				<p v-if="startError" :class="$style.warn" role="alert">{{ startError }}</p>
 				<p :class="$style.legal">{{ pack.TEXT[gateLang].legal }}</p>
 			</section>
@@ -49,9 +55,9 @@ practise. Marking happens on the server; the answers never come here before. -->
 				<p :class="$style.sub">{{ earlier.result.placement?.next === 'high' ? gateLabels.betweenHarder : gateLabels.betweenEasier }}</p>
 				<MkButton primary rounded large :disabled="phase === 'preparingSecond'" :class="$style.start" @click="beginSecond">
 					<i :class="phase === 'preparingSecond' ? 'ti ti-loader-2' : 'ti ti-player-play-filled'"></i>
-					{{ phase === 'preparingSecond' ? gateLabels.preparing : gateLabels.startSecond }}
+					{{ phase === 'preparingSecond' ? (readingLine ? gateLabels.preparingPaper : gateLabels.preparing) : gateLabels.startSecond }}
 				</MkButton>
-				<p v-if="phase === 'preparingSecond' && slow" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
+				<p v-if="phase === 'preparingSecond' && slow && !readingLine" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
 				<p v-if="startError" :class="$style.warn" role="alert">{{ startError }}</p>
 			</section>
 
@@ -208,6 +214,8 @@ const earlier = shallowRef<{ result: GateResult; attempt: GateAttempt } | null>(
 const known = ref<{ total: number; pass: number; time: number | null } | null>(null);
 const rules = computed(() => known.value ?? { total: DEFAULT_TOTAL, pass: DEFAULT_PASS, time: null });
 const readingGate = computed(() => rules.value.time != null);
+// the reading line's placement test: its parts are passages on the clock, not recordings
+const readingLine = computed(() => line.value?.id === 'reading');
 // Whether the server has questions for this stop on its line; null when the progress didn't load (the pack decides).
 const serverOpen = ref<boolean | null>(null);
 const playable = computed(() => serverOpen.value ?? info.value?.playable ?? false);

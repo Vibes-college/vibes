@@ -289,9 +289,10 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			<div class="card"><div class="h">${T('teachH')}</div><div class="s">${SP[id].state === 'passed' ? T('teachDone') : T('teachTodo')}</div></div>`;
 	}
 
-	// the main action sits in the panel footer, so it stays in reach on a phone
+	// the main action sits in the panel footer, so it stays in reach on a phone. It opens this very stop (2.4, not 1.4):
+	// an interchange's sets are drawn for the line the learner is on.
 	function footer(id) {
-		const s = SP[id], g = gateOf(id), cur = LP[NODES[id].n].current;
+		const s = SP[id], g = id, cur = LP[NODES[id].n].current;
 		if (s.state === 'passed') { const nx = nextOf(id); return `<div class="gfoot"><button class="cta ghost" data-gate="${g}">${icon('refresh')}${T('again')}</button>${nx ? `<button class="cta" data-go="${nx}">${T('goNext')(band(nx))} →</button>` : ''}</div>`; }
 		if (s.state === 'open') return `<div class="gfoot"><button class="cta" data-gate="${g}">${s.attempts ? T('retry') : T('start')} →</button></div>`;
 		if (s.state === 'locked') return `<div class="gfoot">${cur && cur !== id ? `<button class="cta ghost" data-go="${cur}">${T('goOpen')(band(cur))}</button>` : ''}<button class="cta" data-gate="${g}">${T('jump')} →</button></div>`;

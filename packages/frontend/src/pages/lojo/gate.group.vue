@@ -58,7 +58,8 @@ TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, 
 
 	<!-- the box of options a matching group or a summary picks from (paragraph letters have none) -->
 	<div v-if="(group.type === 'match' || group.type === 'bank') && group.options.length > 0" :class="$style.box" lang="en">
-		<b v-if="group.title" :class="$style.title">{{ group.title }}</b>
+		<!-- a summary's title already heads its gaps -->
+		<b v-if="group.title && group.type === 'match'" :class="$style.title">{{ group.title }}</b>
 		<span :class="$style.boxLabel">{{ gateLabels.optionsBox }}</span>
 		<ul :class="$style.boxList">
 			<li v-for="(option, oi) in group.options" :key="oi"><b>{{ letters[oi] }}</b> {{ option }}</li>
