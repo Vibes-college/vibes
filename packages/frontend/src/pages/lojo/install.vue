@@ -31,15 +31,12 @@ Vibes opened from the home screen, this page turns on notifications instead. -->
 			</p>
 
 			<div :class="$style.choose">
-				<div role="tablist" :aria-label="installLabels.platformsLabel" :class="$style.platforms">
+				<div role="group" :aria-label="installLabels.platformsLabel" :class="$style.platforms">
 					<button
 						v-for="p in platforms"
-						:id="`${uid}-${p}`"
 						:key="p"
 						class="_button"
-						role="tab"
-						:aria-selected="platform === p"
-						:aria-controls="`${uid}-steps`"
+						:aria-pressed="platform === p"
 						:class="[$style.platform, { [$style.on]: platform === p }]"
 						@click="choosePlatform(p)"
 					>
@@ -61,12 +58,12 @@ Vibes opened from the home screen, this page turns on notifications instead. -->
 				<p v-if="platform === device.platform && guide === device.guide" :class="$style.detected">{{ installLabels.detected }}</p>
 			</div>
 
-			<section :id="`${uid}-steps`" class="_panel" :class="$style.card" role="tabpanel" :aria-labelledby="`${uid}-${platform}`">
+			<section class="_panel" :class="$style.card">
 				<div v-if="oneTap" :class="$style.oneTap">
 					<span>{{ installLabels.oneTap }}</span>
 					<MkButton primary rounded inline @click="addNow"><i class="ti ti-square-plus"></i> {{ installLabels.addNow }}</MkButton>
 				</div>
-				<ol :class="$style.steps">
+				<ol role="list" :class="$style.steps">
 					<li v-for="(step, i) in installLabels.steps[guide]" :key="`${guide}-${i}`" :class="$style.step">
 						<span :class="$style.num" aria-hidden="true">{{ i + 1 }}</span>
 						<p :class="$style.stepText">
@@ -81,7 +78,10 @@ Vibes opened from the home screen, this page turns on notifications instead. -->
 						</span>
 					</li>
 				</ol>
-				<MkButton v-if="copyGuides.includes(guide)" rounded inline @click="copyLink"><i class="ti ti-copy"></i> {{ installLabels.copyLink }}</MkButton>
+				<div v-if="copyGuides.includes(guide)" :class="$style.copy">
+					<MkButton rounded inline @click="copyLink"><i class="ti ti-copy"></i> {{ installLabels.copyLink }}</MkButton>
+					<span class="_selectable" :class="$style.link">{{ installUrl }}</span>
+				</div>
 			</section>
 
 			<p v-if="platform === 'ios'" :class="$style.note"><i class="ti ti-bell-ringing" aria-hidden="true"></i> {{ installLabels.iosNotifications }}</p>
@@ -106,7 +106,6 @@ import { installLabels } from '@/lojo/install/labels.js';
 import { device, install, installPrompt, standalone } from '@/lojo/install/prompt.js';
 import { $i } from '@/i.js';
 import { miLocalStorage } from '@/local-storage.js';
-import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import * as os from '@/os.js';
 import { definePage } from '@/page.js';
 
@@ -115,6 +114,8 @@ const platforms: InstallPlatform[] = ['ios', 'android', 'desktop'];
 const platformIcons: Record<InstallPlatform, string> = { ios: 'ti ti-brand-apple', android: 'ti ti-brand-android', desktop: 'ti ti-device-desktop' };
 // the guides that end in opening the page in another browser
 const copyGuides: InstallGuide[] = ['ios-browser', 'android-browser', 'app', 'desktop-firefox'];
+
+const installUrl = `${url}/install`;
 
 const platform = ref<InstallPlatform>(device.platform);
 const guide = ref<InstallGuide>(device.guide);
@@ -132,8 +133,15 @@ async function addNow() {
 	os.toast(installLabels.added);
 }
 
-function copyLink() {
-	copyToClipboard(`${url}/install`);
+// Some apps' web views have no clipboard; the link is on the page to copy by hand.
+async function copyLink() {
+	try {
+		if (navigator.clipboard == null || !window.isSecureContext) throw new Error('no clipboard');
+		await navigator.clipboard.writeText(installUrl);
+		os.toast(installLabels.copied);
+	} catch {
+		os.toast(installLabels.copyByHand);
+	}
 }
 
 function done() {
@@ -216,10 +224,11 @@ definePage(() => ({ title: installLabels.pageTitle, icon: 'ti ti-device-mobile-p
 
 .platforms {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 6px;
 }
 
-// as wide as their names, so "iPhone / iPad" stays on one line on a phone
+// as wide as their names, so "iPhone / iPad" stays on one line; on a narrow phone the last one moves down
 .platform {
 	flex: 1 1 auto;
 	display: flex;
@@ -227,7 +236,7 @@ definePage(() => ({ title: installLabels.pageTitle, icon: 'ti ti-device-mobile-p
 	justify-content: center;
 	gap: 6px;
 	height: 40px;
-	padding: 0 12px;
+	padding: 0 10px;
 	white-space: nowrap;
 	border-radius: 999px;
 	font-weight: bold;
@@ -271,7 +280,7 @@ definePage(() => ({ title: installLabels.pageTitle, icon: 'ti ti-device-mobile-p
 .detected {
 	margin: 0;
 	font-size: 0.85em;
-	opacity: 0.7;
+	opacity: 0.85;
 }
 
 .card {
@@ -447,6 +456,18 @@ definePage(() => ({ title: installLabels.pageTitle, icon: 'ti ti-device-mobile-p
 	border-radius: 5px;
 }
 
+.copy {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+.link {
+	font-size: 0.9em;
+	word-break: break-all;
+}
+
 .note {
 	margin: 0;
 	line-height: 1.6;
@@ -457,6 +478,5 @@ definePage(() => ({ title: installLabels.pageTitle, icon: 'ti ti-device-mobile-p
 	margin: 8px 0 0;
 	font-size: 0.8em;
 	line-height: 1.5;
-	opacity: 0.7;
 }
 </style>

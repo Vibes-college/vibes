@@ -98,6 +98,8 @@ const zh = {
 		],
 	}),
 	copyLink: '复制链接',
+	copied: '链接已复制',
+	copyByHand: '没能复制。长按旁边的链接，手动复制。',
 	keys: {
 		share: '分享按钮', more: '「···」按钮', menu: '「⋮」按钮', lines: '「≡」按钮', add: '添加图标', install: '安装图标',
 	} satisfies Record<InstallKey, string>,
@@ -200,6 +202,8 @@ const en: typeof zh = {
 		],
 	}),
 	copyLink: 'Copy the link',
+	copied: 'Link copied',
+	copyByHand: 'Couldn’t copy. Press and hold the link next to the button to copy it.',
 	keys: {
 		share: 'the Share button', more: 'the “···” button', menu: 'the “⋮” button', lines: 'the “≡” button', add: 'the Add icon', install: 'the install icon',
 	},

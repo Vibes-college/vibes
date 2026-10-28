@@ -127,7 +127,7 @@ async function addNow() {
 	padding: 4px 2px;
 	font-size: 0.8em;
 	text-decoration: underline;
-	opacity: 0.7;
+	opacity: 0.85;
 
 	&:hover {
 		opacity: 1;
@@ -142,7 +142,6 @@ async function addNow() {
 	margin: 10px 0 0;
 	font-size: 0.75em;
 	line-height: 1.5;
-	opacity: 0.7;
 }
 
 .close {
