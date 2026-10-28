@@ -11,7 +11,7 @@ export const META = {
  group: { zh: '雅思', en: 'IELTS' }, // 同行小组频道名的前缀，如「雅思 1 号线同行小组」
 };
 
-/* live:false 的线还没有题，站点显示"即将开放"。站点说明照设计文档第四节；阅读、写作、口语线做到时再补。 */
+/* live:false 的线还没有题，站点显示"即将开放"。听力的站点说明照设计文档第四节，阅读照第十节；写作、口语线做到时再补。 */
 export const LINES = [
  { n: 1, id: 'listening', zh: '听力', en: 'Listening', live: true, stations: [
   { id: '1.1', band: 4.0, part: { zh: '第 1 部分，简单版', en: 'Part 1, easy' },
@@ -42,7 +42,7 @@ export const LINES = [
    focus: { zh: '信息密，学术词要拼对，几乎不能错', en: 'Dense information; academic words must be spelled right; almost no room for mistakes' },
    types: { zh: '笔记、句子填空', en: 'Note and sentence completion' }, pace: { zh: '快', en: 'Fast' } },
  ] },
- { n: 2, id: 'reading', zh: '阅读', en: 'Reading', live: false, stations: [
+ { n: 2, id: 'reading', zh: '阅读', en: 'Reading', live: true, stations: [
   { id: '2.1', band: 4.0, part: { zh: '日常短文，像培训类第 1 节', en: 'Everyday texts, like General Training Section 1' },
    focus: { zh: '通知、价目表、时刻表：找到具体信息', en: 'Notices, price lists and timetables: find specific information' },
    types: { zh: '笔记填空、选择题', en: 'Note completion, multiple choice' }, length: { zh: '约 250 词，限时 10 分钟', en: 'About 250 words, 10 minutes' } },
@@ -125,13 +125,14 @@ export const TAGS = {
 };
 
 /* 没过关去哪练：按错题最多的标签推荐（设计文档第五节）。只显示已经有的东西：
-   guide 是攻略的 id，写好了再填；app 是社区里的页面；topics 是时间线话题；tutor 都推荐。
-   要写的攻略：《听力填空：字数和拼写》《地图题的方位词》《同义替换》《第 3 部分：分清说话人》。 */
+   guide 是攻略的 slug（courses/english/ielts/guides/<slug>.js），写好、上了正式站再填；app 是社区里的页面；topics 是时间线话题；tutor 都推荐。
+   已有的攻略：ielts-listening-gaps（拼写、数字、字数、填空、单复数）。还要写：《地图题的方位词》《同义替换》《第 3 部分：分清说话人》等，选题见 docs/research/english-guides.md。 */
 export const PRACTICE = {
- spelling: { guide: null, app: null, topics: ['雅思听力'] },
- numbers: { guide: null, app: null, topics: ['雅思听力'] },
- 'word-limit': { guide: null, app: null, topics: ['雅思听力'] },
- form: { guide: null, app: null, topics: ['雅思听力'] },
+ spelling: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
+ numbers: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
+ 'word-limit': { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
+ form: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
+ plural: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
  map: { guide: null, app: null, topics: ['雅思听力'] },
  paraphrase: { guide: null, app: { path: '/wordbook', zh: '生词本', en: 'Wordbook' }, topics: ['雅思阅读', '雅思听力'] },
  discussion: { guide: null, app: null, topics: ['雅思听力'] },
