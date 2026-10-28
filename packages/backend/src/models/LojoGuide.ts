@@ -33,6 +33,7 @@ export type GuideAnchor = {
 @Entity('lojo_guide')
 @Index('IDX_lojo_guide_status_updated', ['status', 'updatedAt'])
 @Index('IDX_lojo_guide_author', ['authorId'])
+@Index('IDX_lojo_guide_slug', ['slug'], { unique: true })
 export class MiLojoGuide {
 	@PrimaryColumn({ ...id(), primaryKeyConstraintName: 'PK_lojo_guide' })
 	public id: string;
@@ -46,6 +47,11 @@ export class MiLojoGuide {
 
 	@Column('varchar', { length: 160 })
 	public title: string;
+
+	// A stable name ("ielts-listening-gaps") for guides imported from the workspace: course packs link to it, and a
+	// re-import updates the guide instead of adding another. Guides written on the site have none.
+	@Column('varchar', { length: 80, nullable: true })
+	public slug: string | null;
 
 	@Column('varchar', { length: 600 })
 	public summary: string;

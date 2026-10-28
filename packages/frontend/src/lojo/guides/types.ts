@@ -35,6 +35,8 @@ export type GuideAnchor = {
 
 export type Guide = {
 	id: string;
+	// guides imported from the workspace ("ielts-listening-gaps"); null for guides written on the site
+	slug: string | null;
 	title: string;
 	summary: string;
 	category: string;
@@ -79,6 +81,7 @@ export type GuideSaveInput = Pick<Guide, 'title' | 'summary' | 'category' | 'cit
 
 // The four bookshelves. Order is the shelf order on the guides page.
 export const guideCategories = [
+	{ id: 'english', title: '英语', icon: 'ti ti-language' },
 	{ id: 'housing', title: '租房', icon: 'ti ti-building' },
 	{ id: 'ai', title: 'AI 技能', icon: 'ti ti-sparkles' },
 	{ id: 'career', title: '求职', icon: 'ti ti-briefcase' },

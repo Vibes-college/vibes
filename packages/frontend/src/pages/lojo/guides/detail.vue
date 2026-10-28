@@ -53,7 +53,7 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, ref, useTemplate
 import type { CSSProperties } from 'vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import type { Guide, GuideAnchor, GuideThread } from '@/lojo/guides/types.js';
-import { guideApi } from '@/lojo/guides/api.js';
+import { guideApi, isGuideSlug } from '@/lojo/guides/api.js';
 import { guideCategoryLabel } from './labels.js';
 import GuideBody from './components/GuideBody.vue';
 import MkGuideAnnotatedText from '@/components/lojo/MkGuideAnnotatedText.vue';
@@ -113,6 +113,12 @@ async function load() {
 	failed.value = false;
 	clearSelection();
 	try {
+		// /guides/ielts-listening-gaps (a link from a course pack): the guide lives at its id
+		if (isGuideSlug(props.guideId)) {
+			const found = await guideApi.show(props.guideId);
+			if (current === generation) router.replaceByPath(`/guides/${found.id}`);
+			return;
+		}
 		const [value, marks] = await Promise.all([guideApi.show(props.guideId), guideApi.threads(props.guideId)]);
 		if (current !== generation) return;
 		guide.value = value;

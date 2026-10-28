@@ -17,7 +17,7 @@ const anchor: GuideAnchor = {
 	exact: '搬家前，先把楼层、距离与大件物品写进报价单。', prefix: '', suffix: '',
 };
 const guide: Guide = {
-	id: 'guide-story', title: '第一次在深圳搬家', summary: '', category: 'life', city: '深圳', coverUrl: null,
+	id: 'guide-story', slug: null, title: '第一次在深圳搬家', summary: '', category: 'life', city: '深圳', coverUrl: null,
 	status: 'published', isDemo: true, revision: 1, blocks: [], author: userLite(),
 	createdAt: '2026-10-03T00:00:00Z', updatedAt: '2026-10-03T00:00:00Z', isSaved: false, commentCount: 1,
 };

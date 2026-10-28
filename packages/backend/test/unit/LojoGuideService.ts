@@ -24,7 +24,7 @@ import type { RoleService } from '@/core/RoleService.js';
 const owner = { id: 'owner' } as MiLocalUser;
 const stranger = { id: 'stranger' } as MiLocalUser;
 const published: MiLojoGuide = {
-	id: 'guide', authorId: owner.id, author: null, title: '搬家前', summary: '', category: 'life', city: '深圳',
+	id: 'guide', authorId: owner.id, author: null, slug: null, title: '搬家前', summary: '', category: 'life', city: '深圳',
 	coverUrl: null, status: 'published', isDemo: false, featured: false, revision: 3,
 	blocks: [{ id: 'first', type: 'paragraph', text: '确认费用' }], createdAt: new Date(), updatedAt: new Date(),
 };
@@ -58,7 +58,7 @@ describe('LOJO guide access and comment integrity', () => {
 		query.setLock.mockReturnValue(query);
 		query.getOne.mockResolvedValue({ ...published });
 		repositories = new Map([
-			[MiLojoGuide, { createQueryBuilder: vi.fn(() => query), save: vi.fn(), countBy: vi.fn().mockResolvedValue(0) }],
+			[MiLojoGuide, { createQueryBuilder: vi.fn(() => query), save: vi.fn(), countBy: vi.fn().mockResolvedValue(0), findOne: vi.fn().mockResolvedValue(null), existsBy: vi.fn().mockResolvedValue(false) }],
 			[MiUser, { findOneBy: vi.fn().mockResolvedValue(owner), existsBy: vi.fn().mockResolvedValue(true) }],
 			[MiBlocking, { existsBy: vi.fn().mockResolvedValue(false) }],
 			[MiDriveFile, { findBy: vi.fn().mockResolvedValue([]) }],
@@ -77,8 +77,23 @@ describe('LOJO guide access and comment integrity', () => {
 
 	test('anonymous and unrelated readers cannot open a private draft', async () => {
 		query.getOne.mockResolvedValue({ ...published, status: 'draft' });
-		await expect(service.show(null, 'guide')).rejects.toMatchObject({ code: 'NO_SUCH_GUIDE' });
-		await expect(service.show(stranger, 'guide')).rejects.toMatchObject({ code: 'NO_SUCH_GUIDE' });
+		await expect(service.show(null, { guideId: 'guide' })).rejects.toMatchObject({ code: 'NO_SUCH_GUIDE' });
+		await expect(service.show(stranger, { guideId: 'guide' })).rejects.toMatchObject({ code: 'NO_SUCH_GUIDE' });
+	});
+
+	test('an imported guide opens by its slug, with the same rules as by id', async () => {
+		await expect(service.show(null, { slug: 'ielts-listening-gaps' })).rejects.toMatchObject({ code: 'NO_SUCH_GUIDE' });
+		repositories.get(MiLojoGuide)!.findOne.mockResolvedValue({ id: 'guide' });
+		query.getOne.mockResolvedValue({ ...published, slug: 'ielts-listening-gaps', status: 'draft' });
+		await expect(service.show(stranger, { slug: 'ielts-listening-gaps' })).rejects.toMatchObject({ code: 'NO_SUCH_GUIDE' });
+		expect(repositories.get(MiLojoGuide)!.findOne).toHaveBeenCalledWith({ where: { slug: 'ielts-listening-gaps' }, select: { id: true } });
+		expect(query.where).toHaveBeenCalledWith('guide.id = :guideId', { guideId: 'guide' });
+	});
+
+	test('a slug names one guide only', async () => {
+		repositories.get(MiLojoGuide)!.existsBy.mockResolvedValue(true);
+		await expect(service.save(owner, { ...input, slug: 'ielts-listening-gaps' })).rejects.toMatchObject({ code: 'GUIDE_SLUG_TAKEN' });
+		expect(repositories.get(MiLojoGuide)!.save).not.toHaveBeenCalled();
 	});
 
 	test('anonymous users cannot enumerate private saves or their drafts', async () => {

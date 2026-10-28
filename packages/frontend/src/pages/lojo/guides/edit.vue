@@ -83,7 +83,7 @@ const guideId = ref<string | undefined>(props.guideId);
 const revision = ref<number | undefined>();
 const title = ref('');
 const summary = ref('');
-const category = ref(guideCategories.some(item => item.value === props.category) ? props.category! : 'housing');
+const category = ref(guideCategories.some(item => item.value === props.category) ? props.category! : guideCategories[0].value);
 const city = ref('深圳');
 const coverUrl = ref('');
 const blocks = ref<GuideBlock[]>([{ id: genId(), type: 'paragraph', text: '' }]);
@@ -109,7 +109,7 @@ const categoryItems = computed(() => {
 	if (!items.some(item => item.value === category.value)) items.push({ value: category.value, label: guideCategoryLabel(category.value) });
 	return items;
 });
-const initialCategory = guideCategories.some(item => item.value === props.category) ? props.category! : 'housing';
+const initialCategory = guideCategories.some(item => item.value === props.category) ? props.category! : guideCategories[0].value;
 const snapshot = computed(() => JSON.stringify({ title: title.value, summary: summary.value, category: category.value, city: city.value, coverUrl: coverUrl.value, blocks: blocks.value }));
 const savedSnapshot = ref(snapshot.value);
 const dirty = computed(() => snapshot.value !== savedSnapshot.value);

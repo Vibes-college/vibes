@@ -15,11 +15,13 @@ export type GuideShelf = {
 	ghosts: string[];
 };
 
+// English first: it is the community's first scene (decisions, 2026-10-25).
 export const guideShelves: GuideShelf[] = [
-	{ id: 'housing', no: '01', title: '租房', tagline: '住处，是落脚的第一步', hue: '#E8603F', ghosts: ['看房清单', '交房拍照', '合同第十条', '退租'] },
-	{ id: 'ai', no: '02', title: 'AI 技能', tagline: '技能，是在城市里生根', hue: '#2340A3', ghosts: ['第一个作品', '陪跑营怎么选', '提示词', '退款条款'] },
-	{ id: 'career', no: '03', title: '求职', tagline: '换一条路之前，先看清这条路', hue: '#B8871B', ghosts: ['简历', '面试', '薪资谈判', '背景调查'] },
-	{ id: 'abroad', no: '04', title: '留学申请', tagline: '走得远，也要走得明白', hue: '#3F8F86', ghosts: ['选校', '文书', '签证', '中介合同'] },
+	{ id: 'english', no: '01', title: '英语', tagline: '雅思、托福，和每天用得上的英语', hue: '#6E4F8F', ghosts: ['同义替换', '判断题', '地图题', '小作文'] },
+	{ id: 'housing', no: '02', title: '租房', tagline: '住处，是落脚的第一步', hue: '#E8603F', ghosts: ['看房清单', '交房拍照', '合同第十条', '退租'] },
+	{ id: 'ai', no: '03', title: 'AI 技能', tagline: '技能，是在城市里生根', hue: '#2340A3', ghosts: ['第一个作品', '陪跑营怎么选', '提示词', '退款条款'] },
+	{ id: 'career', no: '04', title: '求职', tagline: '换一条路之前，先看清这条路', hue: '#B8871B', ghosts: ['简历', '面试', '薪资谈判', '背景调查'] },
+	{ id: 'abroad', no: '05', title: '留学申请', tagline: '走得远，也要走得明白', hue: '#3F8F86', ghosts: ['选校', '文书', '签证', '中介合同'] },
 ];
 
 // Book cloth: the brand palette plus a few quiet bindings so a shelf never reads as a flag.

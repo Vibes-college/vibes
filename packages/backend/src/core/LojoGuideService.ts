@@ -33,6 +33,8 @@ type ThreadInput = { guideId: string; threadId?: string; anchor?: GuideAnchor };
 type SaveInput = {
 	guideId?: string;
 	expectedRevision?: number;
+	// kept when not given
+	slug?: string;
 	title: string;
 	summary: string;
 	category: string;
@@ -132,7 +134,7 @@ export class LojoGuideService {
 			this.commentsQuery(me).andWhere('thread.guideId = :guideId', { guideId: guide.id }).getCount(),
 		]);
 		return {
-			id: guide.id, title: guide.title, summary: guide.summary, category: guide.category, city: guide.city,
+			id: guide.id, slug: guide.slug, title: guide.title, summary: guide.summary, category: guide.category, city: guide.city,
 			coverUrl: guide.coverUrl, status: guide.status, isDemo: guide.isDemo, featured: guide.featured, revision: guide.revision,
 			blocks: guide.blocks, author, createdAt: guide.createdAt.toISOString(), updatedAt: guide.updatedAt.toISOString(),
 			isSaved, commentCount,
@@ -157,7 +159,9 @@ export class LojoGuideService {
 		return Promise.all(guides.map(guide => this.packGuide(guide, me)));
 	}
 
-	public async show(me: Viewer, guideId: string) {
+	public async show(me: Viewer, ref: { guideId?: string; slug?: string }) {
+		const guideId = ref.guideId ?? (ref.slug ? (await this.db.getRepository(MiLojoGuide).findOne({ where: { slug: ref.slug }, select: { id: true } }))?.id : null);
+		if (guideId == null) throw new ApiError(lojoGuideErrors.noSuchGuide);
 		return this.packGuide(await this.getGuide(me, guideId), me);
 	}
 
@@ -175,9 +179,11 @@ export class LojoGuideService {
 			} else {
 				if (await manager.getRepository(MiLojoGuide).countBy({ authorId: me.id }) >= 200) throw new ApiError(lojoGuideErrors.rateLimited);
 			}
+			const slug = ps.slug ?? previous?.slug ?? null;
+			if (slug != null && slug !== previous?.slug && await manager.getRepository(MiLojoGuide).existsBy({ slug })) throw new ApiError(lojoGuideErrors.slugTaken);
 			const now = new Date();
 			return manager.getRepository(MiLojoGuide).save({
-				id: previous?.id ?? this.idService.gen(), authorId: me.id,
+				id: previous?.id ?? this.idService.gen(), authorId: me.id, slug,
 				title: ps.title.trim(), summary: ps.summary.trim(), category: ps.category, city: ps.city.trim(),
 				coverUrl: ps.coverUrl ?? null, status: ps.status, isDemo: ps.isDemo ?? previous?.isDemo ?? false,
 				featured: previous?.featured ?? false, revision: (previous?.revision ?? 0) + 1, blocks, createdAt: previous?.createdAt ?? now, updatedAt: now,

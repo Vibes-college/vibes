@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { LojoGuideService } from '@/core/LojoGuideService.js';
-import { guideIdParam, guideResponse, lojoGuideErrors } from '@/server/api/lojo-guide-schemas.js';
+import { guideIdParam, guideResponse, guideSlugParam, lojoGuideErrors } from '@/server/api/lojo-guide-schemas.js';
 
 export const meta = {
 	tags: ['lojo'],
@@ -17,15 +17,17 @@ export const meta = {
 	res: guideResponse,
 } as const;
 
+// by id, or by the slug of a guide imported from the workspace
 export const paramDef = {
-	type: 'object',
-	properties: { guideId: guideIdParam },
-	required: ['guideId'],
+	anyOf: [
+		{ type: 'object', properties: { guideId: guideIdParam }, required: ['guideId'] },
+		{ type: 'object', properties: { slug: guideSlugParam }, required: ['slug'] },
+	],
 } as const;
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private service: LojoGuideService) {
-		super(meta, paramDef, async (ps, me) => this.service.show(me, ps.guideId));
+		super(meta, paramDef, async (ps, me) => this.service.show(me, ps));
 	}
 }

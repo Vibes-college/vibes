@@ -8,9 +8,13 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 
 type ThreadTarget = { guideId: string; threadId?: string; anchor?: GuideAnchor };
 
+// "ielts-listening-gaps": an imported guide's slug, words joined by hyphens; ids never have a hyphen.
+export const isGuideSlug = (ref: string): boolean => /^[a-z0-9]+(-[a-z0-9]+)+$/.test(ref);
+
 export const guideApi = {
 	list: (params: { category?: string; search?: string; savedOnly?: boolean; mine?: boolean; featuredOnly?: boolean; limit?: number; offset?: number } = {}) => misskeyApi<Guide[]>('lojo/guides/list', params),
-	show: (guideId: string) => misskeyApi<Guide>('lojo/guides/show', { guideId }),
+	// by id, or by an imported guide's slug
+	show: (ref: string) => misskeyApi<Guide>('lojo/guides/show', isGuideSlug(ref) ? { slug: ref } : { guideId: ref }),
 	save: (params: GuideSaveInput) => misskeyApi<Guide>('lojo/guides/save', params),
 	bookmark: (guideId: string, saved: boolean) => misskeyApi<{ saved: boolean }>('lojo/guides/bookmark', { guideId, saved }),
 	feature: (guideId: string, featured: boolean) => misskeyApi<Guide>('lojo/guides/feature', { guideId, featured }),

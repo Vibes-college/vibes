@@ -30807,6 +30807,7 @@ export interface operations {
                 content: {
                     'application/json': {
                         id: string;
+                        slug: string | null;
                         title: string;
                         summary: string;
                         category: string;
@@ -30930,6 +30931,7 @@ export interface operations {
                 content: {
                     'application/json': {
                         id: string;
+                        slug: string | null;
                         title: string;
                         summary: string;
                         category: string;
@@ -31032,10 +31034,11 @@ export interface operations {
                     /** Format: misskey:id */
                     guideId?: string;
                     expectedRevision?: number;
+                    slug?: string;
                     title: string;
                     summary: string;
                     /** @enum {string} */
-                    category: 'housing' | 'ai' | 'career' | 'abroad' | 'life' | 'sport' | 'pets' | 'travel';
+                    category: 'english' | 'housing' | 'ai' | 'career' | 'abroad' | 'life' | 'sport' | 'pets' | 'travel';
                     city: string;
                     coverUrl?: string | null;
                     blocks: {
@@ -31072,6 +31075,7 @@ export interface operations {
                 content: {
                     'application/json': {
                         id: string;
+                        slug: string | null;
                         title: string;
                         summary: string;
                         category: string;
@@ -31173,6 +31177,8 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     guideId: string;
+                } | {
+                    slug: string;
                 };
             };
         };
@@ -31185,6 +31191,7 @@ export interface operations {
                 content: {
                     'application/json': {
                         id: string;
+                        slug: string | null;
                         title: string;
                         summary: string;
                         category: string;

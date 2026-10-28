@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { LojoGuideService } from '@/core/LojoGuideService.js';
-import { guideIdParam, guideBlockParam, guideResponse, lojoGuideErrors } from '@/server/api/lojo-guide-schemas.js';
+import { guideIdParam, guideBlockParam, guideResponse, guideSlugParam, lojoGuideErrors } from '@/server/api/lojo-guide-schemas.js';
 
 export const meta = {
 	tags: ['lojo'],
@@ -20,7 +20,7 @@ export const meta = {
 
 export const paramDef = {
 	type: 'object',
-	properties: { guideId: guideIdParam, expectedRevision: { type: 'integer', minimum: 1 }, title: { type: 'string', minLength: 1, maxLength: 160 }, summary: { type: 'string', maxLength: 600 }, category: { type: 'string', enum: ['housing', 'ai', 'career', 'abroad', 'life', 'sport', 'pets', 'travel'] }, city: { type: 'string', maxLength: 80 }, coverUrl: { type: 'string', maxLength: 2048, nullable: true }, blocks: { type: 'array', maxItems: 200, items: guideBlockParam }, status: { type: 'string', enum: ['draft', 'published'] }, isDemo: { type: 'boolean' } },
+	properties: { guideId: guideIdParam, expectedRevision: { type: 'integer', minimum: 1 }, slug: guideSlugParam, title: { type: 'string', minLength: 1, maxLength: 160 }, summary: { type: 'string', maxLength: 600 }, category: { type: 'string', enum: ['english', 'housing', 'ai', 'career', 'abroad', 'life', 'sport', 'pets', 'travel'] }, city: { type: 'string', maxLength: 80 }, coverUrl: { type: 'string', maxLength: 2048, nullable: true }, blocks: { type: 'array', maxItems: 200, items: guideBlockParam }, status: { type: 'string', enum: ['draft', 'published'] }, isDemo: { type: 'boolean' } },
 	required: ['title', 'summary', 'category', 'city', 'blocks', 'status'],
 } as const;
 

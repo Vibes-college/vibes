@@ -4,6 +4,8 @@
  */
 
 export const guideIdParam = { type: 'string', format: 'misskey:id' } as const;
+// lowercase words joined by hyphens, at least two ("ielts-listening-gaps"), so it never looks like an id
+export const guideSlugParam = { type: 'string', pattern: '^[a-z0-9]+(-[a-z0-9]+)+$', maxLength: 80 } as const;
 
 export const guideAnchorParam = {
 	type: 'object', additionalProperties: false,
@@ -86,6 +88,7 @@ export const guideResponse = {
 	type: 'object', optional: false, nullable: false,
 	properties: {
 		id: { type: 'string', optional: false, nullable: false },
+		slug: { type: 'string', optional: false, nullable: true },
 		title: { type: 'string', optional: false, nullable: false },
 		summary: { type: 'string', optional: false, nullable: false },
 		category: { type: 'string', optional: false, nullable: false },
@@ -141,4 +144,5 @@ export const lojoGuideErrors = {
 	blocked: { message: 'Interaction is unavailable between these accounts.', code: 'YOU_HAVE_BEEN_BLOCKED', id: 'e2946e4c-958a-44b4-9ec5-6d29abe50bcf' },
 	prohibitedWords: { message: 'Content contains prohibited words.', code: 'CONTAINS_PROHIBITED_WORDS', id: '9c22117a-a1bf-48d2-8a23-19fc698af55a' },
 	rateLimited: { message: 'Guide content limit reached.', code: 'GUIDE_LIMIT_REACHED', id: 'fcb64fa2-35cf-4cc8-8564-99dd74b8cfb2' },
+	slugTaken: { message: 'Another guide already has this slug.', code: 'GUIDE_SLUG_TAKEN', id: 'b5ea8b09-ae96-4bdc-8dbd-6b156933a94c' },
 } as const;

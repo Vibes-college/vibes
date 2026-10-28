@@ -399,9 +399,17 @@ function observe() {
 			if (!active[shelfId]) later(() => openBook(shelfId, books[shelfId]?.[0]?.id, { reveal: false }), reduceMotion ? 0 : 260 + count * 28);
 		}
 	}, { threshold: 0.2 });
-	// The shelf crossing the middle of the screen is the current one.
+	// The shelf crossing the middle of the screen is the current one. Shelves that leave the middle count too: while
+	// they rise into place on load, a lower shelf passes through it and must not stay marked.
+	const inMiddle = new Set<string>();
 	currentObserver = new IntersectionObserver(entries => {
-		for (const entry of entries) if (entry.isIntersecting) current.value = (entry.target as HTMLElement).dataset.shelf!;
+		for (const entry of entries) {
+			const shelfId = (entry.target as HTMLElement).dataset.shelf!;
+			if (entry.isIntersecting) inMiddle.add(shelfId);
+			else inMiddle.delete(shelfId);
+		}
+		const first = guideShelves.find(shelf => inMiddle.has(shelf.id));
+		if (first) current.value = first.id;
 	}, { rootMargin: '-45% 0px -45% 0px' });
 	resizeObserver = new ResizeObserver(() => guideShelves.forEach(shelf => syncEdges(shelf.id)));
 	for (const [shelfId, el] of sectionEls) {

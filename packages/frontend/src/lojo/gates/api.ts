@@ -5,6 +5,7 @@
 
 import { gateLabels } from './labels.js';
 import type { GateAnswer, GateAttempt, GateResult } from './player.js';
+import { isGuideSlug } from '@/lojo/guides/api.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 // The first start of a set can take ~40 s: the server synthesizes the recording, once for everyone.
@@ -22,8 +23,9 @@ export function submitGate(attemptId: string, answers: GateAnswer[]): Promise<Ga
 	return misskeyApi('lojo/gates/submit', { attemptId, answers });
 }
 
-export function guideTitle(guideId: string): Promise<string> {
-	return misskeyApi('lojo/guides/show', { guideId }).then(guide => guide.title);
+// guide: an id, or (from a course pack's PRACTICE) an imported guide's slug
+export function guideTitle(guide: string): Promise<string> {
+	return misskeyApi('lojo/guides/show', isGuideSlug(guide) ? { slug: guide } : { guideId: guide }).then(found => found.title);
 }
 
 export function gateErrorCode(err: unknown): string | null {
