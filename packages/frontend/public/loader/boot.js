@@ -16,6 +16,13 @@
 		renderError('SOMETHING_HAPPENED_IN_PROMISE', e.reason || e);
 	};
 
+	// Vibes: Chrome and Edge offer to install the app once the page qualifies, which can come before the app has
+	// loaded. Keep the offer for the card that asks to add Vibes to the home screen (src/lojo/install/prompt.ts).
+	window.addEventListener('beforeinstallprompt', (ev) => {
+		ev.preventDefault();
+		window.vibesInstallPrompt = ev;
+	});
+
 	let forceError = localStorage.getItem('forceError');
 	if (forceError != null) {
 		renderError('FORCED_ERROR', 'This error is forced by having forceError in local storage.');

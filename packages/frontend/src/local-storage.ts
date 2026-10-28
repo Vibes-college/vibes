@@ -43,6 +43,8 @@ export type Keys = (
 	`channelLastReadedAt:${string}` |
 	`lojoPendingLinks:${string}` |
 	`lojoGuideDraft:${string}` |
+	'vibesInstallPrompt' |
+	'vibesInstalledWelcomed' |
 	`idbfallback::${string}`
 );
 

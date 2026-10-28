@@ -15,7 +15,6 @@ import { alert, confirm, popup, post } from '@/os.js';
 import { useStream, useStreamConnectionStatus } from '@/stream.js';
 import * as sound from '@/utility/sound.js';
 import { $i } from '@/i.js';
-import { instance } from '@/instance.js';
 import { store } from '@/store.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { miLocalStorage } from '@/local-storage.js';
@@ -30,6 +29,7 @@ import { updateCurrentAccountPartial } from '@/accounts.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
 import { prefetchCommonPages } from '@/lojo/prefetch.js';
+import { currentInstallOffer } from '@/lojo/install/prompt.js';
 
 export async function mainBoot() {
 	const { isClientUpdated, lastVersion } = await common(async () => {
@@ -187,7 +187,6 @@ export async function mainBoot() {
 		if ($i.followersCount >= 500) claimAchievement('followers500');
 		if ($i.followersCount >= 1000) claimAchievement('followers1000');
 
-		const createdAt = new Date($i.createdAt);
 		const createdAtThreeYearsLater = new Date($i.createdAt);
 		createdAtThreeYearsLater.setFullYear(createdAtThreeYearsLater.getFullYear() + 3);
 		if (now >= createdAtThreeYearsLater) {
@@ -276,22 +275,16 @@ export async function mainBoot() {
 		//}
 		//miLocalStorage.setItem('lastUsed', Date.now().toString());
 
-		const latestDonationInfoShownAt = miLocalStorage.getItem('latestDonationInfoShownAt');
-		const neverShowDonationInfo = miLocalStorage.getItem('neverShowDonationInfo');
-		if (neverShowDonationInfo !== 'true' && (createdAt.getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 3))) && !window.location.pathname.startsWith('/miauth')) {
-			if (latestDonationInfoShownAt == null || (new Date(latestDonationInfoShownAt).getTime() < (Date.now() - (1000 * 60 * 60 * 24 * 30)))) {
-				const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkDonation.vue')), {}, {
-					closed: () => dispose(),
-				});
-			}
-		}
-
-		const modifiedVersionMustProminentlyOfferInAgplV3Section13Read = miLocalStorage.getItem('modifiedVersionMustProminentlyOfferInAgplV3Section13Read');
-		if (modifiedVersionMustProminentlyOfferInAgplV3Section13Read !== 'true' && instance.repositoryUrl !== 'https://github.com/misskey-dev/misskey') {
-			const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkSourceCodeAvailablePopup.vue')), {}, {
+		// Vibes: one card that asks to add Vibes to the home screen (or, opened from there, to turn on notifications), in
+		// place of upstream's donation popup and source-code popup. The card keeps the source-code line (AGPL §13). Not
+		// over the setup dialog, sign-in pages, or a gate being answered.
+		store.loaded.then(() => {
+			const offer = currentInstallOffer();
+			if (offer == null || store.s.accountSetupWizard !== -1 || /^\/(miauth|auth|install|gate|share)\b/.test(window.location.pathname)) return;
+			const { dispose } = popup(defineAsyncComponent(() => import('@/components/lojo/MkLojoInstallPrompt.vue')), { mode: offer }, {
 				closed: () => dispose(),
 			});
-		}
+		});
 
 		if (store.s.realtimeMode) {
 			const stream = useStream();

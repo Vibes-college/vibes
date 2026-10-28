@@ -43,6 +43,11 @@ export const ROUTE_DEF = [{
 	path: '/guides',
 	component: page(() => import('@/pages/lojo/guides/index.vue')),
 }, {
+	// 添加到主屏幕: step by step, for the device and browser this is. The card at boot links here.
+	name: 'lojo-install',
+	path: '/install',
+	component: page(() => import('@/pages/lojo/install.vue')),
+}, {
 	// All route maps: every course grouped by subject, with search and "my maps".
 	name: 'lojo',
 	path: '/maps',
