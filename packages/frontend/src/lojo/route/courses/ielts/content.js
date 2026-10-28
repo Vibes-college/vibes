@@ -126,21 +126,23 @@ export const TAGS = {
 
 /* 没过关去哪练：按错题最多的标签推荐（设计文档第五节）。只显示已经有的东西：
    guide 是攻略的 slug（courses/english/ielts/guides/<slug>.js），写好、上了正式站再填；app 是社区里的页面；topics 是时间线话题；tutor 都推荐。
-   已有的攻略：ielts-listening-gaps（拼写、数字、字数、填空、单复数）。还要写：《地图题的方位词》《同义替换》《第 3 部分：分清说话人》等，选题见 docs/research/english-guides.md。 */
+   攻略在 courses/english/ielts/guides/：听力 8 篇，阅读 5 篇。choice、distractor、matching、form、spelling、numbers、plural 听力和阅读都用，
+   等 PRACTICE 能按线路分别指定攻略，再把听力的 choice、distractor 指到 ielts-listening-choice，form 指到 ielts-listening-predict。选题见 docs/research/english-guides.md。 */
 export const PRACTICE = {
  spelling: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
  numbers: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
  'word-limit': { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
  form: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
  plural: { guide: 'ielts-listening-gaps', app: null, topics: ['雅思听力'] },
- map: { guide: null, app: null, topics: ['雅思听力'] },
- paraphrase: { guide: null, app: { path: '/wordbook', zh: '生词本', en: 'Wordbook' }, topics: ['雅思阅读', '雅思听力'] },
- discussion: { guide: null, app: null, topics: ['雅思听力'] },
- tfng: { guide: null, app: null, topics: ['雅思阅读'] },
- ynng: { guide: null, app: null, topics: ['雅思阅读'] },
- headings: { guide: null, app: null, topics: ['雅思阅读'] },
- summary: { guide: null, app: null, topics: ['雅思阅读'] },
- diagram: { guide: null, app: null, topics: ['雅思阅读'] },
- features: { guide: null, app: null, topics: ['雅思阅读'] },
- endings: { guide: null, app: null, topics: ['雅思阅读'] },
+ map: { guide: 'ielts-listening-maps', app: null, topics: ['雅思听力'] },
+ paraphrase: { guide: 'ielts-paraphrase', app: { path: '/wordbook', zh: '生词本', en: 'Wordbook' }, topics: ['雅思阅读', '雅思听力'] },
+ discussion: { guide: 'ielts-listening-discussion', app: null, topics: ['雅思听力'] },
+ lecture: { guide: 'ielts-listening-lecture', app: null, topics: ['雅思听力'] },
+ tfng: { guide: 'ielts-reading-judge', app: null, topics: ['雅思阅读'] },
+ ynng: { guide: 'ielts-reading-judge', app: null, topics: ['雅思阅读'] },
+ headings: { guide: 'ielts-reading-headings', app: null, topics: ['雅思阅读'] },
+ summary: { guide: 'ielts-reading-completion', app: null, topics: ['雅思阅读'] },
+ diagram: { guide: 'ielts-reading-completion', app: null, topics: ['雅思阅读'] },
+ features: { guide: 'ielts-reading-matching', app: null, topics: ['雅思阅读'] },
+ endings: { guide: 'ielts-reading-matching', app: null, topics: ['雅思阅读'] },
 };
