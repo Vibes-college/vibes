@@ -56,8 +56,8 @@ what went wrong, the answers and the transcript. -->
 
 	<section v-if="anyWrong && (cards.length > 0 || result.tutor)" :class="$style.practice">
 		<h2 :class="$style.h2">{{ gateLabels.practiceTitle }}</h2>
-		<div v-for="card in cards" :key="card.tag" :class="$style.card">
-			<b :class="$style.cardHead">{{ tagName(card.tag) }} <small>{{ gateLabels.wrongCount(card.count) }}</small></b>
+		<div v-for="card in cards" :key="`${card.tag}|${card.skill}`" :class="$style.card">
+			<b :class="$style.cardHead">{{ cardName(card) }} <small>{{ gateLabels.wrongCount(card.count) }}</small></b>
 			<div :class="$style.links">
 				<MkA v-if="card.guide && guides[card.guide]" :to="`/guides/${card.guide}`" :class="$style.link">
 					<i class="ti ti-book"></i> {{ gateLabels.guide }} · {{ guides[card.guide] }}
@@ -93,8 +93,8 @@ import XReview from './gate.review.vue';
 import MkButton from '@/components/MkButton.vue';
 import { guideTitle } from '@/lojo/gates/api.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
-import { bandText, recommendCards, stationBand } from '@/lojo/gates/player.js';
-import type { GateAttempt, GatePack, GateResult, PackStation } from '@/lojo/gates/player.js';
+import { bandText, recommendCards, stationBand, weakBySkill } from '@/lojo/gates/player.js';
+import type { GateAttempt, GatePack, GateResult, PackStation, RecommendCard } from '@/lojo/gates/player.js';
 
 const props = defineProps<{
 	result: GateResult;
@@ -118,16 +118,16 @@ const emit = defineEmits<{
 const placedAt = computed(() => props.result.placement?.placedAt ?? null);
 const durationMs = computed(() => props.result.durationMs + (props.earlier?.result.durationMs ?? 0));
 
-// What went wrong in both parts of a placement test, or in this gate.
-const weak = computed(() => {
-	const counts = new Map<string, number>();
-	for (const w of [...(props.earlier?.result.weak ?? []), ...props.result.weak]) counts.set(w.tag, (counts.get(w.tag) ?? 0) + w.count);
-	return [...counts].map(([tag, count]) => ({ tag, count }));
-});
+// What went wrong in both parts of a placement test, or in this gate, by the skill of each question.
+const weak = computed(() => weakBySkill([...(props.earlier ? [props.earlier] : []), { result: props.result, attempt: props.attempt }]));
 const cards = computed(() => recommendCards(weak.value, props.pack.PRACTICE));
 // All right: nothing to practise, and nothing to take to the tutor.
 const anyWrong = computed(() => [...(props.earlier?.result.items ?? []), ...props.result.items].some(i => !i.correct));
 const tagName = (tag: string) => props.pack.TAGS[tag]?.[gateLang] ?? tag;
+// a tag with a card for each skill says which is which
+const cardName = (card: RecommendCard) => cards.value.filter(c => c.tag === card.tag).length > 1
+	? `${tagName(card.tag)} · ${card.skill === 'reading' ? gateLabels.readingPart : gateLabels.listeningPart}`
+	: tagName(card.tag);
 
 // "听力 · 4.5": stations on the same line are named by their band.
 function stationTitle(id: string): string {

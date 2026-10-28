@@ -19,10 +19,12 @@ import {
 	placementLine,
 	questionRefs,
 	readingTimeLeft,
+	forLine,
 	recommendCards,
 	secondsLeft,
+	weakBySkill,
 } from '@/lojo/gates/player.js';
-import type { GateGroup } from '@/lojo/gates/player.js';
+import type { GateAttempt, GateGroup, GateResult } from '@/lojo/gates/player.js';
 
 const text = { en: 'Complete the form.', zh: '补全表格。' };
 const group = (g: Partial<GateGroup> & Pick<GateGroup, 'type' | 'items'>): GateGroup => ({
@@ -73,8 +75,39 @@ describe('Vibes gate player', () => {
 
 	test('recommends only what exists for the most-missed tags', () => {
 		const practice = { spelling: { guide: null, app: null, topics: ['雅思听力'] }, map: { guide: null, app: null, topics: [] } };
-		const cards = recommendCards([{ tag: 'map', count: 3 }, { tag: 'spelling', count: 2 }, { tag: 'numbers', count: 1 }], practice);
+		const cards = recommendCards([{ tag: 'map', skill: 'listening', count: 3 }, { tag: 'spelling', skill: 'listening', count: 2 }, { tag: 'numbers', skill: 'listening', count: 1 }], practice);
 		expect(cards.map(c => c.tag)).toEqual(['spelling']);
+	});
+
+	test('a PRACTICE field is for every line, or by line id', () => {
+		expect(forLine('ielts-listening-gaps', 'reading')).toBe('ielts-listening-gaps');
+		expect(forLine({ listening: 'ielts-listening-choice', reading: null }, 'listening')).toBe('ielts-listening-choice');
+		expect(forLine({ listening: 'ielts-listening-choice', reading: null }, 'reading')).toBeNull();
+		expect(forLine({ listening: 'ielts-listening-choice' }, 'reading')).toBeUndefined();
+		expect(forLine(['雅思听力'], 'reading')).toEqual(['雅思听力']);
+		expect(forLine<string[] | null>({ reading: ['雅思阅读'] }, 'reading')).toEqual(['雅思阅读']);
+	});
+
+	test('a tag missed in both skills: one card when the lines share the advice, two when they don\'t', () => {
+		const weak = [{ tag: 'choice', skill: 'listening', count: 2 }, { tag: 'choice', skill: 'reading', count: 2 }, { tag: 'form', skill: 'listening', count: 3 }] as const;
+		const shared = recommendCards([...weak], { choice: { guide: 'ielts-choice' }, form: { guide: 'ielts-listening-gaps' } });
+		expect(shared.map(c => [c.tag, c.count, c.guide])).toEqual([['choice', 4, 'ielts-choice'], ['form', 3, 'ielts-listening-gaps']]);
+		const split = recommendCards([...weak], { choice: { guide: { listening: 'ielts-listening-choice', reading: 'ielts-reading-choice' } }, form: { guide: 'ielts-listening-gaps' } }, 3);
+		expect(split.map(c => [c.tag, c.skill, c.guide])).toEqual([
+			['form', 'listening', 'ielts-listening-gaps'], ['choice', 'listening', 'ielts-listening-choice'], ['choice', 'reading', 'ielts-reading-choice'],
+		]);
+		// a line with nothing for it gets no card
+		const listeningOnly = recommendCards([{ tag: 'choice', skill: 'reading', count: 5 }], { choice: { guide: { listening: 'ielts-listening-choice', reading: null }, topics: { listening: ['雅思听力'] } } });
+		expect(listeningOnly).toEqual([]);
+	});
+
+	test('counts what went wrong by the skill of each question', () => {
+		const attempt = { groups: [group({ type: 'choice', items: [item([1]), item([2])] }), group({ type: 'judge', skill: 'reading', items: [item([3]), item([4])] })] } as unknown as GateAttempt;
+		const mark = (n: number, correct: boolean, tags: string[]) => ({ n, correct, given: '', expected: '', accepted: [], reason: correct ? null : 'wrong', tags });
+		const result = { items: [mark(1, false, ['choice']), mark(2, true, ['choice']), mark(3, false, ['choice', 'distractor']), mark(4, true, ['tfng'])] } as unknown as GateResult;
+		expect(weakBySkill([{ result, attempt }])).toEqual([
+			{ tag: 'choice', skill: 'listening', count: 1 }, { tag: 'choice', skill: 'reading', count: 1 }, { tag: 'distractor', skill: 'reading', count: 1 },
+		]);
 	});
 
 	test('formats the time used', () => {

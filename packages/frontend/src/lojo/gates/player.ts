@@ -31,7 +31,10 @@ export type PackStation = { id: string; band: number; part?: Bilingual; focus?: 
 export type PackLine = { n: number; id: string; zh: string; en: string; live: boolean; stations: PackStation[] };
 export type PackInterchange = { ids: string[]; zh: string; en: string; dzh: string; den: string; why: Bilingual };
 export type PracticeApp = { path: string; zh: string; en: string };
-export type PracticeEntry = { guide?: string | null; app?: PracticeApp | null; topics?: string[] | null };
+// A tag both lines ask (choice, form…) can point each line somewhere else: a plain value is for every line, an object
+// is by line id ({ listening: 'ielts-listening-choice', reading: null }); a line it leaves out gets nothing.
+export type PerLine<T> = T | { [line: string]: T | undefined };
+export type PracticeEntry = { guide?: PerLine<string | null>; app?: PracticeApp | null; topics?: PerLine<string[] | null> };
 export type GatePack = {
 	LINES: PackLine[];
 	INTERCHANGES: PackInterchange[];
@@ -285,23 +288,56 @@ export function durationParts(ms: number): { h: number; m: number; s: number } {
 	return { h: Math.floor(total / 3600), m: Math.floor((total % 3600) / 60), s: total % 60 };
 }
 
-export type RecommendCard = { tag: string; count: number; guide: string | null; app: PracticeApp | null; topics: string[] };
+// The value of a PRACTICE field for one line (see PerLine).
+export function forLine<T>(value: PerLine<T> | undefined, line: string): T | undefined {
+	if (value == null || typeof value !== 'object' || Array.isArray(value)) return value as T | undefined;
+	const byLine = value as { [line: string]: T | undefined };
+	return Object.hasOwn(byLine, line) ? byLine[line] : undefined;
+}
 
-// Where to practise the most-missed question types: one card for each of the top `max` tags, with only what exists
-// (a guide, a page in the community, hashtags). A tag with nothing to offer gets no card.
-export function recommendCards(weak: { tag: string; count: number }[], practice: Record<string, PracticeEntry>, max = 2): RecommendCard[] {
-	const seen = new Set<string>();
-	const top = weak
-		.filter(w => w.count > 0)
+export type Weak = { tag: string; skill: GateSkill; count: number };
+
+// What went wrong, by tag and by the skill of the question it was in (a half-and-half set has both), over the parts
+// of a placement test or the one paper of a gate.
+export function weakBySkill(parts: { result: GateResult; attempt: GateAttempt }[]): Weak[] {
+	const counts = new Map<string, Weak>();
+	for (const { result, attempt } of parts) {
+		const skillOf = new Map(attempt.groups.flatMap(g => g.items.flatMap(item => item.n.map(n => [n, g.skill] as const))));
+		for (const item of result.items) {
+			if (item.correct) continue;
+			const skill = skillOf.get(item.n) ?? attempt.groups[0]?.skill ?? 'listening';
+			for (const tag of item.tags) {
+				const key = `${tag}|${skill}`;
+				const weak = counts.get(key) ?? { tag, skill, count: 0 };
+				weak.count++;
+				counts.set(key, weak);
+			}
+		}
+	}
+	return [...counts.values()];
+}
+
+export type RecommendCard = { tag: string; skill: GateSkill; count: number; guide: string | null; app: PracticeApp | null; topics: string[] };
+
+// Where to practise the most-missed question types: one card for each of the top `max`, with only what exists (a guide,
+// a page in the community, hashtags); one with nothing to offer gets no card. A tag missed in both listening and
+// reading is one card when the two lines share the advice, and two when they don't.
+export function recommendCards(weak: Weak[], practice: Record<string, PracticeEntry>, max = 2): RecommendCard[] {
+	const cards = new Map<string, RecommendCard>();
+	for (const { tag, skill, count } of weak) {
+		if (count <= 0) continue;
+		const entry = Object.hasOwn(practice, tag) ? practice[tag] : undefined;
+		const guide = forLine(entry?.guide, skill) || null;
+		const app = entry?.app ?? null;
+		const topics = [...new Set((forLine(entry?.topics, skill) ?? []).filter(t => typeof t === 'string' && t !== ''))];
+		const key = JSON.stringify([tag, guide, app?.path ?? null, topics]);
+		const card = cards.get(key);
+		if (card) card.count += count;
+		else cards.set(key, { tag, skill, count, guide, app, topics });
+	}
+	return [...cards.values()]
 		.sort((a, b) => b.count - a.count)
-		.filter(w => !seen.has(w.tag) && seen.add(w.tag))
-		.slice(0, max);
-	return top
-		.map(({ tag, count }) => {
-			const entry = Object.hasOwn(practice, tag) ? practice[tag] : undefined;
-			const topics = [...new Set((entry?.topics ?? []).filter(t => typeof t === 'string' && t !== ''))];
-			return { tag, count, guide: entry?.guide || null, app: entry?.app ?? null, topics };
-		})
+		.slice(0, max)
 		.filter(card => card.guide != null || card.app != null || card.topics.length > 0);
 }
 
