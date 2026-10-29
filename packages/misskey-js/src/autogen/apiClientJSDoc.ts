@@ -3680,6 +3680,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 同路人: the people who tried a gate in the last 30 days, the latest first (up to `limit`), and how many in all. Leaves out you, people you block or mute or who block you, bots, suspended accounts, people who are not discoverable or hide their online status, and profiles under 18.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/gates/peers', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Start a line's placement test: without `after` its first part; with the handed-in first part (`after`), the harder or easier second part it leads to. Hand each part in with lojo/gates/submit.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*

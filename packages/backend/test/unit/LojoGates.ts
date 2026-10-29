@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { gateProfileText, gateProgress, isGateCourse, markSet, normalizeAnswer, overLimit, paperOf, pickSet, placeAt, placedStation, publicGroups, publicPassage, weakTags } from '@/misc/lojo-gates.js';
+import { adultBirthday, gateProfileText, gateProgress, isGateCourse, markSet, normalizeAnswer, overLimit, paperOf, pickSet, placeAt, placedStation, publicGroups, publicPassage, weakTags } from '@/misc/lojo-gates.js';
 import type { GateAttemptFact, GateCourse, GateGroup, GatePlacement, GateSet } from '@/misc/lojo-gates.js';
 
 const text = { en: 'Complete the form.', zh: '补全表格。' };
@@ -210,5 +210,15 @@ describe('Vibes route map gates', () => {
 		expect(isGateCourse({ ...course, sets: [{ ...reading(), groups: [{ ...reading().groups[0], skill: 'speaking' }] }] })).toBe(false);
 		expect(isGateCourse({ ...course, sets: [{ ...set('1.1'), groups: [] }] })).toBe(false);
 		expect(isGateCourse({ id: 'ielts' })).toBe(false);
+	});
+
+	test('同路人 leave out profiles under 18: the cutoff birthday', () => {
+		expect(adultBirthday(new Date('2026-10-28T09:00:00Z'))).toBe('2008-10-28');
+		// born on 2008-10-28 is 18 that day; a day later is not
+		expect('2008-10-28' <= adultBirthday(new Date('2026-10-28T00:00:00Z'))).toBe(true);
+		expect('2008-10-29' <= adultBirthday(new Date('2026-10-28T23:59:59Z'))).toBe(false);
+		// born on 29 February 2008: not yet 18 on 28 February 2026, 18 on 1 March
+		expect('2008-02-29' <= adultBirthday(new Date('2026-02-28T12:00:00Z'))).toBe(false);
+		expect('2008-02-29' <= adultBirthday(new Date('2026-03-01T12:00:00Z'))).toBe(true);
 	});
 });

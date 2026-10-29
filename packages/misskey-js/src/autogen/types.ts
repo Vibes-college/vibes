@@ -3018,6 +3018,15 @@ export type paths = {
          */
         post: operations['lojo___gates___import'];
     };
+    '/lojo/gates/peers': {
+        /**
+         * lojo/gates/peers
+         * @description 同路人: the people who tried a gate in the last 30 days, the latest first (up to `limit`), and how many in all. Leaves out you, people you block or mute or who block you, bots, suspended accounts, people who are not discoverable or hide their online status, and profiles under 18.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___gates___peers'];
+    };
     '/lojo/gates/placement': {
         /**
          * lojo/gates/placement
@@ -29852,6 +29861,86 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___gates___peers: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    course: string;
+                    station: string;
+                    /** @default 6 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        total: number;
+                        users: components['schemas']['UserLite'][];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

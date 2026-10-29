@@ -312,6 +312,15 @@ export const lojoGateResultSchema = {
 } as const;
 
 // lojo/gates/progress: every station of a gate map with its state for this learner.
+// 同路人: who else tried a gate lately (lojo/gates/peers)
+export const lojoGatePeersSchema = {
+	type: 'object', ...req,
+	properties: {
+		total: { type: 'integer', ...req },
+		users: { type: 'array', ...req, items: { type: 'object', ...req, ref: 'UserLite' } },
+	},
+} as const;
+
 export const lojoGateProgressSchema = {
 	type: 'object', ...req,
 	properties: {

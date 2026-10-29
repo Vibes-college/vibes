@@ -27,6 +27,8 @@ export class MiLojoGateCourse {
 // Kept per attempt so the pass marks can be tuned from real results later.
 @Entity('lojo_gate_attempt')
 @Index('IDX_lojo_gate_attempt_user_course', ['userId', 'course'])
+// 同路人: who tried a gate lately (LojoGateService.peers)
+@Index('IDX_lojo_gate_attempt_course_station', ['course', 'station', 'startedAt'])
 export class MiLojoGateAttempt {
 	@PrimaryColumn({ ...id(), primaryKeyConstraintName: 'PK_lojo_gate_attempt' })
 	public id: string;

@@ -7,6 +7,7 @@
 // (bridge.progress → lojo/gates/progress) and the gates run on their own page (bridge.openGate → /gate/<course>/<gate>),
 // as does a line's placement test (/gate/<course>/placement-<n>), offered until the learner has placed or passed a stop on it;
 // the account registry (bridge.load / bridge.save) only remembers that the welcome card was seen.
+// A stop's 同路人 (who else tried it lately) come from bridge.peers → lojo/gates/peers; the server decides who may show.
 // Shares panzoom.js and route.css with the topic map (runtime.js); the gate-only pieces are in gate-map.css.
 import { PanZoom } from './panzoom.js';
 import { GATE_UI } from './gate-strings.js';
@@ -308,6 +309,7 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		tags += `<span class="tg gst-${s.state}">${T('state')[s.state]}</span>`;
 		$('#pbody').innerHTML = `<button class="back" id="back"><i>${icon('chevron-left')}</i>${T('back')}</button>
 			<div class="tagrow">${tags}</div><h1 class="ptitle">${stTitle(id)}</h1><div class="en-full">${T('practice')}</div>
+			<div class="fellows" id="fellows" hidden></div>
 			<div class="tabs">${['gate', 'peers'].map(t => `<button data-t="${t}" class="${t === TAB ? 'on' : ''}">${T('tabs')[t]}</button>`).join('')}</div>
 			<div id="tabbody">${TAB === 'gate' ? gateBody(id) : peersBody(id)}</div>`;
 		$('#pbody').scrollTop = top;
@@ -318,7 +320,40 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		$$('#panel [data-go]').forEach(b => { b.onclick = () => go(b.dataset.go); });
 		$$('#panel [data-gate], #panel [data-place]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.gate ?? b.dataset.place); });
 		if (TAB === 'peers') loadPeers(id);
+		loadFellows(id);
 		if (SHEET.state === 'peek' || SHEET.state === 'min') sheet('half');
+	}
+
+	// 同路人: who else tried this gate in the last 30 days, as a row of faces (kept for a minute, as switching tabs redraws
+	// the stop). Nothing shows when no one has: there are no stand-ins.
+	const FELLOWS = new Map();
+	const face = u => u.avatarUrl ? `<img src="${esc(u.avatarUrl)}" alt="">` : '<i class="av0"></i>';
+
+	async function loadFellows(id) {
+		let hit = FELLOWS.get(id);
+		if (!hit || Date.now() - hit.at > 60000) {
+			try { hit = { at: Date.now(), data: await bridge.peers(id, 6) }; } catch { return; }
+			FELLOWS.set(id, hit);
+		}
+		const box = $('#fellows'), { total, users } = hit.data;
+		if (!box || !box.isConnected || CUR !== id || total === 0 || users.length === 0) return;
+		const names = users.slice(0, total > 2 ? 2 : total).map(u => esc(u.name || u.username));
+		box.hidden = false;
+		box.innerHTML = `<button class="fface" id="fopen"><span class="fh">${T('fellowH')} · ${T('fellowWhen')}</span>
+			<span class="favs">${users.map(face).join('')}</span><span class="ft">${T('fellows')(names, total > 2 ? total - 2 : 0)}</span></button>`;
+		$('#fopen').onclick = () => fellowList(id);
+	}
+
+	async function fellowList(id) {
+		let all;
+		try { all = await bridge.peers(id, 50); } catch { return; }
+		const box = $('#fellows');
+		if (!box || !box.isConnected || CUR !== id) return;
+		box.innerHTML = `<div class="card"><div class="h">${T('fellowsAll')(all.total)}</div>${all.total > all.users.length ? `<div class="s">${T('fellowsCut')(all.users.length)}</div>` : ''}
+			<div class="notes">${all.users.map(u => `<button class="note" data-user="${esc(u.username)}">${face(u)}<span><b>${esc(u.name || u.username)}</b><small>@${esc(u.username)}</small></span></button>`).join('')}</div>
+			<div class="cardacts"><button class="pillbtn ghost" id="fclose">${T('fellowsClose')}</button></div></div>`;
+		box.querySelectorAll('[data-user]').forEach(b => { b.onclick = () => bridge.openUser(b.dataset.user); });
+		$('#fclose').onclick = () => loadFellows(id);
 	}
 
 	function ago(iso) {

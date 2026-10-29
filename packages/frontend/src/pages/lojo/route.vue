@@ -151,6 +151,9 @@ async function start() {
 			// gate maps: progress from the server, and each gate on its own page (/gate/ielts/1.4)
 			progress: () => misskeyApi('lojo/gates/progress', { course: entry.id }),
 			openGate: (station: string) => router.pushByPath(`/gate/${entry.id}/${station}`),
+			// 同路人: who else tried a gate lately; the server leaves out anyone who shouldn't be shown
+			peers: (station: string, limit: number) => misskeyApi('lojo/gates/peers', { course: entry.id, station, limit }),
+			openUser: (username: string) => router.pushByPath(`/@${username}`),
 			setHash: (id: string | null) => {
 				if (!active || window.location.pathname !== basePath) return;
 				window.history.replaceState(window.history.state, '', id ? `${basePath}#${encodeURIComponent(id)}` : basePath);

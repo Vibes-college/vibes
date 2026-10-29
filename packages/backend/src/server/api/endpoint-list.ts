@@ -467,6 +467,7 @@ export * as 'lojo/gates/start' from './endpoints/lojo/gates/start.js';
 export * as 'lojo/gates/submit' from './endpoints/lojo/gates/submit.js';
 export * as 'lojo/gates/placement' from './endpoints/lojo/gates/placement.js';
 export * as 'lojo/gates/import' from './endpoints/lojo/gates/import.js';
+export * as 'lojo/gates/peers' from './endpoints/lojo/gates/peers.js';
 
 export * as 'lojo/guides/list' from './endpoints/lojo/guides/list.js';
 export * as 'lojo/guides/show' from './endpoints/lojo/guides/show.js';

@@ -21,8 +21,10 @@ import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.j
 import { InternalStorageService } from '@/core/InternalStorageService.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
+import { CacheService } from '@/core/CacheService.js';
+import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { createTemp } from '@/misc/create-temp.js';
-import { gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, publicPassage, setsFor, weakTags } from '@/misc/lojo-gates.js';
+import { PEER_DAYS, adultBirthday, gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, publicPassage, setsFor, weakTags } from '@/misc/lojo-gates.js';
 import type { GateAttemptFact, GateCourse, GatePlacementPath, GateSet } from '@/misc/lojo-gates.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
@@ -73,6 +75,8 @@ export class LojoGateService {
 		private internalStorageService: InternalStorageService,
 		private httpRequestService: HttpRequestService,
 		private lojoSpeechService: LojoSpeechService,
+		private cacheService: CacheService,
+		private userEntityService: UserEntityService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-gates');
 	}
@@ -121,6 +125,41 @@ export class LojoGateService {
 			stations: p.stations.map(s => ({ ...s, passedAt: s.passedAt?.toISOString() ?? null })),
 			last: p.last ? { station: p.last.station, at: p.last.at.toISOString() } : null,
 		};
+	}
+
+	/* ---------- 同路人: who else is at a gate ---------- */
+
+	// The people who tried this gate in the last PEER_DAYS days, the latest first (up to `limit`), and how many there
+	// are, without the viewer. Left out here on the server, not just in the page: suspended, deleted and bot accounts
+	// (the AI editors and tutors), people the viewer blocks or mutes or who block the viewer, people who turned off
+	// "make my account discoverable" or hide their online status, and anyone whose profile says they are under 18:
+	// student accounts are not to turn up when adults look for people (docs/decisions.md, 2026-10-21).
+	public async peers(me: { id: string }, courseId: string, station: string, limit: number) {
+		const course = await this.course(courseId);
+		if (course == null) throw new ApiError(lojoGateErrors.noSuchCourse);
+		if (lineOf(course, station) == null) throw new ApiError(lojoGateErrors.noSuchStation);
+		const [blocking, blocked, muting] = await Promise.all([
+			this.cacheService.userBlockingCache.fetch(me.id),
+			this.cacheService.userBlockedCache.fetch(me.id),
+			this.cacheService.userMutingsCache.fetch(me.id),
+		]);
+		const now = new Date();
+		// an interchange is one stop for both lines: its attempts are filed under its first id
+		const rows: { userId: string }[] = await this.db.query(`
+			SELECT a."userId" FROM lojo_gate_attempt a
+			JOIN "user" u ON u.id = a."userId"
+			JOIN user_profile p ON p."userId" = a."userId"
+			WHERE a.course = $1 AND a.kind = 'gate' AND a.station = $2 AND a."startedAt" > $3
+				AND NOT (a."userId" = ANY($4::varchar[]))
+				AND u.host IS NULL AND NOT u."isSuspended" AND NOT u."isDeleted" AND NOT u."isBot"
+				AND u."isExplorable" AND NOT u."hideOnlineStatus"
+				AND (p.birthday IS NULL OR p.birthday <= $5)
+			GROUP BY a."userId"
+			ORDER BY max(a."startedAt") DESC`,
+		[courseId, gateOf(course, station), new Date(now.getTime() - PEER_DAYS * 24 * 60 * 60 * 1000), [me.id, ...blocking, ...blocked, ...muting], adultBirthday(now)]);
+		const ids = rows.slice(0, limit).map(r => r.userId);
+		const packed = new Map((await this.userEntityService.packMany(ids, me, { schema: 'UserLite' })).map(u => [u.id, u]));
+		return { total: rows.length, users: ids.map(id => packed.get(id)).filter(u => u != null) };
 	}
 
 	/* ---------- one try at a gate ---------- */

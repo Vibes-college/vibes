@@ -109,3 +109,15 @@
 .gst.place{background:var(--ctaBg);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .gst.place .gst-h{margin:0;color:var(--cta)}
 .gst.place .gst-h b{font-size:15.5px}
+
+/* 同路人: who else tried this stop lately, as a row of faces under the title (as in a "liked by" line) */
+.fellows{margin:-4px 0 2px}
+.fface{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;padding:8px 6px;border-radius:12px;text-align:left}
+.fface:hover{background:color-mix(in srgb,var(--fg) 5%,var(--panel))}
+.fh{font-size:11.5px;color:var(--weak)}
+.favs{display:flex;padding-left:10px}
+.favs img,.favs .av0{width:36px;height:36px;margin-left:-10px;border-radius:50%;border:2px solid var(--panel);flex:none;object-fit:cover;background:var(--line)}
+.favs .av0{background:color-mix(in srgb,var(--accent) 22%,var(--panel))}
+.ft{font-size:13.5px;line-height:1.4;color:var(--fg)}
+.fellows .card{margin:4px 0 8px}
+.fellows .note small{display:block}

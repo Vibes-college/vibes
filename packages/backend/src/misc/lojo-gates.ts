@@ -174,6 +174,14 @@ export function markSet(set: GateSet, answers: Map<number, string>): { score: nu
 	return { score: items.filter(i => i.correct).length, items };
 }
 
+// 同路人 are the people who tried a gate within this many days.
+export const PEER_DAYS = 30;
+
+// The latest birthday (YYYY-MM-DD) of someone who is 18 on `now`: a profile born on or before it is an adult's.
+export function adultBirthday(now: Date): string {
+	return new Date(Date.UTC(now.getUTCFullYear() - 18, now.getUTCMonth(), now.getUTCDate())).toISOString().slice(0, 10);
+}
+
 // Tags of the questions answered wrong, most frequent first: what to practise.
 export function weakTags(items: GateItemResult[]): { tag: string; count: number }[] {
 	const counts = new Map<string, number>();
