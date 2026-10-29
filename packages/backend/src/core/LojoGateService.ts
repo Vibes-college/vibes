@@ -32,6 +32,9 @@ import { lojoEnglishErrors, lojoGateErrors } from '@/server/api/lojo-schemas.js'
 import type Logger from '@/logger.js';
 
 const run = promisify(execFile);
+// 同路人 stay hidden until there are enough learners for most stops to have some (the founder opens them at about 500):
+// LOJO_PEERS=open on the server. Until then no one shows, and the map leaves the row out.
+const PEERS_OPEN = process.env.LOJO_PEERS === 'open';
 // The imported question sets change only on an import, which clears this cache on the process that took it.
 const COURSE_TTL = 60 * 1000;
 // Silence around the lines of a recording, in seconds.
@@ -138,6 +141,7 @@ export class LojoGateService {
 		const course = await this.course(courseId);
 		if (course == null) throw new ApiError(lojoGateErrors.noSuchCourse);
 		if (lineOf(course, station) == null) throw new ApiError(lojoGateErrors.noSuchStation);
+		if (!PEERS_OPEN) return { total: 0, users: [] };
 		const [blocking, blocked, muting] = await Promise.all([
 			this.cacheService.userBlockingCache.fetch(me.id),
 			this.cacheService.userBlockedCache.fetch(me.id),
