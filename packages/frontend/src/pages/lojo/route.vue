@@ -30,6 +30,7 @@ import { lang } from '@@/js/config.js';
 import { lojoLabels } from '@/lojo/labels.js';
 import { CATALOG, DEFAULT_COURSE } from '@/lojo/route/courses/index.js';
 import { coursePath, isReady, loadRouteRegistry, myMaps, ROUTE_SCOPE, saveMyMaps, withCourse } from '@/lojo/route/my-maps.js';
+import { loadTypingProgress } from '@/lojo/typing/progress.js';
 import MkButton from '@/components/MkButton.vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import { $i } from '@/i.js';
@@ -154,6 +155,9 @@ async function start() {
 			// 同路人: who else tried a gate lately; the server leaves out anyone who shouldn't be shown
 			peers: (station: string, limit: number) => misskeyApi('lojo/gates/peers', { course: entry.id, station, limit }),
 			openUser: (username: string) => router.pushByPath(`/@${username}`),
+			// a pack's warm-up line (IELTS: 0 号线 · 机考打字, WARMUP in content.js): its progress, kept in the account registry, and its page
+			warmup: (id: string) => id === 'typing' ? loadTypingProgress() : Promise.resolve(null),
+			openPath: (path: string) => router.pushByPath(path),
 			setHash: (id: string | null) => {
 				if (!active || window.location.pathname !== basePath) return;
 				window.history.replaceState(window.history.state, '', id ? `${basePath}#${encodeURIComponent(id)}` : basePath);

@@ -70,6 +70,12 @@ export const ROUTE_DEF = [{
 		tag: 'tag',
 	},
 }, {
+	// 0 号线 · 机考打字: a short line of 5 typing stops before the IELTS listening placement test.
+	name: 'lojo-typing',
+	path: '/typing',
+	component: page(() => import('@/pages/lojo/typing.vue')),
+	loginRequired: true,
+}, {
 	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
 	name: 'lojo',
 	path: '/map/:course',

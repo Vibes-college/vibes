@@ -8,6 +8,8 @@
 // as does a line's placement test (/gate/<course>/placement-<n>), offered until the learner has placed or passed a stop on it;
 // the account registry (bridge.load / bridge.save) only remembers that the welcome card was seen.
 // A stop's 同路人 (who else tried it lately) come from bridge.peers → lojo/gates/peers; the server decides who may show.
+// A pack may have a WARMUP line (IELTS: 0 号线 · 机考打字): not a gate line but a short one on its own page, listed first
+// and offered to a newcomer before the placement test; its progress comes from bridge.warmup, its page opens with bridge.openPath.
 // Shares panzoom.js and route.css with the topic map (runtime.js); the gate-only pieces are in gate-map.css.
 import { PanZoom } from './panzoom.js';
 import { GATE_UI } from './gate-strings.js';
@@ -44,7 +46,7 @@ function normalize(raw) {
 
 // course: a gate course pack (courses/<id>/index.js); catalog: [{ id, short:{zh,en}, ready }] for the course chips
 export async function mount(shadow, bridge, course, catalog = []) {
-	const { META, LINES, INTERCHANGES = [], CANVAS, POS, PATHS, TAGPOS = {}, BBOX } = course;
+	const { META, LINES, INTERCHANGES = [], CANVAS, POS, PATHS, TAGPOS = {}, BBOX, WARMUP = null } = course;
 	const LANG = bridge.lang === 'en' ? 'en' : 'zh';
 	const T = k => course.TEXT[LANG][k] ?? GATE_UI[LANG][k];
 	const L = o => (o && (o[LANG] ?? o.zh)) || '';
@@ -90,6 +92,11 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		});
 		LAST = p && p.last && NODES[p.last.station] ? p.last : null;
 	}
+	// the warm-up line's progress: { passed, total, done }, or null while unknown
+	let WP = null;
+	const absorbWarm = w => { if (w && typeof w === 'object') WP = { passed: Array.isArray(w.passed) ? w.passed.length : +w.passed || 0, total: +w.total || WARMUP.stops, done: !!w.done }; };
+	// a failed read keeps what is on screen
+	const warmNow = () => WARMUP && bridge.warmup ? bridge.warmup(WARMUP.id).catch(() => null) : Promise.resolve(null);
 	const passedN = () => ORDER.filter(id => SP[id].state === 'passed').length;
 	// attempts belong to a gate; the two stops of an interchange share theirs
 	const triesN = () => { const g = {}; ORDER.forEach(id => { g[gateOf(id)] = Math.max(g[gateOf(id)] || 0, SP[id].attempts); }); return Object.values(g).reduce((a, b) => a + b, 0); };
@@ -106,13 +113,14 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	const behind = id => NODES[id].line.stations.slice(0, NODES[id].i).filter(s => SP[s.id].state !== 'passed').length;
 
 	/* ---------- saved to the account: only the welcome card and the phone hint ---------- */
-	const [saved, first] = await Promise.all([bridge.load().catch(() => null), bridge.progress().then(p => ({ p }), e => ({ e }))]);
+	const [saved, first, warm] = await Promise.all([bridge.load().catch(() => null), bridge.progress().then(p => ({ p }), e => ({ e })), warmNow()]);
 	const S = normalize(saved);
 	let saveTimer = 0, hintTimer = 0, dirty = false, disposed = false, paused = false;
 	const flush = () => { if (!dirty) return; dirty = false; bridge.save(JSON.parse(JSON.stringify(S))).catch(() => { dirty = true; bridge.toast(T('saveFailed')); }); };
 	const save = () => { dirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 500); };
 	const keep = (k, v) => { S[k] = v; save(); };
 	absorb(first.p ?? null);
+	absorbWarm(warm);
 	if (first.e) { console.warn('gate progress', first.e); bridge.toast(T('progressFailed')); }
 
 	/* ---------- shell ---------- */
@@ -220,10 +228,17 @@ export async function mount(shadow, bridge, course, catalog = []) {
 
 	function overview() {
 		const tl = T('tiles'), done = passedN(), me = pinStop(), pt = placeTest(NODES[me || FIRST].n);
-		let h = `<div class="eyebrow">${T('eyebrow')}</div><h1 class="ptitle">${T('title')}</h1><p class="lede">${T('lede')}</p>${pt ? placeCard(pt, false) : ''}
+		const fresh = !LAST && !done;
+		// a newcomer is offered the warm-up line first; the placement test card then carries its own button
+		const warmFirst = !!WARMUP && fresh && !WP?.done;
+		let h = `<div class="eyebrow">${T('eyebrow')}</div><h1 class="ptitle">${T('title')}</h1><p class="lede">${T('lede')}</p>${pt ? placeCard(pt, warmFirst) : ''}
 			<div class="tiles two"><div class="tile"><small>${tl[0]}</small><b>${done}<span> / ${ORDER.length}</span></b></div>
 			<div class="tile"><small>${tl[1]}</small><b>${triesN()}<span> ${T('timesZ')}</span></b></div></div>
 			<div class="sh"><h3>${T('linesH')}</h3><span>${T('linesN')}</span></div>`;
+		if (WARMUP) {
+			const sub = WP?.done ? T('warmDone') : T('warmSub')(WARMUP.stops, WARMUP.minutes);
+			h += `<button class="row warm" data-warm><i class="dot" style="background:${esc(WARMUP.color)}"></i><span class="t"><b>${T('lineName')(WARMUP.n ?? 0, esc(L(WARMUP)))}</b><small>${sub}</small></span><span class="r">${WP ? WP.passed : 0} / ${WP ? WP.total : WARMUP.stops}</span></button>`;
+		}
 		LINES.forEach(l => {
 			const lp = LP[l.n];
 			h += `<button class="row${lp.live ? '' : ' soon'}" data-line="${l.n}"><i class="dot" style="background:${COLOR(l.n)}"></i><span class="t"><b>${T('lineName')(l.n, esc(L(l)))}</b><small>${lineSub(l)}</small></span><span class="r">${lp.passed} / ${lp.total}</span></button>`;
@@ -232,15 +247,18 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		h += `<p class="legal">${T('legal')}</p>`;
 		$('#pbody').innerHTML = h;
 		$('#minibar').innerHTML = `<b>${T('title')}</b><span>${done} / ${ORDER.length}</span>`;
-		const fresh = !LAST && !done, label = !me ? T('startAt')(band(FIRST)) : fresh ? T('startAt')(band(me)) : T('contL') + stTitle(me);
-		// a newcomer gets the placement test next to "start at 4.0", where the thumb is
-		$('#pfoot').innerHTML = pt
+		const label = !me ? T('startAt')(band(FIRST)) : fresh ? T('startAt')(band(me)) : T('contL') + stTitle(me);
+		// a newcomer gets the warm-up line, or else the placement test, next to "start at 4.0", where the thumb is
+		$('#pfoot').innerHTML = warmFirst
+			? `<div class="gfoot"><button class="cta ghost" id="gohere">${icon('current-location')}<span class="ctat">${label}</span></button><button class="cta" data-warm>${icon('keyboard')}<span class="ctat">${T('warmGoShort')}</span></button></div>`
+			: pt
 			? `<div class="gfoot"><button class="cta ghost" id="gohere">${icon('current-location')}<span class="ctat">${label}</span></button><button class="cta" data-place="${pt}">${icon('compass')}<span class="ctat">${T('placeGo')}</span></button></div>`
 			: `<button class="cta" id="gohere">${icon('current-location')}<span class="ctat">${label}</span></button>`;
 		$$('#pbody [data-line]').forEach(b => { b.onclick = () => focusLine(b.dataset.line); });
 		$$('#pbody [data-course]').forEach(b => { b.onclick = () => { if (b.dataset.course !== META.id) bridge.openCourse(b.dataset.course); }; });
 		$('#pbody [data-catalog]').onclick = () => bridge.openCatalog();
 		$$('#panel [data-place]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.place); });
+		$$('#panel [data-warm]').forEach(b => { b.onclick = () => bridge.openPath(WARMUP.path); });
 		$('#gohere').onclick = () => go(pinStop() || FIRST);
 		sheet(SHEET.state === 'full' ? 'half' : SHEET.state);
 	}
@@ -438,12 +456,21 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		const st = T('state'), me = pinStop() || FIRST, fresh = !LAST && !passedN(), sep = LANG === 'zh' ? '' : ' ', pt = placeTest(NODES[me].n);
 		const live = LINES.filter(l => LP[l.n].live).map(l => T('lineName')(l.n, esc(L(l))));
 		const stops = [['passed', 40], ['open', 130], ['locked', 220]].map(([k, x]) => marker(x, 26, k, 'var(--l1)', 13) + `<text x="${x}" y="68" class="wlab">${st[k]}</text>`).join('');
+		// a newcomer: the warm-up line first, then the placement test (or "start at 4.0"); otherwise as before
+		const warmFirst = !!WARMUP && fresh && !WP?.done;
+		const place = (ghost) => `<button class="cta${ghost ? ' ghost' : ''}" id="obplace">${icon('compass')}${T('placeGo')} →</button>`;
+		const goBtn = (ghost) => `<button class="cta${ghost ? ' ghost' : ''}" id="obgo">${fresh ? T('startAt')(band(me)) : T('wGoNext')(stTitle(me))} →</button>`;
+		const acts = warmFirst
+			? `<button class="cta" id="obwarm">${icon('keyboard')}${T('warmGo')(WARMUP.minutes)} →</button>${pt ? place(true) : goBtn(true)}`
+			: `${pt ? place(false) : ''}${goBtn(!!pt)}`;
 		modal(`<svg class="gwel" viewBox="0 0 260 76" aria-hidden="true"><path d="M30 26 H230" class="wtrack"/>${stops}</svg>
 			<div class="obeye">${T('wEye')}</div><h2>${T('wTitle')}</h2>
-			<p>${T('wText')}${live.length && live.length < LINES.length ? sep + T('wLive')(live.join(LANG === 'zh' ? '、' : ', ')) : ''}</p>${pt ? `<p>${T('wPlace')}</p>` : ''}<p class="obnote">${T('wNote')}</p>
-			<div class="obacts">${pt ? `<button class="cta" id="obplace">${icon('compass')}${T('placeGo')} →</button>` : ''}<button class="cta${pt ? ' ghost' : ''}" id="obgo">${fresh ? T('startAt')(band(me)) : T('wGoNext')(stTitle(me))} →</button><button class="obtext" id="obskip">${T('wSkip')}</button></div>`, 'welcome');
-		if (pt) $('#obplace').onclick = () => { closeModal(); keep('onboarded', true); bridge.openGate(pt); };
-		$('#obgo').onclick = () => { closeModal(); keep('onboarded', true); go(me); };
+			<p>${T('wText')}${live.length && live.length < LINES.length ? sep + T('wLive')(live.join(LANG === 'zh' ? '、' : ', ')) : ''}</p>${warmFirst ? `<p>${T('wWarm')(WARMUP.stops, WARMUP.minutes)}</p>` : pt ? `<p>${T('wPlace')}</p>` : ''}<p class="obnote">${T('wNote')}</p>
+			<div class="obacts">${acts}<button class="obtext" id="obskip">${T('wSkip')}</button></div>`, 'welcome');
+		const on = (sel, f) => { const b = $(sel); if (b) b.onclick = () => { closeModal(); keep('onboarded', true); f(); }; };
+		on('#obwarm', () => bridge.openPath(WARMUP.path));
+		on('#obplace', () => bridge.openGate(pt));
+		on('#obgo', () => go(me));
 		$('#obskip').onclick = () => { closeModal(); keep('onboarded', true); };
 	}
 
@@ -494,11 +521,11 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		// re-read progress (e.g. back from a gate) and redraw; a failed call keeps what is on screen
 		async refresh() {
 			if (disposed) return;
-			let p;
-			try { p = await bridge.progress(); } catch (e) { console.warn('gate progress', e); if (!disposed) bridge.toast(T('refreshFailed')); return; }
+			let p, w;
+			try { [p, w] = await Promise.all([bridge.progress(), warmNow()]); } catch (e) { console.warn('gate progress', e); if (!disposed) bridge.toast(T('refreshFailed')); return; }
 			if (disposed) return;
 			const was = {}; ORDER.forEach(id => { was[id] = SP[id].state; });
-			absorb(p); renderMap();
+			absorb(p); absorbWarm(w); renderMap();
 			if (CUR) station(CUR, true); else overview();
 			new Set(ORDER.filter(id => was[id] !== SP[id].state && SP[id].state !== 'soon').map(gateOf)).forEach(pop);
 		},
