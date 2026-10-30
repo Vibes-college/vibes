@@ -60,6 +60,16 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/wordbook.vue')),
 	loginRequired: true,
 }, {
+	// 听写: listen and type the gap (spelling, numbers and dates, plurals). ?gate=<attempt>&tag=… practises a gate's misses.
+	name: 'lojo-dictation',
+	path: '/dictation',
+	component: page(() => import('@/pages/lojo/dictation.vue')),
+	loginRequired: true,
+	query: {
+		gate: 'gate',
+		tag: 'tag',
+	},
+}, {
 	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
 	name: 'lojo',
 	path: '/map/:course',

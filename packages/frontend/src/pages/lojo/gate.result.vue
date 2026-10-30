@@ -62,7 +62,7 @@ what went wrong, the answers and the transcript. -->
 				<MkA v-if="card.guide && guides[card.guide]" :to="`/guides/${card.guide}`" :class="$style.link">
 					<i class="ti ti-book"></i> {{ gateLabels.guide }} · {{ guides[card.guide] }}
 				</MkA>
-				<MkA v-if="card.app" :to="card.app.path" :class="$style.link">
+				<MkA v-if="card.app" :to="appPath(card)" :class="$style.link">
 					<i class="ti ti-apps"></i> {{ gateLabels.app }} · {{ card.app[gateLang] }}
 				</MkA>
 				<MkA v-for="topic in card.topics" :key="topic" :to="`/tags/${encodeURIComponent(topic)}`" :class="$style.link">
@@ -95,6 +95,7 @@ import { guideTitle } from '@/lojo/gates/api.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
 import { bandText, recommendCards, stationBand, weakBySkill } from '@/lojo/gates/player.js';
 import type { GateAttempt, GatePack, GateResult, PackStation, RecommendCard } from '@/lojo/gates/player.js';
+import { DICTATION_PATH, carryFromResult, carryPath, saveCarry } from '@/lojo/dictation/carry.js';
 
 const props = defineProps<{
 	result: GateResult;
@@ -134,6 +135,22 @@ function stationTitle(id: string): string {
 	const band = stationBand(props.pack, id);
 	return band == null ? id : gateLabels.stationTitle(props.lineName, bandText(band));
 }
+
+// 听写 practises exactly the gaps missed here: they go along in this tab's sessionStorage, under this attempt.
+const dictation = computed(() => carryFromResult(
+	[...(props.earlier ? [props.earlier] : []), { result: props.result, attempt: props.attempt }],
+	props.result.placement ? props.title : `${props.lineName} ${bandText(props.result.band)}`,
+	// after a placement test there is no one gate to try again
+	props.result.placement ? null : props.result.station,
+));
+watch(dictation, carry => {
+	if (carry) saveCarry(carry);
+}, { immediate: true });
+const appPath = (card: RecommendCard) => {
+	const path = card.app?.path ?? '';
+	const carry = dictation.value;
+	return path === DICTATION_PATH && carry?.gaps.some(g => g.tags.includes(card.tag)) ? carryPath(carry.attemptId, card.tag) : path;
+};
 
 // Guide cards show only once the guide's title has loaded; a guide that is gone is left out.
 const guides = ref<Record<string, string>>({});
