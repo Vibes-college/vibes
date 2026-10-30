@@ -539,6 +539,16 @@ import type {
 	LojoStateUpdateResponse,
 	LojoTutorPokeRequest,
 	LojoTutorPokeResponse,
+	LojoWordsAddRequest,
+	LojoWordsAddResponse,
+	LojoWordsImportRequest,
+	LojoWordsImportResponse,
+	LojoWordsListResponse,
+	LojoWordsRemoveRequest,
+	LojoWordsReviewRequest,
+	LojoWordsReviewResponse,
+	LojoWordsTodayRequest,
+	LojoWordsTodayResponse,
 	MetaRequest,
 	MetaResponse,
 	MiauthGenTokenRequest,
@@ -1074,6 +1084,12 @@ export type Endpoints = {
 	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
 	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
 	'lojo/tutor/poke': { req: LojoTutorPokeRequest; res: LojoTutorPokeResponse };
+	'lojo/words/add': { req: LojoWordsAddRequest; res: LojoWordsAddResponse };
+	'lojo/words/import': { req: LojoWordsImportRequest; res: LojoWordsImportResponse };
+	'lojo/words/list': { req: EmptyRequest; res: LojoWordsListResponse };
+	'lojo/words/remove': { req: LojoWordsRemoveRequest; res: EmptyResponse };
+	'lojo/words/review': { req: LojoWordsReviewRequest; res: LojoWordsReviewResponse };
+	'lojo/words/today': { req: LojoWordsTodayRequest; res: LojoWordsTodayResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };

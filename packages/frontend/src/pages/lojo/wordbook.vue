@@ -3,273 +3,209 @@ SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<!-- 生词本: expressions saved from the "翻译讲解" panel under posts, newest first. -->
+<!-- 生词本: 今日 (what is up today, and the review itself) and 单词表 (every saved word). Words come in from the
+"翻译讲解" under posts and from dictation, or are added here. Each word has two cards, 认得 and 拼写, scheduled with
+FSRS on the server (lojo/words/*): 10 new words a day, and a word's 拼写 card the same day as its 认得 card. -->
 <template>
 <div :class="$style.root">
-	<MkPageHeader :canOmitTitle="false"/>
-	<div :class="$style.body">
-		<MkInput v-model="q" type="search" :placeholder="englishLabels.wordbookSearch" autocapitalize="off">
-			<template #prefix><i class="ti ti-search"></i></template>
-		</MkInput>
-		<MkLoading v-if="loading" role="status"/>
-		<p v-else-if="wordbook.length === 0" :class="$style.empty">{{ englishLabels.wordbookEmpty }}</p>
+	<MkPageHeader v-model:tab="tab" :tabs="reviewing ? [] : headerTabs" :canOmitTitle="false"/>
+	<div :class="[$style.body, { [$style.reviewing]: reviewing }]">
+		<XSession v-if="reviewing && today" :today="today" :fetchedAt="todayAt" @finish="onFinish"/>
+		<XWords v-else-if="tab === 'words'" ref="wordsEl" v-model:adding="adding" :now="now" :loading="wordsLoading" :newPerDay="today?.newPerDay ?? 10" @changed="refreshToday"/>
 		<template v-else>
-			<div :class="$style.bar">
-				<p :class="$style.count">{{ englishLabels.wordbookCount(shown.length) }}</p>
-				<button v-if="speechSupported" class="_button" :class="$style.voice" :aria-label="englishLabels.voiceTitle" @click="openVoiceMenu">
-					<i class="ti ti-microphone"></i> {{ currentVoice?.name ?? englishLabels.voice }}
-				</button>
+			<XToday v-if="today" ref="todayEl" :today="today" :now="now" @start="start" @add="openAdd"/>
+			<div v-else-if="failed" :class="$style.failed" role="alert">
+				<p>{{ wordbookLabels.loadFailed }}</p>
+				<MkButton rounded inline @click="refreshToday"><i class="ti ti-refresh"></i> {{ wordbookLabels.retry }}</MkButton>
 			</div>
-			<ul :class="$style.list">
-				<li v-for="entry in shown" :key="entry.id" class="_panel" :class="$style.card">
-					<div :class="$style.head">
-						<b class="_selectable" :class="$style.phrase">{{ entry.text }}</b>
-						<span :class="$style.kind">{{ englishLabels.kinds[entry.kind] }}</span>
-						<button
-							v-if="speechSupported"
-							class="_button"
-							:class="$style.icon"
-							:aria-label="speakingKey === `${uid}:${entry.id}` ? englishLabels.stop : englishLabels.listen"
-							:aria-pressed="speakingKey === `${uid}:${entry.id}`"
-							@click="toggleSpeak(`${uid}:${entry.id}`, entry.text)"
-						>
-							<i :class="[speakIcon(`${uid}:${entry.id}`), { [$style.spin]: loadingKey === `${uid}:${entry.id}` }]"></i>
-						</button>
-					</div>
-					<div class="_selectable" :class="$style.meaning">{{ entry.meaning }}</div>
-					<div v-if="entry.usage" class="_selectable" :class="$style.usage">{{ entry.usage }}</div>
-					<div v-if="entry.example" :class="$style.example">
-						<button
-							v-if="speechSupported"
-							class="_button"
-							:class="$style.icon"
-							:aria-label="speakingKey === `${uid}:${entry.id}:ex` ? englishLabels.stop : englishLabels.listen"
-							:aria-pressed="speakingKey === `${uid}:${entry.id}:ex`"
-							@click="toggleSpeak(`${uid}:${entry.id}:ex`, entry.example)"
-						>
-							<i :class="[speakIcon(`${uid}:${entry.id}:ex`), { [$style.spin]: loadingKey === `${uid}:${entry.id}:ex` }]"></i>
-						</button>
-						<span class="_selectable">{{ entry.example }}</span>
-						<span v-if="entry.exampleZh" class="_selectable" :class="$style.exampleZh">{{ entry.exampleZh }}</span>
-					</div>
-					<div :class="$style.foot">
-						<MkA v-if="entry.noteId" :to="`/notes/${entry.noteId}`" class="_link">{{ englishLabels.source }}</MkA>
-						<MkTime :time="entry.addedAt" :class="$style.time"/>
-						<button class="_button" :class="$style.remove" @click="remove(entry.id)">{{ englishLabels.remove }}</button>
-					</div>
-				</li>
-			</ul>
+			<MkLoading v-else role="status"/>
 		</template>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
-import MkInput from '@/components/MkInput.vue';
-import { englishLabels } from '@/lojo/english/labels.js';
-import { loadWordbook, reloadWordbook, removeWord, wordbook } from '@/lojo/english/wordbook.js';
-import { currentVoice, loadingKey, openVoiceMenu, speakingKey, speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import XToday from './wordbook.today.vue';
+import XWords from './wordbook.words.vue';
+import XSession from './wordbook.session.vue';
+import type { WordToday } from '@/lojo/english/wordbook.js';
+import MkButton from '@/components/MkButton.vue';
+import { loadToday, reloadWordbook, wordbook } from '@/lojo/english/wordbook.js';
 import { loadEnglishStatus } from '@/lojo/english/api.js';
-import * as os from '@/os.js';
+import { wordbookLabels } from '@/lojo/english/labels.js';
 import { definePage } from '@/page.js';
 
-const uid = `wordbook-${useId()}`;
-const q = ref('');
-const loading = ref(true);
+// today's counts are asked for again after this long, or when the day turns
+const STALE_MS = 15 * 60 * 1000;
 
-const shown = computed(() => {
-	const k = q.value.trim().toLowerCase();
-	if (k === '') return wordbook.value;
-	return wordbook.value.filter(entry => [entry.text, entry.meaning, entry.usage, entry.example].some(x => x.toLowerCase().includes(k)));
-});
+const tab = ref('today');
+const today = shallowRef<WordToday | null>(null);
+const todayAt = ref(0);
+const failed = ref(false);
+const reviewing = ref(false);
+const adding = ref(false);
+const wordsLoading = ref(true);
+const now = ref(Date.now());
 
-onMounted(async () => {
-	loadEnglishStatus();
-	await reloadWordbook();
-	loading.value = false;
-});
+const headerTabs = computed(() => [{
+	key: 'today',
+	title: wordbookLabels.tabToday,
+	icon: 'ti ti-calendar-check',
+}, {
+	key: 'words',
+	title: wordbook.value.length > 0 ? wordbookLabels.tabWordsCount(wordbook.value.length) : wordbookLabels.tabWords,
+	icon: 'ti ti-list-details',
+}]);
 
-onBeforeUnmount(() => {
-	stopSpeaking(`${uid}:`);
-});
+let todayRun = 0;
 
-async function remove(id: string) {
+async function refreshToday(): Promise<void> {
+	const run = ++todayRun;
 	try {
-		await removeWord(id);
-		os.toast(englishLabels.removed);
+		const res = await loadToday();
+		if (run !== todayRun) return;
+		today.value = res;
+		todayAt.value = Date.now();
+		failed.value = false;
 	} catch {
-		os.toast(englishLabels.saveFailed);
-		loadWordbook();
+		// keep what is on screen; with nothing yet, say so
+		if (run === todayRun) failed.value = today.value == null;
 	}
 }
 
-definePage(() => ({ title: englishLabels.wordbook, icon: 'ti ti-notebook' }));
-
-function speakIcon(key: string): string {
-	if (loadingKey.value === key) return 'ti ti-loader-2';
-	return speakingKey.value === key ? 'ti ti-player-stop' : 'ti ti-volume';
+// Straight into the review: the first card comes up inside this tap, so its word can be read out.
+function start(): void {
+	if (today.value == null || today.value.queue.length === 0) return;
+	adding.value = false;
+	reviewing.value = true;
 }
+
+const todayEl = useTemplateRef('todayEl');
+const wordsEl = useTemplateRef('wordsEl');
+
+async function onFinish(latest: WordToday | null, then: 'today' | 'words'): Promise<void> {
+	reviewing.value = false;
+	tab.value = then;
+	if (latest != null) {
+		today.value = latest;
+		todayAt.value = Date.now();
+	} else {
+		refreshToday();
+	}
+	// the round's card had the focus: hand it to the heading of what comes up instead
+	await nextTick();
+	if (then === 'words') wordsEl.value?.focusHeading();
+	else todayEl.value?.focusHeading();
+}
+
+function openAdd(): void {
+	adding.value = true;
+	tab.value = 'words';
+}
+
+watch(tab, t => {
+	if (t === 'today' && !reviewing.value) refreshToday();
+});
+
+function dayOf(t: number): string {
+	return new Date(t).toDateString();
+}
+
+// The clock for "10 分钟后" and the date; today's counts are fetched again when they may be out of date: the day
+// turned, a card just learned is up again, or a while has passed.
+function tick(): void {
+	now.value = Date.now();
+	const t = today.value;
+	if (reviewing.value || tab.value !== 'today' || t == null) return;
+	const laterUp = t.queue.length === 0 && t.later != null && now.value >= Date.parse(t.later);
+	if (laterUp || dayOf(now.value) !== dayOf(todayAt.value) || now.value - todayAt.value > STALE_MS) refreshToday();
+}
+
+function onVisible(): void {
+	if (window.document.visibilityState !== 'visible' || reviewing.value) return;
+	now.value = Date.now();
+	refreshToday();
+}
+
+// Running only while the page is on screen: pages are kept (KeepAlive) when another one is opened.
+let timer: number | null = null;
+
+function startClock(): void {
+	if (timer != null) return;
+	timer = window.setInterval(tick, 30 * 1000);
+	window.document.addEventListener('visibilitychange', onVisible);
+}
+
+function stopClock(): void {
+	if (timer == null) return;
+	window.clearInterval(timer);
+	timer = null;
+	window.document.removeEventListener('visibilitychange', onVisible);
+}
+
+onMounted(async () => {
+	startClock();
+	loadEnglishStatus();
+	refreshToday();
+	await reloadWordbook();
+	wordsLoading.value = false;
+});
+
+// back on the page: the counts may have moved meanwhile
+onActivated(() => {
+	if (timer != null) return;
+	startClock();
+	now.value = Date.now();
+	if (!reviewing.value) refreshToday();
+});
+
+onDeactivated(stopClock);
+onBeforeUnmount(stopClock);
+
+definePage(() => ({ title: wordbookLabels.title, icon: 'ti ti-notebook' }));
 </script>
 
 <style lang="scss" module>
 .root {
+	// Right is the route map's green (lojo/route/route.css); wrong, gold and the rest follow the theme.
+	--wbOk: #2F7D5B;
+	--wbOkFg: color-mix(in srgb, var(--wbOk) 80%, var(--MI_THEME-fg));
+	--wbOkBg: color-mix(in srgb, var(--wbOk) 14%, var(--MI_THEME-panel));
+	--wbBad: var(--MI_THEME-error);
+	--wbBadFg: color-mix(in srgb, var(--MI_THEME-error) 78%, var(--MI_THEME-fg));
+	--wbBadBg: color-mix(in srgb, var(--MI_THEME-error) 12%, var(--MI_THEME-panel));
+	--wbGoldFg: color-mix(in srgb, var(--MI_THEME-warn) 55%, var(--MI_THEME-fg));
+	--wbGoldBg: color-mix(in srgb, var(--MI_THEME-warn) 22%, var(--MI_THEME-panel));
+	--wbSerif: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "Noto Serif CJK SC", STSong, serif;
+	--wbEn: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
 	min-height: 100%;
 	background: var(--MI_THEME-bg);
 	color: var(--MI_THEME-fg);
 }
 
 .body {
-	max-width: 760px;
+	box-sizing: border-box;
+	max-width: 640px;
 	margin: 0 auto;
-	padding: 20px 20px 48px;
+	padding: 20px 16px 48px;
+}
+
+.reviewing {
+	max-width: 560px;
+	padding-top: 14px;
+}
+
+.failed {
 	display: flex;
 	flex-direction: column;
-	gap: 14px;
-}
-
-.empty {
-	margin: 40px 0;
-	text-align: center;
-	opacity: 0.7;
-	line-height: 1.6;
-}
-
-.bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-}
-
-.count {
-	margin: 0;
-	font-size: 0.85em;
-	opacity: 0.7;
-}
-
-.voice {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 3px 10px;
-	border-radius: 999px;
-	font-size: 0.8em;
-	color: var(--MI_THEME-accent);
-	background: var(--MI_THEME-buttonBg);
-
-	&:hover {
-		background: var(--MI_THEME-buttonHoverBg);
-	}
-
-	&:focus-visible {
-		outline: 2px solid var(--MI_THEME-focus);
-	}
-}
-
-.list {
-	margin: 0;
-	padding: 0;
-	list-style: none;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-
-.card {
-	padding: 14px 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.head {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.phrase {
-	font-size: 1.15em;
-	color: var(--MI_THEME-fgHighlighted);
-}
-
-.kind {
-	padding: 0 6px;
-	border-radius: 4px;
-	font-size: 0.75em;
-	color: var(--MI_THEME-accent);
-	background: var(--MI_THEME-accentedBg);
-}
-
-.icon {
-	padding: 2px 4px;
-	border-radius: 4px;
-	color: var(--MI_THEME-accent);
-
-	&:hover {
-		background: var(--MI_THEME-buttonHoverBg);
-	}
-
-	&:focus-visible {
-		outline: 2px solid var(--MI_THEME-focus);
-	}
-}
-
-.meaning {
-	font-weight: bold;
-}
-
-.usage {
-	opacity: 0.85;
-	line-height: 1.5;
-}
-
-.example {
-	line-height: 1.5;
-	font-style: italic;
-}
-
-.exampleZh {
-	display: block;
-	font-style: normal;
-	opacity: 0.7;
-}
-
-.foot {
-	display: flex;
 	align-items: center;
 	gap: 12px;
-	margin-top: 4px;
-	font-size: 0.85em;
-}
+	padding: 40px 0;
+	text-align: center;
 
-.time {
-	opacity: 0.6;
-}
-
-.remove {
-	margin-left: auto;
-	padding: 2px 8px;
-	border-radius: 6px;
-	opacity: 0.7;
-
-	&:hover {
-		opacity: 1;
-		background: var(--MI_THEME-buttonHoverBg);
-	}
-
-	&:focus-visible {
-		outline: 2px solid var(--MI_THEME-focus);
-	}
-}
-
-.spin {
-	animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-	to {
-		transform: rotate(360deg);
+	> p {
+		margin: 0;
 	}
 }
 </style>

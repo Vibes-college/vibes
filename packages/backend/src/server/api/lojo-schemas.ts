@@ -370,3 +370,91 @@ export const lojoGateProgressSchema = {
 		last: { type: 'object', ...nul, properties: { station: { type: 'string', ...req }, at: { type: 'string', ...req, format: 'date-time' } } },
 	},
 } as const;
+
+/* ---------- 生词本 spaced review (lojo/words/*) ---------- */
+
+export const lojoWordErrors = {
+	noSuchWord: { message: 'No such word in your wordbook.', code: 'NO_SUCH_WORD', id: '82bc92e0-4249-41a8-9980-0ff84804b2b8' },
+	noSuchCard: { message: 'No such card in your wordbook.', code: 'NO_SUCH_CARD', id: '33a85d5d-41d9-41f0-b226-73d28428a5c1' },
+	tooManyWords: { message: 'Your wordbook is full.', code: 'TOO_MANY_WORDS', id: '1e1246a9-a830-47b9-a824-c86983b84031' },
+	invalidWord: { message: 'The word is empty or too long.', code: 'INVALID_WORD', id: '563f1463-04ba-4ccd-9bb4-04ff74de25b7' },
+} as const;
+
+// What a word needs to be saved: the same fields as an item of lojo/english/explain.
+export const lojoWordItemParam = {
+	type: 'object',
+	properties: {
+		text: { type: 'string', minLength: 1, maxLength: 256 },
+		kind: { type: 'string', enum: ['word', 'phrase', 'idiom', 'slang', 'grammar'] },
+		meaning: { type: 'string', maxLength: 1024 },
+		usage: { type: 'string', maxLength: 2048 },
+		example: { type: 'string', maxLength: 1024 },
+		exampleZh: { type: 'string', maxLength: 1024 },
+	},
+	required: ['text', 'kind', 'meaning'],
+} as const;
+
+const date = { type: 'string', ...req, format: 'date-time' } as const;
+export const lojoWordCardSchema = {
+	type: 'object', ...req,
+	properties: {
+		id: { type: 'string', ...req, format: 'id' },
+		wordId: { type: 'string', ...req, format: 'id' },
+		kind: { type: 'string', ...req, enum: ['recognize', 'spell'] },
+		state: { type: 'string', ...req, enum: ['new', 'learning', 'review', 'relearning'] },
+		due: date,
+		reps: { type: 'integer', ...req },
+		lapses: { type: 'integer', ...req },
+		lastReview: { type: 'string', ...nul, format: 'date-time' },
+	},
+} as const;
+
+export const lojoWordSchema = {
+	type: 'object', ...req,
+	properties: {
+		id: { type: 'string', ...req, format: 'id' },
+		text: str,
+		kind: { type: 'string', ...req, enum: ['word', 'phrase', 'idiom', 'slang', 'grammar'] },
+		meaning: str,
+		usage: str,
+		example: str,
+		exampleZh: str,
+		source: { type: 'string', ...req, enum: ['post', 'gate', 'dictation', 'manual'] },
+		noteId: { type: 'string', ...nul, format: 'id' },
+		createdAt: date,
+		recognize: lojoWordCardSchema,
+		spell: lojoWordCardSchema,
+	},
+} as const;
+
+// Today's reviews: the cards up now, in order, each with its word and when it would come back after each answer.
+export const lojoWordTodaySchema = {
+	type: 'object', ...req,
+	properties: {
+		queue: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: {
+					word: lojoWordSchema,
+					card: lojoWordCardSchema,
+					// the first time this card is shown: the spelling card shows the letter boxes only then
+					first: { type: 'boolean', ...req },
+					next: {
+						type: 'object', ...req,
+						properties: { again: date, hard: date, good: date, easy: date },
+					},
+				},
+			},
+		},
+		recognizeDue: { type: 'integer', ...req },
+		spellDue: { type: 'integer', ...req },
+		newLeft: { type: 'integer', ...req },
+		newPerDay: { type: 'integer', ...req },
+		reviewedToday: { type: 'integer', ...req },
+		streak: { type: 'integer', ...req },
+		total: { type: 'integer', ...req },
+		// the next card still learning that is not up yet, when nothing else is
+		later: { type: 'string', ...nul, format: 'date-time' },
+	},
+} as const;

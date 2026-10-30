@@ -3198,6 +3198,60 @@ export type paths = {
          */
         post: operations['lojo___tutor___poke'];
     };
+    '/lojo/words/add': {
+        /**
+         * lojo/words/add
+         * @description Saves a word to your 生词本 with its two review cards, unless you have it already (then created is false).
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___words___add'];
+    };
+    '/lojo/words/import': {
+        /**
+         * lojo/words/import
+         * @description Moves words saved before the 生词本 had reviews (in the account registry) into it. Words you already have are skipped; the rest keep the time they were saved.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___words___import'];
+    };
+    '/lojo/words/list': {
+        /**
+         * lojo/words/list
+         * @description 生词本: every word you saved, the newest first, with its two review cards (认得 and 拼写).
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___words___list'];
+    };
+    '/lojo/words/remove': {
+        /**
+         * lojo/words/remove
+         * @description Removes a word from your 生词本, with its cards and their reviews.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___words___remove'];
+    };
+    '/lojo/words/review': {
+        /**
+         * lojo/words/review
+         * @description Records one review of a 生词本 card and schedules it with FSRS. rating: 1 忘了 (again), 2 hard, 3 记得 (good), 4 easy. Send the card's reps as shown: if they no longer match, the review was already saved (a retry, another tab) and the card is returned unchanged with applied false. tzOffset (Date#getTimezoneOffset()) makes FSRS count days by the learner's midnight.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___words___review'];
+    };
+    '/lojo/words/today': {
+        /**
+         * lojo/words/today
+         * @description Today's 生词本 reviews: the cards up now in order (due ones, then new words up to today's allowance), each with when it would come back after each answer, and the counts for the page. tzOffset is the client's Date#getTimezoneOffset(), so the day ends at the learner's midnight.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___words___today'];
+    };
     '/meta': {
         /**
          * meta
@@ -31947,6 +32001,682 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___words___add: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    item: {
+                        text: string;
+                        /** @enum {string} */
+                        kind: 'word' | 'phrase' | 'idiom' | 'slang' | 'grammar';
+                        meaning: string;
+                        usage?: string;
+                        example?: string;
+                        exampleZh?: string;
+                    };
+                    /** @enum {string} */
+                    source: 'post' | 'gate' | 'dictation' | 'manual';
+                    /** Format: misskey:id */
+                    noteId?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        created: boolean;
+                        word: {
+                            /** Format: id */
+                            id: string;
+                            text: string;
+                            /** @enum {string} */
+                            kind: 'word' | 'phrase' | 'idiom' | 'slang' | 'grammar';
+                            meaning: string;
+                            usage: string;
+                            example: string;
+                            exampleZh: string;
+                            /** @enum {string} */
+                            source: 'post' | 'gate' | 'dictation' | 'manual';
+                            /** Format: id */
+                            noteId: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            recognize: {
+                                /** Format: id */
+                                id: string;
+                                /** Format: id */
+                                wordId: string;
+                                /** @enum {string} */
+                                kind: 'recognize' | 'spell';
+                                /** @enum {string} */
+                                state: 'new' | 'learning' | 'review' | 'relearning';
+                                /** Format: date-time */
+                                due: string;
+                                reps: number;
+                                lapses: number;
+                                /** Format: date-time */
+                                lastReview: string | null;
+                            };
+                            spell: {
+                                /** Format: id */
+                                id: string;
+                                /** Format: id */
+                                wordId: string;
+                                /** @enum {string} */
+                                kind: 'recognize' | 'spell';
+                                /** @enum {string} */
+                                state: 'new' | 'learning' | 'review' | 'relearning';
+                                /** Format: date-time */
+                                due: string;
+                                reps: number;
+                                lapses: number;
+                                /** Format: date-time */
+                                lastReview: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___words___import: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    entries: {
+                        item: {
+                            text: string;
+                            /** @enum {string} */
+                            kind: 'word' | 'phrase' | 'idiom' | 'slang' | 'grammar';
+                            meaning: string;
+                            usage?: string;
+                            example?: string;
+                            exampleZh?: string;
+                        };
+                        /** @enum {string} */
+                        source: 'post' | 'gate' | 'dictation' | 'manual';
+                        /** Format: misskey:id */
+                        noteId?: string | null;
+                        addedAt: number;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        added: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___words___list: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: id */
+                        id: string;
+                        text: string;
+                        /** @enum {string} */
+                        kind: 'word' | 'phrase' | 'idiom' | 'slang' | 'grammar';
+                        meaning: string;
+                        usage: string;
+                        example: string;
+                        exampleZh: string;
+                        /** @enum {string} */
+                        source: 'post' | 'gate' | 'dictation' | 'manual';
+                        /** Format: id */
+                        noteId: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        recognize: {
+                            /** Format: id */
+                            id: string;
+                            /** Format: id */
+                            wordId: string;
+                            /** @enum {string} */
+                            kind: 'recognize' | 'spell';
+                            /** @enum {string} */
+                            state: 'new' | 'learning' | 'review' | 'relearning';
+                            /** Format: date-time */
+                            due: string;
+                            reps: number;
+                            lapses: number;
+                            /** Format: date-time */
+                            lastReview: string | null;
+                        };
+                        spell: {
+                            /** Format: id */
+                            id: string;
+                            /** Format: id */
+                            wordId: string;
+                            /** @enum {string} */
+                            kind: 'recognize' | 'spell';
+                            /** @enum {string} */
+                            state: 'new' | 'learning' | 'review' | 'relearning';
+                            /** Format: date-time */
+                            due: string;
+                            reps: number;
+                            lapses: number;
+                            /** Format: date-time */
+                            lastReview: string | null;
+                        };
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___words___remove: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    wordId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___words___review: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    cardId: string;
+                    rating: number;
+                    durationMs?: number | null;
+                    reps?: number | null;
+                    /** @default 0 */
+                    tzOffset?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        applied: boolean;
+                        card: {
+                            /** Format: id */
+                            id: string;
+                            /** Format: id */
+                            wordId: string;
+                            /** @enum {string} */
+                            kind: 'recognize' | 'spell';
+                            /** @enum {string} */
+                            state: 'new' | 'learning' | 'review' | 'relearning';
+                            /** Format: date-time */
+                            due: string;
+                            reps: number;
+                            lapses: number;
+                            /** Format: date-time */
+                            lastReview: string | null;
+                        };
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___words___today: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @default 0 */
+                    tzOffset?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        queue: {
+                            word: {
+                                /** Format: id */
+                                id: string;
+                                text: string;
+                                /** @enum {string} */
+                                kind: 'word' | 'phrase' | 'idiom' | 'slang' | 'grammar';
+                                meaning: string;
+                                usage: string;
+                                example: string;
+                                exampleZh: string;
+                                /** @enum {string} */
+                                source: 'post' | 'gate' | 'dictation' | 'manual';
+                                /** Format: id */
+                                noteId: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                recognize: {
+                                    /** Format: id */
+                                    id: string;
+                                    /** Format: id */
+                                    wordId: string;
+                                    /** @enum {string} */
+                                    kind: 'recognize' | 'spell';
+                                    /** @enum {string} */
+                                    state: 'new' | 'learning' | 'review' | 'relearning';
+                                    /** Format: date-time */
+                                    due: string;
+                                    reps: number;
+                                    lapses: number;
+                                    /** Format: date-time */
+                                    lastReview: string | null;
+                                };
+                                spell: {
+                                    /** Format: id */
+                                    id: string;
+                                    /** Format: id */
+                                    wordId: string;
+                                    /** @enum {string} */
+                                    kind: 'recognize' | 'spell';
+                                    /** @enum {string} */
+                                    state: 'new' | 'learning' | 'review' | 'relearning';
+                                    /** Format: date-time */
+                                    due: string;
+                                    reps: number;
+                                    lapses: number;
+                                    /** Format: date-time */
+                                    lastReview: string | null;
+                                };
+                            };
+                            card: {
+                                /** Format: id */
+                                id: string;
+                                /** Format: id */
+                                wordId: string;
+                                /** @enum {string} */
+                                kind: 'recognize' | 'spell';
+                                /** @enum {string} */
+                                state: 'new' | 'learning' | 'review' | 'relearning';
+                                /** Format: date-time */
+                                due: string;
+                                reps: number;
+                                lapses: number;
+                                /** Format: date-time */
+                                lastReview: string | null;
+                            };
+                            first: boolean;
+                            next: {
+                                /** Format: date-time */
+                                again: string;
+                                /** Format: date-time */
+                                hard: string;
+                                /** Format: date-time */
+                                good: string;
+                                /** Format: date-time */
+                                easy: string;
+                            };
+                        }[];
+                        recognizeDue: number;
+                        spellDue: number;
+                        newLeft: number;
+                        newPerDay: number;
+                        reviewedToday: number;
+                        streak: number;
+                        total: number;
+                        /** Format: date-time */
+                        later: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

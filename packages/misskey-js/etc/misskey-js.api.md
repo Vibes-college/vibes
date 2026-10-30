@@ -2076,6 +2076,16 @@ declare namespace entities {
         LojoStateUpdateResponse,
         LojoTutorPokeRequest,
         LojoTutorPokeResponse,
+        LojoWordsAddRequest,
+        LojoWordsAddResponse,
+        LojoWordsImportRequest,
+        LojoWordsImportResponse,
+        LojoWordsListResponse,
+        LojoWordsRemoveRequest,
+        LojoWordsReviewRequest,
+        LojoWordsReviewResponse,
+        LojoWordsTodayRequest,
+        LojoWordsTodayResponse,
         MetaRequest,
         MetaResponse,
         MiauthGenTokenRequest,
@@ -3080,6 +3090,36 @@ type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['co
 
 // @public (undocumented)
 type LojoTutorPokeResponse = operations['lojo___tutor___poke']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsAddRequest = operations['lojo___words___add']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsAddResponse = operations['lojo___words___add']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsImportRequest = operations['lojo___words___import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsImportResponse = operations['lojo___words___import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsListResponse = operations['lojo___words___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsRemoveRequest = operations['lojo___words___remove']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsReviewRequest = operations['lojo___words___review']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsReviewResponse = operations['lojo___words___review']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsTodayRequest = operations['lojo___words___today']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoWordsTodayResponse = operations['lojo___words___today']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];
