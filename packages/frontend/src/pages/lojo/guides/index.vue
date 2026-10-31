@@ -44,13 +44,14 @@ import GuideWaterfall from './components/GuideWaterfall.vue';
 import GuideBookshelf from './components/GuideBookshelf.vue';
 import GuideStack from './components/GuideStack.vue';
 import { guideLabels } from './labels.js';
-import { guideApi } from '@/lojo/guides/api.js';
+import { guideApi, rememberGuides } from '@/lojo/guides/api.js';
 import MkButton from '@/components/MkButton.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { useRouter } from '@/router.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { $i } from '@/i.js';
+import { keep, readKept } from '@/lojo/kept.js';
 import * as os from '@/os.js';
 
 const router = useRouter();
@@ -106,8 +107,34 @@ async function write() {
 	router.pushByPath('/guides/new');
 }
 
+// Vibes: the first page of each list (精选, 收藏, 我的攻略; not a search) is kept on the device (lojo/kept.ts) and shows at
+// once next time, while the server's answer is on its way. Without the article bodies: a card only uses the first
+// image (its cover) and the first video or audio (its badge), see GuideCard.vue.
+function keptName(): string | null {
+	if (search.value.trim() || showShelf.value || (tab.value === 'saved' && !$i)) return null;
+	return `guides:${mine.value ? 'mine' : tab.value}`;
+}
+
+function forList(guide: Guide): Guide {
+	const image = guide.blocks.find(block => block.type === 'image');
+	const media = guide.blocks.find(block => block.type === 'video' || block.type === 'audio');
+	return { ...guide, blocks: [image, media].filter((block): block is Guide['blocks'][number] => block != null) };
+}
+
 async function load(reset: boolean, background = false) {
 	const current = ++generation;
+	const name = reset ? keptName() : null;
+	if (name != null && !background) {
+		const kept = await readKept<Guide[]>(name);
+		if (current !== generation) return;
+		if (kept != null && kept.length > 0) {
+			guides.value = kept;
+			hasMore.value = kept.length === pageSize;
+			loading.value = false;
+			// the server's answer replaces it quietly; if it fails, the kept list stays
+			background = true;
+		}
+	}
 	if (!background) {
 		if (reset) loading.value = true;
 		else loadingMore.value = true;
@@ -144,6 +171,8 @@ async function load(reset: boolean, background = false) {
 		if (current !== generation) return;
 		guides.value = reset ? result : [...guides.value, ...result.filter(item => !guides.value.some(existing => existing.id === item.id))];
 		hasMore.value = received === pageSize;
+		rememberGuides(result);
+		if (name != null) keep(name, result.slice(0, pageSize).map(forList));
 	} catch {
 		if (current !== generation) return;
 		if (reset && !background) loadError.value = true;

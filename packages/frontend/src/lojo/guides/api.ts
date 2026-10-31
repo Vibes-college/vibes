@@ -24,3 +24,24 @@ export const guideApi = {
 	comment: (params: ThreadTarget & { text: string; fileIds?: string[]; replyToId?: string }) => misskeyApi<{ thread: GuideThread; comment: GuideComment }>('lojo/guides/comments/create', params),
 	deleteComment: (commentId: string) => misskeyApi('lojo/guides/comments/delete', { commentId }),
 };
+
+// Vibes: full guides from the last list answers, so opening one draws at once (pages/lojo/guides/detail.vue) and
+// refreshes in the background. In memory only; the newest MAX_RECENT are kept.
+const MAX_RECENT = 100;
+const recent = new Map<string, Guide>();
+
+export function rememberGuides(guides: Guide[]): void {
+	for (const guide of guides) {
+		recent.delete(guide.id);
+		recent.set(guide.id, guide);
+	}
+	while (recent.size > MAX_RECENT) {
+		const oldest = recent.keys().next().value;
+		if (oldest == null) break;
+		recent.delete(oldest);
+	}
+}
+
+export function recallGuide(id: string): Guide | null {
+	return recent.get(id) ?? null;
+}

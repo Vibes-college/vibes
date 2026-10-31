@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { host } from '@@/js/config.js';
 import * as os from '@/os.js';
@@ -64,6 +64,13 @@ const emit = defineEmits<{
 const isFollowing = ref(props.user.isFollowing);
 const hasPendingFollowRequestFromYou = ref(props.user.hasPendingFollowRequestFromYou);
 const wait = ref(false);
+
+// Vibes: a page may show a copy kept on the device first and replace it with the server's (pages/user/index.vue).
+watch(() => [props.user.isFollowing, props.user.hasPendingFollowRequestFromYou] as const, ([following, pending]) => {
+	if (wait.value) return;
+	if (following != null) isFollowing.value = following;
+	if (pending != null) hasPendingFollowRequestFromYou.value = pending;
+});
 const connection = useStream().useChannel('main');
 
 if (props.user.isFollowing == null && $i) {

@@ -25,7 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { i18n } from '@/i18n.js';
@@ -39,6 +39,11 @@ const props = withDefaults(defineProps<{
 
 const isFollowing = ref(props.channel.isFollowing);
 const wait = ref(false);
+
+// Vibes: the channel page may show a copy kept on the device first and replace it with the server's (pages/channel.vue).
+watch(() => props.channel.isFollowing, following => {
+	if (!wait.value && following != null) isFollowing.value = following;
+});
 
 async function onClick() {
 	wait.value = true;

@@ -6,6 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs" :swipable="true">
 	<div class="_spacer" style="--MI_SPACER-w: 700px;">
+		<MkError v-if="!channel && loadFailed" @retry="loadChannel()"/>
+		<MkLoading v-else-if="!channel"/>
 		<div v-if="channel && tab === 'overview'" class="_gaps">
 			<div class="_panel" :class="$style.bannerContainer">
 				<XChannelFollowButton :channel="channel" :full="true" :class="$style.subscribe"/>
@@ -99,6 +101,7 @@ import { notesSearchAvailable } from '@/utility/check-permissions.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
+import { keep, readKept } from '@/lojo/kept.js';
 
 const router = useRouter();
 
@@ -128,13 +131,9 @@ useInterval(() => {
 	afterMounted: true,
 });
 
-watch(() => props.channelId, async () => {
-	const _channel = await misskeyApi('channels/show', {
-		channelId: props.channelId,
-	});
-
+function showChannel(_channel: Misskey.entities.Channel) {
 	favorited.value = _channel.isFavorited ?? false;
-	if (favorited.value || _channel.isFollowing) {
+	if (channel.value?.id !== _channel.id && (favorited.value || _channel.isFollowing)) {
 		tab.value = 'timeline';
 	}
 
@@ -148,7 +147,34 @@ watch(() => props.channelId, async () => {
 	}
 
 	channel.value = _channel;
-}, { immediate: true });
+}
+
+// Vibes: the copy kept from the last visit shows at once (lojo/kept.ts) and the server's answer replaces it. A failed
+// answer with nothing to show used to leave the page blank; now it says so and offers to retry.
+const loadFailed = ref(false);
+
+async function loadChannel() {
+	const channelId = props.channelId;
+	const name = `channel:${channelId}`;
+	loadFailed.value = false;
+	if (channel.value?.id !== channelId) {
+		channel.value = null;
+		const kept = await readKept<Misskey.entities.Channel>(name);
+		if (kept != null && channel.value == null && props.channelId === channelId) showChannel(kept);
+	}
+	try {
+		const _channel = await misskeyApi('channels/show', {
+			channelId,
+		});
+		if (props.channelId !== channelId) return;
+		showChannel(_channel);
+		keep(name, _channel);
+	} catch {
+		if (props.channelId === channelId && channel.value == null) loadFailed.value = true;
+	}
+}
+
+watch(() => props.channelId, loadChannel, { immediate: true });
 
 function edit() {
 	router.push('/channels/:channelId/edit', {

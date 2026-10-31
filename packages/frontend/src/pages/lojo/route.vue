@@ -29,7 +29,9 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 import { lang } from '@@/js/config.js';
 import { lojoLabels } from '@/lojo/labels.js';
 import { CATALOG, DEFAULT_COURSE } from '@/lojo/route/courses/index.js';
-import { coursePath, isReady, loadRouteRegistry, myMaps, ROUTE_SCOPE, saveMyMaps, withCourse } from '@/lojo/route/my-maps.js';
+import { coursePath, isReady, myMaps, ROUTE_SCOPE, saveMyMaps, withCourse } from '@/lojo/route/my-maps.js';
+import type { RouteRegistry } from '@/lojo/route/my-maps.js';
+import { keep, readKept } from '@/lojo/kept.js';
 import { loadTypingProgress } from '@/lojo/typing/progress.js';
 import MkButton from '@/components/MkButton.vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
@@ -62,6 +64,15 @@ let generation = 0;
 let active = true;
 
 // Topic-map progress (and the gate map's welcome flag) lives in the account's registry, one key per course; gate progress lives on the server.
+// The last copies of both are kept on the device (lojo/kept.ts) so the IELTS map draws without waiting.
+const REGISTRY_NAME = 'route:registry';
+const WARM_NAME = 'route:typing';
+const fetchRegistry = () => misskeyApi('i/registry/get-all', { scope: ROUTE_SCOPE }).then(found => {
+	// get-all returns {} for a new user instead of a NO_SUCH_KEY error
+	const value = (found ?? {}) as RouteRegistry;
+	keep(REGISTRY_NAME, value);
+	return value;
+});
 const isZh = lang.startsWith('zh');
 const pageTitle = ref<string>(lojoLabels.map);
 // The course tabs in the page header. Icons are listed here (not in the generated catalog) so the icon font subset picks them up.
@@ -117,13 +128,24 @@ async function start() {
 		const entry = CATALOG.find(c => c.id === (props.course ?? DEFAULT_COURSE));
 		const loader = entry && entry.ready && 'load' in entry ? entry.load : null;
 		if (!entry || !loader) { router.replaceByPath('/map'); return; }
-		const [pack, all] = await Promise.all([loader(), loadRouteRegistry()]);
+		const progressName = `route:progress:${entry.id}`;
+		const [pack, keptRegistry, keptProgress, keptWarm] = await Promise.all([
+			loader(), readKept<RouteRegistry>(REGISTRY_NAME), readKept<unknown>(progressName), readKept<unknown>(WARM_NAME),
+		]);
+		// Vibes: a gate map (IELTS) draws at once from the copies kept last time and refreshes in the background; it saves
+		// only two flags of its own. A topic map saves its whole state back, so it waits for the server's copy as before.
+		const fromKept = pack.META.kind === 'gates' && keptRegistry != null && keptProgress != null;
+		const all = fromKept ? keptRegistry : await fetchRegistry().catch(() => ({}) as RouteRegistry);
 		const { mount } = await loadRuntime(pack.META.kind);
 		if (current !== generation) return;
 		const registry = { scope: ROUTE_SCOPE, key: pack.META.storeKey };
 		const mine = myMaps(all), next = withCourse(mine, entry.id);
 		myList.value = next;
-		if (next.length !== mine.length) void saveMyMaps(next).catch(() => { /* retried next time */ });
+		// "My maps" is saved from the server's copy only (with a kept copy, after it arrives below).
+		if (!fromKept && next.length !== mine.length) void saveMyMaps(next).catch(() => { /* retried next time */ });
+		// The first reads come from the kept copies; later ones (refresh, coming back from a gate) from the server.
+		let firstProgress = fromKept ? keptProgress : null;
+		let firstWarm = fromKept ? keptWarm : null;
 		const basePath = props.course ? `/map/${props.course}` : '/map';
 		pageTitle.value = `${pack.TEXT[isZh ? 'zh' : 'en'].title} · ${isZh ? '线路图' : 'Route map'}`;
 		try { window.localStorage.setItem(LAST_COURSE_KEY, entry.id); } catch { /* private mode */ }
@@ -150,13 +172,29 @@ async function start() {
 			openCourse: (id: string, station?: string) => router.pushByPath(`${coursePath(id)}${station ? `#${encodeURIComponent(station)}` : ''}`),
 			openCatalog: () => router.pushByPath('/maps'),
 			// gate maps: progress from the server, and each gate on its own page (/gate/ielts/1.4)
-			progress: () => misskeyApi('lojo/gates/progress', { course: entry.id }),
+			progress: () => {
+				if (firstProgress != null) {
+					const kept = firstProgress;
+					firstProgress = null;
+					return Promise.resolve(kept);
+				}
+				return misskeyApi('lojo/gates/progress', { course: entry.id }).then(p => { keep(progressName, p); return p; });
+			},
 			openGate: (station: string) => router.pushByPath(`/gate/${entry.id}/${station}`),
 			// 同路人: who else tried a gate lately; the server leaves out anyone who shouldn't be shown
 			peers: (station: string, limit: number) => misskeyApi('lojo/gates/peers', { course: entry.id, station, limit }),
 			openUser: (username: string) => router.pushByPath(`/@${username}`),
 			// a pack's warm-up line (IELTS: 0 号线 · 机考打字, WARMUP in content.js): its progress, kept in the account registry, and its page
-			warmup: (id: string) => id === 'typing' ? loadTypingProgress() : Promise.resolve(null),
+			warmup: (id: string) => {
+				if (id !== 'typing') return Promise.resolve(null);
+				if (fromKept && firstWarm !== undefined) {
+					// null while unknown: the line shows without its count until the refresh below
+					const kept = firstWarm;
+					firstWarm = undefined;
+					return Promise.resolve(kept);
+				}
+				return loadTypingProgress().then(w => { keep(WARM_NAME, w); return w; });
+			},
 			openPath: (path: string) => router.pushByPath(path),
 			setHash: (id: string | null) => {
 				if (!active || window.location.pathname !== basePath) return;
@@ -166,6 +204,16 @@ async function start() {
 		if (current !== generation) { mounted.destroy(); return; }
 		runtime = mounted;
 		if (!active) runtime.pause();
+		if (fromKept) {
+			// Now the server's copies: progress and the warm-up line redraw the map; "my maps" refreshes the tabs.
+			void runtime.refresh?.();
+			void fetchRegistry().then(fresh => {
+				if (current !== generation) return;
+				const freshMine = myMaps(fresh), freshNext = withCourse(freshMine, entry.id);
+				myList.value = freshNext;
+				if (freshNext.length !== freshMine.length) void saveMyMaps(freshNext).catch(() => { /* retried next time */ });
+			}).catch(() => { /* keep what is on screen */ });
+		}
 		observer?.disconnect();
 		observer = new ResizeObserver(() => runtime?.resize());
 		observer.observe(mapHost.value);

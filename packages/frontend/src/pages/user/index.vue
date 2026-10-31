@@ -33,6 +33,7 @@ import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
+import { keep, readKept } from '@/lojo/kept.js';
 
 const XHome = defineAsyncComponent(() => import('./home.vue'));
 const XNotes = defineAsyncComponent(() => import('./notes.vue'));
@@ -74,13 +75,23 @@ function fetchUser(): void {
 	}
 
 	user.value = null;
+	error.value = null;
+	// Vibes: the copy kept from the last visit shows at once (lojo/kept.ts); the server's answer replaces it, and if that
+	// fails the copy stays. The follow button follows the replaced copy (MkFollowButton.vue).
+	const acct = props.acct;
+	const name = `user:${acct}`;
+	void readKept<Misskey.entities.UserDetailed>(name).then(kept => {
+		if (kept != null && user.value == null && props.acct === acct) user.value = kept;
+	});
 	misskeyApi('users/show', {
 		username,
 		host,
 	}).then(u => {
+		if (props.acct !== acct) return;
 		user.value = u;
+		keep(name, u);
 	}).catch(err => {
-		error.value = err;
+		if (props.acct === acct && user.value == null) error.value = err;
 	});
 }
 
@@ -94,6 +105,7 @@ async function refreshUser(): Promise<void> {
 
 	const { username, host } = Misskey.acct.parse(props.acct);
 	user.value = await misskeyApi('users/show', { username, host });
+	keep(`user:${props.acct}`, user.value);
 }
 
 const headerActions = computed(() => []);

@@ -16,6 +16,12 @@ const signedInPages = [
 	() => import('@/pages/lojo/wordbook.vue'),
 	() => import('@/pages/settings/index.vue'),
 	() => import('@/pages/settings/profile.vue'),
+	// the bottom bar's two tabs: the route map with the IELTS map (route.vue loads these two), and the guides
+	() => import('@/pages/lojo/route.vue'),
+	() => import('@/lojo/route/gate-map.js'),
+	() => import('@/lojo/route/courses/ielts/index.js'),
+	() => import('@/pages/lojo/guides/index.vue'),
+	() => import('@/pages/lojo/guides/detail.vue'),
 ];
 
 const visitorPages = [

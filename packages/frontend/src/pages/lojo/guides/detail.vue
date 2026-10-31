@@ -53,7 +53,8 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, ref, useTemplate
 import type { CSSProperties } from 'vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import type { Guide, GuideAnchor, GuideThread } from '@/lojo/guides/types.js';
-import { guideApi, isGuideSlug } from '@/lojo/guides/api.js';
+import { guideApi, isGuideSlug, recallGuide } from '@/lojo/guides/api.js';
+import { keep, readKept } from '@/lojo/kept.js';
 import { guideCategoryLabel } from './labels.js';
 import GuideBody from './components/GuideBody.vue';
 import MkGuideAnnotatedText from '@/components/lojo/MkGuideAnnotatedText.vue';
@@ -119,10 +120,26 @@ async function load() {
 			if (current === generation) router.replaceByPath(`/guides/${found.id}`);
 			return;
 		}
-		const [value, marks] = await Promise.all([guideApi.show(props.guideId), guideApi.threads(props.guideId)]);
+		// Vibes: a copy from the list just seen, or the one kept from the last visit, shows at once; the server's answer
+		// then replaces it (refreshGuide). Without a copy the article shows first and the discussions follow.
+		const id = props.guideId;
+		const copy = recallGuide(id) ?? await readKept<Guide>(`guide:${id}`);
+		if (current !== generation) return;
+		if (copy != null) {
+			guide.value = copy;
+			loading.value = false;
+			void refreshGuide();
+			return;
+		}
+		const marks = guideApi.threads(id).catch(() => null);
+		const value = await guideApi.show(id);
 		if (current !== generation) return;
 		guide.value = value;
-		threads.value = marks;
+		keep(`guide:${id}`, value);
+		loading.value = false;
+		const loaded = await marks;
+		if (current !== generation) return;
+		if (loaded != null) threads.value = loaded;
 	} catch {
 		if (current === generation) failed.value = true;
 	} finally {
@@ -177,12 +194,14 @@ async function refreshThreads() {
 
 async function refreshGuide() {
 	const current = ++generation;
+	const id = props.guideId;
 	try {
-		const [value, marks] = await Promise.all([guideApi.show(props.guideId), guideApi.threads(props.guideId)]);
+		const [value, marks] = await Promise.all([guideApi.show(id), guideApi.threads(id)]);
 		if (current !== generation) return;
 		clearSelection();
 		guide.value = value;
 		threads.value = marks;
+		keep(`guide:${id}`, value);
 	} catch { /* A cached article remains readable while temporarily offline. */ }
 }
 
