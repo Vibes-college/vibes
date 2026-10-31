@@ -15,7 +15,7 @@ const KEY = 'vibes:agent';
 export const AGENT_URL = 'https://agent.vibes.college/';
 export const AGENT_ORIGIN = new URL(AGENT_URL).origin;
 
-type AgentState = { summoned?: boolean; name?: string; guideSeen?: boolean };
+type AgentState = { summoned?: boolean; name?: string; guideSeen?: boolean; reopenUntil?: number };
 
 function load(): AgentState {
 	try {
@@ -48,4 +48,23 @@ export function markGuideSeen() {
 
 export function dismissAgent() {
 	save({});
+}
+
+// A phone may drop the whole page while it is in the background and load it again when the user comes back.
+// If the panel was open when the user left, it opens again by itself, for a while.
+const REOPEN_WINDOW_MS = 30 * 60 * 1000;
+
+export function rememberPanelOpen() {
+	if (agentState.value.summoned) save({ ...agentState.value, reopenUntil: Date.now() + REOPEN_WINDOW_MS });
+}
+
+export function forgetPanelOpen() {
+	if (agentState.value.reopenUntil != null) {
+		const { reopenUntil: _, ...rest } = agentState.value;
+		save(rest);
+	}
+}
+
+export function shouldReopenPanel(): boolean {
+	return (agentState.value.reopenUntil ?? 0) > Date.now();
 }

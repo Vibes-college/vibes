@@ -85,7 +85,7 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import XSheet from './LojoAgentSheet.vue';
 import { agentLabels } from './labels.js';
-import { AGENT_ORIGIN, AGENT_URL, agentName, agentState, dismissAgent, justSummoned, markGuideSeen } from './state.js';
+import { AGENT_ORIGIN, AGENT_URL, agentName, agentState, dismissAgent, forgetPanelOpen, justSummoned, markGuideSeen, rememberPanelOpen, shouldReopenPanel } from './state.js';
 import type { AgentTool } from './LojoAgentSheet.vue';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
@@ -142,6 +142,7 @@ function openPanel() {
 
 // Minimizing only hides the panel; the iframe stays, and so does whatever the agent is doing.
 function minimize() {
+	forgetPanelOpen();
 	sheet.value = null;
 	panelOpen.value = false;
 	viewport.value = null;
@@ -246,8 +247,17 @@ async function useText(text: string) {
 	os.toast(reply.error === 'no-composer' ? agentLabels.noComposer : agentLabels.notReplaced);
 }
 
+function onVisibilityChange() {
+	if (window.document.visibilityState === 'hidden') {
+		if (panelOpen.value) rememberPanelOpen();
+	} else {
+		forgetPanelOpen();
+	}
+}
+
 onMounted(() => {
 	window.addEventListener('message', onMessage);
+	window.document.addEventListener('visibilitychange', onVisibilityChange);
 	window.visualViewport?.addEventListener('resize', fitViewport);
 	window.visualViewport?.addEventListener('scroll', fitViewport);
 	phoneQuery.addEventListener('change', onPhoneChange);
@@ -255,11 +265,15 @@ onMounted(() => {
 		justSummoned.value = false;
 		arriving.value = true;
 		say(agentLabels.arrived(agentName.value));
+	} else if (shouldReopenPanel()) {
+		forgetPanelOpen();
+		openPanel();
 	}
 });
 
 onBeforeUnmount(() => {
 	window.removeEventListener('message', onMessage);
+	window.document.removeEventListener('visibilitychange', onVisibilityChange);
 	window.visualViewport?.removeEventListener('resize', fitViewport);
 	window.visualViewport?.removeEventListener('scroll', fitViewport);
 	phoneQuery.removeEventListener('change', onPhoneChange);

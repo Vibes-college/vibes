@@ -56,10 +56,44 @@
 	//#endregion
 
 	//#region Script
+	// Vibes: a phone coming back from the background often has no network yet, and the link from mainland China to
+	// Hong Kong drops requests now and then. A failed module import is remembered for the rest of the page, so trying
+	// again here would fail at once: reload the page instead, up to twice (after the network is back if it is offline),
+	// and only then show the error.
+	const BOOT_RETRY_KEY = 'vibesBootRetry';
+	function retryBoot() {
+		let tries = 0;
+		try {
+			tries = Number(sessionStorage.getItem(BOOT_RETRY_KEY) ?? '0');
+			if (tries >= 2) {
+				sessionStorage.removeItem(BOOT_RETRY_KEY);
+				return false;
+			}
+			sessionStorage.setItem(BOOT_RETRY_KEY, String(tries + 1));
+		} catch {
+			return false;
+		}
+		const reload = () => location.reload();
+		if (navigator.onLine === false) {
+			window.addEventListener('online', reload, { once: true });
+		} else {
+			window.setTimeout(reload, 1000 * (tries + 1));
+		}
+		return true;
+	}
+
 	async function importAppScript() {
 		await import(CLIENT_ENTRY ? `/vite/${CLIENT_ENTRY.replace('scripts', lang)}` : '/vite/src/_boot_.ts')
+			.then(() => {
+				try {
+					sessionStorage.removeItem(BOOT_RETRY_KEY);
+				} catch {
+					// No sessionStorage: nothing was counted.
+				}
+			})
 			.catch(async e => {
 				console.error(e);
+				if (retryBoot()) return;
 				renderError('APP_IMPORT', e);
 			});
 	}
