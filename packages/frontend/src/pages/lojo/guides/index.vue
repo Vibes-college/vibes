@@ -51,7 +51,7 @@ import { i18n } from '@/i18n.js';
 import { useRouter } from '@/router.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { $i } from '@/i.js';
-import { keep, readKept } from '@/lojo/kept.js';
+import { keep, markShown, readKept } from '@/lojo/kept.js';
 import * as os from '@/os.js';
 
 const router = useRouter();
@@ -128,6 +128,7 @@ async function load(reset: boolean, background = false) {
 		const kept = await readKept<Guide[]>(name);
 		if (current !== generation) return;
 		if (kept != null && kept.length > 0) {
+			markShown(true);
 			guides.value = kept;
 			hasMore.value = kept.length === pageSize;
 			loading.value = false;
@@ -172,6 +173,7 @@ async function load(reset: boolean, background = false) {
 		guides.value = reset ? result : [...guides.value, ...result.filter(item => !guides.value.some(existing => existing.id === item.id))];
 		hasMore.value = received === pageSize;
 		rememberGuides(result);
+		if (reset) markShown(false);
 		if (name != null) keep(name, result.slice(0, pageSize).map(forList));
 	} catch {
 		if (current !== generation) return;

@@ -39,3 +39,10 @@ export function keep(name: string, value: unknown): void {
 		// A value that cannot be copied is not kept.
 	}
 }
+
+// For the anonymous start-up record (lojo/boot-report.ts): when the page's first content was on screen, and whether it
+// was a kept copy. Only the first mark of a page load counts (the timeline marks it the same way, utility/paginator.ts).
+export function markShown(kept: boolean): void {
+	if (performance.getEntriesByName('vibes:first-content').length > 0) return;
+	performance.mark('vibes:first-content', { detail: { kept } });
+}

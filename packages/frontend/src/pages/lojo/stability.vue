@@ -73,7 +73,7 @@ const labels = {
 	boot: '打开到能用',
 	bootWarm: '　程序已在手机上',
 	bootCold: '　要下载程序',
-	content: '看到内容（时间线、通知）',
+	content: '看到内容',
 	kept: (kept: number, n: number) => `${Math.round(kept / n * 100)}% 先显示手机里存的`,
 	firstApi: '服务器第一次回应',
 	devices: '设备',

@@ -8,12 +8,8 @@ import * as Misskey from 'misskey-js';
 import type { ComputedRef, Ref, ShallowRef, UnwrapRef } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { get as idbGet, set as idbSet } from '@/utility/idb-proxy.js';
-
-// Vibes: for the anonymous start-up record (lojo/boot-report.ts): when the first notes of the page load were on screen.
-function markFirstContent(kept: boolean) {
-	if (performance.getEntriesByName('vibes:first-content').length > 0) return;
-	performance.mark('vibes:first-content', { detail: { kept } });
-}
+// Vibes: when the first items were on screen, for the anonymous start-up record (lojo/boot-report.ts)
+import { markShown } from '@/lojo/kept.js';
 
 const MAX_ITEMS = 30;
 const MAX_QUEUE_ITEMS = 100;
@@ -244,7 +240,7 @@ export class Paginator<
 
 		const showingKept = Array.isArray(kept) && kept.length > 0;
 		if (showingKept) {
-			markFirstContent(true);
+			markShown(true);
 			this.pushItems(kept);
 			this.canFetchOlder.value = true;
 			this.error.value = false;
@@ -283,7 +279,7 @@ export class Paginator<
 			const arrived = newest == null ? [] : this.items.value.filter(x => x.id > newest && !keptIds.has(x.id));
 			this.items.value = [...arrived, ...apiRes];
 		} else {
-			if (keptKey != null && apiRes.length > 0) markFirstContent(false);
+			if (keptKey != null && apiRes.length > 0) markShown(false);
 			this.pushItems(apiRes);
 		}
 

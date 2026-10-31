@@ -101,7 +101,7 @@ import { notesSearchAvailable } from '@/utility/check-permissions.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { useRouter } from '@/router.js';
 import { Paginator } from '@/utility/paginator.js';
-import { keep, readKept } from '@/lojo/kept.js';
+import { keep, markShown, readKept } from '@/lojo/kept.js';
 
 const router = useRouter();
 
@@ -160,13 +160,17 @@ async function loadChannel() {
 	if (channel.value?.id !== channelId) {
 		channel.value = null;
 		const kept = await readKept<Misskey.entities.Channel>(name);
-		if (kept != null && channel.value == null && props.channelId === channelId) showChannel(kept);
+		if (kept != null && channel.value == null && props.channelId === channelId) {
+			markShown(true);
+			showChannel(kept);
+		}
 	}
 	try {
 		const _channel = await misskeyApi('channels/show', {
 			channelId,
 		});
 		if (props.channelId !== channelId) return;
+		markShown(false);
 		showChannel(_channel);
 		keep(name, _channel);
 	} catch {

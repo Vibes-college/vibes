@@ -54,7 +54,7 @@ import type { CSSProperties } from 'vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import type { Guide, GuideAnchor, GuideThread } from '@/lojo/guides/types.js';
 import { guideApi, isGuideSlug, recallGuide } from '@/lojo/guides/api.js';
-import { keep, readKept } from '@/lojo/kept.js';
+import { keep, markShown, readKept } from '@/lojo/kept.js';
 import { guideCategoryLabel } from './labels.js';
 import GuideBody from './components/GuideBody.vue';
 import MkGuideAnnotatedText from '@/components/lojo/MkGuideAnnotatedText.vue';
@@ -126,6 +126,7 @@ async function load() {
 		const copy = recallGuide(id) ?? await readKept<Guide>(`guide:${id}`);
 		if (current !== generation) return;
 		if (copy != null) {
+			markShown(true);
 			guide.value = copy;
 			loading.value = false;
 			void refreshGuide();
@@ -135,6 +136,7 @@ async function load() {
 		const value = await guideApi.show(id);
 		if (current !== generation) return;
 		guide.value = value;
+		markShown(false);
 		keep(`guide:${id}`, value);
 		loading.value = false;
 		const loaded = await marks;

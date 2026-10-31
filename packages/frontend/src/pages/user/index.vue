@@ -33,7 +33,7 @@ import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
-import { keep, readKept } from '@/lojo/kept.js';
+import { keep, markShown, readKept } from '@/lojo/kept.js';
 
 const XHome = defineAsyncComponent(() => import('./home.vue'));
 const XNotes = defineAsyncComponent(() => import('./notes.vue'));
@@ -81,13 +81,17 @@ function fetchUser(): void {
 	const acct = props.acct;
 	const name = `user:${acct}`;
 	void readKept<Misskey.entities.UserDetailed>(name).then(kept => {
-		if (kept != null && user.value == null && props.acct === acct) user.value = kept;
+		if (kept != null && user.value == null && props.acct === acct) {
+			markShown(true);
+			user.value = kept;
+		}
 	});
 	misskeyApi('users/show', {
 		username,
 		host,
 	}).then(u => {
 		if (props.acct !== acct) return;
+		markShown(false);
 		user.value = u;
 		keep(name, u);
 	}).catch(err => {

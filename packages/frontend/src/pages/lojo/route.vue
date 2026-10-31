@@ -31,7 +31,7 @@ import { lojoLabels } from '@/lojo/labels.js';
 import { CATALOG, DEFAULT_COURSE } from '@/lojo/route/courses/index.js';
 import { coursePath, isReady, myMaps, ROUTE_SCOPE, saveMyMaps, withCourse } from '@/lojo/route/my-maps.js';
 import type { RouteRegistry } from '@/lojo/route/my-maps.js';
-import { keep, readKept } from '@/lojo/kept.js';
+import { keep, markShown, readKept } from '@/lojo/kept.js';
 import { loadTypingProgress } from '@/lojo/typing/progress.js';
 import MkButton from '@/components/MkButton.vue';
 import type { PageHeaderItem } from '@/types/page-header.js';
@@ -203,6 +203,7 @@ async function start() {
 		}, pack, next.map(id => CATALOG.find(c => c.id === id)).filter(c => c != null).map(({ id, short }) => ({ id, short, ready: true })));
 		if (current !== generation) { mounted.destroy(); return; }
 		runtime = mounted;
+		markShown(fromKept);
 		if (!active) runtime.pause();
 		if (fromKept) {
 			// Now the server's copies: progress and the warm-up line redraw the map; "my maps" refreshes the tabs.
