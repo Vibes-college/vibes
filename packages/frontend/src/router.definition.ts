@@ -76,6 +76,18 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/typing.vue')),
 	loginRequired: true,
 }, {
+	// 5 号线 · 词汇: one stop's words and three ways to practise them (/vocab/5.2); its gate is /gate/ielts/5.2.
+	name: 'lojo-vocab',
+	path: '/vocab/:stop',
+	component: page(() => import('@/pages/lojo/vocab.vue')),
+	loginRequired: true,
+}, {
+	// 6 号线 · 语法: one stop's lesson (/grammar/6.2, ?section=s3 opens it at that part); its gate is /gate/ielts/6.2.
+	name: 'lojo-grammar',
+	path: '/grammar/:stop',
+	component: page(() => import('@/pages/lojo/grammar.vue')),
+	loginRequired: true,
+}, {
 	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
 	name: 'lojo',
 	path: '/map/:course',

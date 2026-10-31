@@ -10,7 +10,7 @@ import { lojoEnglishErrors, lojoGateAttemptSchema, lojoGateErrors } from '@/serv
 
 export const meta = {
 	tags: ['lojo'], requireCredential: true, kind: 'write:account',
-	description: 'Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers). The first start of a set can take half a minute while the recording is made.',
+	description: 'Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers); a spell question comes with the recording of its word. The first start of a set can take half a minute while the recording is made.',
 	limit: { duration: 60 * 60 * 1000, max: 60 },
 	errors: {
 		noSuchCourse: lojoGateErrors.noSuchCourse,

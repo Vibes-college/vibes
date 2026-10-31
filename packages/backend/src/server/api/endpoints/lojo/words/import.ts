@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
+import { WORD_SOURCES } from '@/misc/lojo-words.js';
 import { lojoWordItemParam } from '@/server/api/lojo-schemas.js';
 
 export const meta = {
@@ -28,7 +29,7 @@ export const paramDef = {
 				type: 'object',
 				properties: {
 					item: lojoWordItemParam,
-					source: { type: 'string', enum: ['post', 'gate', 'dictation', 'manual'] },
+					source: { type: 'string', enum: WORD_SOURCES },
 					noteId: { type: 'string', format: 'misskey:id', nullable: true },
 					addedAt: { type: 'integer', minimum: 0 },
 				},

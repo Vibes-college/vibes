@@ -3669,7 +3669,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Replace the question sets of a route map with gates. Sent by apps/community/scripts/gates-import.mjs in the Vibes workspace, which checks them first; the sets hold the answers, so they are kept out of the public source.
+     * Replace the question sets of a route map with gates. Sent by apps/community/scripts/gates-import.mjs in the Vibes workspace, which checks them first; the sets hold the answers, so they are kept out of the public source. The vocabulary and grammar questions are marked against their own answers and tests first: if any of them fails, nothing is imported and the error lists them.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
      */
@@ -3713,7 +3713,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers). The first start of a set can take half a minute while the recording is made.
+     * Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers); a spell question comes with the recording of its word. The first start of a set can take half a minute while the recording is made.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
      */

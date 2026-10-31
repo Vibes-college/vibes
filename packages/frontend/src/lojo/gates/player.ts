@@ -5,21 +5,59 @@
 
 // 闯关答题页 (the gate player): the parts without any UI, so they can be tested on their own.
 import type * as Misskey from 'misskey-js';
+import { answerDone, isNewType } from './answers.js';
+import type { NewType } from './answers.js';
 
-export type GateAttempt = Misskey.Endpoints['lojo/gates/start']['res'];
-export type GateGroup = GateAttempt['groups'][number];
-export type GateItem = GateGroup['items'][number];
-export type GateLimit = NonNullable<GateGroup['limit']>;
-export type GatePause = NonNullable<GateAttempt['audio']>['pauses'][number];
+type ApiAttempt = Misskey.Endpoints['lojo/gates/start']['res'];
+type ApiGroup = ApiAttempt['groups'][number];
+type ApiItem = ApiGroup['items'][number];
+type ApiResult = Misskey.Endpoints['lojo/gates/submit']['res'];
+type ApiResultItem = ApiResult['items'][number];
+
+// The vocabulary and grammar lines (docs/vocab-grammar-lines.md) bring five question types, two skills, and a few
+// fields on the paper and on the result. Until misskey-js is generated again from the server, they are laid over the
+// generated types here; once it is, the two agree and these can simply be the generated types.
+export type GateType = ApiGroup['type'] | NewType;
+export type GateSkill = ApiGroup['skill'] | 'vocab' | 'grammar';
+// What a question of a new type adds on the paper; nothing that gives the answer away.
+export type GateItemExtras = {
+	// spell: the recording of the word, and how many times it can be heard
+	audio?: string | null;
+	plays?: number | null;
+	// build: one of the chips isn't needed
+	extra?: boolean | null;
+	// fix: pick the change from the options, or type it
+	mode?: 'choose' | 'type' | null;
+	// parse: the clauses are marked too
+	clauses?: boolean | null;
+	// translate: what the question practises
+	focus?: string | null;
+};
+export type GateItem = ApiItem & GateItemExtras;
+export type GateGroup = Omit<ApiGroup, 'type' | 'skill' | 'items'> & { type: GateType; skill: GateSkill; items: GateItem[] };
+export type GateAttempt = Omit<ApiAttempt, 'groups'> & { groups: GateGroup[] };
+export type GateLimit = NonNullable<ApiGroup['limit']>;
+export type GatePause = NonNullable<ApiAttempt['audio']>['pauses'][number];
 export type GateAnswer = Misskey.Endpoints['lojo/gates/submit']['req']['answers'][number];
-export type GateResult = Misskey.Endpoints['lojo/gates/submit']['res'];
-export type GateResultItem = GateResult['items'][number];
-export type GateReason = NonNullable<GateResultItem['reason']>;
-export type GateScriptLine = GateResult['script'][number];
-export type GateTutor = NonNullable<GateResult['tutor']>;
-export type GatePassage = NonNullable<GateAttempt['passage']>;
+// A translation's marking: what is right, what to change, and notes (a misspelt word, a softer point).
+export type GateFeedback = { good: string[]; fix: string[]; notes: string[] };
+// A parse's right marks: the subject's and the verb's words that must be marked, and each clause's first and last word.
+export type GateParseKey = { s: number[]; v: number[]; c: number[][] };
+// What a marked question adds after handing in (all types of the new lines): the question, a why, a right sentence.
+export type GateResultExtras = {
+	q?: string | null;
+	why?: string | null;
+	right?: string | null;
+	feedback?: GateFeedback | null;
+	key?: GateParseKey | null;
+};
+export type GateResultItem = ApiResultItem & GateResultExtras;
+export type GateResult = Omit<ApiResult, 'items'> & { items: GateResultItem[] };
+export type GateReason = NonNullable<ApiResultItem['reason']>;
+export type GateScriptLine = ApiResult['script'][number];
+export type GateTutor = NonNullable<ApiResult['tutor']>;
+export type GatePassage = NonNullable<ApiAttempt['passage']>;
 export type GateParagraph = GatePassage['paragraphs'][number];
-export type GateSkill = GateGroup['skill'];
 
 // What the student has put down so far: text or a letter per question number; a multi item's letters sit under its first number.
 export type GateAnswers = Record<number, string | string[] | undefined>;
@@ -219,6 +257,44 @@ export function answersPayload(groups: GateGroup[], answers: GateAnswers): GateA
 }
 
 export const blankCount = (payload: GateAnswer[]): number => payload.filter(a => a.value === '').length;
+
+// The questions not done yet, for "还有 N 题没填": the blanks, and (vocabulary and grammar) a fix still without its
+// change, or a parse without its subject or verb. For listening and reading this is the number of blanks.
+export function unansweredCount(groups: GateGroup[], answers: GateAnswers): number {
+	const payload = answersPayload(groups, answers);
+	const values = new Map(payload.map(a => [a.n, a.value]));
+	let count = blankCount(payload);
+	for (const group of groups) {
+		if (!isNewType(group.type)) continue;
+		for (const item of group.items) {
+			const value = values.get(item.n[0]) ?? '';
+			if (value !== '' && !answerDone(group.type, value, item)) count++;
+		}
+	}
+	return count;
+}
+
+/* ---------- Vocabulary and grammar ---------- */
+
+export type PlainKind = 'vocab' | 'grammar';
+
+// A vocabulary or grammar paper has no recording and no passage: it opens on its questions. null for any other paper.
+export function plainKind(groups: Pick<GateGroup, 'skill'>[]): PlainKind | null {
+	const first = groups[0]?.skill;
+	return (first === 'vocab' || first === 'grammar') && groups.every(g => g.skill === first) ? first : null;
+}
+
+// The line a station is on, when it is the vocabulary or the grammar line (content.js LINES: 'vocab', 'grammar').
+export const plainLine = (lineId: string | null | undefined): PlainKind | null => (lineId === 'vocab' || lineId === 'grammar' ? lineId : null);
+
+// The stop's own page: its words and practice (/vocab/5.2) or its lesson (/grammar/6.2).
+export function stopPage(kind: PlainKind | null, station: string): string | null {
+	if (kind == null) return null;
+	return `/${kind}/${encodeURIComponent(station)}`;
+}
+
+// A PRACTICE page may name the station it is about: "/vocab/{station}" is this stop's words. Other paths are kept.
+export const practicePath = (path: string, station: string): string => path.split('{station}').join(encodeURIComponent(station));
 
 /* ---------- Reading ---------- */
 

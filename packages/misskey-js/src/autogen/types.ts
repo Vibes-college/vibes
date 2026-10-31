@@ -3012,7 +3012,7 @@ export type paths = {
     '/lojo/gates/import': {
         /**
          * lojo/gates/import
-         * @description Replace the question sets of a route map with gates. Sent by apps/community/scripts/gates-import.mjs in the Vibes workspace, which checks them first; the sets hold the answers, so they are kept out of the public source.
+         * @description Replace the question sets of a route map with gates. Sent by apps/community/scripts/gates-import.mjs in the Vibes workspace, which checks them first; the sets hold the answers, so they are kept out of the public source. The vocabulary and grammar questions are marked against their own answers and tests first: if any of them fails, nothing is imported and the error lists them.
          *
          *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
          */
@@ -3048,7 +3048,7 @@ export type paths = {
     '/lojo/gates/start': {
         /**
          * lojo/gates/start
-         * @description Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers). The first start of a set can take half a minute while the recording is made.
+         * @description Start a gate: pick a question set you have not heard yet and return the paper and its recording (no answers); a spell question comes with the recording of its word. The first start of a set can take half a minute while the recording is made.
          *
          *     **Credential required**: *Yes* / **Permission**: *write:account*
          */
@@ -30072,9 +30072,9 @@ export interface operations {
                         } | null;
                         groups: {
                             /** @enum {string} */
-                            type: 'form' | 'choice' | 'multi' | 'map' | 'match' | 'judge' | 'bank';
+                            type: 'form' | 'choice' | 'multi' | 'map' | 'match' | 'judge' | 'bank' | 'spell' | 'build' | 'fix' | 'parse' | 'translate';
                             /** @enum {string} */
-                            skill: 'listening' | 'reading';
+                            skill: 'listening' | 'reading' | 'vocab' | 'grammar';
                             instructions: {
                                 en: string;
                                 zh: string;
@@ -30097,6 +30097,13 @@ export interface operations {
                                     words: number;
                                     number: boolean;
                                 } | null;
+                                audio?: string;
+                                plays?: number;
+                                extra?: boolean;
+                                /** @enum {string} */
+                                mode?: 'choose' | 'type';
+                                clauses?: boolean;
+                                focus?: string;
                             }[];
                         }[];
                     };
@@ -30318,9 +30325,9 @@ export interface operations {
                         } | null;
                         groups: {
                             /** @enum {string} */
-                            type: 'form' | 'choice' | 'multi' | 'map' | 'match' | 'judge' | 'bank';
+                            type: 'form' | 'choice' | 'multi' | 'map' | 'match' | 'judge' | 'bank' | 'spell' | 'build' | 'fix' | 'parse' | 'translate';
                             /** @enum {string} */
-                            skill: 'listening' | 'reading';
+                            skill: 'listening' | 'reading' | 'vocab' | 'grammar';
                             instructions: {
                                 en: string;
                                 zh: string;
@@ -30343,6 +30350,13 @@ export interface operations {
                                     words: number;
                                     number: boolean;
                                 } | null;
+                                audio?: string;
+                                plays?: number;
+                                extra?: boolean;
+                                /** @enum {string} */
+                                mode?: 'choose' | 'type';
+                                clauses?: boolean;
+                                focus?: string;
                             }[];
                         }[];
                     };
@@ -30446,6 +30460,19 @@ export interface operations {
                             /** @enum {string|null} */
                             reason: 'blank' | 'word-limit' | 'wrong' | null;
                             tags: string[];
+                            q?: string | null;
+                            why?: string | null;
+                            right?: string | null;
+                            feedback?: {
+                                good: string[];
+                                fix: string[];
+                                notes: string[];
+                            };
+                            key?: {
+                                s: number[];
+                                v: number[];
+                                c: number[][];
+                            };
                         }[];
                         weak: {
                             tag: string;
@@ -32033,7 +32060,7 @@ export interface operations {
                         exampleZh?: string;
                     };
                     /** @enum {string} */
-                    source: 'post' | 'gate' | 'dictation' | 'manual';
+                    source: 'post' | 'gate' | 'dictation' | 'manual' | 'vocab';
                     /** Format: misskey:id */
                     noteId?: string | null;
                 };
@@ -32059,7 +32086,7 @@ export interface operations {
                             example: string;
                             exampleZh: string;
                             /** @enum {string} */
-                            source: 'post' | 'gate' | 'dictation' | 'manual';
+                            source: 'post' | 'gate' | 'dictation' | 'manual' | 'vocab';
                             /** Format: id */
                             noteId: string | null;
                             /** Format: date-time */
@@ -32171,7 +32198,7 @@ export interface operations {
                             exampleZh?: string;
                         };
                         /** @enum {string} */
-                        source: 'post' | 'gate' | 'dictation' | 'manual';
+                        source: 'post' | 'gate' | 'dictation' | 'manual' | 'vocab';
                         /** Format: misskey:id */
                         noteId?: string | null;
                         addedAt: number;
@@ -32266,7 +32293,7 @@ export interface operations {
                         example: string;
                         exampleZh: string;
                         /** @enum {string} */
-                        source: 'post' | 'gate' | 'dictation' | 'manual';
+                        source: 'post' | 'gate' | 'dictation' | 'manual' | 'vocab';
                         /** Format: id */
                         noteId: string | null;
                         /** Format: date-time */
@@ -32561,7 +32588,7 @@ export interface operations {
                                 example: string;
                                 exampleZh: string;
                                 /** @enum {string} */
-                                source: 'post' | 'gate' | 'dictation' | 'manual';
+                                source: 'post' | 'gate' | 'dictation' | 'manual' | 'vocab';
                                 /** Format: id */
                                 noteId: string | null;
                                 /** Format: date-time */

@@ -7,7 +7,7 @@ export const SYSTEMS = [{ id:'test', zh:'语言考试', en:'Language tests' }, {
 /** @type {{ id: string, zh: string, en: string, color: string, dot?: string }[]} */
 export const SUBJECTS = [{ id:'english', zh:'英语', en:'English', color:'#B8871B' }];
 export const CATALOG = [
-	{ id:'ielts', system:'test', subject:'english', short:{ zh:'雅思', en:'IELTS' }, title:{ zh:'雅思', en:'IELTS' }, ready:true, kind:'gates', stations:36, storeKey:'ielts', load:() => import('./ielts/index.js') },
+	{ id:'ielts', system:'test', subject:'english', short:{ zh:'雅思', en:'IELTS' }, title:{ zh:'雅思', en:'IELTS' }, ready:true, kind:'gates', stations:54, storeKey:'ielts', load:() => import('./ielts/index.js') },
 	{ id:'toefl', system:'test', subject:'english', short:{ zh:'托福', en:'TOEFL' }, title:{ zh:'托福 iBT', en:'TOEFL iBT' }, ready:false },
 	{ id:'adult-english', system:'everyday', subject:'english', short:{ zh:'成人英语', en:'Adult English' }, title:{ zh:'成人英语', en:'English for Adults' }, ready:false },
 ];

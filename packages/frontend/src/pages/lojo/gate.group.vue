@@ -4,13 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <!-- One group of questions on the gate's paper: a form with gaps, choices, a map or a matching box; for reading also
-TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, ii, …) and paragraph letters. -->
+TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, ii, …) and paragraph letters; for the
+vocabulary and grammar lines listen-and-spell, word order, find the wrong word, mark the sentence and translate. -->
 <template>
 <section :class="$style.root" :aria-labelledby="headId">
 	<header :class="$style.head">
 		<span :id="headId" :class="$style.range">{{ gateLabels.questionRange(numbers[0], numbers[numbers.length - 1]) }}</span>
-		<p :class="$style.instructions" lang="en">{{ group.instructions.en }}</p>
-		<p :class="$style.zh">{{ group.instructions.zh }}</p>
+		<p v-if="group.instructions.en" :class="$style.instructions" lang="en">{{ group.instructions.en }}</p>
+		<p v-if="group.instructions.zh" :class="$style.zh">{{ group.instructions.zh }}</p>
 		<p v-if="group.type === 'form' && group.limit && gateLabels.limit(group.limit)" :class="$style.limit">
 			<i class="ti ti-pencil" aria-hidden="true"></i> {{ gateLabels.limit(group.limit) }}
 		</p>
@@ -67,14 +68,19 @@ TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, 
 	</div>
 
 	<!-- one question per item: a choice, several choices, a letter, or TRUE / FALSE / NOT GIVEN -->
-	<template v-if="!gapped(group.type)">
-		<div v-for="item in group.items" :key="item.n.join('-')" :class="$style.item" role="group" :aria-labelledby="`${headId}-${itemKey(item)}`">
+	<template v-if="!gapped(group.type) && !isNewType(group.type)">
+		<div v-for="item in group.items" :key="item.n.join('-')" :class="$style.item" role="group" :aria-labelledby="`${headId}-${itemKey(item)}`" :data-gate-item="item.n[0]">
 			<p :id="`${headId}-${itemKey(item)}`" :class="$style.q" lang="en">
 				<span :class="$style.num">{{ item.n.length > 1 ? `${item.n[0]}–${item.n[item.n.length - 1]}` : item.n[0] }}</span>
-				{{ item.q }}
+				<!-- a grammar choice shows the pick in the sentence's gap -->
+				<template v-if="group.skill === 'grammar' && blankParts(item.q)">
+					{{ blankParts(item.q)![0] }}<span :class="$style.gap">{{ letterText(group, item, String(answers[item.n[0]] ?? '')) ?? '\u00a0' }}<span v-if="!answers[item.n[0]]" :class="$style.sr">{{ gateLabels.gapSr }}</span></span>{{ blankParts(item.q)![1] }}
+				</template>
+				<template v-else>{{ item.q }}</template>
 				<small v-if="group.type === 'multi'" :class="$style.choose">{{ gateLabels.choose(item.choose) }} · {{ gateLabels.picked(picks(item).length, item.choose) }}</small>
 			</p>
 			<div v-if="group.type === 'choice' || group.type === 'multi'" :class="$style.options" :role="group.type === 'choice' ? 'radiogroup' : undefined">
+				<!-- a vocabulary choice's options are Chinese meanings -->
 				<button
 					v-for="(option, oi) in item.options"
 					:key="oi"
@@ -83,7 +89,7 @@ TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, 
 					:role="group.type === 'choice' ? 'radio' : 'checkbox'"
 					:aria-checked="chosen(group.type, item, letterAt(oi))"
 					:disabled="disabled || (group.type === 'multi' && !chosen('multi', item, letterAt(oi)) && picks(item).length >= item.choose)"
-					lang="en"
+					:lang="group.skill === 'vocab' ? undefined : 'en'"
 					@click="choose(group.type, item, letterAt(oi))"
 				>
 					<b :class="$style.letter">{{ letterAt(oi) }}</b>
@@ -105,13 +111,40 @@ TRUE / FALSE / NOT GIVEN, a summary with a box of words, a list of headings (i, 
 			</div>
 		</div>
 	</template>
+
+	<!-- the vocabulary and grammar lines' own types, one question per item; each answer is one string (lojo/gates/answers.ts) -->
+	<template v-else-if="isNewType(group.type)">
+		<template v-for="item in group.items" :key="item.n.join('-')">
+			<!-- listen and spell: one row each -->
+			<div v-if="group.type === 'spell'" :class="$style.spellRow" role="group" :aria-labelledby="`${headId}-${itemKey(item)}`" :data-gate-item="item.n[0]">
+				<span :id="`${headId}-${itemKey(item)}`" :class="$style.num"><span aria-hidden="true">{{ item.n[0] }}</span><span :class="$style.sr">{{ gateLabels.question(item.n[0]) }}</span></span>
+				<XSpell v-model="text[item.n[0]]" :class="$style.grow" :item="item" :n="item.n[0]" :disabled="disabled"/>
+			</div>
+			<div v-else :class="[$style.item, $style.newItem]" role="group" :aria-labelledby="`${headId}-${itemKey(item)}`" :data-gate-item="item.n[0]">
+				<p :id="`${headId}-${itemKey(item)}`" :class="[$style.q, { [$style.zhQ]: group.type === 'build' || group.type === 'translate' }]">
+					<span :class="$style.num">{{ item.n[0] }}</span>
+					{{ ask(item) }}
+				</p>
+				<XBuild v-if="group.type === 'build'" v-model="text[item.n[0]]" :item="item" :disabled="disabled"/>
+				<XFix v-else-if="group.type === 'fix'" v-model="text[item.n[0]]" :item="item" :disabled="disabled"/>
+				<XParse v-else-if="group.type === 'parse'" v-model="text[item.n[0]]" :item="item" :disabled="disabled"/>
+				<XTranslate v-else v-model="text[item.n[0]]" :item="item" :disabled="disabled"/>
+			</div>
+		</template>
+	</template>
 </section>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, useId } from 'vue';
+import XBuild from './gate.build.vue';
+import XFix from './gate.fix.vue';
 import XGap from './gate.gap.vue';
+import XParse from './gate.parse.vue';
 import XSelect from './gate.select.vue';
+import XSpell from './gate.spell.vue';
+import XTranslate from './gate.translate.vue';
+import { blankParts, isNewType } from '@/lojo/gates/answers.js';
 import { gateLabels } from '@/lojo/gates/labels.js';
 import { formBlocks, gapped, groupNumbers, itemKey, letterAt, letterText, pickLetters } from '@/lojo/gates/player.js';
 import type { FormCell, GateAnswers, GateGroup, GateItem, GateLimit } from '@/lojo/gates/player.js';
@@ -176,6 +209,13 @@ function choose(type: GateGroup['type'], item: GateItem, letter: string) {
 function letterLabel(letter: string): string {
 	const words = letterText(props.group, null, letter);
 	return words ? gateLabels.letterOption(letter, words) : letter;
+}
+
+// The line over a question of a new type: the Chinese to put together or translate, or what to do with the sentence.
+function ask(item: GateItem): string {
+	if (props.group.type === 'fix') return (item.mode ?? (item.options.length > 0 ? 'choose' : 'type')) === 'choose' ? gateLabels.fixAskChoose : gateLabels.fixAskType;
+	if (props.group.type === 'parse') return item.clauses ? gateLabels.parseAskClauses : gateLabels.parseAsk;
+	return item.q ?? '';
 }
 </script>
 
@@ -449,5 +489,56 @@ function letterLabel(letter: string): string {
 		outline: 2px solid var(--MI_THEME-focus);
 		outline-offset: 2px;
 	}
+}
+
+// a grammar choice's gap, with the pick in it
+.gap {
+	display: inline-block;
+	min-width: 5em;
+	margin: 0 2px;
+	border-bottom: 2px solid var(--MI_THEME-fg);
+	font-weight: bold;
+	line-height: 1.3;
+	text-align: center;
+	color: var(--MI_THEME-accent);
+}
+
+// the Chinese of a sentence to put together or to translate
+.zhQ {
+	font-size: 1.05em;
+	font-weight: bold;
+}
+
+.newItem + .newItem {
+	padding-top: 14px;
+	border-top: 1px solid var(--MI_THEME-divider);
+}
+
+.spellRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+
+	> .num {
+		flex-shrink: 0;
+		margin-right: 0;
+	}
+}
+
+.grow {
+	flex: 1;
+	min-width: 0;
+}
+
+.sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 }
 </style>

@@ -13,8 +13,9 @@ import type { Card, Grade } from 'ts-fsrs';
 
 export const WORD_KINDS = ['word', 'phrase', 'idiom', 'slang', 'grammar'] as const;
 export type WordKind = typeof WORD_KINDS[number];
-// Where a word came from: a post's explanation, a gate's mistakes, dictation, or typed in by hand.
-export const WORD_SOURCES = ['post', 'gate', 'dictation', 'manual'] as const;
+// Where a word came from: a post's explanation, a gate's mistakes, dictation, typed in by hand, or a vocabulary stop's
+// list and practice (5 号线).
+export const WORD_SOURCES = ['post', 'gate', 'dictation', 'manual', 'vocab'] as const;
 export type WordSource = typeof WORD_SOURCES[number];
 export const CARD_KINDS = ['recognize', 'spell'] as const;
 export type CardKind = typeof CARD_KINDS[number];

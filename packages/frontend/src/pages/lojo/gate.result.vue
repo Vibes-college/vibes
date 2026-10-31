@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <!-- After handing in: the score (or, for a placement test, the station to start at), what to do next, where to practise
-what went wrong, the answers and the transcript. -->
+what went wrong, the answers and the transcript. A vocabulary paper also lists the words missed, for the 生词本. -->
 <template>
 <div :class="$style.root">
 	<section v-if="placedAt" :class="[$style.score, $style.pass]" aria-live="polite">
@@ -31,26 +31,30 @@ what went wrong, the answers and the transcript. -->
 	<div :class="$style.actions">
 		<template v-if="placedAt">
 			<MkButton primary rounded large @click="emit('go', placedAt)">
-				<i class="ti ti-arrow-right"></i> {{ gateLabels.goPlaced(stationTitle(placedAt)) }}
+				<i class="ti ti-arrow-right" aria-hidden="true"></i> {{ gateLabels.goPlaced(stationTitle(placedAt)) }}
 			</MkButton>
 		</template>
 		<template v-else>
 			<MkButton v-if="result.passed && result.next" primary rounded large @click="emit('go', result.next)">
-				<i class="ti ti-arrow-right"></i> {{ gateLabels.next(stationTitle(result.next)) }}
+				<i class="ti ti-arrow-right" aria-hidden="true"></i> {{ gateLabels.next(stationTitle(result.next)) }}
 			</MkButton>
 			<MkButton :primary="!result.passed" rounded large @click="emit('again')">
-				<i class="ti ti-refresh"></i> {{ gateLabels.again }}
+				<i class="ti ti-refresh" aria-hidden="true"></i> {{ plain != null && sets === 1 ? gateLabels.againSame : gateLabels.again }}
+			</MkButton>
+			<!-- a vocabulary or grammar stop: back to its words, or its lesson -->
+			<MkButton v-if="stopPath" type="routerLink" :to="stopPath" rounded large>
+				<i :class="plain === 'vocab' ? 'ti ti-vocabulary' : 'ti ti-book-2'" aria-hidden="true"></i> {{ plain === 'vocab' ? gateLabels.backToWords : gateLabels.seeLesson }}
 			</MkButton>
 		</template>
 		<MkButton rounded large @click="emit('back')">
-			<i class="ti ti-map-2"></i> {{ gateLabels.backToMap }}
+			<i class="ti ti-map-2" aria-hidden="true"></i> {{ gateLabels.backToMap }}
 		</MkButton>
 	</div>
 
 	<section v-if="!placedAt && !result.passed && result.failStreak >= 3" :class="$style.streak">
 		<p>{{ gateLabels.streak(result.failStreak, previous != null) }}</p>
 		<MkButton v-if="previous" rounded small @click="emit('go', previous.id)">
-			<i class="ti ti-arrow-left"></i> {{ gateLabels.previous(stationTitle(previous.id)) }}
+			<i class="ti ti-arrow-left" aria-hidden="true"></i> {{ gateLabels.previous(stationTitle(previous.id)) }}
 		</MkButton>
 	</section>
 
@@ -79,6 +83,38 @@ what went wrong, the answers and the transcript. -->
 		</MkA>
 	</section>
 
+	<!-- vocabulary: the words missed, one by one or all at once into the 生词本 -->
+	<section v-if="missed.length > 0" :class="$style.words" :aria-labelledby="wordsId">
+		<h2 :id="wordsId" :class="$style.h2">{{ gateLabels.missedWords }}</h2>
+		<ul :class="$style.wordList">
+			<li v-for="w in missedItems" :key="w.missed.text" :class="$style.word">
+				<div :class="$style.wordText">
+					<span>
+						<b lang="en">{{ w.item.text }}</b>
+						<span v-if="w.word?.ipa" :class="$style.ipa" lang="en">{{ w.word.ipa }}</span>
+					</span>
+					<span :class="$style.meaning">{{ [w.word?.pos, w.item.meaning].filter(x => x).join(' ') }}</span>
+				</div>
+				<MkButton
+					rounded
+					small
+					:disabled="isSaved(w.item.text) || adding.includes(w.missed.text)"
+					:wait="adding.includes(w.missed.text)"
+					:aria-label="isSaved(w.item.text) ? `${w.item.text} · ${gateLabels.saved}` : `${w.item.text} · ${gateLabels.addWord}`"
+					@click="addOne(w.missed)"
+				>
+					<i :class="isSaved(w.item.text) ? 'ti ti-check' : 'ti ti-bookmark-plus'"></i> {{ isSaved(w.item.text) ? gateLabels.saved : gateLabels.addWord }}
+				</MkButton>
+			</li>
+		</ul>
+		<div :class="$style.wordsFoot">
+			<MkButton rounded :disabled="allSaved || addingAll" :wait="addingAll" @click="addAll">
+				<i :class="allSaved ? 'ti ti-check' : 'ti ti-bookmarks'"></i> {{ allSaved ? gateLabels.allSaved : gateLabels.addAll }}
+			</MkButton>
+			<MkA to="/wordbook" :class="$style.link"><i class="ti ti-notebook"></i> {{ gateLabels.openWordbook }}</MkA>
+		</div>
+	</section>
+
 	<template v-if="earlier">
 		<XReview :result="earlier.result" :attempt="earlier.attempt" :title="gateLabels.partFirst"/>
 		<XReview :result="result" :attempt="attempt" :title="gateLabels.partSecond"/>
@@ -88,14 +124,18 @@ what went wrong, the answers and the transcript. -->
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, useId, watch } from 'vue';
 import XReview from './gate.review.vue';
 import MkButton from '@/components/MkButton.vue';
 import { guideTitle } from '@/lojo/gates/api.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
-import { bandText, recommendCards, stationBand, weakBySkill } from '@/lojo/gates/player.js';
+import { bandText, plainKind, practicePath, recommendCards, stationBand, stopPage, weakBySkill } from '@/lojo/gates/player.js';
 import type { GateAttempt, GatePack, GateResult, PackStation, RecommendCard } from '@/lojo/gates/player.js';
+import { findVocabWord, loadVocab, missedVocab, vocabWordbookItem } from '@/lojo/gates/vocab.js';
+import type { MissedWord, VocabPack } from '@/lojo/gates/vocab.js';
 import { DICTATION_PATH, carryFromResult, carryPath, saveCarry } from '@/lojo/dictation/carry.js';
+import { addWord, isSaved, loadWordbook } from '@/lojo/english/wordbook.js';
+import * as os from '@/os.js';
 
 const props = defineProps<{
 	result: GateResult;
@@ -107,6 +147,8 @@ const props = defineProps<{
 	previous: PackStation | null;
 	// a placement test's first part, reviewed above its second
 	earlier?: { result: GateResult; attempt: GateAttempt } | null;
+	// how many sets the station has (from the map's progress), when known
+	sets?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -146,11 +188,78 @@ const dictation = computed(() => carryFromResult(
 watch(dictation, carry => {
 	if (carry) saveCarry(carry);
 }, { immediate: true });
+// "/vocab/{station}" is this stop's words
 const appPath = (card: RecommendCard) => {
-	const path = card.app?.path ?? '';
+	const path = practicePath(card.app?.path ?? '', props.result.station);
 	const carry = dictation.value;
 	return path === DICTATION_PATH && carry?.gaps.some(g => g.tags.includes(card.tag)) ? carryPath(carry.attemptId, card.tag) : path;
 };
+
+// A vocabulary or grammar paper, and its stop's own page (the words, or the lesson).
+const plain = computed(() => plainKind(props.attempt.groups));
+const stopPath = computed(() => stopPage(plain.value, props.result.station));
+
+// Vocabulary: the words missed, with what the word lists (vocab.js) say about each, for the 生词本.
+const wordsId = useId();
+const missed = computed(() => (plain.value === 'vocab' ? missedVocab(props.result, props.attempt) : []));
+const vocab = shallowRef<VocabPack | null>(null);
+let vocabLoaded: Promise<VocabPack | null> | null = null;
+const itemOf = (m: MissedWord, lists: VocabPack | null) => {
+	const word = findVocabWord(lists, props.result.station, m.text);
+	return { missed: m, word, item: vocabWordbookItem(m, word, gateLabels.altSpelling) };
+};
+const missedItems = computed(() => missed.value.map(m => itemOf(m, vocab.value)));
+const adding = ref<string[]>([]);
+const addingAll = ref(false);
+const allSaved = computed(() => missedItems.value.every(w => isSaved(w.item.text)));
+
+watch(missed, list => {
+	if (list.length === 0) return;
+	// what is in the wordbook already shows as saved
+	void loadWordbook();
+	vocabLoaded ??= loadVocab(props.result.course).then(lists => {
+		vocab.value = lists;
+		return lists;
+	});
+}, { immediate: true });
+
+// true when the word went in (false when it was there already); throws when it couldn't be saved
+async function add(m: MissedWord): Promise<boolean> {
+	if (adding.value.includes(m.text)) return false;
+	adding.value = [...adding.value, m.text];
+	try {
+		// a tap before the word lists have loaded still saves the meaning, phonetics and example
+		const lists = await (vocabLoaded ?? Promise.resolve(vocab.value));
+		return await addWord(itemOf(m, lists).item, 'vocab');
+	} finally {
+		adding.value = adding.value.filter(t => t !== m.text);
+	}
+}
+
+function addOne(m: MissedWord) {
+	add(m).catch(() => os.toast(gateLabels.addFailed));
+}
+
+async function addAll() {
+	if (addingAll.value) return;
+	addingAll.value = true;
+	let added = 0;
+	let failed = false;
+	try {
+		for (const w of missedItems.value) {
+			if (isSaved(w.item.text)) continue;
+			try {
+				if (await add(w.missed)) added++;
+			} catch {
+				failed = true;
+			}
+		}
+	} finally {
+		addingAll.value = false;
+	}
+	if (failed) os.toast(gateLabels.addFailed);
+	else if (added > 0) os.toast(gateLabels.addedAll(added));
+}
 
 // Guide cards show only once the guide's title has loaded; a guide that is gone is left out.
 const guides = ref<Record<string, string>>({});
@@ -314,5 +423,61 @@ watch(cards, list => {
 	small {
 		opacity: 0.75;
 	}
+}
+
+.words {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.wordList {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.word {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	padding: 10px 12px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-panel);
+}
+
+.wordText {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+
+	b {
+		font-size: 1.05em;
+	}
+}
+
+.ipa {
+	margin-left: 8px;
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+.meaning {
+	font-size: 0.9em;
+	opacity: 0.85;
+}
+
+.wordsFoot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 14px;
 }
 </style>

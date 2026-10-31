@@ -9,17 +9,54 @@
 // can have both, its listening questions first.
 // Question sets are written in the Vibes workspace (courses/<subject>/<course>/gates/, format in its README.md) and
 // imported into the database with apps/community/scripts/gates-import.mjs, so answers and scripts stay on the server.
+// The vocabulary and grammar lines (5 and 6) have neither: their sets use the types from spell on, marked by the rules
+// of the grammar-line demo (docs/vocab-grammar-lines.md in the workspace).
 
-export const gateTypes = ['form', 'choice', 'multi', 'map', 'match', 'judge', 'bank'] as const;
+import { speechText } from '@/misc/lojo-voices.js';
+
+export const gateTypes = ['form', 'choice', 'multi', 'map', 'match', 'judge', 'bank', 'spell', 'build', 'fix', 'parse', 'translate'] as const;
 export type GateType = typeof gateTypes[number];
-export const gateSkills = ['listening', 'reading'] as const;
+// every group of a vocabulary set is vocab, every group of a grammar set grammar
+export const gateSkills = ['listening', 'reading', 'vocab', 'grammar'] as const;
 export type GateSkill = typeof gateSkills[number];
 export type GateLimit = { words: number; number: boolean };
 export type GateText = { en: string; zh: string };
 
-// The imported form: the import script has filled in every default, so nothing here is optional.
+// A regular expression of a translate question: gates.mjs turns the literals of the authoring files into this.
+export type GateRe = { source: string; flags: string };
+// Word positions are indices into tokens(q), from 0; punctuation stays with its word ('cities,').
+export type GateSpan = { must: number[]; span: [number, number] };
+// any: regular expression fragments ('supermarkets?'), matched as whole words
+export type GateMust = { any: string[]; zh: string; en: string; soft: boolean };
+// What the vocabulary and grammar types need for marking. Never sent to the browser, nor is the answer.
+export type GateItemSpec =
+	// q: null; options: []; answer: the word and its other spellings. say: what is read out
+	| { kind: 'spell'; say: string }
+	// q: the Chinese; options: the chips in the order shown; answer: the accepted orders (lower case, one space between chips)
+	| { kind: 'build'; extra: boolean }
+	// q: the sentence; options: the corrections to choose from, [] to type one; answer: [the right option], or the accepted words (lower case)
+	| { kind: 'fix'; wrong: number }
+	// q: the sentence; options: []; answer: []
+	| { kind: 'parse'; subj: GateSpan; verb: GateSpan; clauses: [number, number][] }
+	// q: the Chinese; options: []; answer: the reference translations
+	| {
+		kind: 'translate'; focus: string; must: GateMust[]; errors: { re: GateRe; msg: string; replaces: boolean }[];
+		structure: { any: GateRe[]; ok: string; miss: string; alt: { re: GateRe; note: string }[] };
+		// other answers that must be marked right, and wrong ones that must not: checked on import
+		test: { right: string[]; wrong: string[] };
+	};
+export type GateSpecType = GateItemSpec['kind'];
+const specTypes: readonly GateType[] = ['spell', 'build', 'fix', 'parse', 'translate'];
+
+// The imported form: the import script has filled in every default, so nothing here is optional
+// but what sets imported before the vocabulary and grammar lines don't have.
 export type GateItem = {
 	n: number[]; q: string | null; options: string[]; answer: string[]; ignoreSpaces: boolean; limit: GateLimit | null; tags: string[];
+	// shown once the paper is handed in: why (vocabulary: 词：意思), and a right sentence (build and fix: the corrected one,
+	// translate: the first reference)
+	why?: string | null;
+	right?: string | null;
+	spec?: GateItemSpec | null;
 };
 // letters: what can be picked, for every type but form and the A–C of choice and multi: map letters, A–H of a box,
 // i–x of a list of headings, a passage's paragraph letters, or TRUE / FALSE / NOT GIVEN.
@@ -63,13 +100,47 @@ export type GateCourse = {
 };
 
 export type GateReason = 'blank' | 'word-limit' | 'wrong';
+// translate: what is right, what to fix (any of it makes the answer wrong), and notes that don't
+export type GateFeedback = { good: string[]; fix: string[]; notes: string[] };
+// parse: the subject's and verb's words that must be marked, and the clauses (first and last word)
+export type GateParseKey = { s: number[]; v: number[]; c: [number, number][] };
+// given, expected and accepted of the vocabulary and grammar types: spell as typed; build the sentence the chips make
+// (expected: the right sentence); fix and parse in the answer's encoding ('3|is', the parse JSON); translate as written.
 export type GateItemResult = {
 	n: number; correct: boolean; given: string; expected: string; accepted: string[]; reason: GateReason | null; tags: string[];
+	// questions with a why (the vocabulary and grammar sets)
+	q?: string | null;
+	why?: string | null;
+	right?: string | null;
+	feedback?: GateFeedback;
+	key?: GateParseKey;
 };
 
 /* ---------- the paper as the learner sees it: no answers, no tags ---------- */
 
-export function publicGroups(set: GateSet, imageUrl: (name: string) => string) {
+// How many times a spell question's word may be played.
+export const SPELL_PLAYS = 3;
+
+// What each new type adds to a question on the paper: never the answer, what is read out or the rest of the spec.
+type PublicExtras = { audio?: string; plays?: number; extra?: boolean; mode?: 'choose' | 'type'; clauses?: boolean; focus?: string };
+
+function publicExtras(item: GateItem, words: ReadonlyMap<number, string>): PublicExtras {
+	const spec = item.spec;
+	switch (spec?.kind) {
+		case 'spell': {
+			const audio = words.get(item.n[0]);
+			return { ...(audio != null ? { audio } : {}), plays: SPELL_PLAYS };
+		}
+		case 'build': return { extra: spec.extra };
+		case 'fix': return { mode: item.options.length > 0 ? 'choose' : 'type' };
+		case 'parse': return { clauses: spec.clauses.length > 0 };
+		case 'translate': return { focus: spec.focus };
+		default: return {};
+	}
+}
+
+// words: the recording of each spell question's word by question number, made by LojoGateService before handing out.
+export function publicGroups(set: GateSet, imageUrl: (name: string) => string, words: ReadonlyMap<number, string> = new Map()) {
 	return set.groups.map(g => ({
 		type: g.type,
 		skill: g.skill ?? 'listening',
@@ -82,6 +153,7 @@ export function publicGroups(set: GateSet, imageUrl: (name: string) => string) {
 		options: g.options,
 		items: g.items.map(i => ({
 			n: i.n, q: i.q, options: i.options, choose: g.type === 'multi' ? i.answer.length : 1, limit: i.limit,
+			...publicExtras(i, words),
 		})),
 	}));
 }
@@ -136,16 +208,230 @@ const pickOf = (group: GateGroup, value: string) => {
 	return group.letters.find(l => l.toUpperCase() === v) ?? v;
 };
 
+/* ---------- marking the vocabulary and grammar types: the rules of prototypes/grammar-line/js/mark.js ---------- */
+
+// A sentence for comparing: lower case, plain quotes, short forms written out, no punctuation.
+export function norm(s: string): string {
+	return s.toLowerCase()
+		.replace(/[’‘`´]/g, '\'').replace(/[“”]/g, '"')
+		.replace(/\b(there|it|that|what|he|she)'s\b/g, '$1 is')
+		.replace(/\b(does|do|did|is|are|was|were|has|have|had)n't\b/g, '$1 not')
+		.replace(/\bcan't\b/g, 'can not').replace(/\bcannot\b/g, 'can not').replace(/\bwon't\b/g, 'will not')
+		.replace(/'re\b/g, ' are').replace(/'m\b/g, ' am').replace(/'ve\b/g, ' have').replace(/'ll\b/g, ' will')
+		.replace(/[^a-z0-9'\- ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+export const word = (s: string) => s.toLowerCase().replace(/[^a-z'\-]/g, '');
+// The words of a sentence, as the paper shows them: 'cities,' keeps its comma. The page splits the same way.
+export const tokens = (s: string) => s.split(/\s+/).filter(Boolean);
+export const bare = (t: string) => t.replace(/^[^A-Za-z0-9(]+|[^A-Za-z0-9)]+$/g, '');
+
+// The chips in the learner's order as a sentence: a capital letter and a full stop.
+export function sentence(chips: string[], order: number[]): string {
+	const s = order.map(i => chips[i]).join(' ');
+	return s ? s.charAt(0).toUpperCase() + s.slice(1) + '.' : '';
+}
+
+const numberOf = (part: string): number | null => (/^\d+$/.test(part.trim()) ? Number(part.trim()) : null);
+
+// build: '4,1,3,0,2', the chips in the order picked. null if a number is not a chip's, or comes twice.
+export function buildOrder(value: string, chips: number): number[] | null {
+	const order = value.split(',').map(numberOf);
+	if (order.some(i => i == null || i >= chips)) return null;
+	return new Set(order).size === order.length ? order as number[] : null;
+}
+
+// fix: '3|is', the wrong word's position and the correction (an option's text, '删掉这个词' too, or what was typed).
+export function fixAnswer(value: string): { at: number; fix: string } | null {
+	const bar = value.indexOf('|');
+	const at = numberOf(bar < 0 ? value : value.slice(0, bar));
+	return at == null ? null : { at, fix: bar < 0 ? '' : value.slice(bar + 1).trim() };
+}
+
+// parse: '{"s":[3,4],"v":[9],"c":[[3,8]]}', the words marked as the subject and the verb, and each clause's first and
+// last word. null if it is not that JSON or a position is not one of the sentence's `words`.
+export function parseAnswer(value: string, words: number): GateParseKey | null {
+	let a: unknown;
+	try {
+		a = JSON.parse(value);
+	} catch {
+		return null;
+	}
+	if (!isObj(a)) return null;
+	const at = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) < words;
+	const list = (v: unknown): number[] | null => (v === undefined ? [] : allOf(v, at) ? v : null);
+	const s = list(a.s), v = list(a.v);
+	const c = a.c === undefined ? [] : Array.isArray(a.c) && a.c.every(x => Array.isArray(x) && x.length === 2 && x.every(at)) ? a.c as [number, number][] : null;
+	return s && v && c ? { s, v, c } : null;
+}
+
+const regex = (re: GateRe) => new RegExp(re.source, re.flags);
+const mustSource = (any: string[]) => '\\b(' + any.join('|') + ')\\b';
+const mustRegex = (any: string[]) => new RegExp(mustSource(any));
+
+// Founder, 2026-10-29: in a translation, one letter off (one added, missing or changed) in a plain word of `must`
+// (letters only, 4 or more) still counts as translated, with a note. Never for fragments such as 'supermarkets?'.
+const PLAIN_WORD = /^[a-z]{4,}$/i;
+
+function oneLetterOff(a: string, b: string): boolean {
+	if (a === b || Math.abs(a.length - b.length) > 1) return false;
+	if (a.length === b.length) {
+		let diff = 0;
+		for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) diff++;
+		return diff === 1;
+	}
+	const [short, long] = a.length < b.length ? [a, b] : [b, a];
+	let i = 0;
+	while (i < short.length && short[i] === long[i]) i++;
+	return short.slice(i) === long.slice(i + 1);
+}
+
+function misspelt(any: string[], words: string[]): { given: string; meant: string } | null {
+	const plain = any.filter(a => PLAIN_WORD.test(a)).map(a => a.toLowerCase());
+	for (const given of words) for (const meant of plain) if (oneLetterOff(given, meant)) return { given, meant };
+	return null;
+}
+
+// The parts of `must` not found in t that a misspelt word stands for. The words it could be are not those that already
+// say another part ('best friend' is not 'friends' misspelt), nor those of a mistake in `flagged` ('who lives' is
+// grammar, not 'live' misspelt).
+function misspellings(must: GateMust[], t: string, flagged: [number, number][]): Map<GateMust, { given: string; meant: string }> {
+	const out = new Map<GateMust, { given: string; meant: string }>();
+	const unmatched = must.filter(m => !mustRegex(m.any).test(t));
+	if (unmatched.length === 0) return out;
+	const taken = [...flagged, ...must.flatMap(m => [...t.matchAll(new RegExp(mustSource(m.any), 'g'))].map(x => [x.index, x.index + x[0].length]))];
+	const words = [...t.matchAll(/[a-z]+/g)].filter(w => !taken.some(([a, b]) => w.index >= a && w.index + w[0].length <= b)).map(w => w[0]);
+	for (const m of unmatched) {
+		const typo = misspelt(m.any, words);
+		if (typo) out.set(m, typo);
+	}
+	return out;
+}
+
+// The stand-in for AI marking until DeepSeek marks translations: the references, the structure this stop practises
+// and the usual mistakes. The errors are looked for first: a grammar mistake is wrong even where a misspelling isn't.
+// They, the structure and its alternatives are looked for in the sentence as written and as meant (its misspellings
+// put right), so a misspelt word hides no grammar mistake ('are spnd' is 'are spend') and costs no structure.
+export function markTranslation(spec: Extract<GateItemSpec, { kind: 'translate' }>, raw: string): { correct: boolean; feedback: GateFeedback } {
+	const good: string[] = [], fix: string[] = [], notes: string[] = [];
+	if (/[㐀-鿿]/.test(raw)) return { correct: false, feedback: { good, fix: ['要写英文。'], notes } };
+	const t = norm(raw);
+	if (t.split(' ').length < 4) return { correct: false, feedback: { good, fix: ['句子不完整，写一整句。'], notes } };
+	const flagged = spec.errors.flatMap(e => {
+		const m = regex(e.re).exec(t);
+		return m ? [[m.index, m.index + m[0].length] as [number, number]] : [];
+	});
+	const typos = misspellings(spec.must, t, flagged);
+	const meant = [...typos.values()].reduce((s, x) => s.replace(new RegExp(`\\b${x.given}\\b`, 'g'), x.meant), t);
+	const found = (re: GateRe) => regex(re).test(t) || (meant !== t && regex(re).test(meant));
+	let replaced = false;
+	for (const e of spec.errors) {
+		if (found(e.re)) {
+			fix.push(e.msg);
+			if (e.replaces) replaced = true;
+		}
+	}
+	const st = spec.structure;
+	if (st.any.some(re => found(re))) good.push(st.ok);
+	else {
+		const alt = st.alt.find(x => found(x.re));
+		if (alt) notes.push(alt.note);
+		else if (!replaced) fix.push(st.miss);
+	}
+	const missing: GateMust[] = [];
+	for (const m of spec.must) {
+		if (mustRegex(m.any).test(t)) continue;
+		const typo = typos.get(m);
+		if (typo) notes.push(`拼写：${typo.given} → ${typo.meant}`);
+		else if (m.soft) notes.push(`小提醒：“${m.zh}”也可以译出来，比如 ${m.en}。`);
+		else missing.push(m);
+	}
+	if (missing.length) fix.push('没找到' + missing.map(m => `“${m.zh}”`).join('、') + '的说法，比如 ' + missing.map(m => m.en).join('、') + '。拼写也看一下。');
+	else good.push('意思都译出来了。');
+	return { correct: fix.length === 0, feedback: { good, fix, notes } };
+}
+
+// A whole subject or verb: every word that must be in it, and none outside its span.
+const fits = (marks: number[], spec: GateSpan) => marks.length > 0 && spec.must.every(i => marks.includes(i)) && marks.every(i => i >= spec.span[0] && i <= spec.span[1]);
+
+type Mark = Omit<GateItemResult, 'n' | 'tags' | 'q' | 'why' | 'right'>;
+const marked = (correct: boolean, given: string, expected: string, accepted: string[], more: Partial<Mark> = {}): Mark => ({
+	correct, given, expected, accepted, reason: correct ? null : 'wrong', ...more,
+});
+
+function markSpec(item: GateItem, spec: GateItemSpec, value: string): Mark {
+	const v = value.trim();
+	switch (spec.kind) {
+		case 'spell': {
+			const { correct, reason } = markText(item, null, value);
+			return { correct, given: v, expected: item.answer[0], accepted: item.answer, reason };
+		}
+		case 'build': {
+			const expected = item.right ?? item.answer[0];
+			if (v === '') return { ...marked(false, '', expected, item.answer), reason: 'blank' };
+			const order = buildOrder(v, item.options.length);
+			if (order == null) return marked(false, '', expected, item.answer);
+			const said = order.map(i => item.options[i]).join(' ').toLowerCase().replace(/\s+/g, ' ').trim();
+			return marked(item.answer.includes(said), sentence(item.options, order), expected, item.answer);
+		}
+		case 'fix': {
+			const expected = `${spec.wrong}|${item.answer[0]}`, accepted = item.answer.map(a => `${spec.wrong}|${a}`);
+			if (v === '') return { ...marked(false, '', expected, accepted), reason: 'blank' };
+			const a = fixAnswer(v);
+			if (a == null || a.at >= tokens(item.q ?? '').length) return marked(false, v, expected, accepted);
+			const okFix = item.options.length > 0 ? a.fix === item.answer[0].trim() : a.fix !== '' && item.answer.includes(word(a.fix));
+			return marked(a.at === spec.wrong && okFix, v, expected, accepted);
+		}
+		case 'parse': {
+			const key: GateParseKey = { s: spec.subj.must, v: spec.verb.must, c: spec.clauses };
+			const expected = JSON.stringify(key);
+			const a: GateParseKey | null = v === '' ? { s: [], v: [], c: [] } : parseAnswer(v, tokens(item.q ?? '').length);
+			if (a == null) return marked(false, v, expected, [expected], { key });
+			if (!a.s.length && !a.v.length && !a.c.length) return { ...marked(false, v, expected, [expected], { key }), reason: 'blank' };
+			let okC = true;
+			if (spec.clauses.length > 0) {
+				const want = spec.clauses.map(x => x.join('-')).sort(), got = a.c.map(x => x.join('-')).sort();
+				okC = want.length === got.length && want.every((x, i) => x === got[i]);
+			}
+			return marked(fits(a.s, spec.subj) && fits(a.v, spec.verb) && okC, v, expected, [expected], { key });
+		}
+		case 'translate': {
+			if (v === '') return { ...marked(false, '', item.answer[0], item.answer), reason: 'blank', feedback: { good: [], fix: [], notes: [] } };
+			const { correct, feedback } = markTranslation(spec, value);
+			return marked(correct, v, item.answer[0], item.answer, { feedback });
+		}
+	}
+}
+
+// One question with one number. value: what the learner wrote or picked ('' for a blank).
+export function markItem(group: GateGroup, item: GateItem, value: string): GateItemResult {
+	const n = item.n[0];
+	// the vocabulary and grammar sets: the question and why, for going over the answers
+	const shown = item.why === undefined && item.right === undefined && item.spec == null ? {} : { q: item.q, why: item.why ?? null, right: item.right ?? null };
+	if (group.type === 'form') {
+		const { correct, reason } = markText(item, group.limit, value);
+		return { n, correct, given: value.trim(), expected: item.answer[0], accepted: item.answer, reason, tags: item.tags, ...shown };
+	}
+	if (item.spec != null && item.spec.kind === group.type) return { n, ...markSpec(item, item.spec, value), tags: item.tags, ...shown };
+	const given = group.type === 'choice' ? letterOf(value) : pickOf(group, value);
+	const correct = given !== '' && given === item.answer[0];
+	return { n, correct, given, expected: item.answer[0], accepted: item.answer, reason: correct ? null : given === '' ? 'blank' : 'wrong', tags: item.tags, ...shown };
+}
+
+export const ANSWER_MAX = 200;
+export const TRANSLATION_MAX = 600;
+
+// What the learner handed in, by question number, cut to what is marked: 600 characters of a translation, 200 of the rest.
+export function answersOf(set: GateSet, answers: { n: number; value: string }[]): Map<number, string> {
+	const long = new Set(set.groups.filter(g => g.type === 'translate').flatMap(g => g.items.flatMap(i => i.n)));
+	return new Map(answers.map(a => [a.n, a.value.slice(0, long.has(a.n) ? TRANSLATION_MAX : ANSWER_MAX)]));
+}
+
 // answers: question number → what the learner wrote or picked ('' or missing for a blank)
 export function markSet(set: GateSet, answers: Map<number, string>): { score: number; items: GateItemResult[] } {
 	const items: GateItemResult[] = [];
 	for (const group of set.groups) {
 		for (const item of group.items) {
-			if (group.type === 'form') {
-				const n = item.n[0], given = answers.get(n) ?? '';
-				const { correct, reason } = markText(item, group.limit, given);
-				items.push({ n, correct, given: given.trim(), expected: item.answer[0], accepted: item.answer, reason, tags: item.tags });
-			} else if (group.type === 'multi') {
+			if (group.type === 'multi') {
 				// One question with several numbers: each right letter scores once, in any order.
 				const unused = new Set(item.answer);
 				const picks = item.n.map(n => ({ n, given: letterOf(answers.get(n) ?? '') }));
@@ -162,12 +448,7 @@ export function markSet(set: GateSet, answers: Map<number, string>): { score: nu
 						accepted: item.answer, reason: right[i] ? null : p.given === '' ? 'blank' : 'wrong', tags: item.tags,
 					});
 				});
-			} else {
-				const n = item.n[0], raw = answers.get(n) ?? '';
-				const given = group.type === 'choice' ? letterOf(raw) : pickOf(group, raw);
-				const correct = given !== '' && given === item.answer[0];
-				items.push({ n, correct, given, expected: item.answer[0], accepted: item.answer, reason: correct ? null : given === '' ? 'blank' : 'wrong', tags: item.tags });
-			}
+			} else items.push(markItem(group, item, answers.get(item.n[0]) ?? ''));
 		}
 	}
 	items.sort((a, b) => a.n - b.n);
@@ -360,19 +641,62 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const allOf = <T>(v: unknown, ok: (x: unknown) => x is T): v is T[] => Array.isArray(v) && v.every(ok);
 const isLimit = (v: unknown) => v === null || (isObj(v) && isNum(v.words) && typeof v.number === 'boolean');
 
-function isItem(v: unknown): v is GateItem {
-	return isObj(v) && allOf(v.n, isNum) && v.n.length > 0 && (v.q === null || isStr(v.q)) && allOf(v.options, isStr)
-		&& allOf(v.answer, isStr) && v.answer.length > 0 && typeof v.ignoreSpaces === 'boolean' && isLimit(v.limit) && allOf(v.tags, isStr);
+const isNullStr = (v: unknown) => v === null || isStr(v);
+const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
+const isIndex = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0;
+const isPair = (v: unknown): v is [number, number] => Array.isArray(v) && v.length === 2 && v.every(isIndex);
+const compiles = (source: string, flags: string) => {
+	try {
+		new RegExp(source, flags);
+		return true;
+	} catch {
+		return false;
+	}
+};
+// no g or y: test() would start where the last match ended
+const isRe = (v: unknown): v is GateRe => isObj(v) && isStr(v.source) && isStr(v.flags) && !/[gy]/.test(v.flags) && compiles(v.source, v.flags);
+const isSpan = (v: unknown): v is GateSpan => isObj(v) && allOf(v.must, isIndex) && isPair(v.span);
+const isMust = (v: unknown): v is GateMust => isObj(v) && allOf(v.any, isStr) && v.any.length > 0 && isStr(v.zh) && isStr(v.en) && isBool(v.soft)
+	&& compiles(mustSource(v.any), '');
+
+const isSpecType = (type: GateType): type is GateSpecType => specTypes.includes(type);
+
+function isSpec(type: GateSpecType, v: unknown): v is GateItemSpec {
+	if (!isObj(v) || v.kind !== type) return false;
+	switch (type) {
+		case 'spell': return isStr(v.say);
+		case 'build': return isBool(v.extra);
+		case 'fix': return isIndex(v.wrong);
+		case 'parse': return isSpan(v.subj) && isSpan(v.verb) && allOf(v.clauses, isPair);
+		case 'translate': {
+			const st = v.structure, test = v.test;
+			return isStr(v.focus) && allOf(v.must, isMust)
+				&& Array.isArray(v.errors) && v.errors.every(e => isObj(e) && isRe(e.re) && isStr(e.msg) && isBool(e.replaces))
+				&& isObj(st) && allOf(st.any, isRe) && isStr(st.ok) && isStr(st.miss)
+				&& Array.isArray(st.alt) && st.alt.every(a => isObj(a) && isRe(a.re) && isStr(a.note))
+				&& isObj(test) && allOf(test.right, isStr) && allOf(test.wrong, isStr);
+		}
+	}
+}
+
+function isItem(type: GateType, v: unknown): v is GateItem {
+	if (!(isObj(v) && allOf(v.n, isNum) && v.n.length > 0 && (v.q === null || isStr(v.q)) && allOf(v.options, isStr)
+		&& allOf(v.answer, isStr) && typeof v.ignoreSpaces === 'boolean' && isLimit(v.limit) && allOf(v.tags, isStr)
+		&& (v.why === undefined || isNullStr(v.why)) && (v.right === undefined || isNullStr(v.right)))) return false;
+	if (!isSpecType(type)) return v.answer.length > 0 && (v.spec === undefined || v.spec === null);
+	// one number each; a parse question's answer is all in its spec, the others' sentences and chips are in q and options
+	return v.n.length === 1 && isSpec(type, v.spec) && (type === 'parse' || v.answer.length > 0)
+		&& (type === 'spell' || isStr(v.q)) && (type !== 'build' || v.options.length > 0);
 }
 
 function isGroup(v: unknown): v is GateGroup {
-	return isObj(v) && (gateTypes as readonly unknown[]).includes(v.type) && isObj(v.instructions) && isStr(v.instructions.en) && isStr(v.instructions.zh)
+	if (!isObj(v) || !(gateTypes as readonly unknown[]).includes(v.type)) return false;
+	const type = v.type as GateType;
+	return isObj(v.instructions) && isStr(v.instructions.en) && isStr(v.instructions.zh)
 		&& (v.title === null || isStr(v.title)) && allOf(v.lines, isStr) && isLimit(v.limit) && (v.image === null || isStr(v.image))
-		&& allOf(v.letters, isStr) && allOf(v.options, isStr) && allOf(v.items, isItem) && v.items.length > 0
+		&& allOf(v.letters, isStr) && allOf(v.options, isStr) && Array.isArray(v.items) && v.items.length > 0 && v.items.every(i => isItem(type, i))
 		&& (v.skill === undefined || (gateSkills as readonly unknown[]).includes(v.skill));
 }
-
-const isNullStr = (v: unknown) => v === null || isStr(v);
 
 function isParagraph(v: unknown): v is GateParagraph {
 	return isObj(v) && isNullStr(v.label) && isNullStr(v.heading) && isNullStr(v.text) && isNullStr(v.image) && isNullStr(v.caption)
@@ -413,4 +737,106 @@ export function isGateCourse(v: unknown): v is GateCourse {
 		&& isObj(v.tags) && Object.values(v.tags).every(t => isObj(t) && isStr(t.en) && isStr(t.zh))
 		&& allOf(v.sets, isSet)
 		&& (v.placements === undefined || allOf(v.placements, isPlacement));
+}
+
+const papersOf = (course: GateCourse): GateSet[] => [...course.sets, ...(course.placements ?? []).flatMap(p => [p.stages.first, p.stages.high, p.stages.low])];
+const where = (paper: string, n: unknown, type: unknown) => `${paper} 第 ${Array.isArray(n) ? n.join('、') : '?'} 题（${String(type)}）`;
+
+// For the error when isGateCourse() turns an import down: which papers, and in them which questions, are not in shape.
+export function gateShapeProblems(v: unknown): string[] {
+	if (!isObj(v) || !Array.isArray(v.sets)) return ['不是闯关课程：要有 id、title、lines、interchanges、tags、sets'];
+	const stages = Array.isArray(v.placements) ? v.placements.flatMap(p => (isObj(p) && isObj(p.stages) ? [p.stages.first, p.stages.high, p.stages.low] : [p])) : [];
+	const out: string[] = [];
+	for (const paper of [...v.sets, ...stages]) {
+		if (isSet(paper)) continue;
+		const id = isObj(paper) && isStr(paper.id) ? paper.id : '?';
+		const groups = isObj(paper) && Array.isArray(paper.groups) ? paper.groups : [];
+		const bad = groups.flatMap(g => (isGroup(g) ? [] : isObj(g) && Array.isArray(g.items) && (gateTypes as readonly unknown[]).includes(g.type)
+			? g.items.filter(i => !isItem(g.type as GateType, i)).map(i => `${where(id, isObj(i) ? i.n : null, g.type)}的格式不对`)
+			: []));
+		out.push(...(bad.length > 0 ? bad : [`${id}：套题或题组的格式不对`]));
+	}
+	return out.length > 0 ? out : ['课程的格式不对（lines、interchanges、tags 或定级测试）'];
+}
+
+// 导入时自检: the vocabulary and grammar questions are marked with the real marking first, as a learner's answers would
+// be; an import with any problem is turned down whole. Each problem names the paper (station-set) and the question.
+export function gateCourseProblems(course: GateCourse): string[] {
+	const out: string[] = [];
+	for (const paper of papersOf(course)) {
+		for (const group of paper.groups) {
+			for (const item of group.items) for (const problem of itemProblems(group, item)) out.push(`${where(paper.id, item.n, group.type)}：${problem}`);
+		}
+	}
+	return out;
+}
+
+// The chips that make up an accepted order (lower case, one space between chips), in order; null if they can't.
+function chipsFor(chips: string[], accepted: string): number[] | null {
+	const texts = chips.map(c => c.toLowerCase().replace(/\s+/g, ' ').trim());
+	const order: number[] = [];
+	const walk = (rest: string): boolean => {
+		if (rest === '') return true;
+		for (let i = 0; i < texts.length; i++) {
+			const c = texts[i];
+			// a chip already used, or the same text as an earlier chip still free: nothing new to try
+			if (c === '' || order.includes(i) || texts.findIndex((x, k) => x === c && !order.includes(k)) < i) continue;
+			if (rest !== c && !rest.startsWith(c + ' ')) continue;
+			order.push(i);
+			if (walk(rest.slice(c.length).trim())) return true;
+			order.pop();
+		}
+		return false;
+	};
+	return walk(accepted.toLowerCase().replace(/\s+/g, ' ').trim()) ? order : null;
+}
+
+function itemProblems(group: GateGroup, item: GateItem): string[] {
+	const spec = item.spec;
+	if (spec == null || spec.kind !== group.type) return [];
+	const mark = (value: string) => markItem(group, item, value);
+	const out: string[] = [];
+	const words = tokens(item.q ?? '').length;
+	switch (spec.kind) {
+		case 'spell':
+			if (speechText(spec.say) === '') out.push('say 是空的，没有要读的词');
+			break;
+		case 'build':
+			for (const a of item.answer) {
+				const order = chipsFor(item.options, a);
+				if (order == null) out.push(`“${a}”用词块拼不出来`);
+				else if (!mark(order.join(',')).correct) out.push(`“${a}”拼出来判成了错（answer 要小写，词块之间一个空格）`);
+			}
+			break;
+		case 'fix':
+			if (spec.wrong >= words) out.push(`wrong 是 ${spec.wrong}，句子只有 ${words} 个词（从 0 数）`);
+			else if (item.options.length > 0 && !item.options.includes(item.answer[0])) out.push(`改法“${item.answer[0]}”不在选项里`);
+			else for (const a of item.options.length > 0 ? [item.answer[0]] : item.answer) if (!mark(`${spec.wrong}|${a}`).correct) out.push(`改法“${a}”判成了错（自己写的改法要小写，只有字母）`);
+			break;
+		case 'parse': {
+			const beyond = [...spec.subj.must, ...spec.subj.span, ...spec.verb.must, ...spec.verb.span, ...spec.clauses.flat()].filter(i => i >= words);
+			// the page marks a clause by its first and last word, and one clause can't overlap another
+			const clauses = [...spec.clauses].sort((x, y) => x[0] - y[0]);
+			if (beyond.length > 0) out.push(`下标 ${[...new Set(beyond)].join('、')} 超出了句子的词数（${words} 个词，从 0 数）`);
+			else if (clauses.some(([a, b]) => a > b)) out.push('从句要写成 [第一个词, 最后一个词]');
+			else if (clauses.some(([a], i) => i > 0 && a <= clauses[i - 1][1])) out.push('从句互相重叠，页面上标不出来');
+			else if (!mark(JSON.stringify({ s: spec.subj.must, v: spec.verb.must, c: spec.clauses })).correct) out.push('用 must 和 clauses 当答案，判成了错（must 要在 span 里面）');
+			break;
+		}
+		case 'translate': {
+			const why = (r: GateItemResult) => (r.feedback?.fix.length ? `：${r.feedback.fix.join(' / ')}` : '');
+			for (const ref of item.answer) {
+				const r = mark(ref);
+				if (!r.correct) out.push(`参考答案判成了错：“${ref}”${why(r)}`);
+			}
+			for (const right of spec.test.right) {
+				const r = mark(right);
+				if (!r.correct) out.push(`test.right 判成了错：“${right}”${why(r)}`);
+			}
+			for (const wrong of spec.test.wrong) if (mark(wrong).correct) out.push(`test.wrong 判成了对：“${wrong}”`);
+			if (spec.test.wrong.length < 2) out.push(`test.wrong 只有 ${spec.test.wrong.length} 条，至少要 2 条`);
+			break;
+		}
+	}
+	return out;
 }

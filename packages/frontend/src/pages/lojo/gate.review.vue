@@ -12,7 +12,9 @@ and (reading) the passage, with the question numbers where the answers are. -->
 		<ol :class="$style.items">
 			<li v-for="item in result.items" :key="item.n" :class="[$style.row, item.correct ? $style.right : $style.wrong]">
 				<span :class="$style.n">{{ item.n }}</span>
-				<div :class="$style.rowBody">
+				<!-- a vocabulary or grammar paper: each type shows its answer its own way, with why -->
+				<XItem v-if="plain" :class="$style.rowBody" :item="item" :group="refs.get(item.n)?.group ?? null" :asked="refs.get(item.n)?.item ?? null"/>
+				<div v-else :class="$style.rowBody">
 					<p v-if="refs.get(item.n)?.prompt" :class="$style.prompt" lang="en">{{ refs.get(item.n)?.prompt }}</p>
 					<p :class="$style.answerLine">
 						<span :class="$style.label">{{ gateLabels.yours }}</span>
@@ -57,8 +59,9 @@ and (reading) the passage, with the question numbers where the answers are. -->
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import XPassage from './gate.passage.vue';
+import XItem from './gate.review.item.vue';
 import { gateLabels } from '@/lojo/gates/labels.js';
-import { letterText, questionRefs } from '@/lojo/gates/player.js';
+import { letterText, plainKind, questionRefs } from '@/lojo/gates/player.js';
 import type { GateAttempt, GateResult, GateResultItem } from '@/lojo/gates/player.js';
 
 const props = defineProps<{
@@ -73,6 +76,8 @@ const showPassage = ref(false);
 const refs = computed(() => questionRefs(props.attempt.groups));
 // a reading paper has no recording, so no transcript
 const spoken = computed(() => props.result.script.some(l => l.text != null));
+// vocabulary and grammar papers (no recording, no passage)
+const plain = computed(() => plainKind(props.attempt.groups) != null);
 
 // A letter answer reads with its words: "B: the roof was damaged".
 function shown(n: number, value: string): string {

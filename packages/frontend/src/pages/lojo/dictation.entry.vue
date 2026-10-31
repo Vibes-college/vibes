@@ -50,7 +50,7 @@ each has been practised and how many are 常错, and the 常错 words themselves
 			:data-set="set.id"
 			@click="emit('startSet', set.id)"
 		>
-			<span :class="[$style.badge, badgeClass(set.id)]" aria-hidden="true">{{ set.badge }}</span>
+			<span :class="[$style.badge, $style[badgeClass(set.id)]]" aria-hidden="true">{{ set.badge }}</span>
 			<span :class="$style.setBody">
 				<span :class="$style.setTop">
 					<b>{{ set.name[dictLang] }}</b>
@@ -92,7 +92,7 @@ each has been practised and how many are 常错, and the 常错 words themselves
 </template>
 
 <script lang="ts" setup>
-import { computed, useCssModule, useId, useTemplateRef } from 'vue';
+import { computed, useId, useTemplateRef } from 'vue';
 import type { DictContent, DictItem } from '@/lojo/dictation/content.js';
 import type { DictProgress } from '@/lojo/dictation/logic.js';
 import MkButton from '@/components/MkButton.vue';
@@ -117,7 +117,6 @@ const emit = defineEmits<{
 }>();
 
 const uid = `dict-entry-${useId()}`;
-const css = useCssModule();
 const headingEl = useTemplateRef('headingEl');
 
 const tagName = computed(() => {
@@ -139,8 +138,9 @@ function focusHeading() {
 
 defineExpose({ focusHeading });
 
-function badgeClass(setId: string): string | undefined {
-	return setId === 'spelling' ? css.badgeSpelling : setId === 'numbers' ? css.badgeNumbers : setId === 'plural' ? css.badgePlural : undefined;
+// by name, looked up in $style by the template (useCssModule() is empty in production builds: see typing.chars.vue)
+function badgeClass(setId: string): string {
+	return setId === 'spelling' ? 'badgeSpelling' : setId === 'numbers' ? 'badgeNumbers' : setId === 'plural' ? 'badgePlural' : '';
 }
 </script>
 

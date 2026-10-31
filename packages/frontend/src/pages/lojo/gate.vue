@@ -4,8 +4,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <!-- 闯关: one gate of a route map (/gate/ielts/1.3). What it tests, then the paper: a recording that plays once
-(listening), a passage against the clock (reading), or both, listening first. Then the mark, the answers and where to
-practise. Marking happens on the server; the answers never come here before. -->
+(listening), a passage against the clock (reading), or both, listening first; a vocabulary or grammar paper is just its
+questions. Then the mark, the answers and where to practise. Marking happens on the server; the answers never come
+here before. -->
 <template>
 <div :class="$style.root">
 	<MkPageHeader :canOmitTitle="false"/>
@@ -63,7 +64,7 @@ practise. Marking happens on the server; the answers never come here before. -->
 
 			<!-- what this gate is, and the rules -->
 			<section v-else-if="info && (phase === 'intro' || phase === 'preparing')" :class="$style.intro">
-				<p :class="$style.eyebrow"><i :class="readingGate ? 'ti ti-book' : 'ti ti-headphones'" aria-hidden="true"></i> {{ gateLabels.gate }}</p>
+				<p :class="$style.eyebrow"><i :class="pageIcon" aria-hidden="true"></i> {{ gateLabels.gate }}</p>
 				<h1 :class="$style.title">{{ title }}</h1>
 				<span :class="$style.level">{{ gateLabels.practiceLevel }}</span>
 				<p v-if="info.interchange" :class="$style.ix">
@@ -80,7 +81,20 @@ practise. Marking happens on the server; the answers never come here before. -->
 					</template>
 				</dl>
 				<h2 :class="$style.h2">{{ gateLabels.rulesTitle }}</h2>
-				<ul v-if="readingGate" :class="$style.rules">
+				<ul v-if="lineKind === 'vocab'" :class="$style.rules">
+					<li>{{ gateLabels.ruleCount(rules.total, rules.pass) }}</li>
+					<li>{{ gateLabels.ruleSpell(DEFAULT_PLAYS) }}</li>
+					<li>{{ gateLabels.ruleMeaning }}</li>
+					<li>{{ gateLabels.ruleSpelling }}</li>
+					<li>{{ gateLabels.ruleQuiet }}</li>
+				</ul>
+				<ul v-else-if="lineKind === 'grammar'" :class="$style.rules">
+					<li>{{ gateLabels.ruleCount(rules.total, rules.pass) }}</li>
+					<li>{{ gateLabels.ruleNoClock }}</li>
+					<li>{{ gateLabels.ruleWhy }}</li>
+					<li>{{ gateLabels.ruleTypo }}</li>
+				</ul>
+				<ul v-else-if="readingGate" :class="$style.rules">
 					<li>{{ gateLabels.ruleCount(rules.total, rules.pass) }}</li>
 					<li>{{ gateLabels.ruleTime(rules.time!) }}</li>
 					<li>{{ gateLabels.ruleTimeUp }}</li>
@@ -95,9 +109,10 @@ practise. Marking happens on the server; the answers never come here before. -->
 				<template v-else>
 					<MkButton primary rounded large :disabled="phase === 'preparing'" :class="$style.start" @click="begin">
 						<i :class="phase === 'preparing' ? 'ti ti-loader-2' : 'ti ti-player-play-filled'"></i>
-						{{ phase === 'preparing' ? (readingGate ? gateLabels.preparingPaper : gateLabels.preparing) : gateLabels.start }}
+						{{ phase === 'preparing' ? (readingGate || lineKind != null ? gateLabels.preparingPaper : gateLabels.preparing) : gateLabels.start }}
 					</MkButton>
-					<p v-if="phase === 'preparing' && slow && !readingGate" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
+					<!-- a vocabulary paper's words are recorded the first time it is handed out; a grammar paper has nothing to record -->
+					<p v-if="phase === 'preparing' && slow && !readingGate && lineKind !== 'grammar'" :class="$style.note" role="status">{{ gateLabels.preparingSlow }}</p>
 					<p v-if="startError" :class="$style.warn" role="alert">{{ startError }}</p>
 				</template>
 				<p :class="$style.legal">{{ pack.TEXT[gateLang].legal }}</p>
@@ -128,6 +143,16 @@ practise. Marking happens on the server; the answers never come here before. -->
 							<i class="ti ti-arrow-right"></i> {{ gateLabels.toReading }}
 						</MkButton>
 						<MkButton v-else primary rounded large :wait="phase === 'submitting'" :disabled="phase === 'submitting'" @click="handIn()">
+							<i class="ti ti-send"></i> {{ gateLabels.submit }}
+						</MkButton>
+					</div>
+				</template>
+
+				<!-- vocabulary and grammar: no recording, no clock, just the questions -->
+				<template v-else-if="section === 'plain'">
+					<XGroup v-for="(group, i) in attempt.groups" :key="`${attempt.attemptId}:p${i}`" v-model="answers" :group="group" :disabled="phase === 'submitting'"/>
+					<div :class="$style.submitBar">
+						<MkButton primary rounded large :wait="phase === 'submitting'" :disabled="phase === 'submitting'" @click="handIn()">
 							<i class="ti ti-send"></i> {{ gateLabels.submit }}
 						</MkButton>
 					</div>
@@ -164,6 +189,7 @@ practise. Marking happens on the server; the answers never come here before. -->
 				:lineName="line[gateLang]"
 				:previous="info?.previous ?? null"
 				:earlier="earlier"
+				:sets="setCount"
 				@again="begin"
 				@back="toMap"
 				@go="go"
@@ -185,10 +211,12 @@ import MkButton from '@/components/MkButton.vue';
 import { CATALOG } from '@/lojo/route/courses/index.js';
 import { coursePath } from '@/lojo/route/my-maps.js';
 import { gateErrorCode, gateErrorText, startGate, startPlacement, submitGate } from '@/lojo/gates/api.js';
+import { DEFAULT_PLAYS } from '@/lojo/gates/answers.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
-import { answersPayload, bandText, blankCount, DEFAULT_PASS, DEFAULT_TOTAL, findStation, paperParts, placementLine, secondsLeft } from '@/lojo/gates/player.js';
+import { answersPayload, bandText, blankCount, DEFAULT_PASS, DEFAULT_TOTAL, findStation, paperParts, placementLine, plainKind, plainLine, secondsLeft, unansweredCount } from '@/lojo/gates/player.js';
 import type { GateAnswers, GateAttempt, GatePack, GateResult } from '@/lojo/gates/player.js';
 import { useRecording } from '@/lojo/gates/recording.js';
+import { stopWordAudio } from '@/lojo/gates/word-audio.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
@@ -216,6 +244,16 @@ const rules = computed(() => known.value ?? { total: DEFAULT_TOTAL, pass: DEFAUL
 const readingGate = computed(() => rules.value.time != null);
 // the reading line's placement test: its parts are passages on the clock, not recordings
 const readingLine = computed(() => line.value?.id === 'reading');
+// 5 号线 · 词汇 and 6 号线 · 语法: papers with no recording and no passage
+const lineKind = computed(() => (placement.value == null ? plainLine(info.value?.line.id) : null));
+// how many sets the station has, from the map's progress ("再闯一次" can't promise another one when there is one)
+const setCount = ref<number | null>(null);
+const pageIcon = computed(() => {
+	if (placement.value != null) return 'ti ti-compass';
+	if (lineKind.value === 'vocab') return 'ti ti-vocabulary';
+	if (lineKind.value === 'grammar') return 'ti ti-text-grammar';
+	return readingGate.value ? 'ti ti-book' : 'ti ti-headphones';
+});
 // Whether the server has questions for this stop on its line; null when the progress didn't load (the pack decides).
 const serverOpen = ref<boolean | null>(null);
 const playable = computed(() => serverOpen.value ?? info.value?.playable ?? false);
@@ -227,8 +265,9 @@ const slow = ref(false);
 const recording = useRecording();
 
 // The paper's two parts: listening groups with the recording, reading groups with the passage and the clock.
+// A vocabulary or grammar paper is one plain part.
 const parts = computed(() => paperParts(attempt.value?.groups ?? []));
-const section = ref<'listening' | 'reading'>('listening');
+const section = ref<'listening' | 'reading' | 'plain'>('listening');
 // When the reading time is up (ms); the clock can't be paused and keeps going while the learner is elsewhere.
 const deadline = ref<number | null>(null);
 const now = ref(Date.now());
@@ -250,7 +289,11 @@ const title = computed(() => {
 const facts = computed(() => {
 	const d = info.value?.detail;
 	if (d == null) return [];
-	return ([[gateLabels.part, d.part], [gateLabels.focus, d.focus], [gateLabels.types, d.types], [gateLabels.pace, d.pace], [gateLabels.length, d.length]] as const)
+	// a vocabulary or grammar stop's part is its topic, and its pace the size of its word list or lesson
+	const kind = lineKind.value;
+	const part = kind != null ? gateLabels.stopTopic : gateLabels.part;
+	const pace = kind === 'vocab' ? gateLabels.wordList : kind === 'grammar' ? gateLabels.lesson : gateLabels.pace;
+	return ([[part, d.part], [gateLabels.focus, d.focus], [gateLabels.types, d.types], [pace, d.pace], [gateLabels.length, d.length]] as const)
 		.filter(([, v]) => v != null)
 		.map(([k, v]) => ({ k, v: v![gateLang] }));
 });
@@ -286,12 +329,16 @@ function startReading(minutes: number) {
 	ticker = window.setInterval(tick, 500);
 }
 
-// A new paper: reading straight away, or the recording first.
+// A new paper: reading straight away, or the recording first; a vocabulary or grammar paper is its questions.
 function setUp(paper: GateAttempt) {
 	attempt.value = paper;
 	answers.value = {};
+	stopWordAudio();
 	const { listening } = paperParts(paper.groups);
-	if (listening.length === 0 && paper.passage != null) startReading(paper.time ?? 20);
+	if (plainKind(paper.groups) != null) {
+		stopClock();
+		section.value = 'plain';
+	} else if (listening.length === 0 && paper.passage != null) startReading(paper.time ?? 20);
 	else {
 		stopClock();
 		section.value = 'listening';
@@ -341,6 +388,7 @@ async function load() {
 		pack.value = loaded as unknown as GatePack;
 		const here = progress?.stations.find(s => s.id === props.station);
 		known.value = here?.total != null && here.pass != null ? { total: here.total, pass: here.pass, time: here.time } : null;
+		setCount.value = here?.sets ?? null;
 		serverOpen.value = here ? here.state !== 'soon' : null;
 		// A placement test needs its line open and a placement paper on the server.
 		const exists = placement.value != null
@@ -413,7 +461,8 @@ async function beginSecond() {
 async function handIn(timeUp = false) {
 	const paper = attempt.value;
 	if (paper == null || phase.value !== 'test') return;
-	const blanks = blankCount(answersPayload(paper.groups, answers.value));
+	// the blanks; on a vocabulary or grammar paper also a fix or a parse only half done
+	const blanks = unansweredCount(paper.groups, answers.value);
 	const playing = section.value === 'listening' && paper.audio != null && ['loading', 'playing', 'interrupted'].includes(recording.state.value);
 	if (!timeUp && (playing || blanks > 0)) {
 		const text = playing && blanks > 0 ? gateLabels.confirmBoth(blanks) : playing ? gateLabels.confirmPlaying : gateLabels.confirmBlanks(blanks);
@@ -425,6 +474,7 @@ async function handIn(timeUp = false) {
 	try {
 		const marked = await submitGate(paper.attemptId, answersPayload(paper.groups, answers.value));
 		recording.stop();
+		stopWordAudio();
 		stopClock();
 		if (timeUp) os.toast(gateLabels.timeUp);
 		toTop();
@@ -459,13 +509,17 @@ watch(() => [props.course, props.station], () => {
 }, { immediate: true });
 
 // Leaving the page stops the sound; coming back shows "继续播放" from the same place. The reading clock keeps going.
-onDeactivated(() => recording.suspend());
+onDeactivated(() => {
+	recording.suspend();
+	stopWordAudio();
+});
 onBeforeUnmount(() => {
 	recording.dispose();
+	stopWordAudio();
 	stopClock();
 });
 
-definePage(() => ({ title: title.value, icon: placement.value != null ? 'ti ti-compass' : readingGate.value ? 'ti ti-book' : 'ti ti-headphones' }));
+definePage(() => ({ title: title.value, icon: pageIcon.value }));
 </script>
 
 <style lang="scss" module>

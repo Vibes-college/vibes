@@ -11,7 +11,7 @@ signs and capitals, words left out and added. -->
 	<template v-if="result.kind === 'copy' && stop.kind === 'copy'">
 		<h2 :id="`${uid}-h`" :class="$style.h">{{ stop.need != null ? L.reviewCopy : L.reviewSentences }}</h2>
 		<ol :class="$style.list">
-			<li v-for="(it, j) in stop.items" :key="j" :class="ok(result.typed[j] === it.target)">
+			<li v-for="(it, j) in stop.items" :key="j" :class="$style[ok(result.typed[j] === it.target)]">
 				<span :class="$style.m" aria-hidden="true">{{ result.typed[j] === it.target ? '✓' : '✗' }}</span>
 				<div :class="$style.b">
 					<span :class="$style.sr">{{ result.typed[j] === it.target ? L.srRight : L.srWrong }}</span>
@@ -26,7 +26,7 @@ signs and capitals, words left out and added. -->
 	<template v-else-if="result.kind === 'spell' && stop.kind === 'spell'">
 		<h2 :id="`${uid}-h`" :class="$style.h">{{ L.reviewSpell }}</h2>
 		<ol :class="$style.list">
-			<li v-for="(w, j) in stop.items" :key="j" :class="ok(result.right[j])">
+			<li v-for="(w, j) in stop.items" :key="j" :class="$style[ok(result.right[j])]">
 				<span :class="$style.m" aria-hidden="true">{{ result.right[j] ? '✓' : '✗' }}</span>
 				<div :class="$style.b">
 					<span :class="$style.sr">{{ result.right[j] ? L.srRight : L.srWrong }}</span>
@@ -41,7 +41,7 @@ signs and capitals, words left out and added. -->
 		<h2 :id="`${uid}-h`" :class="$style.h">{{ L.reviewListen }}</h2>
 		<p v-if="result.captions" :class="$style.note">{{ L.captionsUsed }}</p>
 		<ol :class="$style.list">
-			<li v-for="(r, j) in stop.rows" :key="j" :class="ok(result.right[j])">
+			<li v-for="(r, j) in stop.rows" :key="j" :class="$style[ok(result.right[j])]">
 				<span :class="$style.m" aria-hidden="true">{{ result.right[j] ? '✓' : '✗' }}</span>
 				<div :class="$style.b">
 					<span :class="$style.sr">{{ result.right[j] ? L.srRight : L.srWrong }}</span>
@@ -89,7 +89,7 @@ signs and capitals, words left out and added. -->
 </template>
 
 <script lang="ts" setup>
-import { useCssModule, useId } from 'vue';
+import { useId } from 'vue';
 import XChars from './typing.chars.vue';
 import XDiff from './typing.diff.vue';
 import type { Stop } from '@/lojo/typing/content.js';
@@ -103,9 +103,9 @@ const props = defineProps<{
 }>();
 
 const uid = `typing-review-${useId()}`;
-const css = useCssModule();
 
-const ok = (right: boolean | undefined) => (right ? css.ok : css.bad);
+// looked up in $style by the template (useCssModule() is empty in production builds: see typing.chars.vue)
+const ok = (right: boolean | undefined): 'ok' | 'bad' => (right ? 'ok' : 'bad');
 
 // A row's recording, with what to listen for highlighted: its `hl`, or the answer as it was said.
 function said(j: number): [string, string, string] {

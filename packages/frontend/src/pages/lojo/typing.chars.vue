@@ -9,9 +9,9 @@ with the caret at its end (typing from memory). Words don't break across lines. 
 <template>
 <span :class="$style.root">
 	<template v-for="(run, r) in runs" :key="r">
-		<span v-if="run.space" :class="cls(run.at, true)">{{ ' ' }}</span>
+		<span v-if="run.space" :class="cls(run.at, true).map(c => $style[c])">{{ ' ' }}</span>
 		<span v-else :class="$style.w">
-			<span v-for="k in run.len" :key="k" :class="cls(run.at + k - 1, false)">{{ chars[run.at + k - 1] }}</span>
+			<span v-for="k in run.len" :key="k" :class="cls(run.at + k - 1, false).map(c => $style[c])">{{ chars[run.at + k - 1] }}</span>
 		</span>
 	</template>
 	<span v-if="caret && typedLen >= chars.length" :class="[$style.c, $style.end, $style.cur, { [$style.steady]: steady }]"></span>
@@ -19,7 +19,7 @@ with the caret at its end (typing from memory). Words don't break across lines. 
 </template>
 
 <script lang="ts" setup>
-import { computed, useCssModule } from 'vue';
+import { computed } from 'vue';
 import { charMarks } from '@/lojo/typing/score.js';
 
 const props = defineProps<{
@@ -33,7 +33,6 @@ const props = defineProps<{
 	plain?: boolean;
 }>();
 
-const css = useCssModule();
 const chars = computed(() => Array.from(props.target));
 const typedLen = computed(() => Array.from(props.typed).length);
 const marks = computed(() => (props.plain ? null : charMarks(props.target, props.typed)));
@@ -57,16 +56,17 @@ const runs = computed(() => {
 	return out;
 });
 
-function cls(i: number, space: boolean): (string | undefined)[] {
+// A letter's classes, by name: the template looks them up in $style. (The build inlines $style.name in templates and
+// then drops the module, so useCssModule() comes back empty in production; a lookup by a name it can't see keeps it.)
+function cls(i: number, space: boolean): string[] {
 	const m = marks.value?.[i];
-	return [
-		css.c,
-		m != null ? css[m] : undefined,
-		space ? css.sp : undefined,
-		props.hard?.includes(i) && m !== 'bad' ? css.hard : undefined,
-		props.caret && i === typedLen.value ? css.cur : undefined,
-		props.steady ? css.steady : undefined,
-	];
+	const out = ['c'];
+	if (m != null) out.push(m);
+	if (space) out.push('sp');
+	if (props.hard?.includes(i) && m !== 'bad') out.push('hard');
+	if (props.caret && i === typedLen.value) out.push('cur');
+	if (props.steady) out.push('steady');
+	return out;
 }
 </script>
 

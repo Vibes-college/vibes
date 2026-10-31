@@ -394,6 +394,9 @@ span.chipb{display:inline-flex;align-items:center;cursor:default;color:var(--wea
 .pillbtn{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 20px;border-radius:999px;font-weight:700;font-size:13.5px;letter-spacing:.06em;background:var(--cta);color:#fff;white-space:nowrap}
 .pillbtn:hover{filter:brightness(1.05)}
 .pillbtn.ghost{background:var(--btn);color:var(--ink)}
+/* 词汇、语法站的"词表和练习""看讲解"：一整行，在规则和这一站的说明之间 */
+.gstudy{display:flex;width:100%;gap:8px;margin:2px 0 16px}
+.gstudy .ti{width:18px;height:18px}
 .pillbtn.ghost:hover{background:var(--btnH);filter:none}
 .pillbtn.done{background:var(--okBg);color:var(--ok)}
 .note .av0{width:32px;height:32px;border-radius:50%;flex:none;background:color-mix(in srgb,var(--accent) 22%,var(--panel))}

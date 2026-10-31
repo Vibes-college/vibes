@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { gateSkills, gateTypes } from '@/misc/lojo-gates.js';
+import { WORD_SOURCES } from '@/misc/lojo-words.js';
+
 export const lojoEntityTypes = ['housing', 'food', 'pets', 'events', 'travel'] as const;
 
 export const lojoEntityId = { type: 'string', maxLength: 128, pattern: '^(housing|food|pets|events|travel):[A-Za-z0-9_-]+$' } as const;
@@ -156,10 +159,16 @@ export const lojoGateErrors = {
 	notReady: { message: 'This gate has no question sets yet.', code: 'GATE_NOT_READY', id: '1f404a59-5db8-4c56-91e3-561baa1dff02' },
 	noSuchAttempt: { message: 'No such attempt.', code: 'NO_SUCH_ATTEMPT', id: '8541081d-f0ee-4db8-87c5-3272196dd9e4' },
 	invalidCourse: { message: 'The gate course data is not valid.', code: 'INVALID_GATE_COURSE', id: '7930866a-c1aa-4870-bd1f-44e63034d7bd' },
+	// lojo/gates/import: a vocabulary or grammar question marks its own answers wrong, or a wrong answer of its tests right
+	selfCheckFailed: { message: 'Some questions fail the import self-check.', code: 'GATE_SELF_CHECK_FAILED', id: '840455a4-4a71-4761-81ac-0b43205715bf' },
 } as const;
 
 const req = { optional: false, nullable: false } as const;
 const nul = { optional: false, nullable: true } as const;
+// only on some question types
+const opt = { optional: true, nullable: false } as const;
+const optNul = { optional: true, nullable: true } as const;
+const integers = { type: 'array', ...req, items: { type: 'integer', ...req } } as const;
 const strings = { type: 'array', ...req, items: { type: 'string', ...req } } as const;
 const gateLimit = { type: 'object', ...nul, properties: { words: { type: 'integer', ...req }, number: { type: 'boolean', ...req } } } as const;
 // A reading passage: paragraphs (or figures) with their letters; `answers` (which questions each one answers) stays
@@ -218,8 +227,8 @@ export const lojoGateAttemptSchema = {
 			items: {
 				type: 'object', ...req,
 				properties: {
-					type: { type: 'string', ...req, enum: ['form', 'choice', 'multi', 'map', 'match', 'judge', 'bank'] },
-					skill: { type: 'string', ...req, enum: ['listening', 'reading'] },
+					type: { type: 'string', ...req, enum: gateTypes },
+					skill: { type: 'string', ...req, enum: gateSkills },
 					instructions: { type: 'object', ...req, properties: { en: { type: 'string', ...req }, zh: { type: 'string', ...req } } },
 					title: { type: 'string', ...nul },
 					lines: strings,
@@ -237,6 +246,17 @@ export const lojoGateAttemptSchema = {
 								options: strings,
 								choose: { type: 'integer', ...req },
 								limit: gateLimit,
+								// spell: the word read out, and how many times it may be played
+								audio: { type: 'string', ...opt },
+								plays: { type: 'integer', ...opt },
+								// build: the chips (options) include some that are not needed
+								extra: { type: 'boolean', ...opt },
+								// fix: pick the correction from options, or type it
+								mode: { type: 'string', ...opt, enum: ['choose', 'type'] },
+								// parse: the clauses are to be marked as well
+								clauses: { type: 'boolean', ...opt },
+								// translate: what the question practises
+								focus: { type: 'string', ...opt },
 							},
 						},
 					},
@@ -273,6 +293,17 @@ export const lojoGateResultSchema = {
 					accepted: strings,
 					reason: { type: 'string', ...nul, enum: ['blank', 'word-limit', 'wrong'] },
 					tags: strings,
+					// the vocabulary and grammar sets: the question, why, and a right sentence (build, fix, translate)
+					q: { type: 'string', ...optNul },
+					why: { type: 'string', ...optNul },
+					right: { type: 'string', ...optNul },
+					// translate: what is right, what to fix (each makes it wrong), notes (misspellings and the like)
+					feedback: { type: 'object', ...opt, properties: { good: strings, fix: strings, notes: strings } },
+					// parse: the words of the subject and the verb, and each clause's first and last word
+					key: {
+						type: 'object', ...opt,
+						properties: { s: integers, v: integers, c: { type: 'array', ...req, items: integers } },
+					},
 				},
 			},
 		},
@@ -419,7 +450,7 @@ export const lojoWordSchema = {
 		usage: str,
 		example: str,
 		exampleZh: str,
-		source: { type: 'string', ...req, enum: ['post', 'gate', 'dictation', 'manual'] },
+		source: { type: 'string', ...req, enum: WORD_SOURCES },
 		noteId: { type: 'string', ...nul, format: 'id' },
 		createdAt: date,
 		recognize: lojoWordCardSchema,

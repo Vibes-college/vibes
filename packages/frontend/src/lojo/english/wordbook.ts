@@ -14,8 +14,10 @@ import { $i } from '@/i.js';
 export type WordbookItem = EnglishExplanation['items'][number];
 export type WordbookEntry = Misskey.Endpoints['lojo/words/list']['res'][number];
 export type WordCard = WordbookEntry['recognize'];
-// Where a word came from: a post's explanation, a gate's mistakes, dictation, or typed in by hand.
-export type WordSource = Misskey.Endpoints['lojo/words/add']['req']['source'];
+// Where a word came from: a post's explanation, a gate's mistakes, dictation, a vocabulary stop (5 号线), or typed in
+// by hand. 'vocab' is listed here until misskey-js is generated again from the server's list (misc/lojo-words.ts).
+type ServerWordSource = Misskey.Endpoints['lojo/words/add']['req']['source'];
+export type WordSource = ServerWordSource | 'vocab';
 export type WordToday = Misskey.Endpoints['lojo/words/today']['res'];
 export type WordReviewItem = WordToday['queue'][number];
 // 1 忘了 (again), 2 hard, 3 记得 (good), 4 easy
@@ -48,7 +50,7 @@ function clip(item: WordbookItem): WordbookItem {
 // key removed; words already on the server are skipped, so a half-finished move can simply run again.
 const SCOPE = ['client', 'lojo', 'english'];
 const OLD_KEY = 'wordbook';
-type OldEntry = WordbookItem & { noteId?: string | null; addedAt?: number; source?: WordSource };
+type OldEntry = WordbookItem & { noteId?: string | null; addedAt?: number; source?: ServerWordSource };
 
 async function moveOldEntries(): Promise<void> {
 	let old: unknown;
@@ -112,7 +114,7 @@ function serial<T>(write: () => Promise<T>): Promise<T> {
 }
 
 async function save(item: WordbookItem, source: WordSource, noteId: string | null): Promise<boolean> {
-	const res = await misskeyApi('lojo/words/add', { item: clip(item), source, noteId });
+	const res = await misskeyApi('lojo/words/add', { item: clip(item), source: source as ServerWordSource, noteId });
 	if (!wordbook.value.some(entry => entry.id === res.word.id)) wordbook.value = [res.word, ...wordbook.value];
 	return res.created;
 }

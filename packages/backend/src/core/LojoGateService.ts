@@ -24,7 +24,7 @@ import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { CacheService } from '@/core/CacheService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { createTemp } from '@/misc/create-temp.js';
-import { PEER_DAYS, adultBirthday, gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, publicPassage, setsFor, weakTags } from '@/misc/lojo-gates.js';
+import { PEER_DAYS, adultBirthday, answersOf, gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, publicPassage, setsFor, weakTags } from '@/misc/lojo-gates.js';
 import type { GateAttemptFact, GateCourse, GatePlacementPath, GateSet } from '@/misc/lojo-gates.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
@@ -195,9 +195,10 @@ export class LojoGateService {
 		return this.hand(userId, courseId, 'placement', placement.stages[path], { stage: path, after: first.id });
 	}
 
-	// Hands out one paper: makes its recording first (a failed synthesis costs the learner nothing), then writes the attempt.
+	// Hands out one paper: makes its recording and the words of its spell questions first (a failed synthesis costs the
+	// learner nothing), then writes the attempt.
 	private async hand(userId: string, courseId: string, kind: 'gate' | 'placement', set: GateSet, data: { stage?: string; after?: string }) {
-		const audio = await this.audioFor(set);
+		const [audio, words] = await Promise.all([this.audioFor(set), this.wordAudio(set)]);
 		const startedAt = new Date();
 		const id = this.idService.gen(startedAt.getTime());
 		await this.db.getRepository(MiLojoGateAttempt).insert({
@@ -209,7 +210,7 @@ export class LojoGateService {
 			pass: set.pass, total: set.total, startedAt: startedAt.toISOString(), audio,
 			// reading: the passage (without where the answers are) and the minutes for the reading questions
 			passage: publicPassage(set), time: set.time ?? null,
-			groups: publicGroups(set, name => name),
+			groups: publicGroups(set, name => name, words),
 			stage: (data.stage ?? null) as 'first' | 'high' | 'low' | null,
 		};
 	}
@@ -225,7 +226,7 @@ export class LojoGateService {
 		if (attempt.submittedAt != null) return this.result(userId, course, set, attempt, []);
 
 		const before = await this.progressOf(userId, course);
-		const marked = markSet(set, new Map(answers.map(a => [a.n, a.value.slice(0, 200)])));
+		const marked = markSet(set, answersOf(set, answers));
 		// A placement test is not passed or failed; its second part decides where the learner starts.
 		const passed = attempt.kind === 'gate' ? marked.score >= set.pass : null;
 		const placed: { placedAt?: string; firstScore?: number; firstTotal?: number } = {};
@@ -297,6 +298,21 @@ export class LojoGateService {
 	}
 
 	/* ---------- the recording ---------- */
+
+	// The word of each spell question, read in the set's narrator voice (voices.N), by question number. Each word is
+	// made once and shared by every learner (LojoSpeechService); a failure fails the start, as the recording's does.
+	public async wordAudio(set: GateSet): Promise<Map<number, string>> {
+		const spoken = set.groups.flatMap(g => g.items.flatMap(i => (i.spec?.kind === 'spell' ? [{ n: i.n[0], say: i.spec.say }] : [])));
+		if (spoken.length === 0) return new Map();
+		try {
+			const urls = await mapLimit(spoken, 4, w => this.lojoSpeechService.speak(w.say, set.voices.N));
+			return new Map(spoken.map((w, i) => [w.n, urls[i]]));
+		} catch (err) {
+			if (err instanceof ApiError) throw err;
+			this.logger.warn(`words of ${set.id} failed: ${err instanceof Error ? err.message : String(err)}`);
+			throw new ApiError(lojoEnglishErrors.failed);
+		}
+	}
 
 	// Every line read in its speaker's voice, joined with short silences and the reading-time pauses, as one mp3.
 	// Made once per script and shared by every learner; lines are cached one by one, so editing a line redoes only it.

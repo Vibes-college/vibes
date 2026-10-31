@@ -25,6 +25,8 @@ const STATES = ['passed', 'open', 'locked', 'soon'];
 // an interchange is drawn once; when its two lines disagree, it shows the state that needs attention first
 const RANK = { open: 3, passed: 2, locked: 1, soon: 0 };
 const COLOR = n => `var(--l${n})`;
+// 词汇、语法两条线的站有自己的页面：先在词表上练、先看讲解，再闯关
+const STUDY = { vocab: { path: '/vocab/', icon: 'vocabulary' }, grammar: { path: '/grammar/', icon: 'book-2' } };
 const pathD = (p, r = 28) => {
 	let d = `M${p[0][0]} ${p[0][1]}`;
 	for (let i = 1; i < p.length; i++) {
@@ -239,7 +241,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			const sub = WP?.done ? T('warmDone') : T('warmSub')(WARMUP.stops, WARMUP.minutes);
 			h += `<button class="row warm" data-warm><i class="dot" style="background:${esc(WARMUP.color)}"></i><span class="t"><b>${T('lineName')(WARMUP.n ?? 0, esc(L(WARMUP)))}</b><small>${sub}</small></span><span class="r">${WP ? WP.passed : 0} / ${WP ? WP.total : WARMUP.stops}</span></button>`;
 		}
-		LINES.forEach(l => {
+		// open lines first (vocabulary and grammar before the writing and speaking lines that aren't ready), in number order
+		[...LINES.filter(l => LP[l.n].live), ...LINES.filter(l => !LP[l.n].live)].forEach(l => {
 			const lp = LP[l.n];
 			h += `<button class="row${lp.live ? '' : ' soon'}" data-line="${l.n}"><i class="dot" style="background:${COLOR(l.n)}"></i><span class="t"><b>${T('lineName')(l.n, esc(L(l)))}</b><small>${lineSub(l)}</small></span><span class="r">${lp.passed} / ${lp.total}</span></button>`;
 		});
@@ -290,8 +293,10 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			const p = prevOf(id);
 			h += `<div class="gst warn"><p>${T('streak')(s.failStreak, p ? band(p) : null)}</p>${p ? `<button class="pillbtn ghost" data-go="${p}">${T('goPrev')(band(p))}</button>` : ''}</div>`;
 		}
+		const study = STUDY[n.line.id];
+		if (study) h += `<button class="pillbtn gstudy" data-path="${study.path}${id}">${icon(study.icon)}${T('study')[n.line.id]}</button>`;
 		const rows = ['part', 'focus', 'types', 'pace', 'length'].filter(k => n[k]);
-		if (rows.length) h += `<div class="h4">${T('infoH')}</div><dl class="grows">${rows.map(k => `<div><dt>${T('rows')[k]}</dt><dd>${esc(L(n[k]))}</dd></div>`).join('')}</dl>`;
+		if (rows.length) h += `<div class="h4">${T('infoH')}</div><dl class="grows">${rows.map(k => `<div><dt>${((T('rowsBy') || {})[n.line.id] || T('rows'))[k]}</dt><dd>${esc(L(n[k]))}</dd></div>`).join('')}</dl>`;
 		if (x) {
 			h += `<div class="gnote gix-note"><b>${T('ixH')(esc(L(x)))}</b><p>${esc(L({ zh: x.dzh, en: x.den }))}</p>${x.why ? `<p><span>${T('ixWhy')}</span>${esc(L(x.why))}</p>` : ''}`;
 			if (LP[n.n].live && !LP[NODES[o].n].live) h += `<p class="gix-half">${T('ixHalf')(lineName(o), lineName(id))}</p>`;
@@ -337,6 +342,7 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		$$('#pbody .tabs button').forEach(b => { b.onclick = () => { TAB = b.dataset.t; station(id); }; });
 		$$('#panel [data-go]').forEach(b => { b.onclick = () => go(b.dataset.go); });
 		$$('#panel [data-gate], #panel [data-place]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.gate ?? b.dataset.place); });
+		$$('#panel [data-path]').forEach(b => { b.onclick = () => bridge.openPath(b.dataset.path); });
 		if (TAB === 'peers') loadPeers(id);
 		loadFellows(id);
 		if (SHEET.state === 'peek' || SHEET.state === 'min') sheet('half');
