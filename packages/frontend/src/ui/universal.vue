@@ -30,8 +30,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:aria-hidden="timelineChromeHidden || undefined"
 				data-timeline-navigation
 			/>
+			<!-- Vibes: with the agent summoned, its button takes this corner instead (lojo/agent/LojoAgent.vue). -->
 			<button
-				v-if="timelineChromeEnabled && isRoot"
+				v-if="timelineChromeEnabled && isRoot && !agentState.summoned"
 				type="button"
 				class="_button _buttonGradate"
 				:class="[$style.floatingPost, { [$style.floatingPostVisible]: timelineChromeHidden, [$style.noAnimation]: !prefer.s.animation }]"
@@ -78,6 +79,7 @@ import { prefer } from '@/preferences.js';
 import { shouldSuggestRestoreBackup } from '@/preferences/utility.js';
 import { DI } from '@/di.js';
 import { shouldSuggestReload } from '@/utility/reload-suggest.js';
+import { agentState } from '@/lojo/agent/state.js';
 
 const XWidgets = defineAsyncComponent(() => import('./_common_/widgets.vue'));
 const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.vue'));

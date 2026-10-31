@@ -12,6 +12,7 @@ export const guideLabels = {
 	categories: '书架',
 	saved: '收藏',
 	write: '写攻略',
+	compose: '编写攻略',
 	edit: '编辑攻略',
 	mine: '我的攻略',
 	all: '全部',

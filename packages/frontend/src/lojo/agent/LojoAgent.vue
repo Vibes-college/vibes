@@ -17,16 +17,16 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 		v-show="!panelOpen"
 		ref="fabEl"
 		class="_button"
-		:class="[$style.fab, { [$style.arrive]: arriving }]"
+		:class="[$style.fab, { [$style.arrive]: arriving, [$style.inCorner]: barHidden }]"
 		:title="agentName"
 		:aria-label="agentLabels.open(agentName)"
 		aria-haspopup="dialog"
 		@click="openPanel"
 		@animationend="arriving = false"
 	>
-		<svg :class="$style.buddy" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="13" fill="#FFFDF8"/><circle cx="15.5" cy="20" r="2.2" fill="#14204F"/><circle cx="24.5" cy="20" r="2.2" fill="#14204F"/><path d="M16.5 25.5q3.5 2.6 7 0" stroke="#14204F" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="29" cy="9" r="3.2" fill="#FF5A3C"/></svg>
+		<img :src="mascotUrl" :class="$style.mascot" alt="" aria-hidden="true" draggable="false"/>
 	</button>
-	<div v-if="bubble && !panelOpen" :class="$style.bubble" role="status">{{ bubble }}</div>
+	<div v-if="bubble && !panelOpen" :class="[$style.bubble, { [$style.inCorner]: barHidden }]" role="status">{{ bubble }}</div>
 
 	<section
 		v-show="panelOpen"
@@ -38,7 +38,7 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 	>
 		<header :class="$style.bar">
 			<div :class="$style.who">
-				<svg :class="$style.whoBuddy" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="13" fill="#FFFDF8"/><circle cx="15.5" cy="20" r="2.2" fill="#14204F"/><circle cx="24.5" cy="20" r="2.2" fill="#14204F"/><path d="M16.5 25.5q3.5 2.6 7 0" stroke="#14204F" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="29" cy="9" r="3.2" fill="#FF5A3C"/></svg>
+				<img :src="mascotUrl" :class="$style.whoMascot" alt="" aria-hidden="true" draggable="false"/>
 				<span>{{ agentName }}</span>
 			</div>
 			<button v-if="!isPhone" class="_button" :class="$style.iconButton" :title="big ? agentLabels.smaller : agentLabels.bigger" :aria-label="big ? agentLabels.smaller : agentLabels.bigger" @click="big = !big">
@@ -82,13 +82,21 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import XSheet from './LojoAgentSheet.vue';
 import { agentLabels } from './labels.js';
+// The mascot of the old Vibes site (Desktop/Vibes src/assets/local-assistant-mascot.png), cropped and shrunk.
+import mascotUrl from './mascot.webp';
 import { AGENT_ORIGIN, AGENT_URL, agentName, agentState, dismissAgent, forgetPanelOpen, justSummoned, markGuideSeen, rememberPanelOpen, shouldReopenPanel } from './state.js';
 import type { AgentTool } from './LojoAgentSheet.vue';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
+import { DI } from '@/di.js';
+
+// On a phone, scrolling the timeline hides the bottom bar; the button then sits in the corner where the floating post
+// button used to be (ui/universal.vue does not show that one while the agent is summoned).
+const timelineChrome = inject(DI.mobileTimelineChrome, null);
+const barHidden = computed(() => timelineChrome?.hidden.value === true);
 
 const fabEl = useTemplateRef('fabEl');
 const frameEl = useTemplateRef('frameEl');
@@ -314,28 +322,38 @@ onBeforeUnmount(() => {
 }
 
 // Above the page and the phone's bottom bar, below the drawer menu (1001) and Misskey's popups (claimZIndex).
+// The same size and place as the floating post button it stands in for.
 .fab {
 	position: fixed;
-	right: 16px;
+	right: max(16px, env(safe-area-inset-right, 0px));
 	bottom: calc(var(--MI-minBottomSpacing, 0px) + 16px);
 	z-index: 1000;
-	width: 56px;
-	height: 56px;
-	border-radius: 50%;
-	background: var(--MI_THEME-accent);
-	box-shadow: 0 1px 2px var(--MI_THEME-shadow), 0 12px 28px -10px var(--MI_THEME-shadow);
+	width: 52px;
+	height: 52px;
 	display: grid;
 	place-items: center;
-	transition: transform 0.15s;
+	transition: transform 0.15s, bottom 200ms ease;
 
 	&:hover {
 		transform: scale(1.06);
 	}
+
+	&.inCorner {
+		bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
 }
 
-.buddy {
-	width: 34px;
-	height: 34px;
+.mascot {
+	display: block;
+	width: 40px;
+	height: 52px;
+	filter: drop-shadow(0 4px 8px var(--MI_THEME-shadow));
+	pointer-events: none;
+	user-select: none;
 }
 
 .arrive {
@@ -349,8 +367,8 @@ onBeforeUnmount(() => {
 
 .bubble {
 	position: fixed;
-	right: 16px;
-	bottom: calc(var(--MI-minBottomSpacing, 0px) + 84px);
+	right: max(16px, env(safe-area-inset-right, 0px));
+	bottom: calc(var(--MI-minBottomSpacing, 0px) + 80px);
 	z-index: 1000;
 	max-width: 230px;
 	background: var(--MI_THEME-panel);
@@ -360,6 +378,15 @@ onBeforeUnmount(() => {
 	padding: 8px 12px;
 	font-size: 0.9em;
 	box-shadow: 0 12px 28px -10px var(--MI_THEME-shadow);
+	transition: bottom 200ms ease;
+
+	&.inCorner {
+		bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
 }
 
 .panel {
@@ -411,13 +438,10 @@ onBeforeUnmount(() => {
 	}
 }
 
-.whoBuddy {
+.whoMascot {
 	flex: none;
-	width: 24px;
-	height: 24px;
-	padding: 2px;
-	border-radius: 50%;
-	background: var(--MI_THEME-accent);
+	width: 20px;
+	height: 26px;
 }
 
 .iconButton {

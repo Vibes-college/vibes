@@ -32,13 +32,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkButton v-if="hasMore" full :wait="loadingMore" @click="load(false)">{{ i18n.ts.loadMore }}</MkButton>
 		</div>
 	</div>
-	<template #floating>
-		<div :class="$style.floatingAction">
-			<button type="button" class="_button _buttonGradate" :class="$style.writeButton" :aria-label="guideLabels.write" data-testid="guide-floating-write" @click="write">
-				<i class="ti ti-pencil-plus" aria-hidden="true"></i>
-			</button>
-		</div>
-	</template>
 </PageWithHeader>
 </template>
 
@@ -102,6 +95,9 @@ const headerActions = computed<PageHeaderItem[]>(() => [{
 			await nextTick();
 			mine.value = true;
 		},
+	}, {
+		icon: 'ti ti-pencil-plus', text: guideLabels.compose,
+		action: write,
 	}], event.currentTarget ?? event.target),
 }]);
 
@@ -192,21 +188,6 @@ definePage(() => ({ title: guideLabels.title, icon: 'ti ti-book-2' }));
 </script>
 
 <style lang="scss" module>
-.floatingAction { position: relative; height: 0; pointer-events: none; }
-.writeButton {
-	pointer-events: auto;
-	position: absolute;
-	right: max(16px, env(safe-area-inset-right, 0px));
-	bottom: 16px;
-	z-index: 5;
-	display: grid;
-	place-items: center;
-	width: 52px;
-	height: 52px;
-	border-radius: 50%;
-	font-size: 22px;
-	box-shadow: 0 4px 20px var(--MI_THEME-shadow);
-}
 .root { padding-top: 20px; padding-bottom: 84px; }
 .mine { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 16px; }
 .mine h2 { font-size: 16px; margin: 0; }
