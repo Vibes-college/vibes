@@ -130,8 +130,9 @@ async function downloadAll(files: string[]): Promise<boolean> {
 		if (url == null) return;
 		try {
 			const res = await fetch(url);
+			// A file the server does not have (404) is not worth waiting for: only a broken connection keeps the old copy,
+			// so a user is never held on an old version for good.
 			if (res.ok) await res.arrayBuffer();
-			else ok = false;
 		} catch {
 			ok = false;
 		}
