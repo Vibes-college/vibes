@@ -15,4 +15,13 @@ export async function initializeSw() {
 			lang,
 		});
 	});
+
+	// Vibes: when the page comes back to the front, let the service worker check for a new version and download it in
+	// the background (packages/sw/src/sw.ts refreshApp), so the next start does not wait for code. At most every 15 min.
+	let lastRefresh = Date.now();
+	window.document.addEventListener('visibilitychange', () => {
+		if (window.document.visibilityState !== 'visible' || Date.now() - lastRefresh < 15 * 60 * 1000) return;
+		lastRefresh = Date.now();
+		navigator.serviceWorker.controller?.postMessage({ msg: 'vibes-refresh-app' });
+	});
 }

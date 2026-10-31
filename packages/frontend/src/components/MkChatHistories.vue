@@ -57,22 +57,26 @@ async function fetchHistory() {
 
 	fetching.value = true;
 
-	const [userMessages, roomMessages] = await Promise.all([
-		misskeyApi('chat/history', { room: false }),
-		misskeyApi('chat/history', { room: true }),
-	]);
+	// Vibes: a failed request (often on the link from mainland China) used to leave fetching on for good, so the list
+	// never loaded again; now the next poll tries again.
+	try {
+		const [userMessages, roomMessages] = await Promise.all([
+			misskeyApi('chat/history', { room: false }),
+			misskeyApi('chat/history', { room: true }),
+		]);
 
-	history.value = [...userMessages, ...roomMessages]
-		.toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-		.map(m => ({
-			id: m.id,
-			message: m,
-			other: (!('room' in m) || m.room == null) ? (m.fromUserId === $i.id ? m.toUser : m.fromUser) : null,
-			isMe: m.fromUserId === $i.id,
-		}));
-
-	fetching.value = false;
-	initializing.value = false;
+		history.value = [...userMessages, ...roomMessages]
+			.toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+			.map(m => ({
+				id: m.id,
+				message: m,
+				other: (!('room' in m) || m.room == null) ? (m.fromUserId === $i.id ? m.toUser : m.fromUser) : null,
+				isMe: m.fromUserId === $i.id,
+			}));
+		initializing.value = false;
+	} finally {
+		fetching.value = false;
+	}
 }
 
 let isActivated = true;

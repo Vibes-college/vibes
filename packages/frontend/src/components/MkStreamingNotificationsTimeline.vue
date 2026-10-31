@@ -57,6 +57,7 @@ import { prefer } from '@/preferences.js';
 import { store } from '@/store.js';
 import { isSeparatorNeeded, getSeparatorInfo } from '@/utility/timeline-date-separate.js';
 import { Paginator } from '@/utility/paginator.js';
+import { $i } from '@/i.js';
 
 const props = defineProps<{
 	excludeTypes?: typeof notificationTypes[number][] | null;
@@ -75,6 +76,10 @@ const paginator = prefer.s.useGroupedNotifications ? markRaw(new Paginator('i/no
 		excludeTypes: props.excludeTypes ?? undefined,
 	})),
 }));
+
+// Vibes: show the notifications kept from the last visit at once and refresh them in the background (see Paginator.cacheKey).
+// Only the server's answer marks them read, as before.
+if ($i) paginator.cacheKey = `notifications:${$i.id}`;
 
 const MIN_POLLING_INTERVAL = 1000 * 10;
 const POLLING_INTERVAL =
@@ -129,6 +134,8 @@ let isPausingUpdate = false;
 watch(visibility, () => {
 	if (visibility.value === 'hidden') {
 		isPausingUpdate = true;
+		// The phone may close the page in the background: keep what is on screen for next time.
+		paginator.keepItems();
 	} else { // 'visible'
 		isPausingUpdate = false;
 		if (isTop()) {
@@ -177,6 +184,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	paginator.keepItems();
 	if (connection) connection.dispose();
 	if (scrollContainer != null) {
 		scrollContainer.removeEventListener('scroll', onScrollContainerScroll);

@@ -86,6 +86,8 @@
 		await import(CLIENT_ENTRY ? `/vite/${CLIENT_ENTRY.replace('scripts', lang)}` : '/vite/src/_boot_.ts')
 			.then(() => {
 				try {
+					// For the anonymous start-up record (src/lojo/boot-report.ts): how many reloads it took.
+					window.vibesBootRetries = Number(sessionStorage.getItem(BOOT_RETRY_KEY) ?? '0');
 					sessionStorage.removeItem(BOOT_RETRY_KEY);
 				} catch {
 					// No sessionStorage: nothing was counted.
@@ -96,6 +98,18 @@
 				if (retryBoot()) return;
 				renderError('APP_IMPORT', e);
 			});
+	}
+
+	// Vibes: ask for every script the app needs to start at once (BOOT_FILES, listed by the server), instead of finding one
+	// level of imports after another; from mainland China each level costs a round trip of 0.2–0.6 s.
+	if (CLIENT_ENTRY && typeof BOOT_FILES !== 'undefined' && Array.isArray(BOOT_FILES)) {
+		for (const file of BOOT_FILES) {
+			if (!file.startsWith('scripts/')) continue;
+			const link = document.createElement('link');
+			link.rel = 'modulepreload';
+			link.href = `/vite/${file.replace('scripts', lang)}`;
+			document.head.appendChild(link);
+		}
 	}
 
 	// タイミングによっては、この時点でDOMの構築が済んでいる場合とそうでない場合とがある
@@ -170,7 +184,39 @@
 		document.head.appendChild(css);
 	}
 
+	// Vibes: the anonymous start-up record for a start that failed (the app's own record is src/lojo/boot-report.ts,
+	// which explains what is kept). Once per page.
+	let bootErrorSent = false;
+	function sendBootError(code) {
+		if (bootErrorSent || typeof navigator.sendBeacon !== 'function') return;
+		bootErrorSent = true;
+		try {
+			const ua = navigator.userAgent;
+			const first = location.pathname.split('/')[1] ?? '';
+			const report = {
+				v: CLIENT_ENTRY ? CLIENT_ENTRY.split('/').pop() : 'dev',
+				page: first === '' ? 'home' : first.startsWith('@') ? 'user' : /^[a-z][a-z0-9-]{0,31}$/.test(first) ? first : 'other',
+				nav: performance.getEntriesByType('navigation')[0]?.type ?? 'other',
+				os: /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : /Mac OS X/.test(ua) ? 'mac' : /Windows/.test(ua) ? 'windows' : /Linux/.test(ua) ? 'linux' : 'other',
+				browser: /MicroMessenger/i.test(ua) ? 'wechat' : /xhsdiscover|XiaoHongShu/i.test(ua) ? 'xhs' : /EdgA?\/|EdgiOS\//.test(ua) ? 'edge' : /FxiOS\/|Firefox\//.test(ua) ? 'firefox' : /CriOS\/|Chrome\//.test(ua) ? 'chrome' : /Safari\//.test(ua) ? 'safari' : 'other',
+				standalone: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+				signedIn: localStorage.getItem('account') != null,
+				sw: navigator.serviceWorker?.controller != null,
+				codeKb: -1,
+				retries: code === 'APP_IMPORT' ? 2 : 0, // APP_IMPORT shows only after two reloads (retryBoot)
+				bootMs: null,
+				error: /^[A-Z_]{1,40}$/.test(code) ? code : 'OTHER',
+			};
+			if (!['navigate', 'reload', 'back_forward', 'prerender'].includes(report.nav)) report.nav = 'other';
+			navigator.sendBeacon('/api/lojo/boot-report', new Blob([JSON.stringify(report)], { type: 'application/json' }));
+		} catch {
+			// The record is only for statistics.
+		}
+	}
+
 	async function renderError(code, details) {
+		sendBootError(code);
+
 		// Cannot set property 'innerHTML' of null を回避
 		if (document.readyState === 'loading') {
 			await new Promise(resolve => window.addEventListener('DOMContentLoaded', resolve));

@@ -45,6 +45,7 @@ import { lookupUser, lookupUserByEmail, lookupFile } from '@/utility/admin-looku
 import { definePage, provideMetadataReceiver, provideReactiveMetadata } from '@/page.js';
 import { useRouter } from '@/router.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
+import { iAmAdmin } from '@/i.js';
 
 const searchIndex = await import('search-index:admin').then(({ searchIndexes }) => genSearchIndexes(searchIndexes));
 
@@ -106,7 +107,13 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.dashboard,
 		to: '/admin/overview',
 		active: currentPage.value?.route.name === 'overview',
-	}, {
+	}, ...(iAmAdmin ? [{
+		// Vibes: the daily stability report (pages/lojo/stability.vue); admins only, like its API.
+		icon: 'ti ti-activity-heartbeat',
+		text: '稳定性日报',
+		to: '/admin/stability',
+		active: currentPage.value?.route.name === 'vibesStability',
+	}] : []), {
 		icon: 'ti ti-users',
 		text: i18n.ts.users,
 		to: '/admin/users',

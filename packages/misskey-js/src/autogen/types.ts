@@ -2937,6 +2937,15 @@ export type paths = {
          */
         post: operations['invite___list'];
     };
+    '/lojo/admin/boot-report': {
+        /**
+         * lojo/admin/boot-report
+         * @description Vibes stability report: for each of the last `days` days (Beijing time, today first), how many page loads there were, how many failed to start and why, and how long starting and the first content took (see src/misc/lojo-boot-report.ts).
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+         */
+        post: operations['lojo___admin___boot-report'];
+    };
     '/lojo/agent/english': {
         /**
          * lojo/agent/english
@@ -2954,6 +2963,15 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['lojo___agent___prompt'];
+    };
+    '/lojo/boot-report': {
+        /**
+         * lojo/boot-report
+         * @description Vibes: an anonymous record of how fast the app started on this device, sent once per page load without the account (see src/misc/lojo-boot-report.ts). Stored per day for the stability report.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___boot-report'];
     };
     '/lojo/english/compose': {
         /**
@@ -29214,6 +29232,72 @@ export interface operations {
             };
         };
     };
+    'lojo___admin___boot-report': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @default 7 */
+                    days?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___agent___english: {
         requestBody: {
             content: {
@@ -29318,6 +29402,94 @@ export interface operations {
                         }[];
                         questions: string[];
                     };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___boot-report': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    v: string;
+                    page: string;
+                    /** @enum {string} */
+                    nav: 'navigate' | 'reload' | 'back_forward' | 'prerender' | 'other';
+                    /** @enum {string} */
+                    os: 'ios' | 'android' | 'mac' | 'windows' | 'linux' | 'other';
+                    /** @enum {string} */
+                    browser: 'safari' | 'chrome' | 'wechat' | 'xhs' | 'edge' | 'firefox' | 'other';
+                    standalone: boolean;
+                    signedIn: boolean;
+                    sw: boolean;
+                    codeKb: number;
+                    retries: number;
+                    bootMs: number | null;
+                    contentMs?: number | null;
+                    keptContent?: boolean | null;
+                    firstApiMs?: number | null;
+                    error?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
                 };
             };
             /** @description Client error */

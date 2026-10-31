@@ -2020,6 +2020,13 @@ declare namespace entities {
         InviteLimitResponse,
         InviteListRequest,
         InviteListResponse,
+        LojoAdminBootReportRequest,
+        LojoAdminBootReportResponse,
+        LojoAgentEnglishRequest,
+        LojoAgentEnglishResponse,
+        LojoAgentPromptRequest,
+        LojoAgentPromptResponse,
+        LojoBootReportRequest,
         LojoEnglishComposeRequest,
         LojoEnglishComposeResponse,
         LojoEnglishExplainRequest,
@@ -2922,6 +2929,27 @@ type IWebhooksTestRequest = operations['i___webhooks___test']['requestBody']['co
 
 // @public (undocumented)
 type IWebhooksUpdateRequest = operations['i___webhooks___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAdminBootReportRequest = operations['lojo___admin___boot-report']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAdminBootReportResponse = operations['lojo___admin___boot-report']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAgentEnglishRequest = operations['lojo___agent___english']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAgentEnglishResponse = operations['lojo___agent___english']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAgentPromptRequest = operations['lojo___agent___prompt']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoBootReportRequest = operations['lojo___boot-report']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type LojoEnglishComposeRequest = operations['lojo___english___compose']['requestBody']['content']['application/json'];

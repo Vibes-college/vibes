@@ -28,6 +28,8 @@ export type ViteFiles = {
 	entryJs: string | null;
 	css: string[];
 	modulePreloads: string[];
+	// Vibes: every script and stylesheet the app needs to draw its first page (see HtmlTemplateService.collectBootFiles).
+	bootFiles: string[];
 };
 
 export type CommonData = MinimumCommonData & {

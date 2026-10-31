@@ -53,6 +53,7 @@ export class HtmlTemplateService {
 			entryJs: null,
 			css: [],
 			modulePreloads: [],
+			bootFiles: [],
 		};
 
 		const seenChunkIds = new Set<string>();
@@ -93,7 +94,34 @@ export class HtmlTemplateService {
 			entryJs: entryFile.file,
 			css: Array.from(cssFiles),
 			modulePreloads: Array.from(modulePreloads),
+			bootFiles: this.collectBootFiles(manifest),
 		};
+	}
+
+	// Vibes: every script (and its stylesheets) the app needs to draw its first page: the entry with everything it imports,
+	// and the signed-in layout with the parts it shows at once. boot.js fetches them all at once instead of discovering one
+	// level of imports after another (each level is a round trip of 0.2–0.6 s from mainland China, measured 2026-10-31),
+	// and the service worker downloads them before switching to a new version (packages/sw/src/sw.ts).
+	// Scripts are listed as in the manifest ("scripts/…"); the boot loader swaps in the language folder.
+	@bindThis
+	private collectBootFiles(manifest: Manifest): string[] {
+		const entryKey = Object.keys(manifest).find(key => manifest[key].isEntry);
+		if (entryKey == null) return [];
+		const roots = [entryKey, 'src/ui/universal.vue', 'src/ui/_common_/statusbars.vue', 'src/ui/_common_/announcements.vue', 'src/ui/_common_/stream-indicator.vue']
+			.filter(key => manifest[key] != null);
+		const seen = new Set<string>();
+		const files = new Set<string>();
+		const visit = (key: string) => {
+			if (seen.has(key)) return;
+			seen.add(key);
+			const chunk = manifest[key];
+			if (chunk == null) return;
+			files.add(chunk.file);
+			for (const css of chunk.css ?? []) files.add(css);
+			for (const imported of chunk.imports ?? []) visit(imported);
+		};
+		for (const root of roots) visit(root);
+		return Array.from(files);
 	}
 
 	@bindThis

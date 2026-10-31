@@ -65,9 +65,7 @@ async function respondWithApp(ev: FetchEvent, url: URL): Promise<Response> {
 	const cache = await caches.open(HOME_CACHE);
 	const kept = await cache.match(home, { ignoreVary: true });
 	if (kept != null) {
-		ev.waitUntil(fetch(home).then(async response => {
-			if (isServerPage(response)) await cache.put(home, response);
-		}).catch(() => {
+		ev.waitUntil(refreshApp().catch(() => {
 			// Offline: keep the copy we have.
 		}));
 		return kept;
@@ -83,6 +81,64 @@ async function respondWithApp(ev: FetchEvent, url: URL): Promise<Response> {
 		}));
 	}
 	return response;
+}
+
+// Vibes: refreshes the kept copy of the app. When the server has a new version, its start-up files (BOOT_FILES in the
+// page, see the backend's HtmlTemplateService.collectBootFiles) are downloaded first, into the browser's cache, and the
+// copy is switched only once they are all there: the next start then needs no network for code, like an installed app
+// that updates in the background. If a download fails, the old copy stays and the next refresh tries again (old files
+// stay on the server after a deploy, see apps/community/deploy/deploy.sh).
+let refreshing: Promise<void> | null = null;
+
+function refreshApp(): Promise<void> {
+	refreshing ??= (async () => {
+		const home = new URL('/', globalThis.location.origin).href;
+		const cache = await caches.open(HOME_CACHE);
+		const response = await fetch(home);
+		if (!isServerPage(response)) return;
+		const kept = await cache.match(home, { ignoreVary: true });
+		const fresh = appVersion(await response.clone().text());
+		const old = kept != null ? appVersion(await kept.text()) : null;
+		if (fresh != null && fresh.entry !== old?.entry && !await downloadAll(fresh.files)) return;
+		await cache.put(home, response);
+	})().finally(() => {
+		refreshing = null;
+	});
+	return refreshing;
+}
+
+// The entry script and the start-up files named in a copy of the app page.
+function appVersion(html: string): { entry: string; files: string[] } | null {
+	const entry = /const CLIENT_ENTRY = "([^"]+)"/.exec(html)?.[1];
+	if (entry == null) return null;
+	let files: unknown = [];
+	try {
+		files = JSON.parse(/const BOOT_FILES = (\[[^\]]*\])/.exec(html)?.[1] ?? '[]');
+	} catch {
+		// An older page without the list: only the entry.
+	}
+	return { entry, files: [entry, ...(Array.isArray(files) ? files.filter((f): f is string => typeof f === 'string') : [])] };
+}
+
+async function downloadAll(files: string[]): Promise<boolean> {
+	const lang = await swLang.lang;
+	const urls = [...new Set(files.map(file => `/vite/${file.startsWith('scripts/') ? file.replace('scripts', lang) : file}`))];
+	let ok = true;
+	// A few at a time, so a phone on a slow line is not flooded.
+	const next = async (): Promise<void> => {
+		const url = urls.shift();
+		if (url == null) return;
+		try {
+			const res = await fetch(url);
+			if (res.ok) await res.arrayBuffer();
+			else ok = false;
+		} catch {
+			ok = false;
+		}
+		await next();
+	};
+	await Promise.all([next(), next(), next(), next()]);
+	return ok;
 }
 
 // A real page from the server, not the offline page made up above, an error or a redirect.
@@ -308,6 +364,12 @@ globalThis.addEventListener('message', (ev: ServiceWorkerGlobalScopeEventMap['me
 			if (otype === 'object') {
 				if (ev.data.msg === 'initialize') {
 					swLang.setLang(ev.data.lang);
+				}
+				// Vibes: the page is back in front after a while (utility/initialize-sw.ts); a deploy may have happened since.
+				if (ev.data.msg === 'vibes-refresh-app') {
+					await refreshApp().catch(() => {
+						// Offline: the next start or refresh tries again.
+					});
 				}
 			}
 		}

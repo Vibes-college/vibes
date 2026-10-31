@@ -3581,6 +3581,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Vibes stability report: for each of the last `days` days (Beijing time, today first), how many page loads there were, how many failed to start and why, and how long starting and the first content took (see src/misc/lojo-boot-report.ts).
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+     */
+    request<E extends 'lojo/admin/boot-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Polish what the user wants to tell their own coding agent into natural English, with short notes in Chinese.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
@@ -3597,6 +3608,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'lojo/agent/prompt', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Vibes: an anonymous record of how fast the app started on this device, sent once per page load without the account (see src/misc/lojo-boot-report.ts). Stored per day for the stability report.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/boot-report', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

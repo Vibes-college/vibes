@@ -31,6 +31,7 @@ import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { launchPlugins } from '@/plugin.js';
 import { initTelemetry } from '@/telemetry.js';
+import { startBootReport } from '@/lojo/boot-report.js';
 
 export async function common(createVue: () => Promise<App<Element>>) {
 	console.info(`Misskey v${version}`);
@@ -321,6 +322,7 @@ export async function common(createVue: () => Promise<App<Element>>) {
 	window.onunhandledrejection = null;
 
 	removeSplash();
+	startBootReport();
 
 	//#region Self-XSS 対策メッセージ
 	if (!_DEV_) {

@@ -498,6 +498,11 @@ export const ROUTE_DEF = [{
 		name: 'overview',
 		component: page(() => import('@/pages/admin/overview.vue')),
 	}, {
+		// Vibes: the daily stability report from the anonymous start-up records.
+		path: '/stability',
+		name: 'vibesStability',
+		component: page(() => import('@/pages/lojo/stability.vue')),
+	}, {
 		path: '/users',
 		name: 'users',
 		component: page(() => import('@/pages/admin/users.vue')),
