@@ -32,6 +32,8 @@ import {
 } from '@/misc/lojo-english.js';
 import type { LojoEnglishDraft, LojoEnglishExplanation, LojoEnglishLang, LojoEnglishReplyIdeas } from '@/misc/lojo-english.js';
 import { LojoTutorInvalidResponse } from '@/misc/lojo-tutor.js';
+import { agentEnglishSystemPrompt, agentPromptSystemPrompt, normalizeAgentEnglish, normalizeAgentPrompt } from '@/misc/lojo-agent.js';
+import type { LojoAgentEnglish, LojoAgentPrompt } from '@/misc/lojo-agent.js';
 
 const ENDPOINT = 'https://api.deepseek.com/chat/completions';
 const DEFAULT_MODEL = 'deepseek-flash';
@@ -139,6 +141,15 @@ export class LojoEnglishService implements OnApplicationShutdown {
 
 	public async compose(text: string): Promise<LojoEnglishDraft> {
 		return this.complete(composeSystemPrompt, JSON.stringify({ draft: text }), 0.8, 3000, normalizeDraft);
+	}
+
+	// "召唤 Agent": what the user wants to tell their own coding agent. Same daily budget as the other helpers.
+	public agentEnglish(text: string): Promise<LojoAgentEnglish> {
+		return this.complete(agentEnglishSystemPrompt, JSON.stringify({ draft: text }), 0.5, 1200, normalizeAgentEnglish);
+	}
+
+	public agentPrompt(text: string): Promise<LojoAgentPrompt> {
+		return this.complete(agentPromptSystemPrompt, JSON.stringify({ draft: text }), 0.3, 1200, normalizeAgentPrompt);
 	}
 
 	public replyIdeas(text: string, context: string | null, refresh: boolean): Promise<LojoEnglishReplyIdeas> {

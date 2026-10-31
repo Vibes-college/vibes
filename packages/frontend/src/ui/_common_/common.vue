@@ -89,6 +89,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <XStreamIndicator/>
 
+<!-- "召唤 Agent": nothing of it loads until the user summons it in settings, on this device. -->
+<XLojoAgent v-if="$i && agentState.summoned"/>
+
 <div v-if="pendingApiRequestsCount > 0" id="wait"></div>
 
 <div v-if="dev" id="devTicker"><span style="animation: dev-ticker-blink 2s infinite;">DEV BUILD</span></div>
@@ -119,9 +122,11 @@ import { prefer } from '@/preferences.js';
 import { globalEvents } from '@/events.js';
 import { store } from '@/store.js';
 import XNavbar from '@/ui/_common_/navbar.vue';
+import { agentState } from '@/lojo/agent/state.js';
 
 const XStreamIndicator = defineAsyncComponent(() => import('./stream-indicator.vue'));
 const XWidgets = defineAsyncComponent(() => import('./widgets.vue'));
+const XLojoAgent = defineAsyncComponent(() => import('@/lojo/agent/LojoAgent.vue'));
 
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');

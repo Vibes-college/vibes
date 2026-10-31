@@ -3581,6 +3581,28 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Polish what the user wants to tell their own coding agent into natural English, with short notes in Chinese.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/agent/english', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Restructure what the user wants their own coding agent to do into a clearer English prompt, with notes in Chinese.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/agent/prompt', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Turn a draft (Chinese or English) into three English versions: casual, slang and formal.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*

@@ -461,6 +461,8 @@ export * as 'lojo/english/explain' from './endpoints/lojo/english/explain.js';
 export * as 'lojo/english/compose' from './endpoints/lojo/english/compose.js';
 export * as 'lojo/english/reply-ideas' from './endpoints/lojo/english/reply-ideas.js';
 export * as 'lojo/english/speech' from './endpoints/lojo/english/speech.js';
+export * as 'lojo/agent/english' from './endpoints/lojo/agent/english.js';
+export * as 'lojo/agent/prompt' from './endpoints/lojo/agent/prompt.js';
 export * as 'lojo/tutor/poke' from './endpoints/lojo/tutor/poke.js';
 export * as 'lojo/gates/progress' from './endpoints/lojo/gates/progress.js';
 export * as 'lojo/gates/start' from './endpoints/lojo/gates/start.js';

@@ -483,6 +483,10 @@ import type {
 	InviteLimitResponse,
 	InviteListRequest,
 	InviteListResponse,
+	LojoAgentEnglishRequest,
+	LojoAgentEnglishResponse,
+	LojoAgentPromptRequest,
+	LojoAgentPromptResponse,
 	LojoEnglishComposeRequest,
 	LojoEnglishComposeResponse,
 	LojoEnglishExplainRequest,
@@ -1055,6 +1059,8 @@ export type Endpoints = {
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
+	'lojo/agent/english': { req: LojoAgentEnglishRequest; res: LojoAgentEnglishResponse };
+	'lojo/agent/prompt': { req: LojoAgentPromptRequest; res: LojoAgentPromptResponse };
 	'lojo/english/compose': { req: LojoEnglishComposeRequest; res: LojoEnglishComposeResponse };
 	'lojo/english/explain': { req: LojoEnglishExplainRequest; res: LojoEnglishExplainResponse };
 	'lojo/english/reply-ideas': { req: LojoEnglishReplyIdeasRequest; res: LojoEnglishReplyIdeasResponse };
