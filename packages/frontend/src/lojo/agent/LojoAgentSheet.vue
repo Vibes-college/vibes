@@ -142,6 +142,7 @@ const title = computed(() => {
 
 // Each request carries a number, so an answer that arrives after a newer request is dropped.
 let requestSeq = 0;
+
 async function polish(next: 'english' | 'prompt', text: string) {
 	stopListening();
 	const seq = ++requestSeq;
@@ -254,7 +255,7 @@ onBeforeUnmount(() => {
 	position: absolute;
 	inset: 0;
 	z-index: 3;
-	background: rgba(20, 32, 79, 0.18);
+	background: var(--MI_THEME-modalBg);
 }
 
 .sheet {
@@ -269,7 +270,7 @@ onBeforeUnmount(() => {
 	background: var(--MI_THEME-panel);
 	border-top: 1px solid var(--MI_THEME-divider);
 	border-radius: 18px 18px 0 0;
-	box-shadow: 0 -12px 32px -16px rgba(20, 32, 79, 0.35);
+	box-shadow: 0 -12px 32px -16px var(--MI_THEME-shadow);
 }
 
 .head {

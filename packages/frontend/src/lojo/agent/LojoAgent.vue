@@ -24,7 +24,7 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 		@click="openPanel"
 		@animationend="arriving = false"
 	>
-		<svg :class="$style.buddy" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="13" fill="#FFFDF8"/><circle cx="15.5" cy="20" r="2.2" fill="#14204F"/><circle cx="24.5" cy="20" r="2.2" fill="#14204F"/><path d="M16.5 25.5q3.5 2.6 7 0" stroke="#14204F" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="29" cy="9" r="3.2" fill="#E8603F"/></svg>
+		<svg :class="$style.buddy" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="13" fill="#FFFDF8"/><circle cx="15.5" cy="20" r="2.2" fill="#14204F"/><circle cx="24.5" cy="20" r="2.2" fill="#14204F"/><path d="M16.5 25.5q3.5 2.6 7 0" stroke="#14204F" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="29" cy="9" r="3.2" fill="#FF5A3C"/></svg>
 	</button>
 	<div v-if="bubble && !panelOpen" :class="$style.bubble" role="status">{{ bubble }}</div>
 
@@ -38,7 +38,7 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 	>
 		<header :class="$style.bar">
 			<div :class="$style.who">
-				<svg :class="$style.whoBuddy" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="13" fill="#FFFDF8"/><circle cx="15.5" cy="20" r="2.2" fill="#14204F"/><circle cx="24.5" cy="20" r="2.2" fill="#14204F"/><path d="M16.5 25.5q3.5 2.6 7 0" stroke="#14204F" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="29" cy="9" r="3.2" fill="#E8603F"/></svg>
+				<svg :class="$style.whoBuddy" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="13" fill="#FFFDF8"/><circle cx="15.5" cy="20" r="2.2" fill="#14204F"/><circle cx="24.5" cy="20" r="2.2" fill="#14204F"/><path d="M16.5 25.5q3.5 2.6 7 0" stroke="#14204F" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="29" cy="9" r="3.2" fill="#FF5A3C"/></svg>
 				<span>{{ agentName }}</span>
 			</div>
 			<button v-if="!isPhone" class="_button" :class="$style.iconButton" :title="big ? agentLabels.smaller : agentLabels.bigger" :aria-label="big ? agentLabels.smaller : agentLabels.bigger" @click="big = !big">
@@ -111,10 +111,12 @@ const onPhoneChange = () => { isPhone.value = phoneQuery.matches; };
 // On a phone the panel fills the visible area. When the keyboard opens, the visible area shrinks and the panel
 // (and the iframe in it) shrinks with it, so Paseo's input box stays right above the keyboard.
 const viewport = ref<{ top: number; height: number } | null>(null);
+
 function fitViewport() {
 	const vv = window.visualViewport;
 	viewport.value = vv && panelOpen.value ? { top: vv.offsetTop, height: vv.height } : null;
 }
+
 const viewportStyle = computed(() => (isPhone.value && viewport.value
 	? { top: `${viewport.value.top}px`, height: `${viewport.value.height}px` }
 	: {}));
@@ -280,7 +282,7 @@ onBeforeUnmount(() => {
 	height: 56px;
 	border-radius: 50%;
 	background: var(--MI_THEME-accent);
-	box-shadow: 0 1px 2px rgba(20, 32, 79, 0.06), 0 12px 28px -10px rgba(20, 32, 79, 0.45);
+	box-shadow: 0 1px 2px var(--MI_THEME-shadow), 0 12px 28px -10px var(--MI_THEME-shadow);
 	display: grid;
 	place-items: center;
 	transition: transform 0.15s;
@@ -316,7 +318,7 @@ onBeforeUnmount(() => {
 	border-radius: 14px 14px 4px 14px;
 	padding: 8px 12px;
 	font-size: 0.9em;
-	box-shadow: 0 12px 28px -10px rgba(20, 32, 79, 0.35);
+	box-shadow: 0 12px 28px -10px var(--MI_THEME-shadow);
 }
 
 .panel {
@@ -331,7 +333,7 @@ onBeforeUnmount(() => {
 	color: var(--MI_THEME-fg);
 	border: 1px solid var(--MI_THEME-divider);
 	border-radius: 18px;
-	box-shadow: 0 1px 2px rgba(20, 32, 79, 0.06), 0 18px 40px -12px rgba(20, 32, 79, 0.35);
+	box-shadow: 0 1px 2px var(--MI_THEME-shadow), 0 18px 40px -12px var(--MI_THEME-shadow);
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
