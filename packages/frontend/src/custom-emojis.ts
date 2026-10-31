@@ -9,6 +9,8 @@ import { misskeyApi, misskeyApiGet } from '@/utility/misskey-api.js';
 import { get, set } from '@/utility/idb-proxy.js';
 
 const storageCache = await get('emojis');
+// Vibes: whether the list was fetched before and kept on the device (it can be empty when the server has none).
+export const hasStoredCustomEmojis = Array.isArray(storageCache);
 export const customEmojis = shallowRef<Misskey.entities.EmojiSimple[]>(Array.isArray(storageCache) ? storageCache : []);
 export const customEmojiCategories = computed<[ ...string[], null ]>(() => {
 	const categories = new Set<string>();

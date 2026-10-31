@@ -255,6 +255,30 @@ function onVisibilityChange() {
 	}
 }
 
+// Safari keeps Paseo's pairing in cookies of agent.vibes.college, and caps cookies written by script at 7 days from
+// their last write. Paseo writes them again when the panel opens; this small page of the agent repo writes them
+// again on every visit to Vibes, so the pairing stays as long as Vibes is opened at least once a week.
+const KEEP_PAIRING_URL = new URL('keep', AGENT_URL).href;
+let keepPairingTimer: number | null = null;
+
+function keepPairing() {
+	keepPairingTimer = null;
+	if (frameCreated.value) return;
+	const frame = window.document.createElement('iframe');
+	frame.src = KEEP_PAIRING_URL;
+	frame.title = 'Paseo';
+	frame.tabIndex = -1;
+	frame.setAttribute('aria-hidden', 'true');
+	frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+	frame.referrerPolicy = 'no-referrer';
+	frame.style.display = 'none';
+	// The page writes the cookies while it loads.
+	const remove = () => frame.remove();
+	frame.addEventListener('load', remove, { once: true });
+	window.setTimeout(remove, 60 * 1000);
+	window.document.body.appendChild(frame);
+}
+
 onMounted(() => {
 	window.addEventListener('message', onMessage);
 	window.document.addEventListener('visibilitychange', onVisibilityChange);
@@ -269,9 +293,12 @@ onMounted(() => {
 		forgetPanelOpen();
 		openPanel();
 	}
+	// After the page itself has loaded.
+	keepPairingTimer = window.setTimeout(keepPairing, 5000);
 });
 
 onBeforeUnmount(() => {
+	if (keepPairingTimer != null) window.clearTimeout(keepPairingTimer);
 	window.removeEventListener('message', onMessage);
 	window.document.removeEventListener('visibilitychange', onVisibilityChange);
 	window.visualViewport?.removeEventListener('resize', fitViewport);

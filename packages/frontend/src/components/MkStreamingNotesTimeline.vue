@@ -185,6 +185,9 @@ if (props.src === 'antenna') {
 	throw new Error('Unrecognized timeline type: ' + props.src);
 }
 
+// Vibes: show the notes kept from the last visit at once and refresh them in the background (see Paginator.cacheKey).
+if ($i) paginator.cacheKey = `timeline:${$i.id}`;
+
 onMounted(() => {
 	paginator.init();
 
@@ -224,6 +227,7 @@ onUnmounted(() => {
 	if (scrollContainer) {
 		scrollContainer.removeEventListener('scroll', onScrollContainerScroll);
 	}
+	paginator.keepItems();
 });
 
 const visibility = useDocumentVisibility();
@@ -232,6 +236,8 @@ let isPausingUpdate = false;
 watch(visibility, () => {
 	if (visibility.value === 'hidden') {
 		isPausingUpdate = true;
+		// The phone may close the page in the background: keep what is on screen for next time.
+		paginator.keepItems();
 	} else { // 'visible'
 		isPausingUpdate = false;
 		if (isTop()) {

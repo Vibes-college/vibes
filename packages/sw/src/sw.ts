@@ -42,25 +42,47 @@ async function respondToNavigation(request: Request): Promise<Response> {
 	});
 }
 
-// Vibes: the home page opens from the copy kept on the device, and the copy is refreshed in the background for next time.
-// From mainland China loading it takes several round trips of about 0.2 s each (measured 2026-10-24).
-// Only "/" is kept. Other pages still come from the server, and the copy is dropped when a new service worker activates.
+// Vibes: every page of the app opens from the copy of the home page kept on the device, and the copy is refreshed in
+// the background for next time. The server sends the same app for every page; other pages only add a title and tags
+// for link previews, which the app does not need. From mainland China loading the page takes several round trips of
+// about 0.2 s each (measured 2026-10-24), and a phone back from the background could wait up to FETCH_TIMEOUT_MS.
+// Paths the server answers itself (API, files, feeds, OAuth, the repair pages) still go to the server.
+// The copy is dropped when a new service worker activates.
 const HOME_CACHE = 'vibes-home';
+const SERVER_PATHS = /^\/(?:api|api-doc|api\.json|files|proxy|avatar|identicon|emoji|emojis|notes\/[^/]+\/activity|users|likes|follows|inbox|nodeinfo|\.well-known|oauth|healthz|streaming|url|vite|embed_vite|embed|assets|static-assets|client-assets|lojo-assets|lojo-amap|lojo-places|_AMapService|tarball|fluent-emoji|twemoji|twemoji-badge|_info_card_|bios|cli|flush)(?:\/|$)/;
 
-async function respondToHome(ev: FetchEvent): Promise<Response> {
+function isAppPage(request: Request, url: URL): boolean {
+	return request.method === 'GET'
+		&& request.mode === 'navigate'
+		&& url.origin === globalThis.location.origin
+		&& !SERVER_PATHS.test(url.pathname)
+		// Files such as /robots.txt and /manifest.json, and the feeds at /@user.rss.
+		&& !/\.[a-z0-9]+$/i.test(url.pathname);
+}
+
+async function respondWithApp(ev: FetchEvent, url: URL): Promise<Response> {
+	const home = new URL('/', url).href;
 	const cache = await caches.open(HOME_CACHE);
-	const kept = await cache.match(ev.request.url, { ignoreVary: true });
-	if (kept == null) {
-		const response = await respondToNavigation(ev.request);
-		if (isServerPage(response)) await cache.put(ev.request.url, response.clone());
-		return response;
+	const kept = await cache.match(home, { ignoreVary: true });
+	if (kept != null) {
+		ev.waitUntil(fetch(home).then(async response => {
+			if (isServerPage(response)) await cache.put(home, response);
+		}).catch(() => {
+			// Offline: keep the copy we have.
+		}));
+		return kept;
 	}
-	ev.waitUntil(fetch(ev.request).then(async response => {
-		if (isServerPage(response)) await cache.put(ev.request.url, response);
-	}).catch(() => {
-		// Offline: keep the copy we have.
-	}));
-	return kept;
+	const response = await respondToNavigation(ev.request);
+	if (url.pathname === '/' && isServerPage(response)) {
+		await cache.put(home, response.clone());
+	} else {
+		ev.waitUntil(fetch(home).then(async homeResponse => {
+			if (isServerPage(homeResponse)) await cache.put(home, homeResponse);
+		}).catch(() => {
+			// Offline: the next page loaded will try again.
+		}));
+	}
+	return response;
 }
 
 // A real page from the server, not the offline page made up above, an error or a redirect.
@@ -126,8 +148,8 @@ globalThis.addEventListener('fetch', ev => {
 
 	if (!isHTMLRequest) return;
 	const url = new URL(ev.request.url);
-	if (ev.request.method === 'GET' && url.origin === globalThis.location.origin && url.pathname === '/' && url.search === '') {
-		ev.respondWith(respondToHome(ev));
+	if (isAppPage(ev.request, url)) {
+		ev.respondWith(respondWithApp(ev, url));
 		return;
 	}
 	ev.respondWith(respondToNavigation(ev.request));

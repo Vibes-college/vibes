@@ -26,7 +26,7 @@ import { getAccountFromId } from '@/utility/get-account-from-id.js';
 import { deckStore } from '@/ui/deck/deck-store.js';
 import { analytics, initAnalytics } from '@/analytics.js';
 import { miLocalStorage } from '@/local-storage.js';
-import { fetchCustomEmojis } from '@/custom-emojis.js';
+import { fetchCustomEmojis, hasStoredCustomEmojis } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { launchPlugins } from '@/plugin.js';
@@ -254,9 +254,16 @@ export async function common(createVue: () => Promise<App<Element>>) {
 	}
 	//#endregion
 
-	try {
-		await fetchCustomEmojis();
-	} catch (err) { /* empty */ }
+	// Vibes: when the list is kept on the device, refresh it in the background instead of keeping the splash up for it.
+	// A phone back from the background asks again after an hour, and from mainland China that request alone can take
+	// several seconds while the network comes back.
+	if (hasStoredCustomEmojis) {
+		fetchCustomEmojis().catch(() => { /* keep the list on the device */ });
+	} else {
+		try {
+			await fetchCustomEmojis();
+		} catch (err) { /* empty */ }
+	}
 
 	// analytics
 	fetchInstanceMetaPromise.then(async () => {

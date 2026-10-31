@@ -7,6 +7,7 @@ import { ref, shallowRef, triggerRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { ComputedRef, Ref, ShallowRef, UnwrapRef } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { get as idbGet, set as idbSet } from '@/utility/idb-proxy.js';
 
 const MAX_ITEMS = 30;
 const MAX_QUEUE_ITEMS = 100;
@@ -54,8 +55,10 @@ export interface IPaginator<T = unknown, _T = T & MisskeyEntity> {
 	noPaging: boolean;
 	searchQuery: Ref<null | string>;
 	order: Ref<'newest' | 'oldest'>;
+	cacheKey: string | null;
 
 	init(): Promise<void>;
+	keepItems(): void;
 	reload(): Promise<void>;
 	fetchOlder(): Promise<void>;
 	fetchNewer(options?: { toQueue?: boolean }): Promise<void>;
@@ -114,6 +117,14 @@ export class Paginator<
 	// NOTE: このようなプロパティを用意してこっち側で並びを管理せずに、Setで持っておき参照者側が好きに並び変えるような設計の方がすっきりしそうなものの、Vueのレンダリングのたびに並び替え処理が発生することになったりしそうでパフォーマンス上の懸念がある
 	public order: Ref<'newest' | 'oldest'>;
 
+	// Vibes: when set (per account), the first page of the latest items is kept on the device. The next time the list
+	// opens it shows the kept page at once and replaces it with the server's answer, instead of a spinner while the
+	// request travels. From mainland China that request takes seconds when a phone has just come back from the background.
+	public cacheKey: string | null = null;
+	private keptKey: string | null = null;
+	private refreshingKept = false;
+	private initGeneration = 0;
+
 	constructor(endpoint: Endpoint, props: {
 		limit?: number;
 		params?: E['req'] | (() => E['req']);
@@ -165,6 +176,7 @@ export class Paginator<
 		this.getNewestId = this.getNewestId.bind(this);
 		this.getOldestId = this.getOldestId.bind(this);
 		this.init = this.init.bind(this);
+		this.keepItems = this.keepItems.bind(this);
 		this.reload = this.reload.bind(this);
 		this.fetchOlder = this.fetchOlder.bind(this);
 		this.fetchNewer = this.fetchNewer.bind(this);
@@ -191,10 +203,7 @@ export class Paginator<
 	}
 
 	public async init(): Promise<void> {
-		this.items.value = [];
-		this.aheadQueue = [];
-		this.queuedAheadItemsCount.value = 0;
-		this.fetching.value = true;
+		const generation = ++this.initGeneration;
 
 		const data: E['req'] = {
 			...(typeof this.params === 'function' ? this.params() : this.params),
@@ -213,13 +222,40 @@ export class Paginator<
 			} : {}),
 		};
 
-		const apiRes = (await misskeyApi(this.endpoint, data).catch(_ => {
-			this.error.value = true;
+		// Vibes: only the latest items are kept, not a search, a jump to a date or a list read from the oldest.
+		const keptKey = this.cacheKey != null && this.initialId == null && this.initialDate == null && this.initialDirection === 'older' && this.order.value === 'newest' && !this.offsetMode && (this.searchQuery.value ?? '').trim() === ''
+			? `${this.cacheKey}:${this.endpoint}:${JSON.stringify(data)}`
+			: null;
+		const kept = keptKey != null ? await idbGet(keptKey).catch(() => null) as T[] | null : null;
+		// A newer init started while reading the device.
+		if (generation !== this.initGeneration) return;
+
+		this.items.value = [];
+		this.aheadQueue = [];
+		this.queuedAheadItemsCount.value = 0;
+		this.fetching.value = true;
+		this.keptKey = keptKey;
+
+		const showingKept = Array.isArray(kept) && kept.length > 0;
+		if (showingKept) {
+			this.pushItems(kept);
+			this.canFetchOlder.value = true;
+			this.error.value = false;
 			this.fetching.value = false;
+			this.refreshingKept = true;
+		}
+
+		const apiRes = (await misskeyApi(this.endpoint, data).catch(_ => {
 			return null;
 		})) as T[] | null;
 
+		if (generation !== this.initGeneration) return;
+		this.refreshingKept = false;
+
 		if (apiRes == null) {
+			// With the kept page on screen, keep showing it rather than the error.
+			if (!showingKept) this.error.value = true;
+			this.fetching.value = false;
 			return;
 		}
 
@@ -233,7 +269,15 @@ export class Paginator<
 			if (i === 3) item._shouldInsertAd_ = true;
 		}
 
-		this.pushItems(apiRes);
+		if (showingKept) {
+			// Replace the kept page, but keep items that came in from streaming while the request travelled.
+			const keptIds = new Set(kept.map(x => x.id));
+			const newest = apiRes.map(x => x.id).sort().at(-1);
+			const arrived = newest == null ? [] : this.items.value.filter(x => x.id > newest && !keptIds.has(x.id));
+			this.items.value = [...arrived, ...apiRes];
+		} else {
+			this.pushItems(apiRes);
+		}
 
 		if (this.canFetchDetection === 'limit') {
 			if (apiRes.length < FIRST_FETCH_LIMIT) {
@@ -251,6 +295,17 @@ export class Paginator<
 
 		this.error.value = false;
 		this.fetching.value = false;
+		this.keepItems();
+	}
+
+	// Vibes: keeps the first page on screen for the next visit (see cacheKey). Not while the list is still loading or
+	// the kept page is waiting for the server's answer.
+	public keepItems(): void {
+		if (this.keptKey == null || this.fetching.value || this.refreshingKept) return;
+		const page = JSON.parse(JSON.stringify(this.items.value.slice(0, FIRST_FETCH_LIMIT)));
+		idbSet(this.keptKey, page).catch(() => {
+			// Not kept: the next visit loads the list as before.
+		});
 	}
 
 	public reload(): Promise<void> {
@@ -258,7 +313,7 @@ export class Paginator<
 	}
 
 	public async fetchOlder(): Promise<void> {
-		if (!this.canFetchOlder.value || this.fetching.value || this.fetchingOlder.value || this.items.value.length === 0) return;
+		if (!this.canFetchOlder.value || this.fetching.value || this.refreshingKept || this.fetchingOlder.value || this.items.value.length === 0) return;
 		this.fetchingOlder.value = true;
 
 		const data: E['req'] = {
