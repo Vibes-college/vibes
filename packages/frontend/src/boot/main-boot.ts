@@ -31,6 +31,9 @@ import { isBirthday } from '@/utility/is-birthday.js';
 import { prefetchCommonPages } from '@/lojo/prefetch.js';
 import { currentInstallOffer } from '@/lojo/install/prompt.js';
 
+// Vibes: how long 稍后 keeps the setup dialog away (store.ts accountSetupWizardLaterAt)
+const SETUP_LATER_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function mainBoot() {
 	const { isClientUpdated, lastVersion } = await common(async () => {
 		let uiStyle = ui;
@@ -112,7 +115,8 @@ export async function mainBoot() {
 		};
 
 		store.loaded.then(async () => {
-			if (store.s.accountSetupWizard !== -1) {
+			// Vibes: after 稍后, not again for a week; upstream opens it on every launch until it is finished or skipped
+			if (store.s.accountSetupWizard !== -1 && Date.now() - store.s.accountSetupWizardLaterAt >= SETUP_LATER_MS) {
 				const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUserSetupDialog.vue')), {}, {
 					closed: () => {
 						dispose();

@@ -20,6 +20,12 @@ export const store = markRaw(new Pizzax('base', {
 		where: 'account',
 		default: 0,
 	},
+	// Vibes: when 稍后 was last pressed on the setup dialog (ms). The dialog comes back a week later, not on every launch
+	// (founder, 2026-11-01: pressed it countless times and it kept coming back).
+	accountSetupWizardLaterAt: {
+		where: 'account',
+		default: 0,
+	},
 	tips: {
 		where: 'device',
 		default: {} as Partial<Record<typeof TIPS[number], boolean>>, // true = 既読

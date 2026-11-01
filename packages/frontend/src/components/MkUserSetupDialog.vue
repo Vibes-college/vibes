@@ -194,6 +194,8 @@ async function later(later: boolean) {
 
 	dialog.value?.close();
 	store.set('accountSetupWizard', 0);
+	// Vibes: and not again for a week (boot/main-boot.ts)
+	store.set('accountSetupWizardLaterAt', Date.now());
 }
 </script>
 
