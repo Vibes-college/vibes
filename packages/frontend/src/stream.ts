@@ -28,7 +28,11 @@ export function useStream(): Misskey.IStream {
 
 	stream = markRaw(new Misskey.Stream(wsOrigin, $i ? {
 		token: $i.token,
-	} : null));
+	} : null, {
+		// Vibes: from mainland China the handshake alone is 3 round trips of 0.2–0.6 s with packet loss at peak (measured
+		// 2026-10-31); the default 4 s cut slow attempts off halfway, so reconnecting kept failing.
+		connectionTimeout: 10 * 1000,
+	}));
 
 	if (timeoutHeartBeat) window.clearTimeout(timeoutHeartBeat);
 	timeoutHeartBeat = window.setTimeout(heartbeat, HEART_BEAT_INTERVAL);

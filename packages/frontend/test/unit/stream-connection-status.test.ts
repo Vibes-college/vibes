@@ -40,7 +40,14 @@ afterEach(() => {
 	cleanups.splice(0).forEach(cleanup => cleanup());
 	vi.clearAllTimers();
 	vi.useRealTimers();
+	setVisibility('visible');
 });
+
+// Vibes: the page going to the background and coming back (a phone freezes background pages).
+function setVisibility(state: DocumentVisibilityState) {
+	Object.defineProperty(window.document, 'visibilityState', { configurable: true, get: () => state });
+	window.document.dispatchEvent(new Event('visibilitychange'));
+}
 
 describe('stream connection status', () => {
 	it.each(['initializing', 'connected'] as const)('does not show a warning while initially %s', (initialState) => {
@@ -52,11 +59,11 @@ describe('stream connection status', () => {
 		expect(vi.getTimerCount()).toBe(0);
 	});
 
-	it('does not show a warning for a disconnect that recovers within five seconds', () => {
+	it('does not show a warning for a disconnect that recovers within twelve seconds', () => {
 		const { stream, status } = fixture();
 
 		stream.disconnect();
-		vi.advanceTimersByTime(4_999);
+		vi.advanceTimersByTime(11_999);
 		expect(status.isDisconnected.value).toBe(false);
 
 		stream.reconnect();
@@ -66,11 +73,11 @@ describe('stream connection status', () => {
 		expect(vi.getTimerCount()).toBe(0);
 	});
 
-	it('shows a sustained disconnect after five seconds and clears it on recovery', () => {
+	it('shows a sustained disconnect after twelve seconds and clears it on recovery', () => {
 		const { stream, status } = fixture();
 
 		stream.disconnect();
-		vi.advanceTimersByTime(4_999);
+		vi.advanceTimersByTime(11_999);
 		expect(status.isDisconnected.value).toBe(false);
 
 		vi.advanceTimersByTime(1);
@@ -85,7 +92,7 @@ describe('stream connection status', () => {
 		const { stream, status } = fixture();
 
 		stream.disconnect();
-		vi.advanceTimersByTime(5_000);
+		vi.advanceTimersByTime(12_000);
 		expect(status.isDisconnected.value).toBe(true);
 
 		status.dismiss();
@@ -98,7 +105,7 @@ describe('stream connection status', () => {
 
 		stream.reconnect();
 		stream.disconnect();
-		vi.advanceTimersByTime(5_000);
+		vi.advanceTimersByTime(12_000);
 		expect(status.isDisconnected.value).toBe(true);
 	});
 
@@ -126,9 +133,9 @@ describe('stream connection status', () => {
 		expect(vi.getTimerCount()).toBe(0);
 		stream.disconnect();
 
-		vi.advanceTimersByTime(2_000);
+		vi.advanceTimersByTime(6_000);
 		expect(status.isDisconnected.value).toBe(false);
-		vi.advanceTimersByTime(3_000);
+		vi.advanceTimersByTime(6_000);
 		expect(status.isDisconnected.value).toBe(true);
 		expect(vi.getTimerCount()).toBe(0);
 
@@ -139,7 +146,7 @@ describe('stream connection status', () => {
 	it('starts the grace period when created while already reconnecting', () => {
 		const { stream, status } = fixture('reconnecting');
 
-		vi.advanceTimersByTime(4_999);
+		vi.advanceTimersByTime(11_999);
 		expect(status.isDisconnected.value).toBe(false);
 		vi.advanceTimersByTime(1);
 		expect(status.isDisconnected.value).toBe(true);
@@ -156,6 +163,56 @@ describe('stream connection status', () => {
 		expect(status.isDisconnected.value).toBe(false);
 		vi.advanceTimersByTime(1);
 		expect(status.isDisconnected.value).toBe(true);
+	});
+
+	it('does not count time while the page is in the background', () => {
+		const { stream, status } = fixture();
+
+		setVisibility('hidden');
+		stream.disconnect();
+		vi.advanceTimersByTime(60_000);
+
+		expect(status.isDisconnected.value).toBe(false);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it('gives a full grace period when the page comes back while still reconnecting', () => {
+		const { stream, status } = fixture();
+
+		setVisibility('hidden');
+		stream.disconnect();
+		vi.advanceTimersByTime(60_000);
+		setVisibility('visible');
+
+		vi.advanceTimersByTime(11_999);
+		expect(status.isDisconnected.value).toBe(false);
+		vi.advanceTimersByTime(1);
+		expect(status.isDisconnected.value).toBe(true);
+	});
+
+	it('does not warn when the connection is back soon after the page returns', () => {
+		const { stream, status } = fixture();
+
+		setVisibility('hidden');
+		stream.disconnect();
+		setVisibility('visible');
+		vi.advanceTimersByTime(4_000);
+		stream.reconnect();
+		vi.advanceTimersByTime(60_000);
+
+		expect(status.isDisconnected.value).toBe(false);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it('drops a pending warning when the page goes to the background', () => {
+		const { stream, status } = fixture();
+
+		stream.disconnect();
+		vi.advanceTimersByTime(6_000);
+		setVisibility('hidden');
+		vi.advanceTimersByTime(60_000);
+		expect(status.isDisconnected.value).toBe(false);
+		expect(vi.getTimerCount()).toBe(0);
 	});
 
 	it('disposes its listeners and pending timer without removing other subscribers', () => {

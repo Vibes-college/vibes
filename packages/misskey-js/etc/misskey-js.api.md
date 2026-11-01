@@ -3786,6 +3786,7 @@ export class Stream extends EventEmitter<StreamEvents> implements IStream {
     } | null, options?: {
         WebSocket?: Options['WebSocket'];
         binaryType?: ReconnectingWebSocket['binaryType'];
+        connectionTimeout?: Options['connectionTimeout'];
     });
     // (undocumented)
     close(): void;

@@ -12,8 +12,13 @@ type ConnectionEvents = {
 	off(event: '_connected_' | '_disconnected_', listener: () => void): unknown;
 };
 
-/** A shared warning state that gives automatic reconnection time to recover. */
-export function createStreamConnectionStatus(stream: ConnectionEvents, gracePeriod = 5000) {
+/**
+ * A shared warning state that gives automatic reconnection time to recover.
+ * Vibes: the grace period counts only while the page is in front. A phone freezes a page in the background and the
+ * server then closes its connection; a timer started there fired the moment the page came back, so the warning showed
+ * while the connection was simply being made again. From mainland China that takes a few seconds, hence 12 s.
+ */
+export function createStreamConnectionStatus(stream: ConnectionEvents, gracePeriod = 12000) {
 	const isDisconnected = ref(false);
 	let timer: number | null = null;
 	let dismissed = false;
@@ -23,11 +28,15 @@ export function createStreamConnectionStatus(stream: ConnectionEvents, gracePeri
 		timer = null;
 	}
 
+	function isVisible() {
+		return window.document.visibilityState === 'visible';
+	}
+
 	function onDisconnected() {
-		if (timer !== null || isDisconnected.value || dismissed) return;
+		if (timer !== null || isDisconnected.value || dismissed || !isVisible()) return;
 		timer = window.setTimeout(() => {
 			timer = null;
-			isDisconnected.value = stream.state === 'reconnecting';
+			isDisconnected.value = stream.state === 'reconnecting' && isVisible();
 		}, gracePeriod);
 	}
 
@@ -37,8 +46,17 @@ export function createStreamConnectionStatus(stream: ConnectionEvents, gracePeri
 		isDisconnected.value = false;
 	}
 
+	function onVisibilityChange() {
+		if (isVisible()) {
+			if (stream.state === 'reconnecting') onDisconnected();
+		} else {
+			clearTimer();
+		}
+	}
+
 	stream.on('_disconnected_', onDisconnected);
 	stream.on('_connected_', onConnected);
+	window.document.addEventListener('visibilitychange', onVisibilityChange);
 	if (stream.state === 'reconnecting') onDisconnected();
 
 	return {
@@ -52,6 +70,7 @@ export function createStreamConnectionStatus(stream: ConnectionEvents, gracePeri
 			clearTimer();
 			stream.off('_disconnected_', onDisconnected);
 			stream.off('_connected_', onConnected);
+			window.document.removeEventListener('visibilitychange', onVisibilityChange);
 		},
 	};
 }

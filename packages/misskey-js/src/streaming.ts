@@ -55,6 +55,9 @@ export default class Stream extends EventEmitter<StreamEvents> implements IStrea
 	constructor(origin: string, user: { token: string; } | null, options?: {
 		WebSocket?: Options['WebSocket'];
 		binaryType?: ReconnectingWebSocket['binaryType'];
+		// Vibes: how long one connection attempt may take before it is given up and tried again (the library's default is
+		// 4 s, too short for slow, lossy links where the handshake alone takes several round trips).
+		connectionTimeout?: Options['connectionTimeout'];
 	}) {
 		super();
 
@@ -86,6 +89,7 @@ export default class Stream extends EventEmitter<StreamEvents> implements IStrea
 		this.stream = new ReconnectingWebSocketConstructor(`${wsOrigin}/streaming?${query}`, '', {
 			minReconnectionDelay: 1, // https://github.com/pladaria/reconnecting-websocket/issues/91
 			WebSocket: options.WebSocket,
+			...(options.connectionTimeout != null ? { connectionTimeout: options.connectionTimeout } : {}),
 		});
 		if (options.binaryType) {
 			this.stream.binaryType = options.binaryType;

@@ -180,11 +180,33 @@ onMounted(() => {
 		connection = useStream().useChannel('main');
 		connection.on('notification', onNotification);
 		connection.on('notificationFlushed', reload);
+		if (useStream().state === 'reconnecting') missedWhileDisconnected = true;
+		useStream().on('_disconnected_', onStreamDisconnected);
+		useStream().on('_connected_', onStreamConnected);
 	}
 });
 
+// Vibes: notifications that came while the live connection was down never come through it; fetch them once it is back.
+let missedWhileDisconnected = false;
+
+function onStreamDisconnected() {
+	missedWhileDisconnected = true;
+}
+
+function onStreamConnected() {
+	if (!missedWhileDisconnected) return;
+	missedWhileDisconnected = false;
+	paginator.fetchNewer({
+		toQueue: !isTop() || isPausingUpdate,
+	});
+}
+
 onUnmounted(() => {
 	paginator.keepItems();
+	if (store.s.realtimeMode) {
+		useStream().off('_disconnected_', onStreamDisconnected);
+		useStream().off('_connected_', onStreamConnected);
+	}
 	if (connection) connection.dispose();
 	if (scrollContainer != null) {
 		scrollContainer.removeEventListener('scroll', onScrollContainerScroll);

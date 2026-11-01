@@ -312,6 +312,26 @@ function prepend(note: Misskey.entities.Note & MisskeyEntity) {
 
 const stream = store.s.realtimeMode ? useStream() : null;
 
+// Vibes: notes posted while the live connection was down never come through it (a phone in the background, a lossy
+// link); fetch them once it is back instead of leaving a gap until the next reload.
+// (opened while it was already down: the first load may also miss some)
+let missedWhileDisconnected = stream?.state === 'reconnecting';
+
+function onStreamDisconnected() {
+	missedWhileDisconnected = true;
+}
+
+function onStreamConnected() {
+	if (!missedWhileDisconnected) return;
+	missedWhileDisconnected = false;
+	paginator.fetchNewer({
+		toQueue: !isTop() || isPausingUpdate,
+	});
+}
+
+stream?.on('_disconnected_', onStreamDisconnected);
+stream?.on('_connected_', onStreamConnected);
+
 const connections = {
 	antenna: null as Misskey.IChannelConnection<Misskey.Channels['antenna']> | null,
 	homeTimeline: null as Misskey.IChannelConnection<Misskey.Channels['homeTimeline']> | null,
@@ -416,6 +436,8 @@ watch(() => props.withSensitive, reloadTimeline);
 
 onUnmounted(() => {
 	disconnectChannel();
+	stream?.off('_disconnected_', onStreamDisconnected);
+	stream?.off('_connected_', onStreamConnected);
 });
 
 function reloadTimeline() {
