@@ -5,7 +5,7 @@
 
 // Copy for 6 号线 · 语法's lessons (/grammar/6.2), kept apart from upstream Crowdin translations. Chinese first, short
 // sentences. The lessons themselves are in Chinese only (grammar.js). Never promise a score: a band is a practice level.
-import { lang } from '@@/js/config.js';
+import { learnLang } from '@/lojo/learn-lang.js';
 import type { LegendKey } from './marks.js';
 
 const zh = {
@@ -91,5 +91,5 @@ const en: typeof zh = {
 	stopName: (band, title) => `${band} ${title}`,
 };
 
-export const grammarLang: 'zh' | 'en' = lang.startsWith('zh') ? 'zh' : 'en';
+export const grammarLang: 'zh' | 'en' = learnLang;
 export const grammarLabels = grammarLang === 'zh' ? zh : en;

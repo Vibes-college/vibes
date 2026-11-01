@@ -5,7 +5,7 @@
 
 // Copy for 0 号线 · 机考打字 (/typing), kept apart from upstream Crowdin translations. Chinese first, short sentences.
 // Never promise a score: it is about getting used to the computer test. Facts carry their source and date.
-import { lang } from '@@/js/config.js';
+import { learnLang } from '@/lojo/learn-lang.js';
 import { mockPlan, sentencesOf, wordCount } from './score.js';
 import type { Device, Goal, Stop } from './content.js';
 import type { StopState } from './record.js';
@@ -555,7 +555,7 @@ const en: typeof zh = {
 };
 
 export const TYPING_TEXT = { zh, en };
-export const typingLang: 'zh' | 'en' = lang.startsWith('zh') ? 'zh' : 'en';
+export const typingLang: 'zh' | 'en' = learnLang;
 export const typingLabels = TYPING_TEXT[typingLang];
 
 // How a stop is passed, as its intro and its bar say it.

@@ -49,7 +49,7 @@ const props = defineProps<{ course?: string }>();
 // Two runtimes share this page: runtime.js for topic maps (AP), gate-map.js for gate maps (META.kind 'gates', IELTS).
 type RouteRuntime = {
 	fit(): void; legend(): void; pause(): void; resume(): void; resize(): void; destroy(): void;
-	tour?: () => void; // topic maps only
+	tour?: () => void; // maps with a tour: the AP maps, and the IELTS map (TOUR in its text.js)
 	refresh?: () => Promise<void>; // gate maps: progress lives on the server, re-read it when the page comes back
 };
 const loadRuntime = (kind: string | undefined) => kind === 'gates' ? import('@/lojo/route/gate-map.js') : import('@/lojo/route/runtime.js');
@@ -74,6 +74,9 @@ const fetchRegistry = () => misskeyApi('i/registry/get-all', { scope: ROUTE_SCOP
 	return value;
 });
 const isZh = lang.startsWith('zh');
+// An English course's map speaks Chinese whatever the app's language: its learners are Chinese speakers, and an all-English
+// map loses them (founder, 2026-11-01). Other courses follow the app.
+const courseLang = (c: { subject?: string } | null | undefined): 'zh' | 'en' => (isZh || c?.subject === 'english' ? 'zh' : 'en');
 const pageTitle = ref<string>(lojoLabels.map);
 // The course tabs in the page header. Icons are listed here (not in the generated catalog) so the icon font subset picks them up.
 const COURSE_ICON: Record<string, string> = { ielts: 'ti ti-headphones', 'ap-micro': 'ti ti-chart-line', 'ap-calc-ab': 'ti ti-math-function' };
@@ -82,7 +85,7 @@ const courseId = computed(() => props.course ?? DEFAULT_COURSE);
 const myList = ref<string[]>([]);
 const courseTabs = computed(() => (myList.value.includes(courseId.value) ? myList.value : [...myList.value, courseId.value])
 	.map(id => CATALOG.find(c => c.id === id)).filter(c => c != null)
-	.map(c => ({ key: c.id, title: c.short[isZh ? 'zh' : 'en'], icon: COURSE_ICON[c.id] ?? 'ti ti-road' })));
+	.map(c => ({ key: c.id, title: c.short[courseLang(c)], icon: COURSE_ICON[c.id] ?? 'ti ti-road' })));
 
 function switchCourse(id: string) {
 	if (id !== courseId.value) router.pushByPath(coursePath(id));
@@ -100,7 +103,7 @@ const headerActions: PageHeaderItem[] = [{
 }, {
 	icon: 'ti ti-dots',
 	text: i18n.ts.more,
-	// gate maps have no tour
+	// a map without a tour has no 带我走一遍
 	handler: (event) => os.popupMenu([...(runtime?.tour ? [{
 		icon: 'ti ti-train',
 		text: lojoLabels.routeTour,
@@ -139,6 +142,11 @@ async function start() {
 		const { mount } = await loadRuntime(pack.META.kind);
 		if (current !== generation) return;
 		const registry = { scope: ROUTE_SCOPE, key: pack.META.storeKey };
+		// The map saves its own flags (welcome card seen, tour watched). They go into the kept copy too, or the next visit,
+		// drawn from that copy, would open with the welcome card again; a server copy that arrives after a save keeps them.
+		let copy = all;
+		let saved: { value: unknown } | null = null;
+		const keepCopy = () => keep(REGISTRY_NAME, saved ? { ...copy, [registry.key]: saved.value } : copy);
 		const mine = myMaps(all), next = withCourse(mine, entry.id);
 		myList.value = next;
 		// "My maps" is saved from the server's copy only (with a kept copy, after it arrives below).
@@ -147,16 +155,21 @@ async function start() {
 		let firstProgress = fromKept ? keptProgress : null;
 		let firstWarm = fromKept ? keptWarm : null;
 		const basePath = props.course ? `/map/${props.course}` : '/map';
-		pageTitle.value = `${pack.TEXT[isZh ? 'zh' : 'en'].title} · ${isZh ? '线路图' : 'Route map'}`;
+		const mapLang = courseLang(entry);
+		pageTitle.value = `${pack.TEXT[mapLang].title} · ${mapLang === 'zh' ? '线路图' : 'Route map'}`;
 		try { window.localStorage.setItem(LAST_COURSE_KEY, entry.id); } catch { /* private mode */ }
 		const shadow = mapHost.value.shadowRoot ?? mapHost.value.attachShadow({ mode: 'open' });
 		const mounted = await mount(shadow, {
-			lang: isZh ? 'zh' : 'en',
+			lang: mapLang,
 			assets: '/lojo-assets/',
 			initialHash: decodeURIComponent(window.location.hash.slice(1)),
 			// get-all returns {} for a new user instead of a NO_SUCH_KEY error
 			load: () => Promise.resolve(all[registry.key] ?? null),
-			save: (value: unknown) => misskeyApi('i/registry/set', { ...registry, value }),
+			save: (value: unknown) => {
+				saved = { value };
+				keepCopy();
+				return misskeyApi('i/registry/set', { ...registry, value });
+			},
 			notes: (tag: string, limit: number) => misskeyApi('notes/search-by-tag', { tag, limit }),
 			channel: async (line: number) => {
 				const name = `${pack.META.group.zh} ${line} 号线同行小组`;
@@ -210,6 +223,8 @@ async function start() {
 			void runtime.refresh?.();
 			void fetchRegistry().then(fresh => {
 				if (current !== generation) return;
+				copy = fresh;
+				if (saved) keepCopy();
 				const freshMine = myMaps(fresh), freshNext = withCourse(freshMine, entry.id);
 				myList.value = freshNext;
 				if (freshNext.length !== freshMine.length) void saveMyMaps(freshNext).catch(() => { /* retried next time */ });

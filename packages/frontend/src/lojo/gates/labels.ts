@@ -5,7 +5,7 @@
 
 // Copy for the gate player (闯关答题页), kept apart from upstream Crowdin translations. Chinese first, short sentences.
 // Never promise a score: every band here is a practice level.
-import { lang } from '@@/js/config.js';
+import { learnLang } from '@/lojo/learn-lang.js';
 import { durationParts } from './player.js';
 import type { GateLimit, GateReason } from './player.js';
 import type { ParseMode } from './answers.js';
@@ -478,5 +478,5 @@ const en: typeof zh = {
 };
 
 export const GATE_TEXT = { zh, en };
-export const gateLang: 'zh' | 'en' = lang.startsWith('zh') ? 'zh' : 'en';
+export const gateLang: 'zh' | 'en' = learnLang;
 export const gateLabels = GATE_TEXT[gateLang];

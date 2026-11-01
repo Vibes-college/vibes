@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { lang } from '@@/js/config.js';
+import { learnLang } from '@/lojo/learn-lang.js';
 import type { ReviewLang } from './review.js';
 
 // Product copy for the English-learning helpers, kept apart from upstream Crowdin translations.
@@ -311,5 +311,5 @@ const wordbookEn: typeof wordbookZh = {
 };
 
 export const WORDBOOK_TEXT = { zh: wordbookZh, en: wordbookEn };
-export const wordbookLang: ReviewLang = lang.startsWith('zh') ? 'zh' : 'en';
+export const wordbookLang: ReviewLang = learnLang;
 export const wordbookLabels = WORDBOOK_TEXT[wordbookLang];

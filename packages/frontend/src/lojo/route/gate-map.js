@@ -6,7 +6,9 @@
 // Every stop is a gate with one short test: pass it to unlock the next stop, or jump ahead. Progress comes from the server
 // (bridge.progress → lojo/gates/progress) and the gates run on their own page (bridge.openGate → /gate/<course>/<gate>),
 // as does a line's placement test (/gate/<course>/placement-<n>), offered until the learner has placed or passed a stop on it;
-// the account registry (bridge.load / bridge.save) only remembers that the welcome card was seen.
+// the account registry (bridge.load / bridge.save) only remembers that the welcome card and the tour were seen.
+// A course with a TOUR script (courses/<id>/text.js) opens with it, as the AP maps did (runtime.js): the whole map first, a
+// little train riding the lines with one caption at a time, from the whole map to each line, ending with what to do first.
 // A stop's 同路人 (who else tried it lately) come from bridge.peers → lojo/gates/peers; the server decides who may show.
 // A pack may have a WARMUP line (IELTS: 0 号线 · 机考打字): not a gate line but a short one on its own page, listed first
 // and offered to a newcomer before the placement test; its progress comes from bridge.warmup, its page opens with bridge.openPath.
@@ -40,10 +42,13 @@ const pathD = (p, r = 28) => {
 };
 const lockG = (x, y, s = 1) => `<g class="glock" transform="translate(${x} ${y}) scale(${s})"><path d="M-3.6 -1.5 V-4.4 A3.6 3.6 0 0 1 3.6 -4.4 V-1.5"/><rect x="-6" y="-1.5" width="12" height="9" rx="2"/></g>`;
 const checkP = (x, y, s = 1) => `<path d="M${x - 7.5 * s} ${y + .5 * s} l${5 * s} ${5 * s} l${10 * s} ${-11 * s}" class="chk"/>`;
+const ease = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const NS = 'http://www.w3.org/2000/svg';
 
 function normalize(raw) {
 	const s = raw && typeof raw === 'object' ? raw : {};
-	return { onboarded: !!s.onboarded, hinted: !!s.hinted };
+	// toured: the tour was watched or skipped (added 2026-11-01, so everyone who had only seen the old card gets it once)
+	return { onboarded: !!s.onboarded, hinted: !!s.hinted, toured: !!s.toured };
 }
 
 // course: a gate course pack (courses/<id>/index.js); catalog: [{ id, short:{zh,en}, ready }] for the course chips
@@ -52,6 +57,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	const LANG = bridge.lang === 'en' ? 'en' : 'zh';
 	const T = k => course.TEXT[LANG][k] ?? GATE_UI[LANG][k];
 	const L = o => (o && (o[LANG] ?? o.zh)) || '';
+	// the course's tour script (courses/<id>/text.js TOUR); without one the map keeps its single welcome card
+	const X = course.TOUR ? course.TOUR[LANG] ?? course.TOUR.zh : null;
 	const icon = name => `<i class="ti" style="--i:url(${bridge.assets}icons/${name}.svg)"></i>`;
 
 	/* ---------- stops ---------- */
@@ -135,6 +142,7 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		<div class="ctrl"><button id="zin" aria-label="zoom in">${icon('plus')}</button><button id="zout" aria-label="zoom out">${icon('minus')}</button>
 			<button id="zfit" aria-label="fit">${icon('map')}</button><button id="legbtn" aria-label="legend">${icon('info-circle')}</button></div>
 		<div class="legend" id="legend"></div><div class="tip" id="tip"></div><div class="hint" id="hint"></div>
+		<div class="tourcap" id="tourcap" role="status" aria-live="polite"><div class="tc-bar"><b></b></div><div class="tc-row"><div class="tc-t"></div><div class="tc-acts"></div></div></div>
 		<div class="obm" id="obm"></div>
 	</div>`;
 	const R = shadow.querySelector('.rt');
@@ -207,6 +215,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			const x0 = an === 'middle' ? x - w / 2 : an === 'end' ? x - w : x - 12;
 			r.setAttribute('x', x0.toFixed(1)); r.setAttribute('width', w.toFixed(1)); tx.setAttribute('x', (x0 + 17).toFixed(1));
 		});
+		// mid-tour (the server's progress can come in then): the train and its trails stay, and the tour keeps its focus
+		if (TOUR.on) { if (TOUR.layer) $('#world').appendChild(TOUR.layer); return; }
 		if (FOCUS) $('#world').setAttribute('data-focus', FOCUS); else $('#world').removeAttribute('data-focus');
 	}
 
@@ -219,7 +229,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 
 	function sheet(s) { SHEET.state = s; SHEET.px = mobile() ? sheetPx(s) : 0; R.style.setProperty('--sheet', SHEET.px + 'px'); $('#panel').classList.toggle('min', mobile() && s === 'min'); }
 
-	const inset = () => mobile() ? { l: 0, t: 8, r: 0, b: SHEET.px } : { l: R.classList.contains('pclosed') ? 0 : 432, t: 16, r: 64, b: 0 };
+	const inset = () => R.classList.contains('touring') ? (mobile() ? { l: 0, t: 8, r: 0, b: 200 } : { l: 0, t: 24, r: 0, b: 150 })
+		: mobile() ? { l: 0, t: 8, r: 0, b: SHEET.px } : { l: R.classList.contains('pclosed') ? 0 : 432, t: 16, r: 64, b: 0 };
 
 	function lineSub(l) {
 		const lp = LP[l.n];
@@ -233,7 +244,9 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		const fresh = !LAST && !done;
 		// a newcomer is offered the warm-up line first; the placement test card then carries its own button
 		const warmFirst = !!WARMUP && fresh && !WP?.done;
-		let h = `<div class="eyebrow">${T('eyebrow')}</div><h1 class="ptitle">${T('title')}</h1><p class="lede">${T('lede')}</p>${pt ? placeCard(pt, warmFirst) : ''}
+		const tb = X ? `<button class="tourbtn" id="tourbtn"><i class="tb-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5 L19 12 L8 18.5Z"/></svg></i><span><b>${esc(X.btn)}</b><small>${esc(X.btnS)}</small></span><em aria-hidden="true">→</em></button>` : '';
+		const lede = `<p class="lede">${T('lede')}</p>`;
+		let h = `<div class="eyebrow">${T('eyebrow')}</div><h1 class="ptitle">${T('title')}</h1>${mobile() ? tb + lede : lede + tb}${pt ? placeCard(pt, warmFirst) : ''}
 			<div class="tiles two"><div class="tile"><small>${tl[0]}</small><b>${done}<span> / ${ORDER.length}</span></b></div>
 			<div class="tile"><small>${tl[1]}</small><b>${triesN()}<span> ${T('timesZ')}</span></b></div></div>
 			<div class="sh"><h3>${T('linesH')}</h3><span>${T('linesN')}</span></div>`;
@@ -244,7 +257,9 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		// open lines first (vocabulary and grammar before the writing and speaking lines that aren't ready), in number order
 		[...LINES.filter(l => LP[l.n].live), ...LINES.filter(l => !LP[l.n].live)].forEach(l => {
 			const lp = LP[l.n];
-			h += `<button class="row${lp.live ? '' : ' soon'}" data-line="${l.n}"><i class="dot" style="background:${COLOR(l.n)}"></i><span class="t"><b>${T('lineName')(l.n, esc(L(l)))}</b><small>${lineSub(l)}</small></span><span class="r">${lp.passed} / ${lp.total}</span></button>`;
+			// in Chinese the line's English name comes along: the learners are learning these words too
+			const en = LANG === 'zh' && l.en ? ` <span class="ren" lang="en">${esc(l.en)}</span>` : '';
+			h += `<button class="row${lp.live ? '' : ' soon'}" data-line="${l.n}"><i class="dot" style="background:${COLOR(l.n)}"></i><span class="t"><b>${T('lineName')(l.n, esc(L(l)))}${en}</b><small>${lineSub(l)}</small></span><span class="r">${lp.passed} / ${lp.total}</span></button>`;
 		});
 		h += `<div class="sh"><h3>${T('subjH')}</h3></div><div class="chips">${catalog.map(c => `<button class="chipb${c.id === META.id ? ' on' : ''}" data-course="${esc(c.id)}">${esc(L(c.short))}</button>`).join('')}<button class="chipb" data-catalog>${T('allMaps')}</button></div>`;
 		h += `<p class="legal">${T('legal')}</p>`;
@@ -263,6 +278,7 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		$$('#panel [data-place]').forEach(b => { b.onclick = () => bridge.openGate(b.dataset.place); });
 		$$('#panel [data-warm]').forEach(b => { b.onclick = () => bridge.openPath(WARMUP.path); });
 		$('#gohere').onclick = () => go(pinStop() || FIRST);
+		const tbb = $('#tourbtn'); if (tbb) tbb.onclick = () => tourStart();
 		sheet(SHEET.state === 'full' ? 'half' : SHEET.state);
 	}
 
@@ -453,10 +469,211 @@ export async function mount(shadow, bridge, course, catalog = []) {
 		});
 	}
 
+	/* ---------- tour: a little train rides the map and the camera follows it, as on the AP maps (runtime.js) ---------- */
+	// The course's steps (TOUR.steps), one caption each, from the whole map to each line, then what to do first. Every await
+	// goes through tween(), which a stopped or restarted tour rejects, so a stale run can't go on. With reduced motion the
+	// camera jumps, no train rides and no stop pops; the captions keep their time.
+	const STEPS = course.TOUR?.steps ?? [];
+	const TOUR = { on: false, raf: 0, cam: null, target: null, follow: .12, step: 0, runId: 0, layer: null, train: null, ang: 0 };
+	// one caption per step, and the last one with what to do next
+	const TOTAL_STEPS = STEPS.length + 1;
+	const calm = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const moving = ms => (calm() ? 1 : ms);
+	const svgEl = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || TOUR.layer).appendChild(e); return e; };
+	const kRide = () => mobile() ? .6 : .8;
+
+	function camLoop() {
+		if (!TOUR.on) return;
+		const c = TOUR.cam, t = TOUR.target, a = calm() ? 1 : TOUR.follow;
+		c.x += (t.x - c.x) * a; c.y += (t.y - c.y) * a; c.k += (t.k - c.k) * (calm() ? 1 : a * .7);
+		PZ.focus(c.x, c.y, c.k, false);
+		TOUR.raf = requestAnimationFrame(camLoop);
+	}
+
+	const tween = (dur, fn) => {
+		const id = TOUR.runId;
+		return new Promise((res, rej) => {
+			const t0 = performance.now();
+			const step = t => {
+				if (!TOUR.on || TOUR.runId !== id) return rej(new Error('stopped'));
+				const p = Math.min(1, (t - t0) / Math.max(1, dur)); fn(p);
+				if (p < 1) requestAnimationFrame(step); else res();
+			};
+			requestAnimationFrame(step);
+		});
+	};
+	const wait = ms => tween(ms, () => {});
+
+	function fly(x, y, k, dur) {
+		const s = { ...TOUR.target }; TOUR.follow = .2;
+		return tween(moving(dur), p => { const e = ease(p); TOUR.target = { x: s.x + (x - s.x) * e, y: s.y + (y - s.y) * e, k: s.k + (k - s.k) * e }; });
+	}
+
+	const flyBox = (b, dur, pad = .94, max = 1.1) => fly(b.x + b.w / 2, b.y + b.h / 2, Math.min(PZ.fitK(pad, b), max), dur);
+	const focusOn = n => { const w = $('#world'); w.setAttribute('data-focus', String(n)); w.classList.add('t-line'); };
+	const unfocus = () => { const w = $('#world'); w.removeAttribute('data-focus'); w.classList.remove('t-line'); };
+
+	// the stops a moving point has reached pop, once each
+	function popNear(pt, hit) {
+		if (calm()) return;
+		for (const id of ORDER) {
+			if (hit.has(id) || !POS[id]) continue;
+			if (Math.hypot(POS[id][0] - pt.x, POS[id][1] - pt.y) < 16) { hit.add(id); pop(gateOf(id)); }
+		}
+	}
+
+	// the train rides a line from 4.0 to 8.0 and leaves a white trail; the camera rides along (k: its zoom)
+	function ride(n, dur, k) {
+		const d = pathD(PATHS[n]), path = svgEl('path', { d, fill: 'none', stroke: 'none' }), len = path.getTotalLength();
+		const trail = svgEl('path', { d, class: 'trail', 'stroke-dasharray': len, 'stroke-dashoffset': len });
+		if (!calm()) TOUR.layer.appendChild(TOUR.train);
+		TOUR.follow = .14;
+		const hit = new Set();
+		return tween(dur, p => {
+			const at = calm() ? len : len * ease(p), pt = path.getPointAtLength(at), ah = path.getPointAtLength(Math.min(len, at + 2));
+			if (at + 2 <= len) TOUR.ang = Math.atan2(ah.y - pt.y, ah.x - pt.x) * 180 / Math.PI;
+			TOUR.train.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)}) rotate(${TOUR.ang.toFixed(1)})`);
+			trail.setAttribute('stroke-dashoffset', (len - at).toFixed(1));
+			if (!calm()) TOUR.target = { x: pt.x, y: pt.y, k };
+			popNear(pt, hit);
+		});
+	}
+
+	// one whole line: the others fade, the camera frames it, a white trail runs along it and its stops pop
+	async function showLine(n, text, same) {
+		caption(text, { same });
+		focusOn(n);
+		await flyBox(lineBox(n), 950);
+		const trail = svgEl('path', { d: pathD(PATHS[n]), class: 'trail' }), len = trail.getTotalLength();
+		trail.setAttribute('stroke-dasharray', len); trail.setAttribute('stroke-dashoffset', len);
+		const hit = new Set();
+		await tween(moving(1400), q => {
+			const e = ease(q);
+			trail.setAttribute('stroke-dashoffset', (len * (1 - e)).toFixed(1));
+			popNear(trail.getPointAtLength(len * e), hit);
+		});
+		await wait(calm() ? 2200 : 800);
+		trail.remove();
+	}
+
+	// the caption bar: the step's words, how far the tour has come, and Skip; the last one carries what to do next
+	function caption(text, opts = {}) {
+		const c = $('#tourcap'), t = c.querySelector('.tc-t');
+		if (!opts.same) TOUR.step = Math.min(TOTAL_STEPS, TOUR.step + 1);
+		if (!opts.same || t.textContent !== text) { t.classList.remove('in'); void c.offsetWidth; t.textContent = text; t.classList.add('in'); }
+		c.querySelector('.tc-bar b').style.width = `${TOUR.step / TOTAL_STEPS * 100}%`;
+		c.dataset.step = String(TOUR.step);
+		const acts = c.querySelector('.tc-acts');
+		if (!opts.end) {
+			if (!acts.querySelector('#tskip')) acts.innerHTML = `<button class="tc-skip" id="tskip">${esc(X.skip)}</button>`;
+			$('#tskip').onclick = () => finishTour();
+			return;
+		}
+		acts.innerHTML = opts.end.map(([k, label], i) => `<button class="pillbtn${i ? ' ghost' : ''}" data-tact="${k}">${esc(label)}${i ? '' : ' →'}</button>`).join('')
+			+ `<button class="tc-skip" data-tact="look">${esc(X.look)}</button>`;
+		acts.querySelectorAll('[data-tact]').forEach(b => { b.onclick = () => endAct(b.dataset.tact); });
+	}
+
+	// what to do after the tour: a newcomer's first step, else the placement test, else back to their stop
+	function nextStep() {
+		const me = pinStop() || FIRST, fresh = !LAST && !passedN(), pt = placeTest(NODES[me].n);
+		const goLabel = fresh ? T('startAt')(band(me)) : X.go(T('stTitle')(L(NODES[me].line), band(me)));
+		if (WARMUP && fresh && !WP?.done) return { text: X.endNew(WARMUP.minutes, !!pt), acts: [['warm', X.warm], pt ? ['place', X.place] : ['go', goLabel]] };
+		if (pt) return { text: X.endPlace, acts: [['place', X.place], ['go', goLabel]] };
+		return { text: X.endBack, acts: [['go', goLabel], ['again', X.again]] };
+	}
+
+	function endAct(k) {
+		if (k === 'again') { tourStop(true); setTimeout(tourStart, 50); return; }
+		const me = pinStop() || FIRST, pt = placeTest(NODES[me].n);
+		finishTour();
+		if (k === 'warm' && WARMUP) bridge.openPath(WARMUP.path);
+		else if (k === 'place' && pt) bridge.openGate(pt);
+		else if (k === 'go') go(me);
+	}
+
+	async function tourRun() {
+		for (const st of STEPS) {
+			const text = X[st.say] ?? '';
+			if (st.do === 'all') {
+				unfocus(); caption(text);
+				await flyBox(BBOX, 1300, .97, 9); await wait(calm() ? 2600 : 1700);
+			} else if (st.do === 'ride' && PATHS[st.line]) {
+				caption(text); focusOn(st.line);
+				const a = LINES.find(l => l.n === st.line).stations[0].id;
+				if (calm()) { await flyBox(lineBox(st.line), 1); await ride(st.line, 3000, null); } else { await fly(POS[a][0], POS[a][1], kRide(), 1100); await ride(st.line, 5200, kRide()); await wait(400); }
+				// the train and its white trail go, or line 1 would look different from the others for the rest of the tour
+				TOUR.train.remove(); TOUR.layer.querySelectorAll('.trail').forEach(t => t.remove());
+			} else if (st.do === 'interchanges') {
+				unfocus(); caption(text);
+				const ids = INTERCHANGES.map(x => x.ids[0]).filter(id => POS[id]);
+				if (ids.length) {
+					const xs = ids.map(id => POS[id][0]), ys = ids.map(id => POS[id][1]), pad = 260;
+					await flyBox({ x: Math.min(...xs) - pad, y: Math.min(...ys) - pad, w: Math.max(...xs) - Math.min(...xs) + 2 * pad, h: Math.max(...ys) - Math.min(...ys) + 2 * pad }, 1000);
+					for (const id of ids) { if (!calm()) pop(gateOf(id)); await wait(420); }
+				}
+				await wait(calm() ? 2200 : 1000);
+			} else if (st.do === 'lines') {
+				for (const [i, n] of (st.lines ?? []).entries()) if (PATHS[n]) await showLine(n, text, i > 0);
+			} else if (st.do === 'jump') {
+				caption(text); focusOn(st.line);
+				await flyBox(lineBox(st.line), 900);
+				const run = LINES.find(l => l.n === st.line).stations.slice(0, 5).map(s => s.id);
+				if (!calm()) { pop(gateOf(run[run.length - 1])); await wait(500); for (const id of run.slice(0, -1).reverse()) { pop(gateOf(id)); await wait(150); } }
+				await wait(calm() ? 2600 : 1400);
+			}
+		}
+		unfocus();
+		const next = nextStep();
+		caption(next.text, { end: next.acts });
+		await flyBox(BBOX, 1200, .97, 9);
+	}
+
+	function tourStart() {
+		if (!X || TOUR.on || disposed) return;
+		closeModal();
+		TOUR.on = true; TOUR.step = 0; TOUR.runId++;
+		$('#legend').classList.remove('on'); $('#hint').classList.remove('on');
+		R.classList.add('touring');
+		FOCUS = null;
+		if (CUR) { CUR = null; overview(); }
+		TOUR.layer = svgEl('g', { class: 'tourlayer' }, $('#world'));
+		TOUR.train = svgEl('g', { class: 'train' });
+		TOUR.train.innerHTML = '<circle r="36" class="glow"/><rect x="-30" y="-15" width="60" height="30" rx="15" class="car"/><rect x="-14" y="-7" width="10" height="14" rx="3" class="win"/><rect x="2" y="-7" width="10" height="14" rx="3" class="win"/><path d="M22 -6 L28 0 L22 6" class="nose"/>';
+		TOUR.train.remove(); TOUR.ang = 0;
+		const c = PZ.center(); TOUR.cam = { ...c }; TOUR.target = { ...c };
+		camLoop();
+		tourRun().catch(() => { /* stopped */ });
+	}
+
+	// keepView: the camera stays where the tour left it (else the whole map)
+	function tourStop(keepView) {
+		if (!TOUR.on) return;
+		TOUR.on = false; TOUR.runId++; cancelAnimationFrame(TOUR.raf);
+		R.classList.remove('touring');
+		unfocus();
+		if (TOUR.layer) TOUR.layer.remove();
+		TOUR.layer = null;
+		renderMap(); overview();
+		if (!keepView) fitAll();
+	}
+
+	// watched to the end, or skipped: the map doesn't open with it again (the panel's button plays it again)
+	function finishTour() { tourStop(true); keep('toured', true); keep('onboarded', true); }
+
 	/* ---------- welcome: shown once ---------- */
 	function modal(html, cls = '') { const m = $('#obm'); m.className = 'obm on ' + cls; m.innerHTML = `<div class="obcard">${html}</div>`; return m; }
 
 	const closeModal = () => { $('#obm').className = 'obm'; };
+
+	// with a tour: a little train on a track, what the tour is for, and Start / Skip
+	function tourWelcome() {
+		modal(`<div class="obtrain" aria-hidden="true"><svg viewBox="0 0 120 40"><path d="M6 28 H114" class="obrail"/><circle cx="20" cy="28" r="7" class="obstop"/><circle cx="100" cy="28" r="7" class="obstop"/><g class="obcar"><rect x="40" y="16" width="40" height="22" rx="11"/><rect x="50" y="22" width="7" height="10" rx="2" class="obwin"/><rect x="62" y="22" width="7" height="10" rx="2" class="obwin"/></g></svg></div>
+			<div class="obeye">${esc(X.wEye)}</div><h2>${esc(X.wTitle)}</h2><p>${esc(X.wText)}</p>
+			<div class="obacts"><button class="cta" id="obtour">${esc(X.wGo)} →</button><button class="obtext" id="obskip">${esc(X.wSkip)}</button></div>`, 'welcome');
+		$('#obtour').onclick = () => { closeModal(); tourStart(); };
+		$('#obskip').onclick = () => { closeModal(); keep('toured', true); keep('onboarded', true); };
+	}
 
 	function welcome() {
 		const st = T('state'), me = pinStop() || FIRST, fresh = !LAST && !passedN(), sep = LANG === 'zh' ? '' : ' ', pt = placeTest(NODES[me].n);
@@ -509,21 +726,28 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	$('#minibar').onclick = () => sheet(CUR ? 'half' : 'peek');
 	const swatch = k => `<svg viewBox="-17 -17 34 34">${k === 'ix' ? `<circle r="13" class="ix gix"/>${marker(0, 0, 'passed', 'var(--l1)', 7)}` : marker(0, 0, k, 'var(--l1)', 10, false)}</svg>`;
 	$('#legend').innerHTML = `<b>${T('legendH')}</b>` + T('legend').map(([k, s]) => `<div><i class="lgs">${swatch(k)}</i>${s}</div>`).join('');
-	const onKey = e => { if (e.key !== 'Escape' || paused) return; if ($('#obm').classList.contains('on')) $('#obskip')?.click(); else if (CUR) $('#back').click(); };
+	const onKey = e => {
+		if (e.key !== 'Escape' || paused) return;
+		if (TOUR.on) finishTour(); else if ($('#obm').classList.contains('on')) $('#obskip')?.click(); else if (CUR) $('#back').click();
+	};
 	window.addEventListener('keydown', onKey);
 
 	R.classList.toggle('narrow', mobile());
 	sheet('peek'); overview(); renderMap();
 	const start = bridge.initialHash && NODES[bridge.initialHash] ? bridge.initialHash : null;
-	if (start) { fitAll(); go(start); } else if (mobile()) {
+	// not toured yet: the whole map first, never one line (founder, 2026-11-01)
+	const firstLook = !!X && !S.toured;
+	if (start) { fitAll(); go(start); } else if (mobile() && !firstLook) {
 		const [x, y] = POS[pinStop() || FIRST]; PZ.focus(x - 10, y + 110, .72, false);
 		if (!S.hinted && S.onboarded) { const h = $('#hint'); h.textContent = T('hint'); h.classList.add('on'); keep('hinted', true); hintTimer = setTimeout(() => h.classList.remove('on'), 3600); }
 	} else fitAll();
-	if (!S.onboarded && !start) setTimeout(() => { if (!disposed && !paused) welcome(); }, 500);
+	if (!start && (X ? !S.toured : !S.onboarded)) setTimeout(() => { if (!disposed && !paused) (X ? tourWelcome : welcome)(); }, 500);
 
 	return {
 		fit: () => { FOCUS = null; renderMap(); fitAll(); },
 		legend: () => $('#legend').classList.toggle('on'),
+		// the page menu's 带我走一遍 (only for a course with a tour)
+		tour: X ? () => tourStart() : undefined,
 		// re-read progress (e.g. back from a gate) and redraw; a failed call keeps what is on screen
 		async refresh() {
 			if (disposed) return;
@@ -535,12 +759,13 @@ export async function mount(shadow, bridge, course, catalog = []) {
 			if (CUR) station(CUR, true); else overview();
 			new Set(ORDER.filter(id => was[id] !== SP[id].state && SP[id].state !== 'soon').map(gateOf)).forEach(pop);
 		},
-		pause() { paused = true; flush(); },
+		// left mid-tour: it stops, and opens again next time
+		pause() { paused = true; tourStop(true); flush(); },
 		resume() { paused = false; },
 		resize() {
 			const was = R.classList.contains('narrow'); R.classList.toggle('narrow', mobile()); sheet(SHEET.state);
 			if (was !== mobile()) { if (CUR) station(CUR); else overview(); } if (!CUR && !mobile()) fitAll();
 		},
-		destroy() { disposed = true; clearTimeout(saveTimer); clearTimeout(hintTimer); flush(); PZ.stop(); window.removeEventListener('keydown', onKey); shadow.innerHTML = ''; },
+		destroy() { disposed = true; TOUR.on = false; cancelAnimationFrame(TOUR.raf); clearTimeout(saveTimer); clearTimeout(hintTimer); flush(); PZ.stop(); window.removeEventListener('keydown', onKey); shadow.innerHTML = ''; },
 	};
 }

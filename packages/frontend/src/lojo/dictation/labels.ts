@@ -5,7 +5,7 @@
 
 // Copy for 听写 (/dictation), kept apart from upstream Crowdin translations. Chinese first, short sentences.
 // Never promise a score: a gate's band is a practice level.
-import { lang } from '@@/js/config.js';
+import { learnLang } from '@/lojo/learn-lang.js';
 import type { DictLimit } from './mark.js';
 import type { DictNumber } from './content.js';
 
@@ -297,5 +297,5 @@ const en: typeof zh = {
 };
 
 export const DICTATION_TEXT = { zh, en };
-export const dictLang: 'zh' | 'en' = lang.startsWith('zh') ? 'zh' : 'en';
+export const dictLang: 'zh' | 'en' = learnLang;
 export const dictLabels = DICTATION_TEXT[dictLang];

@@ -5,7 +5,7 @@
 
 // Copy for 5 号线 · 词汇 (/vocab/5.2), kept apart from upstream Crowdin translations. Chinese first, short sentences,
 // as the demo (prototypes/vocab-line). Never promise a score: a stop's band is a practice level.
-import { lang } from '@@/js/config.js';
+import { learnLang } from '@/lojo/learn-lang.js';
 import type { CoverMode, PracticeMode } from './prefs.js';
 import type { VocabGate } from './content.js';
 
@@ -338,5 +338,5 @@ const en: VocabText = {
 };
 
 export const VOCAB_TEXT = { zh, en };
-export const vocabLang: 'zh' | 'en' = lang.startsWith('zh') ? 'zh' : 'en';
+export const vocabLang: 'zh' | 'en' = learnLang;
 export const vocabLabels = VOCAB_TEXT[vocabLang];
