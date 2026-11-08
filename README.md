@@ -24,6 +24,8 @@
 
 每一处改动见提交历史。和 Misskey 2026.10.0 原版的全部差别：[对比](https://github.com/Vibes-college/vibes/compare/misskey-2026.10.0...main)。
 
+**2026-11-08 这次同步新增**：新人先走的机考打字线（0 号线）、词汇线（5 号线）、语法线（6 号线）；听写练习；生词本按记忆曲线安排复习；时间线里能「召唤 Agent」，调用你电脑上的 Claude Code / Codex 帮你写帖子和攻略；线路图每一站能看到最近闯关的同路人；断线提示、新用户设置弹窗等体验细节修了一批。
+
 ## 基于 Misskey
 
 Vibes 的底座是开源社交软件 [Misskey](https://github.com/misskey-dev/misskey)。我们从 2026-10 起在 Misskey 2026.10.0 上开发。感谢 syuilo 和 Misskey 的所有贡献者。
