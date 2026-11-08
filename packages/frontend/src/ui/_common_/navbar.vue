@@ -55,6 +55,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</component>
 			</template>
 			<div :class="$style.divider"></div>
+			<button class="_button" :class="$style.item" @click="openMiniApps">
+				<i :class="$style.itemIcon" class="ti ti-layout-grid ti-fw"></i><span :class="$style.itemText">{{ miniAppsLabels.panelTitle }}</span>
+			</button>
 			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.noDelay.right="i18n.ts.controlPanel" :class="$style.item" :activeClass="$style.active" to="/admin">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
 			</MkA>
@@ -134,6 +137,7 @@ import { useRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
+import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
 
 loadCreateState();
 
@@ -207,6 +211,16 @@ async function more(ev: PointerEvent) {
 	const target = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	if (!target) return;
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
+		anchorElement: target,
+	}, {
+		closed: () => dispose(),
+	});
+}
+
+async function openMiniApps(ev: PointerEvent) {
+	const target = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
+	if (!target) return;
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkMiniAppsLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
 	}, {
 		closed: () => dispose(),

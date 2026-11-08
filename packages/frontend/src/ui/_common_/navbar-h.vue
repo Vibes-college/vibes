@@ -21,6 +21,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</component>
 			</template>
 			<div :class="$style.divider"></div>
+			<button v-click-anime v-tooltip="miniAppsLabels.panelTitle" :class="$style.item" class="_button" @click="openMiniApps">
+				<i :class="$style.itemIcon" class="ti ti-layout-grid ti-fw"></i>
+			</button>
 			<MkA v-if="$i && ($i.isAdmin || $i.isModerator)" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" :activeClass="$style.active" to="/admin" :behavior="settingsWindowed ? 'window' : null">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw"></i>
 			</MkA>
@@ -58,6 +61,7 @@ import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
+import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
 
 const WINDOW_THRESHOLD = 1400;
 
@@ -81,6 +85,18 @@ async function more(ev: PointerEvent) {
 	if (!target) return;
 
 	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkLaunchPad.vue').then(x => x.default), {
+		anchorElement: target,
+		anchor: { x: 'center', y: 'bottom' },
+	}, {
+		closed: () => dispose(),
+	});
+}
+
+async function openMiniApps(ev: PointerEvent) {
+	const target = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
+	if (!target) return;
+
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkMiniAppsLaunchPad.vue').then(x => x.default), {
 		anchorElement: target,
 		anchor: { x: 'center', y: 'bottom' },
 	}, {
