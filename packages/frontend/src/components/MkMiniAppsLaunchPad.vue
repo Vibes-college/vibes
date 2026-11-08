@@ -143,6 +143,16 @@ function close(): void {
 	grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
 }
 
+// On a phone the panel comes up from the bottom as 4 equal columns, like the founder's More panel reference
+// (auto-fill only fits 3 at 390px wide).
+.asDrawer .main {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.asDrawer .item {
+	padding: 10px 4px;
+}
+
 .item {
 	position: relative;
 	display: flex;
