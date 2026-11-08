@@ -31,6 +31,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA v-if="$i != null" v-tooltip.noDelay.right="englishLabels.wordbook" :class="$style.item" :activeClass="$style.active" :aria-label="englishLabels.wordbook" to="/wordbook">
 				<i :class="$style.itemIcon" class="ti ti-notebook ti-fw"></i><span :class="$style.itemText">{{ englishLabels.wordbook }}</span>
 			</MkA>
+			<!-- 创作台, once 生产者视角 is on (settings/create). -->
+			<MkA v-if="$i != null && creatorView" v-tooltip.noDelay.right="createLabels.studioTitle" :class="$style.item" :activeClass="$style.active" :aria-label="createLabels.studioTitle" to="/create">
+				<i :class="$style.itemIcon" class="ti ti-layout-dashboard ti-fw"></i><span :class="$style.itemText">{{ createLabels.studioTitle }}</span>
+			</MkA>
 			<template v-for="item in prefer.r.menu.value">
 				<div v-if="item === '-'" :class="$style.divider"></div>
 				<component
@@ -119,6 +123,8 @@ import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
 import { lojoLabels } from '@/lojo/labels.js';
 import { englishLabels } from '@/lojo/english/labels.js';
+import { createLabels } from '@/lojo/create/labels.js';
+import { creatorView, loadCreateState } from '@/lojo/create/state.js';
 import VibesLogo from '@/lojo/VibesLogo.vue';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
@@ -128,6 +134,8 @@ import { useRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
+
+loadCreateState();
 
 const router = useRouter();
 

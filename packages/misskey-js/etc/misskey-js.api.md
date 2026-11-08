@@ -2027,6 +2027,13 @@ declare namespace entities {
         LojoAgentPromptRequest,
         LojoAgentPromptResponse,
         LojoBootReportRequest,
+        LojoCreateCopyRequest,
+        LojoCreateCopyResponse,
+        LojoCreateImportRequest,
+        LojoCreateImportResponse,
+        LojoCreatePlansRequest,
+        LojoCreatePlansResponse,
+        LojoCreateStatusResponse,
         LojoEnglishComposeRequest,
         LojoEnglishComposeResponse,
         LojoEnglishExplainRequest,
@@ -2950,6 +2957,27 @@ type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses'][
 
 // @public (undocumented)
 type LojoBootReportRequest = operations['lojo___boot-report']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreateCopyRequest = operations['lojo___create___copy']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreateCopyResponse = operations['lojo___create___copy']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreateImportRequest = operations['lojo___create___import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreateImportResponse = operations['lojo___create___import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreatePlansRequest = operations['lojo___create___plans']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreatePlansResponse = operations['lojo___create___plans']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoCreateStatusResponse = operations['lojo___create___status']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoEnglishComposeRequest = operations['lojo___english___compose']['requestBody']['content']['application/json'];

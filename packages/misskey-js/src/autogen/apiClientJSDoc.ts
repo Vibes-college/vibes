@@ -3625,6 +3625,50 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Write the copy for one of your plans for a note (创作讲解), from your own idea, story, standard and tone, then check it once more against the note. Saved as a draft in your registry (scope lojo/create). Takes about 20 s.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/create/copy', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Replace what 创作讲解 works from: the formats (形式卡) Vibes took apart from viral posts, and the local accounts whose notes anyone may use besides their own. Sent by apps/community/scripts/create-import.mjs in the Vibes workspace; the formats are kept out of the public source.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/create/import', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Marketing plans for a note (创作讲解), made by the formats Vibes took apart from viral posts. Kept for a week per person and note; refresh makes new ones. Takes about 25 s.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/create/plans', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Whether 创作讲解 works here, how many formats it knows, and whose notes it may use besides your own.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/create/status', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Turn a draft (Chinese or English) into three English versions: casual, slang and formal.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="!mock && sourceText !== '' && (canSpeak || englishStatus.available)" :class="[$style.root, { [$style.alignEnd]: align === 'end' }]">
+<div v-if="!mock && sourceText !== '' && (canSpeak || englishStatus.available || createMode)" :class="[$style.root, { [$style.alignEnd]: align === 'end' }]">
 	<div :class="$style.actions">
 		<button v-if="canSpeak" class="_button" :class="[$style.action, { [$style.active]: speakingKey === `${uid}:post` }]" :aria-pressed="speakingKey === `${uid}:post`" @click="speakPost">
 			<i :class="[speakIcon(`${uid}:post`), { [$style.spin]: loadingKey === `${uid}:post` }]"></i>
@@ -15,10 +15,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i class="ti ti-microphone"></i>
 			{{ currentVoice?.name ?? englishLabels.voice }}
 		</button>
-		<button v-if="englishStatus.available" class="_button" :class="[$style.action, { [$style.active]: panelOpen }]" :aria-expanded="panelOpen" @click="toggle">
+		<button v-if="englishStatus.available && !createMode" class="_button" :class="[$style.action, { [$style.active]: panelOpen }]" :aria-expanded="panelOpen" @click="toggle">
 			<i class="ti ti-language"></i>
 			{{ panelOpen ? englishLabels.hide : englishLabels.explain }}
 		</button>
+		<!-- 生产者视角: under one's own posts and the editors', 翻译讲解 becomes 创作讲解 (pages/lojo/create.vue). -->
+		<MkA v-if="createMode && noteId != null" :to="`/create/${noteId}`" :class="[$style.action, $style.create]">
+			<i class="ti ti-bulb"></i>
+			{{ createLabels.button }}
+		</MkA>
 	</div>
 	<div v-if="panelOpen" :class="$style.panel">
 		<MkLoading v-if="loading" mini role="status"/>
@@ -85,6 +90,8 @@ import { englishErrorText, englishStatus, explainNote, explainText, loadEnglishS
 import { currentVoice, loadingKey, openVoiceMenu, speakingKey, speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
 import { looksEnglish, speechText } from '@/lojo/english/text.js';
 import { isSaved, loadWordbook, reloadWordbook, toggleWord } from '@/lojo/english/wordbook.js';
+import { createLabels } from '@/lojo/create/labels.js';
+import { canCreateFrom, loadCreateState } from '@/lojo/create/state.js';
 import * as os from '@/os.js';
 
 // Either a note, or (in chats) a message's text, which is read and explained without a note.
@@ -106,6 +113,8 @@ const sourceText = computed(() => {
 	return [props.note.cw, props.note.text].filter(x => x != null && x !== '').join('\n');
 });
 const canSpeak = computed(() => !props.noListen && speechSupported.value && looksEnglish(sourceText.value));
+// Chats have no note, so no 创作讲解 there.
+const createMode = computed(() => props.note != null && canCreateFrom(props.note));
 
 const panelOpen = ref(false);
 const loading = ref(false);
@@ -114,6 +123,7 @@ const data = ref<EnglishExplanation | null>(null);
 
 onMounted(() => {
 	loadEnglishStatus();
+	loadCreateState();
 });
 
 onBeforeUnmount(() => {
@@ -196,6 +206,18 @@ function speakIcon(key: string): string {
 
 	&.active {
 		background: var(--MI_THEME-accentedBg);
+	}
+}
+
+// 创作讲解 stands out from the learning buttons: it is the creator's way in.
+.create {
+	color: #fff;
+	background: var(--MI_THEME-cta);
+
+	&:hover {
+		color: #fff;
+		background: color-mix(in srgb, var(--MI_THEME-cta) 88%, #000);
+		text-decoration: none;
 	}
 }
 

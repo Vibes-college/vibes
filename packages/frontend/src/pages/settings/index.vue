@@ -40,6 +40,7 @@ import type { PageMetadata } from '@/page.js';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import { i18n } from '@/i18n.js';
 import { agentLabels } from '@/lojo/agent/labels.js';
+import { createLabels } from '@/lojo/create/labels.js';
 import MkInfo from '@/components/MkInfo.vue';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import { $i } from '@/i.js';
@@ -163,6 +164,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: agentLabels.settingsTitle,
 		to: '/settings/agent',
 		active: currentPage.value?.route.name === 'agent',
+	}, {
+		icon: 'ti ti-bulb',
+		text: createLabels.settingsTitle,
+		to: '/settings/create',
+		active: currentPage.value?.route.name === 'create',
 	}, {
 		icon: 'ti ti-dots',
 		text: i18n.ts.other,

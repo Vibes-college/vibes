@@ -60,6 +60,23 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/wordbook.vue')),
 	loginRequired: true,
 }, {
+	// 创作台: the drafts 创作讲解 wrote (生产者视角, settings/create).
+	name: 'lojo-create-home',
+	path: '/create',
+	component: page(() => import('@/pages/lojo/create.home.vue')),
+	loginRequired: true,
+}, {
+	name: 'lojo-create-draft',
+	path: '/create/drafts/:draftId',
+	component: page(() => import('@/pages/lojo/create.draft.vue')),
+	loginRequired: true,
+}, {
+	// 创作讲解 for one post: the button under posts while 生产者视角 is on.
+	name: 'lojo-create',
+	path: '/create/:noteId',
+	component: page(() => import('@/pages/lojo/create.vue')),
+	loginRequired: true,
+}, {
 	// 听写: listen and type the gap (spelling, numbers and dates, plurals). ?gate=<attempt>&tag=… practises a gate's misses.
 	name: 'lojo-dictation',
 	path: '/dictation',
@@ -299,6 +316,10 @@ export const ROUTE_DEF = [{
 		path: '/agent',
 		name: 'agent',
 		component: page(() => import('@/pages/settings/agent.vue')),
+	}, {
+		path: '/create',
+		name: 'create',
+		component: page(() => import('@/pages/settings/create.vue')),
 	}, {
 		path: '/',
 		component: page(() => import('@/pages/_empty_.vue')),

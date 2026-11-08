@@ -489,3 +489,62 @@ export const lojoWordTodaySchema = {
 		later: { type: 'string', ...nul, format: 'date-time' },
 	},
 } as const;
+
+// ---------- 创作讲解 (lojo/create/*) ----------
+
+export const lojoCreateErrors = {
+	unavailable: { message: 'Creator explain is not configured on this server.', code: 'LOJO_CREATE_UNAVAILABLE', id: '69b7ea9f-29f3-48a2-9e05-3aaef9f758f6' },
+	failed: { message: 'Creator explain could not answer. Try again later.', code: 'LOJO_CREATE_FAILED', id: '97738b1e-843a-47bd-bbf4-fc2432bb9d3d' },
+	noSuchNote: { message: 'No such note.', code: 'NO_SUCH_NOTE', id: 'e6fe95ad-d0d9-439d-b982-9a29bb41a0d6' },
+	emptyNote: { message: 'This note has no text.', code: 'EMPTY_NOTE', id: 'c795cb90-3fbc-47b3-8880-c46e2e392159' },
+	notASource: { message: 'For now, only your own notes and the editors\' notes can be used.', code: 'LOJO_CREATE_NOT_A_SOURCE', id: '2d15d725-a46d-4f63-b90f-ee92488a97fe' },
+	plansExpired: { message: 'The plans for this note have expired. Make them again.', code: 'LOJO_CREATE_PLANS_EXPIRED', id: 'fe68264c-521c-40de-882b-95135a3c23cb' },
+	quotaExceeded: { message: 'Creator explain has used up today\'s quota.', code: 'LOJO_CREATE_QUOTA_EXCEEDED', id: 'f3af4612-4c6d-47a0-bfda-e904dbd3d037' },
+	invalidConfig: { message: 'Invalid creator explain config.', code: 'LOJO_CREATE_INVALID_CONFIG', id: 'a16152c9-db22-4bfc-9530-6ed7b0ec9621' },
+} as const;
+
+const createPlan = {
+	type: 'object', ...req,
+	properties: {
+		source: { type: 'string', ...req, enum: ['ours', 'common'] },
+		form: str, name: str, platform: str, medium: str, hook: str, title: str,
+		beats: strings,
+		why: str, fit: str, effort: str, risk: str,
+	},
+} as const;
+
+export const lojoCreatePlansRes = {
+	type: 'object', ...req,
+	properties: {
+		plans: { type: 'array', ...req, items: createPlan },
+		model: str,
+		at: { type: 'string', ...req, format: 'date-time' },
+	},
+} as const;
+
+export const lojoCreateDraftRes = {
+	type: 'object', ...req,
+	properties: {
+		id: str, noteId: str, noteBy: str, noteUser: str, noteText: str,
+		plan: createPlan,
+		formHow: str,
+		input: {
+			type: 'object', ...req,
+			properties: { idea: str, story: str, standard: str, tone: str },
+		},
+		titles: strings, chosenTitle: str,
+		cover: str, body: str, script: str, pin: str, ai: str,
+		checks: {
+			type: 'array', ...req,
+			items: {
+				type: 'object', ...req,
+				properties: { level: { type: 'string', ...req, enum: ['must', 'warn'] }, text: str },
+			},
+		},
+		fixed: strings,
+		model: str,
+		reviewed: { type: 'boolean', ...req },
+		createdAt: { type: 'string', ...req, format: 'date-time' },
+		updatedAt: { type: 'string', ...req, format: 'date-time' },
+	},
+} as const;
