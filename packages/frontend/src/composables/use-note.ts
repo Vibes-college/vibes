@@ -18,7 +18,7 @@ import * as sound from '@/utility/sound.js';
 import * as os from '@/os.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
-import { getNoteClipMenu, getNoteMenu, getRenoteMenu, getAbuseNoteMenu, getCopyNoteLinkMenu } from '@/utility/get-note-menu.js';
+import { loadNoteMenus, noteMenusNow } from '@/lojo/later-ui.js';
 import { noteEvents, useNoteCapture } from '@/composables/use-note-capture.js';
 import { deepClone } from '@/utility/clone.js';
 import { useTooltip } from '@/composables/use-tooltip.js';
@@ -225,6 +225,7 @@ export function useNote(
 		if (!isLoggedIn) return;
 		showMovedDialog();
 		if (els.renoteButton == null) return;
+		const { getRenoteMenu } = await loadNoteMenus();
 		const { menu } = getRenoteMenu({
 			note: rawNote,
 			renoteButton: els.renoteButton,
@@ -352,7 +353,14 @@ export function useNote(
 			ev.preventDefault();
 			react();
 		} else {
-			const { menu, cleanup } = getNoteMenu({
+			// Vibes: the menu code downloads after the first posts show (lojo/later-ui.ts). A right-click before that gets
+			// the browser's own menu once, since ours would have to answer on this same tick.
+			const menus = noteMenusNow();
+			if (menus == null) {
+				loadNoteMenus().catch(() => {});
+				return;
+			}
+			const { menu, cleanup } = menus.getNoteMenu({
 				note: rawNote,
 				translating,
 				translation,
@@ -365,18 +373,22 @@ export function useNote(
 
 	function showMenu(): void {
 		if (props.mock || els.menuButton == null) return;
-		const { menu, cleanup } = getNoteMenu({
-			note: rawNote,
-			translating,
-			translation,
-			currentClip: currentClip?.value,
-			currentAntenna: currentAntenna?.value ?? undefined,
+		const menuButton = els.menuButton;
+		loadNoteMenus().then(({ getNoteMenu }) => {
+			const { menu, cleanup } = getNoteMenu({
+				note: rawNote,
+				translating,
+				translation,
+				currentClip: currentClip?.value,
+				currentAntenna: currentAntenna?.value ?? undefined,
+			});
+			os.popupMenu(menu, menuButton.value).then(focus).finally(cleanup);
 		});
-		os.popupMenu(menu, els.menuButton.value).then(focus).finally(cleanup);
 	}
 
 	async function clip(): Promise<void> {
 		if (props.mock) return;
+		const { getNoteClipMenu } = await loadNoteMenus();
 		os.popupMenu(await getNoteClipMenu({
 			note: rawNote,
 			currentClip: currentClip?.value,
@@ -387,6 +399,7 @@ export function useNote(
 		if (props.mock) return;
 		const isLoggedIn = await pleaseLogin({ openOnRemote: pleaseLoginContext });
 		if (!isLoggedIn) return;
+		const { getCopyNoteLinkMenu, getAbuseNoteMenu } = await loadNoteMenus();
 
 		const getUnrenote = () => ({
 			text: i18n.ts.unrenote,

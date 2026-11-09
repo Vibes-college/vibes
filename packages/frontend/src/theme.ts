@@ -204,7 +204,7 @@ export async function removeTheme(theme: Theme): Promise<void> {
 }
 
 export async function installTheme(code: string): Promise<void> {
-	const theme = parseThemeCode(code);
+	const theme = await parseThemeCode(code);
 	if (theme == null) return;
 	await addTheme(theme);
 }

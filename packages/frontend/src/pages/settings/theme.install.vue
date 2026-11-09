@@ -30,9 +30,9 @@ import { useRouter } from '@/router.js';
 const router = useRouter();
 const installThemeCode = ref<string | null>(null);
 
-function previewTheme(code: string): void {
+async function previewTheme(code: string): Promise<void> {
 	try {
-		const theme = parseThemeCode(code);
+		const theme = await parseThemeCode(code);
 		themeManager.previewTheme(theme);
 	} catch (err) {
 		os.alert({
@@ -45,7 +45,7 @@ function previewTheme(code: string): void {
 
 async function install(code: string): Promise<void> {
 	try {
-		const theme = parseThemeCode(code);
+		const theme = await parseThemeCode(code);
 		await installTheme(code);
 		os.alert({
 			type: 'success',

@@ -5,9 +5,9 @@
 
 import * as Misskey from 'misskey-js';
 import { shallowRef, ref, watch } from 'vue';
-import MkEmojiPickerDialog from '@/components/MkEmojiPickerDialog.vue';
 import { popup } from '@/os.js';
 import { prefer } from '@/preferences.js';
+import { emojiPickerDialog } from '@/lojo/later-ui.js';
 
 class ReactionPicker {
 	private reactionsRef = ref<string[]>([]);
@@ -34,7 +34,8 @@ class ReactionPicker {
 		const targetNoteRef = ref(targetNote);
 
 		// defineAsyncComponentはiOS等でユーザーアクティベーションが失われてfocusが効かなくなるため使用不可
-		const { dispose } = popup(MkEmojiPickerDialog, {
+		// Vibes: preloaded after the first posts show (lojo/later-ui.ts), so this is normally the real component
+		const { dispose } = popup(emojiPickerDialog.get(), {
 			anchorElement: anchorRef,
 			pinnedEmojis: this.reactionsRef,
 			asReactionPicker: true,

@@ -108,7 +108,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { defineAsyncComponent, ref, TransitionGroup } from 'vue';
 import * as Misskey from 'misskey-js';
 import { swInject } from './sw-inject.js';
-import XNotification from './notification.vue';
 import { isSafeMode } from '@@/js/config.js';
 import { popups } from '@/os.js';
 import { unisonReload } from '@/utility/unison-reload.js';
@@ -124,6 +123,8 @@ import { store } from '@/store.js';
 import XNavbar from '@/ui/_common_/navbar.vue';
 import { agentState } from '@/lojo/agent/state.js';
 
+// Vibes: notification toasts only show when a notification arrives; their ~25 KB of code no longer downloads at startup
+const XNotification = defineAsyncComponent(() => import('./notification.vue'));
 const XStreamIndicator = defineAsyncComponent(() => import('./stream-indicator.vue'));
 const XWidgets = defineAsyncComponent(() => import('./widgets.vue'));
 const XLojoAgent = defineAsyncComponent(() => import('@/lojo/agent/LojoAgent.vue'));

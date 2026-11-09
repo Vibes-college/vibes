@@ -17,6 +17,7 @@ import pluginJson5 from './lib/vite-plugin-json5.js';
 import type { Options as SearchIndexOptions } from './lib/vite-plugin-create-search-index.js';
 import pluginCreateSearchIndex from './lib/vite-plugin-create-search-index.js';
 import pluginWatchLocales from './lib/vite-plugin-watch-locales.js';
+import { pluginBootChunks } from './lib/vite-plugin-boot-chunks.js';
 import { pluginRemoveUnrefI18n } from '../frontend-builder/rollup-plugin-remove-unref-i18n.js';
 import { Features } from 'lightningcss';
 
@@ -118,6 +119,14 @@ export function toBase62(n: number): string {
 
 export function getConfig(): UserConfig {
 	const localesHash = toBase62(hash(JSON.stringify(locales)));
+	// Vibes: startup code in 3 files instead of ~100 (see the plugin). Keep the pages in step with
+	// HtmlTemplateService's bootFiles / guestBootFiles.
+	const bootChunks = pluginBootChunks({
+		entries: ['/src/_boot_.ts', '/src/i18n.ts'],
+		signedInPages: ['/src/ui/universal.vue', '/src/ui/_common_/statusbars.vue', '/src/ui/_common_/announcements.vue', '/src/ui/_common_/stream-indicator.vue'],
+		visitorPages: ['/src/ui/visitor.vue', '/src/pages/welcome.vue'],
+		skip: /node_modules[\\/]vue|i18n\.ts|locale\.ts/,
+	});
 
 	return {
 		base: '/vite/',
@@ -150,6 +159,7 @@ export function getConfig(): UserConfig {
 			pluginUnwindCssModuleClassName(),
 			pluginJson5(),
 			pluginGlsl({ minify: true }),
+			bootChunks.plugin,
 			...process.env.NODE_ENV === 'production'
 				? [
 					replacePlugin({
@@ -226,7 +236,7 @@ export function getConfig(): UserConfig {
 							name: 'i18n',
 							includeDependenciesRecursively: false,
 							test: /i18n\.ts|locale\.ts/,
-						}],
+						}, ...bootChunks.groups],
 					},
 					entryFileNames: `scripts/${localesHash}-[hash:8].js`,
 					chunkFileNames: `scripts/${localesHash}-[hash:8].js`,

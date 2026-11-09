@@ -151,7 +151,7 @@ async function _fetch_() {
 
 		case 'theme':
 			try {
-				const metaRaw = parseThemeCode(res.data);
+				const metaRaw = await parseThemeCode(res.data);
 
 				const { id, props, desc: description, ...meta } = metaRaw;
 				data.value = {

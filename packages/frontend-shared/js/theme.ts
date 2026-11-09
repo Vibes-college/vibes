@@ -4,7 +4,6 @@
  */
 
 import tinycolor from 'tinycolor2';
-import JSON5 from 'json5';
 import lightTheme from '@@/themes/_light.json5';
 import type { BundledTheme } from 'shiki/themes';
 
@@ -135,7 +134,10 @@ export function validateTheme(theme: Record<string, any>): boolean {
 	return true;
 }
 
-export function parseThemeCode(code: string): Theme {
+// Vibes: async so the JSON5 parser (about 15 KB compressed) downloads only when someone installs a theme,
+// not on every first open (theme.ts is part of startup).
+export async function parseThemeCode(code: string): Promise<Theme> {
+	const { default: JSON5 } = await import('json5');
 	let theme;
 
 	try {

@@ -27,13 +27,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, watch, provide, useTemplateRef, ref, onMounted, onActivated } from 'vue';
+import { computed, watch, provide, useTemplateRef, ref, onMounted, onActivated, defineAsyncComponent } from 'vue';
 import type { Tab } from '@/components/global/MkPageHeader.tabs.vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { BasicTimelineType } from '@/timelines.js';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import MkStreamingNotesTimeline from '@/components/MkStreamingNotesTimeline.vue';
-import MkPostForm from '@/components/MkPostForm.vue';
 import * as os from '@/os.js';
 import { store } from '@/store.js';
 import { i18n } from '@/i18n.js';
@@ -45,6 +44,9 @@ import { deepMerge } from '@/utility/merge.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { availableBasicTimelines, hasWithReplies, isAvailableBasicTimeline, isBasicTimeline, basicTimelineIconClass } from '@/timelines.js';
 import { prefer } from '@/preferences.js';
+
+// Vibes: the fixed post form is off by default; downloading the whole post form on every first open cost ~40 KB.
+const MkPostForm = defineAsyncComponent(() => import('@/components/MkPostForm.vue'));
 
 const tlComponent = useTemplateRef('tlComponent');
 

@@ -135,6 +135,8 @@ export function collectModifications(sourceCode: string, fileName: string, fileL
 				if (parent == null) throw new Error();
 				if (parent.type === 'Property' && !parent.computed && property === 'key') return; // we don't care 'id' part of { id: expr }
 				if (parent.type === 'MemberExpression' && !parent.computed && property === 'property') return; // we don't care 'id' part of { id: expr }
+				// Vibes: nor the name of a class field or method (`class { w = 1 }`): the minifier can give the i18n import the same short name
+				if ((parent.type === 'PropertyDefinition' || parent.type === 'MethodDefinition') && !parent.computed && property === 'key') return;
 				if (parent.type === 'ExportSpecifier' && property === 'exported') return; // we don't care 'id' part of { id: expr }
 				if (node.name === localI18nIdentifier) {
 					// the use of identifier is either direct reference to i18n, or unsupported conflict of the identifier, which should report error.

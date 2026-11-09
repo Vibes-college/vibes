@@ -22,18 +22,14 @@ import type MkEmojiPickerDialog_TypeReferenceOnly from '@/components/MkEmojiPick
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
-import MkPostFormDialog from '@/components/MkPostFormDialog.vue';
 import MkWaitingDialog from '@/components/MkWaitingDialog.vue';
-import MkPageWindow from '@/components/MkPageWindow.vue';
 import MkToast from '@/components/MkToast.vue';
-import MkDialog from '@/components/MkDialog.vue';
-import MkPopupMenu from '@/components/MkPopupMenu.vue';
-import MkContextMenu from '@/components/MkContextMenu.vue';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { showMovedDialog } from '@/utility/show-moved-dialog.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import { focusParent } from '@/utility/focus.js';
+import * as laterUi from '@/lojo/later-ui.js';
 
 export const openingWindowsCount = ref(0);
 
@@ -244,7 +240,7 @@ export async function popupAsyncWithDialog<T extends Component>(
 }
 
 export function pageWindow(path: string) {
-	const { dispose } = popup(MkPageWindow, {
+	const { dispose } = popup(laterUi.pageWindow.get(), {
 		initialPath: path,
 	}, {
 		closed: () => dispose(),
@@ -265,7 +261,7 @@ export function alert(props: {
 	text?: string;
 }): Promise<void> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, props, {
+		const { dispose } = popup(laterUi.dialog.get(), props, {
 			done: () => {
 				resolve();
 			},
@@ -282,7 +278,7 @@ export function confirm(props: {
 	cancelText?: string;
 }): Promise<{ canceled: boolean }> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, {
+		const { dispose } = popup(laterUi.dialog.get(), {
 			...props,
 			showCancelButton: true,
 		}, {
@@ -308,7 +304,7 @@ export function actions<const T extends ActionsAction[]>(props: {
 	actions: T;
 }): Promise<MkDialogReturnType<T[number]['value']>> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, {
+		const { dispose } = popup(laterUi.dialog.get(), {
 			...props,
 			actions: props.actions.map(a => ({
 				text: a.text,
@@ -370,7 +366,7 @@ export function inputText(props: {
 	maxLength?: number;
 }): Promise<MkDialogReturnType<string | null>> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, {
+		const { dispose } = popup(laterUi.dialog.get(), {
 			title: props.title,
 			text: props.text,
 			input: {
@@ -413,7 +409,7 @@ export function inputNumber(props: {
 	default?: number | null;
 }): Promise<MkDialogReturnType<number | null>> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, {
+		const { dispose } = popup(laterUi.dialog.get(), {
 			title: props.title,
 			text: props.text,
 			input: {
@@ -438,7 +434,7 @@ export function inputDatetime(props: {
 	default?: string | null;
 }): Promise<MkDialogReturnType<Date>> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, {
+		const { dispose } = popup(laterUi.dialog.get(), {
 			title: props.title,
 			text: props.text,
 			input: {
@@ -477,7 +473,7 @@ export function select<C extends OptionValue, D extends C | null = null>(props: 
 	items: (MkSelectItem<C> | undefined)[];
 }): Promise<MkDialogReturnType<Exclude<D, undefined> extends null ? C | null : C>> {
 	return new Promise(resolve => {
-		const { dispose } = popup(MkDialog, {
+		const { dispose } = popup(laterUi.dialog.get(), {
 			title: props.title,
 			text: props.text,
 			select: {
@@ -627,7 +623,7 @@ export function popupMenu(items: (MenuItem | null)[], anchorElement?: HTMLElemen
 
 	let returnFocusTo = getHTMLElementOrNull(anchorElement) ?? getHTMLElementOrNull(window.document.activeElement);
 	return new Promise(resolve => nextTick(() => {
-		const { dispose } = popup(MkPopupMenu, {
+		const { dispose } = popup(laterUi.popupMenu.get(), {
 			items: items.filter(x => x != null),
 			anchorElement,
 			width: options?.width,
@@ -660,7 +656,7 @@ export function contextMenu(items: MenuItem[], ev: PointerEvent): Promise<void> 
 	let returnFocusTo = getHTMLElementOrNull(ev.currentTarget ?? ev.target) ?? getHTMLElementOrNull(window.document.activeElement);
 	ev.preventDefault();
 	return new Promise(resolve => nextTick(() => {
-		const { dispose } = popup(MkContextMenu, {
+		const { dispose } = popup(laterUi.contextMenu.get(), {
 			items,
 			ev,
 		}, {
@@ -698,7 +694,7 @@ export async function post(props: PostFormProps = {}): Promise<void> {
 		//       Vueが渡されたコンポーネントに内部的に__propsというプロパティを生やす影響で、
 		//       複数のpost formを開いたときに場合によってはエラーになる
 		//       もちろん複数のpost formを開けること自体Misskeyサイドのバグなのだが
-		const { dispose } = popup(MkPostFormDialog, props, {
+		const { dispose } = popup(laterUi.postFormDialog.get(), props, {
 			closed: () => {
 				resolve();
 				dispose();

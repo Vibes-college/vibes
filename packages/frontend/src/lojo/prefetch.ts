@@ -4,6 +4,7 @@
  */
 
 import { firstContentShown } from '@/lojo/early-api.js';
+import { preloadLaterUi } from '@/lojo/later-ui.js';
 
 // Vibes runs in Hong Kong, and from mainland China each round trip takes about 0.2 s (measured 2026-10-24).
 // A page whose code is not downloaded yet needs several round trips on the first tap, so once the app is idle,
@@ -42,6 +43,10 @@ function whenIdle(run: () => void): void {
 }
 
 export function prefetchCommonPages(signedIn: boolean): void {
+	// The post form, emoji picker, menus and dialogs are small and the first tap needs them, so they go first: as soon as
+	// the first list is on screen (or after 10 s).
+	Promise.race([firstContentShown, new Promise(resolve => window.setTimeout(resolve, 10000))]).then(() => whenIdle(() => preloadLaterUi(signedIn)));
+
 	// 2026-11-09: started right after the app appeared, these ~85 files took the line from the first page's notes and
 	// pictures on a slow phone network. Now they wait until the first list has arrived and 2 more seconds have passed for
 	// its posts, avatars and pictures to show (or 10 s at most).
