@@ -30,6 +30,8 @@ export type ViteFiles = {
 	modulePreloads: string[];
 	// Vibes: every script and stylesheet the app needs to draw its first page (see HtmlTemplateService.collectBootFiles).
 	bootFiles: string[];
+	// Vibes: the same for a visitor who is not signed in (the visitor layout and the welcome page instead).
+	guestBootFiles: string[];
 };
 
 export type CommonData = MinimumCommonData & {

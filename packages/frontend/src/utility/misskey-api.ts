@@ -6,6 +6,7 @@
 import * as Misskey from 'misskey-js';
 import { ref } from 'vue';
 import { apiUrl } from '@@/js/config.js';
+import { takeEarlyResponse } from '@/lojo/early-api.js';
 import { $i } from '@/i.js';
 export const pendingApiRequestsCount = ref(0);
 
@@ -33,8 +34,8 @@ export function misskeyApi<
 		if ($i) data.i = $i.token;
 		if (token !== undefined) data.i = token;
 
-		// Send request
-		window.fetch(`${apiUrl}/${endpoint}`, {
+		// Send request (Vibes: or take the answer the boot loader asked for already, see lojo/early-api.ts)
+		const send = () => window.fetch(`${apiUrl}/${endpoint}`, {
 			method: 'POST',
 			body: JSON.stringify(data),
 			credentials: 'omit',
@@ -43,7 +44,8 @@ export function misskeyApi<
 				'Content-Type': 'application/json',
 			},
 			signal,
-		}).then(async (res) => {
+		});
+		(takeEarlyResponse(endpoint, data, data.i ?? null)?.catch(send) ?? send()).then(async (res) => {
 			const body = res.status === 204 ? null : await res.json();
 
 			if (res.status === 200) {
@@ -80,12 +82,13 @@ export function misskeyApiGet<
 	const query = new URLSearchParams(data as any);
 
 	const promise = new Promise<_ResT>((resolve, reject) => {
-		// Send request
-		window.fetch(`${apiUrl}/${endpoint}?${query}`, {
+		// Send request (Vibes: or take the answer the boot loader asked for already, see lojo/early-api.ts)
+		const send = () => window.fetch(`${apiUrl}/${endpoint}?${query}`, {
 			method: 'GET',
 			credentials: 'omit',
 			cache: 'default',
-		}).then(async (res) => {
+		});
+		(takeEarlyResponse(endpoint, data as Record<string, unknown>, null)?.catch(send) ?? send()).then(async (res) => {
 			const body = res.status === 204 ? null : await res.json();
 
 			if (res.status === 200) {

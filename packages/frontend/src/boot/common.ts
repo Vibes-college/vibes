@@ -26,7 +26,7 @@ import { getAccountFromId } from '@/utility/get-account-from-id.js';
 import { deckStore } from '@/ui/deck/deck-store.js';
 import { analytics, initAnalytics } from '@/analytics.js';
 import { miLocalStorage } from '@/local-storage.js';
-import { fetchCustomEmojis, hasStoredCustomEmojis } from '@/custom-emojis.js';
+import { fetchCustomEmojis } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
 import { $i } from '@/i.js';
 import { launchPlugins } from '@/plugin.js';
@@ -258,13 +258,9 @@ export async function common(createVue: () => Promise<App<Element>>) {
 	// Vibes: when the list is kept on the device, refresh it in the background instead of keeping the splash up for it.
 	// A phone back from the background asks again after an hour, and from mainland China that request alone can take
 	// several seconds while the network comes back.
-	if (hasStoredCustomEmojis) {
-		fetchCustomEmojis().catch(() => { /* keep the list on the device */ });
-	} else {
-		try {
-			await fetchCustomEmojis();
-		} catch (err) { /* empty */ }
-	}
+	// 2026-11-09: on a first visit (nothing kept yet) it no longer waits either: that request held the first page back by
+	// 1.2 s. Emojis in posts are asked for by name meanwhile (components/global/MkCustomEmoji.vue).
+	fetchCustomEmojis().catch(() => { /* keep the list on the device, or none yet */ });
 
 	// analytics
 	fetchInstanceMetaPromise.then(async () => {

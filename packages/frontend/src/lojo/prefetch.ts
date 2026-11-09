@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { firstContentShown } from '@/lojo/early-api.js';
+
 // Vibes runs in Hong Kong, and from mainland China each round trip takes about 0.2 s (measured 2026-10-24).
 // A page whose code is not downloaded yet needs several round trips on the first tap, so once the app is idle,
 // download the pages people open most. These are the same modules the router loads, so later taps reuse them.
@@ -40,10 +42,14 @@ function whenIdle(run: () => void): void {
 }
 
 export function prefetchCommonPages(signedIn: boolean): void {
-	whenIdle(() => {
+	// 2026-11-09: started right after the app appeared, these ~85 files took the line from the first page's notes and
+	// pictures on a slow phone network. Now they wait until the first list has arrived and 2 more seconds have passed for
+	// its posts, avatars and pictures to show (or 10 s at most).
+	const listShown = firstContentShown.then(() => new Promise(resolve => window.setTimeout(resolve, 2000)));
+	Promise.race([listShown, new Promise(resolve => window.setTimeout(resolve, 10000))]).then(() => whenIdle(() => {
 		for (const load of signedIn ? signedInPages : visitorPages) {
 			// A failed prefetch only means the page downloads on its first tap, as before.
 			load().catch(() => {});
 		}
-	});
+	}));
 }

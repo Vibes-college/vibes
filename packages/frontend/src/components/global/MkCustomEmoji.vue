@@ -41,7 +41,7 @@ import { computed, defineAsyncComponent, inject, ref } from 'vue';
 import { normalizeCustomEmojiName, isLocalCustomEmojiName, getCustomEmojiImagePath } from '@@/js/emoji-name.js';
 import type { MenuItem } from '@/types/menu.js';
 import { getProxiedImageUrl, getStaticImageUrl } from '@/utility/media-proxy.js';
-import { customEmojisMap } from '@/custom-emojis.js';
+import { customEmojis, customEmojisMap } from '@/custom-emojis.js';
 import * as os from '@/os.js';
 import { misskeyApi, misskeyApiGet } from '@/utility/misskey-api.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
@@ -79,7 +79,9 @@ const rawUrl = computed(() => {
 		return props.url;
 	}
 	if (isLocal.value) {
-		return customEmojisMap.get(customEmojiName.value)?.url ?? null;
+		// Vibes: on a first visit the list of this server's emojis comes after the first page is drawn (boot/common.ts);
+		// until then ask the server for the emoji by name (it answers /emoji/<name>.webp for its own emojis).
+		return customEmojisMap.get(customEmojiName.value)?.url ?? (customEmojis.value.length === 0 ? getCustomEmojiImagePath(customEmojiName.value, null) : null);
 	}
 	return getCustomEmojiImagePath(customEmojiName.value, props.host);
 });

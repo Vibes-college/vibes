@@ -102,15 +102,68 @@
 
 	// Vibes: ask for every script the app needs to start at once (BOOT_FILES, listed by the server), instead of finding one
 	// level of imports after another; from mainland China each level costs a round trip of 0.2–0.6 s.
-	if (CLIENT_ENTRY && typeof BOOT_FILES !== 'undefined' && Array.isArray(BOOT_FILES)) {
-		for (const file of BOOT_FILES) {
-			if (!file.startsWith('scripts/')) continue;
+	// The stylesheets of those parts are fetched now too (2026-11-09: on a first visit the layout's stylesheets were only
+	// asked for after the scripts had run, two rounds late). A visitor who is not signed in gets the visitor layout and
+	// the welcome page instead (GUEST_BOOT_FILES).
+	const bootFiles = localStorage.getItem('account') == null && typeof GUEST_BOOT_FILES !== 'undefined' && Array.isArray(GUEST_BOOT_FILES) && GUEST_BOOT_FILES.length > 0
+		? GUEST_BOOT_FILES
+		: typeof BOOT_FILES !== 'undefined' && Array.isArray(BOOT_FILES) ? BOOT_FILES : [];
+	if (CLIENT_ENTRY) {
+		for (const file of bootFiles) {
 			const link = document.createElement('link');
-			link.rel = 'modulepreload';
-			link.href = `/vite/${file.replace('scripts', lang)}`;
+			if (file.startsWith('scripts/')) {
+				link.rel = 'modulepreload';
+				link.href = `/vite/${file.replace('scripts', lang)}`;
+			} else if (file.endsWith('.css')) {
+				link.rel = 'preload';
+				link.as = 'style';
+				// The app loads its stylesheets with crossorigin set (vite's loader); a preload without it is not reused.
+				link.crossOrigin = '';
+				link.href = `/vite/${file}`;
+			} else {
+				continue;
+			}
 			document.head.appendChild(link);
 		}
 	}
+
+	//#region Early requests
+	// Vibes: on the home page, ask for the first notes now, while the scripts above are still downloading; the app takes
+	// this answer when it asks for exactly the same thing (src/lojo/early-api.ts, which also has the key format). Only the
+	// default choices are guessed (the home timeline with renotes, or the featured notes for a visitor); someone who
+	// picked another timeline just gets their own request as before.
+	window.vibesEarlyApi = [];
+	if (CLIENT_ENTRY && location.pathname === '/' && location.search === '') {
+		const earlyKey = (data) => JSON.stringify(Object.keys(data).filter(k => k !== 'i' && data[k] !== undefined).sort().map(k => [k, data[k]]));
+		let token = null;
+		try {
+			token = JSON.parse(localStorage.getItem('account') ?? 'null')?.token ?? null;
+		} catch {
+			token = null;
+		}
+		try {
+			if (token) {
+				const data = { withRenotes: true, limit: 15, allowPartial: true };
+				window.vibesEarlyApi.push({
+					endpoint: 'notes/timeline', key: earlyKey(data), token, at: Date.now(),
+					res: fetch('/api/notes/timeline', {
+						method: 'POST', body: JSON.stringify({ ...data, i: token }), credentials: 'omit', cache: 'no-cache',
+						headers: { 'Content-Type': 'application/json' },
+					}),
+				});
+			} else {
+				window.vibesEarlyApi.push({
+					endpoint: 'notes/featured', key: earlyKey({}), token: null, at: Date.now(),
+					res: fetch('/api/notes/featured?', { method: 'GET', credentials: 'omit', cache: 'default' }),
+				});
+			}
+			// Nobody may come to take it (another timeline): don't report that as an error.
+			for (const e of window.vibesEarlyApi) e.res.catch(() => {});
+		} catch {
+			window.vibesEarlyApi = [];
+		}
+	}
+	//#endregion
 
 	// タイミングによっては、この時点でDOMの構築が済んでいる場合とそうでない場合とがある
 	if (document.readyState !== 'loading') {

@@ -83,6 +83,7 @@ export function Layout(props: PropsWithChildren<CommonProps<{
 						const CLIENT_ENTRY = {JSON.stringify(props.frontendViteFiles?.entryJs ?? null)};
 						const LANGS = {JSON.stringify(props.langs)};
 						const BOOT_FILES = {JSON.stringify(props.frontendViteFiles?.bootFiles ?? [])};
+						const GUEST_BOOT_FILES = {JSON.stringify(props.frontendViteFiles?.guestBootFiles ?? [])};
 					</script>
 
 					{safeMetaJson != null ? <script type="application/json" id="misskey_meta" data-generated-at={now}>{safeMetaJson}</script> : null}

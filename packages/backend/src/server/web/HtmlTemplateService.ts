@@ -17,6 +17,11 @@ import type { Config } from '@/config.js';
 import type { MiMeta } from '@/models/Meta.js';
 import type { CommonData, ViteFiles } from './views/_.js';
 
+// Vibes: the icon stylesheet, which the entry loads (and waits for) before anything else runs (frontend src/_boot_.ts).
+// Fetched with the boot files, it no longer costs a round trip of its own after the scripts (2026-11-09: 0.6 s on a
+// slow phone network).
+const ICON_STYLESHEET = '../icons-subsetter/built/tabler-icons-frontend.css';
+
 @Injectable()
 export class HtmlTemplateService {
 	private frontendAssetsFetched = false;
@@ -54,6 +59,7 @@ export class HtmlTemplateService {
 			css: [],
 			modulePreloads: [],
 			bootFiles: [],
+			guestBootFiles: [],
 		};
 
 		const seenChunkIds = new Set<string>();
@@ -94,21 +100,22 @@ export class HtmlTemplateService {
 			entryJs: entryFile.file,
 			css: Array.from(cssFiles),
 			modulePreloads: Array.from(modulePreloads),
-			bootFiles: this.collectBootFiles(manifest),
+			bootFiles: this.collectBootFiles(manifest, [ICON_STYLESHEET, 'src/ui/universal.vue', 'src/ui/_common_/statusbars.vue', 'src/ui/_common_/announcements.vue', 'src/ui/_common_/stream-indicator.vue']),
+			guestBootFiles: this.collectBootFiles(manifest, [ICON_STYLESHEET, 'src/ui/visitor.vue', 'src/pages/welcome.vue']),
 		};
 	}
 
 	// Vibes: every script (and its stylesheets) the app needs to draw its first page: the entry with everything it imports,
-	// and the signed-in layout with the parts it shows at once. boot.js fetches them all at once instead of discovering one
-	// level of imports after another (each level is a round trip of 0.2–0.6 s from mainland China, measured 2026-10-31),
-	// and the service worker downloads them before switching to a new version (packages/sw/src/sw.ts).
+	// and the layout with the parts it shows at once (`pages`: the signed-in layout, or the visitor layout and the welcome
+	// page). boot.js fetches them all at once instead of discovering one level of imports after another (each level is a
+	// round trip of 0.2–0.6 s from mainland China, measured 2026-10-31), and the service worker downloads them before
+	// switching to a new version (packages/sw/src/sw.ts; signed-in list only).
 	// Scripts are listed as in the manifest ("scripts/…"); the boot loader swaps in the language folder.
 	@bindThis
-	private collectBootFiles(manifest: Manifest): string[] {
+	private collectBootFiles(manifest: Manifest, pages: string[]): string[] {
 		const entryKey = Object.keys(manifest).find(key => manifest[key].isEntry);
 		if (entryKey == null) return [];
-		const roots = [entryKey, 'src/ui/universal.vue', 'src/ui/_common_/statusbars.vue', 'src/ui/_common_/announcements.vue', 'src/ui/_common_/stream-indicator.vue']
-			.filter(key => manifest[key] != null);
+		const roots = [entryKey, ...pages].filter(key => manifest[key] != null);
 		const seen = new Set<string>();
 		const files = new Set<string>();
 		const visit = (key: string) => {

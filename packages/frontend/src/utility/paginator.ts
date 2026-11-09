@@ -7,6 +7,7 @@ import { ref, shallowRef, triggerRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import type { ComputedRef, Ref, ShallowRef, UnwrapRef } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { markFirstContentShown } from '@/lojo/early-api.js';
 import { get as idbGet, set as idbSet } from '@/utility/idb-proxy.js';
 // Vibes: when the first items were on screen, for the anonymous start-up record (lojo/boot-report.ts)
 import { markShown } from '@/lojo/kept.js';
@@ -254,6 +255,8 @@ export class Paginator<
 
 		if (generation !== this.initGeneration) return;
 		this.refreshingKept = false;
+		// Vibes: the first list is here (or failed): pages downloaded ahead may start now (lojo/prefetch.ts).
+		window.setTimeout(markFirstContentShown, 0);
 
 		if (apiRes == null) {
 			// With the kept page on screen, keep showing it rather than the error.
