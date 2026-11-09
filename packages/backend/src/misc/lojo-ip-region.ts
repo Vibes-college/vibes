@@ -75,13 +75,18 @@ export function parseIpRegionTable(buf: Buffer): Table {
 
 function loadTable(): Table | null {
 	if (table !== undefined) return table;
-	try {
-		// built/misc/ and src/misc/ are both two levels below packages/backend.
-		const path = fileURLToPath(new URL('../../assets/lojo-data/ip-region.bin', import.meta.url));
-		table = parseIpRegionTable(readFileSync(path));
-	} catch {
-		table = null; // no table: every visitor counts as "other", the records still work
+	// The built backend is bundled into flat files right under built/ (one level below packages/backend), while the
+	// tests run this file from src/misc/ (two levels below). Try both.
+	table = null; // no table: every visitor counts as "other", the records still work
+	for (const relative of ['../assets/lojo-data/ip-region.bin', '../../assets/lojo-data/ip-region.bin']) {
+		try {
+			table = parseIpRegionTable(readFileSync(fileURLToPath(new URL(relative, import.meta.url))));
+			break;
+		} catch {
+			// not here, try the next place
+		}
 	}
+	if (table == null) console.warn('lojo-ip-region: ip-region.bin not found, every visitor counts as region "other"');
 	return table;
 }
 
