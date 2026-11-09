@@ -7,7 +7,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
-import { bootReportDay, bootReportKey, bootReportLimits, bootReportBrowsers, bootReportNavs, bootReportOs } from '@/misc/lojo-boot-report.js';
+import { bootReportDay, bootReportKey, bootReportLimits, bootReportBrowsers, bootReportNavs, bootReportOs, speedFieldsOn, whereOf } from '@/misc/lojo-boot-report.js';
+import { lookupIpRegion } from '@/misc/lojo-ip-region.js';
 import type { BootReport } from '@/misc/lojo-boot-report.js';
 
 export const meta = {
@@ -38,6 +39,11 @@ export const paramDef = {
 		keptContent: { type: 'boolean', nullable: true },
 		firstApiMs: optionalMs,
 		error: { type: 'string', pattern: '^[A-Z_]{1,40}$', nullable: true },
+		// Speed fields (2026-11-09), kept only with LOJO_SPEED_FIELDS=on; older app versions do not send them.
+		ttfbMs: optionalMs,
+		fcpMs: optionalMs,
+		wsMs: optionalMs,
+		bot: { type: 'boolean' },
 	},
 	required: ['v', 'page', 'nav', 'os', 'browser', 'standalone', 'signedIn', 'sw', 'codeKb', 'retries', 'bootMs'],
 } as const;
@@ -48,8 +54,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.redis)
 		private redisClient: Redis.Redis,
 	) {
-		super(meta, paramDef, async (ps) => {
-			// Only these fields are kept; the account and the address are never read here.
+		super(meta, paramDef, async (ps, _me, _token, _file, _cleanup, ip, headers) => {
+			// Only these fields are kept; the account is never read here, and the address only to tell the coarse region
+			// (misc/lojo-ip-region.ts), then dropped. request.ip is already the visitor's own address: Caddy puts
+			// CF-Connecting-IP there for requests that come from Cloudflare's ranges (checked by 社区运维 2026-11-09),
+			// so the header is not read here, where anyone on the direct route could fake it.
 			const report: BootReport = {
 				t: Math.floor(Date.now() / 1000),
 				v: ps.v,
@@ -68,6 +77,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				firstApiMs: ps.firstApiMs ?? null,
 				error: ps.error ?? null,
 			};
+			if (speedFieldsOn()) {
+				Object.assign(report, whereOf(lookupIpRegion(ip), headers), {
+					ttfbMs: ps.ttfbMs ?? null,
+					fcpMs: ps.fcpMs ?? null,
+					wsMs: ps.wsMs ?? null,
+					bot: ps.bot === true,
+				});
+			}
 			const key = bootReportKey(bootReportDay());
 			const { maxPerDay, keepSeconds } = bootReportLimits();
 			await this.redisClient.multi()

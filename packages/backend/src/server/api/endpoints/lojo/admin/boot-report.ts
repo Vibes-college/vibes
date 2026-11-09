@@ -7,8 +7,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
-import { KEEP_DAYS, bootReportDay, bootReportKey, summarizeBootReports } from '@/misc/lojo-boot-report.js';
-import type { BootReport } from '@/misc/lojo-boot-report.js';
+import { KEEP_DAYS, bootReportDay, bootReportKey, connReportKey, summarizeBootReports } from '@/misc/lojo-boot-report.js';
+import type { BootReport, ConnReport } from '@/misc/lojo-boot-report.js';
 
 export const meta = {
 	tags: ['lojo', 'admin'],
@@ -34,6 +34,18 @@ export const paramDef = {
 	required: [],
 } as const;
 
+function parseLines<T>(raw: string[]): T[] {
+	const rows: T[] = [];
+	for (const line of raw) {
+		try {
+			rows.push(JSON.parse(line) as T);
+		} catch {
+			// A damaged line is skipped.
+		}
+	}
+	return rows;
+}
+
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
@@ -44,16 +56,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const report = [];
 			for (let i = 0; i < ps.days; i++) {
 				const day = bootReportDay(Date.now() - i * 24 * 60 * 60 * 1000);
-				const raw = await this.redisClient.lrange(bootReportKey(day), 0, -1);
-				const rows: BootReport[] = [];
-				for (const line of raw) {
-					try {
-						rows.push(JSON.parse(line) as BootReport);
-					} catch {
-						// A damaged line is skipped.
-					}
-				}
-				report.push(summarizeBootReports(day, rows));
+				const rows = parseLines<BootReport>(await this.redisClient.lrange(bootReportKey(day), 0, -1));
+				const conns = parseLines<ConnReport>(await this.redisClient.lrange(connReportKey(day), 0, -1));
+				report.push(summarizeBootReports(day, rows, conns));
 			}
 			return report;
 		});

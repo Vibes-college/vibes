@@ -490,6 +490,7 @@ import type {
 	LojoAgentPromptRequest,
 	LojoAgentPromptResponse,
 	LojoBootReportRequest,
+	LojoConnReportRequest,
 	LojoCreateCopyRequest,
 	LojoCreateCopyResponse,
 	LojoCreateImportRequest,
@@ -1073,6 +1074,7 @@ export type Endpoints = {
 	'lojo/agent/english': { req: LojoAgentEnglishRequest; res: LojoAgentEnglishResponse };
 	'lojo/agent/prompt': { req: LojoAgentPromptRequest; res: LojoAgentPromptResponse };
 	'lojo/boot-report': { req: LojoBootReportRequest; res: EmptyResponse };
+	'lojo/conn-report': { req: LojoConnReportRequest; res: EmptyResponse };
 	'lojo/create/copy': { req: LojoCreateCopyRequest; res: LojoCreateCopyResponse };
 	'lojo/create/import': { req: LojoCreateImportRequest; res: LojoCreateImportResponse };
 	'lojo/create/plans': { req: LojoCreatePlansRequest; res: LojoCreatePlansResponse };

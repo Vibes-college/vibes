@@ -43,6 +43,60 @@ Vibes stability report (admin → 稳定性日报): one card per day, Beijing ti
 						<dd>{{ day.slowestPages.map(p => `${p.page} ${seconds(p.p90BootMs)}`).join('，') }}</dd>
 					</template>
 				</dl>
+				<template v-if="day.speed && (day.speed.zones.length > 0 || day.speed.bots > 0)">
+					<p :class="$style.sub">{{ labels.speedTitle }}<span :class="$style.muted">{{ labels.bots(day.speed.bots) }}</span></p>
+					<div :class="$style.scroll">
+						<table :class="$style.table" data-testid="stability-speed">
+							<thead>
+								<tr><th v-for="h in labels.speedHeads" :key="h">{{ h }}</th></tr>
+							</thead>
+							<tbody>
+								<template v-for="z in day.speed.zones" :key="z.zone">
+									<tr v-for="slot in slotsOf(z)" :key="slot">
+										<th>{{ slot === 'all' ? labels.zones[z.zone] ?? z.zone : '' }}</th>
+										<td>{{ labels.slots[slot] }}</td>
+										<template v-if="isFull(z[slot])">
+											<td>{{ z[slot].n }}</td>
+											<td>{{ pair(z[slot].bootMs) }}</td>
+											<td>{{ pair(z[slot].ttfbMs) }}</td>
+											<td>{{ pair(z[slot].fcpMs) }}</td>
+											<td>{{ pair(z[slot].firstApiMs) }}</td>
+											<td>{{ pair(z[slot].wsMs) }}</td>
+											<td>{{ drops(z[slot]) }}</td>
+										</template>
+										<template v-else>
+											<td>{{ z[slot].n }}</td>
+											<td colspan="6" :class="$style.muted">{{ labels.few }}</td>
+										</template>
+									</tr>
+								</template>
+							</tbody>
+						</table>
+					</div>
+					<p v-if="day.speed.routes.length > 0" :class="$style.sub">{{ labels.routesTitle }}</p>
+					<div v-if="day.speed.routes.length > 0" :class="$style.scroll">
+						<table :class="$style.table">
+							<tbody>
+								<tr v-for="r in day.speed.routes" :key="`${r.host}-${r.cf}`">
+									<th>{{ r.host }}{{ r.cf ? labels.viaCf : labels.direct }}</th>
+									<template v-if="isFull(r)">
+										<td>{{ r.n }}</td>
+										<td>{{ pair(r.bootMs) }}</td>
+										<td>{{ pair(r.ttfbMs) }}</td>
+										<td>{{ pair(r.fcpMs) }}</td>
+										<td>{{ pair(r.firstApiMs) }}</td>
+										<td>{{ pair(r.wsMs) }}</td>
+										<td>{{ drops(r) }}</td>
+									</template>
+									<template v-else>
+										<td>{{ r.n }}</td>
+										<td colspan="6" :class="$style.muted">{{ labels.few }}</td>
+									</template>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</template>
 			</section>
 		</div>
 	</div>
@@ -55,16 +109,27 @@ import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 type Spread = { p50: number | null; p90: number | null; n: number };
+type Cell = { n: number; conns: number } & Partial<{
+	failed: number; bootMs: Spread; contentMs: Spread; ttfbMs: Spread; fcpMs: Spread; firstApiMs: Spread; wsMs: Spread;
+	visibleHours: number; dropsPerHour: number | null; hiddenDrops: number; reconnectMs: Spread; down: number;
+}>;
+type Slot = 'all' | 'day' | 'peak' | 'night';
+type Speed = {
+	withFields: number; bots: number;
+	zones: ({ zone: string } & Record<Slot, Cell>)[];
+	routes: ({ host: string; cf: boolean } & Cell)[];
+};
 type Day = {
 	day: string; loads: number; started: number; failed: number; errors: Record<string, number>; retried: number;
 	bootMs: Spread; bootMsWarm: Spread; bootMsCold: Spread; contentMs: Spread; keptContent: number; firstApiMs: Spread;
 	os: Record<string, number>; browser: Record<string, number>; standalone: number;
 	slowestPages: { page: string; n: number; p90BootMs: number | null }[];
+	speed?: Speed;
 };
 
 const labels = {
 	title: '稳定性日报',
-	note: '每次打开网页留一条匿名记录（不含账号、IP 和具体网址），按北京时间每天汇总，保留 14 天。"一般"是中位数，"慢的时候"是最慢的 10%。',
+	note: '每次打开网页留一条匿名记录（不含账号、IP 和具体网址），按北京时间每天汇总，保留 14 天。"一般"是中位数，"慢的时候"是最慢的 10%。地区表里写成"一般 / 慢的时候"。',
 	failed: '日报暂时拿不到，稍后再试。',
 	none: '这天没有记录。',
 	loads: (n: number) => `打开 ${n} 次`,
@@ -80,7 +145,40 @@ const labels = {
 	standalone: (n: number) => `从主屏幕打开 ${n} 次`,
 	slowest: '最慢的页面',
 	reload: '刷新',
+	speedTitle: '按地区和时段（北京时间）',
+	bots: (n: number) => n > 0 ? `（自动化测试 ${n} 条，没算进来）` : '',
+	speedHeads: ['地区', '时段', '次数', '打开到能用', '首字节', '首屏', '服务器回应', '实时连接', '断线'],
+	zones: {
+		'cn-telecom': '内地电信', 'cn-unicom': '内地联通', 'cn-mobile': '内地移动', 'cn-other': '内地其他',
+		asia: '亚洲（含港澳台）', oceania: '澳洲', europe: '欧洲', namerica: '北美', other: '其他',
+	} as Record<string, string>,
+	slots: { all: '全天', day: '白天 9–20', peak: '晚高峰 20–23', night: '夜间' } as Record<string, string>,
+	few: '不到 5 次，不出数字',
+	routesTitle: '按线路',
+	viaCf: ' 经 Cloudflare',
+	direct: ' 直连',
 };
+
+function slotsOf(z: Record<Slot, Cell>): Slot[] {
+	return (['all', 'day', 'peak', 'night'] as const).filter(slot => slot === 'all' || z[slot].n + z[slot].conns > 0);
+}
+
+function isFull(c: Cell): boolean {
+	return c.bootMs != null;
+}
+
+// "一般 / 慢的时候" in seconds.
+function pair(s: Spread | undefined): string {
+	if (s == null || s.n === 0) return '—';
+	return `${seconds(s.p50).replace(' 秒', '')} / ${seconds(s.p90)}`;
+}
+
+function drops(c: Cell): string {
+	if (!c.conns) return '—';
+	const rate = c.dropsPerHour == null ? '—' : `每小时 ${c.dropsPerHour} 次`;
+	const back = c.reconnectMs != null && c.reconnectMs.n > 0 ? `，接回 ${pair(c.reconnectMs)}` : '';
+	return `${rate}${back}`;
+}
 
 const days = ref<Day[]>([]);
 const loading = ref(true);
@@ -161,6 +259,33 @@ definePage(() => ({
 
 	dd {
 		margin: 0;
+	}
+}
+
+.sub {
+	margin: 14px 0 6px;
+	font-size: 0.92em;
+	font-weight: bold;
+}
+
+.scroll {
+	overflow-x: auto;
+}
+
+.table {
+	border-collapse: collapse;
+	font-size: 0.85em;
+	white-space: nowrap;
+
+	th, td {
+		padding: 3px 10px 3px 0;
+		text-align: left;
+		vertical-align: top;
+	}
+
+	thead th {
+		color: var(--MI_THEME-fgTransparentWeak);
+		font-weight: normal;
 	}
 }
 

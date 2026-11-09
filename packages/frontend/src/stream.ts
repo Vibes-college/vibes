@@ -8,6 +8,7 @@ import { markRaw } from 'vue';
 import { $i } from '@/i.js';
 import { wsOrigin } from '@@/js/config.js';
 import { createStreamConnectionStatus } from '@/utility/stream-connection-status.js';
+import { trackStream } from '@/lojo/boot-report.js';
 
 // heart beat interval in ms
 const HEART_BEAT_INTERVAL = 1000 * 60;
@@ -33,6 +34,9 @@ export function useStream(): Misskey.IStream {
 		// 2026-10-31); the default 4 s cut slow attempts off halfway, so reconnecting kept failing.
 		connectionTimeout: 10 * 1000,
 	}));
+
+	// Vibes: how long the live connection takes to connect and how often it drops, for the speed records.
+	trackStream(stream);
 
 	if (timeoutHeartBeat) window.clearTimeout(timeoutHeartBeat);
 	timeoutHeartBeat = window.setTimeout(heartbeat, HEART_BEAT_INTERVAL);

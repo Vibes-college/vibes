@@ -3625,6 +3625,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Vibes: an anonymous record of how the live connection held up while a page was open, sent without the account when the page goes to the background or is closed (see src/misc/lojo-boot-report.ts, ConnReport). Kept only where LOJO_SPEED_FIELDS=on.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/conn-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Write the copy for one of your plans for a note (创作讲解), from your own idea, story, standard and tone, then check it once more against the note. Saved as a draft in your registry (scope lojo/create). Takes about 20 s.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*

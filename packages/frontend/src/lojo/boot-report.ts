@@ -19,6 +19,16 @@ export const FIRST_CONTENT_MARK = 'vibes:first-content';
 
 let sent = false;
 
+// The live connection (stream.ts calls trackStream when it opens one). Speed fields, 2026-11-09: see
+// packages/backend/src/misc/lojo-boot-report.ts; the server keeps them only where LOJO_SPEED_FIELDS=on.
+type StreamEvents = {
+	state: string;
+	on(event: '_connected_' | '_disconnected_', listener: () => void): unknown;
+};
+let wsMs: number | null = null;
+let conn: { visibleSince: number | null; visibleMs: number; drops: number; hiddenDrops: number; reconnectMs: number[]; droppedAt: number | null; sent: number } | null = null;
+const MAX_CONN_REPORTS = 20;
+
 function section(path: string): string {
 	const first = path.split('/')[1] ?? '';
 	if (first === '') return 'home';
@@ -51,6 +61,81 @@ function navigationType(): string {
 	return ['navigate', 'reload', 'back_forward', 'prerender'].includes(type) ? type : 'other';
 }
 
+function isVisible() {
+	return window.document.visibilityState === 'visible';
+}
+
+function paintMs(): number | null {
+	const fcp = performance.getEntriesByName('first-contentful-paint')[0];
+	return fcp != null ? Math.min(Math.round(fcp.startTime), 600000) : null;
+}
+
+function firstByteMs(): number | null {
+	const entry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+	return entry != null && entry.responseStart > 0 ? Math.min(Math.round(entry.responseStart), 600000) : null;
+}
+
+export function trackStream(stream: StreamEvents) {
+	if (conn != null) return;
+	const opened = performance.now();
+	conn = { visibleSince: isVisible() ? opened : null, visibleMs: 0, drops: 0, hiddenDrops: 0, reconnectMs: [], droppedAt: null, sent: 0 };
+	const c = conn;
+	stream.on('_connected_', () => {
+		const now = performance.now();
+		if (wsMs == null) wsMs = Math.min(Math.round(now - opened), 600000);
+		if (c.droppedAt != null && c.reconnectMs.length < 10) c.reconnectMs.push(Math.min(Math.round(now - c.droppedAt), 600000));
+		c.droppedAt = null;
+	});
+	stream.on('_disconnected_', () => {
+		// A drop while the page is in the background is the phone freezing it; it reconnects when the page comes back.
+		if (!isVisible()) {
+			c.hiddenDrops++;
+			return;
+		}
+		c.drops++;
+		c.droppedAt = performance.now();
+	});
+	window.document.addEventListener('visibilitychange', () => {
+		if (isVisible()) {
+			c.visibleSince = performance.now();
+		} else {
+			sendConn(stream);
+		}
+	});
+	window.addEventListener('pagehide', () => sendConn(stream));
+}
+
+// One record per stretch in front: sent when the page goes to the background or is closed, then the counts start over.
+function sendConn(stream: StreamEvents) {
+	const c = conn;
+	if (c == null || c.sent >= MAX_CONN_REPORTS) return;
+	const now = performance.now();
+	if (c.visibleSince != null) c.visibleMs += now - c.visibleSince;
+	c.visibleSince = null;
+	if (c.visibleMs < 1000 && c.drops === 0 && c.hiddenDrops === 0) return;
+	const ua = navigator.userAgent;
+	const report = {
+		os: system(ua),
+		browser: browser(ua),
+		bot: navigator.webdriver === true,
+		visibleSec: Math.min(Math.round(c.visibleMs / 1000), 86400),
+		drops: Math.min(c.drops, 1000),
+		hiddenDrops: Math.min(c.hiddenDrops, 1000),
+		reconnectMs: c.reconnectMs,
+		down: stream.state !== 'connected',
+	};
+	c.sent++;
+	c.visibleMs = 0;
+	c.drops = 0;
+	c.hiddenDrops = 0;
+	c.reconnectMs = [];
+	try {
+		navigator.sendBeacon('/api/lojo/conn-report', new Blob([JSON.stringify(report)], { type: 'application/json' }));
+	} catch {
+		// Not sent: the report is only for statistics.
+	}
+}
+
 function send(bootMs: number) {
 	if (sent) return;
 	sent = true;
@@ -78,6 +163,10 @@ function send(bootMs: number) {
 		contentMs: first != null ? Math.min(Math.round(first.startTime), 600000) : null,
 		keptContent: first != null ? (first.detail as { kept?: boolean } | null)?.kept === true : null,
 		firstApiMs: api.length > 0 ? Math.min(Math.round(Math.min(...api)), 600000) : null,
+		ttfbMs: firstByteMs(),
+		fcpMs: paintMs(),
+		wsMs,
+		bot: navigator.webdriver === true,
 	};
 	try {
 		navigator.sendBeacon('/api/lojo/boot-report', new Blob([JSON.stringify(report)], { type: 'application/json' }));

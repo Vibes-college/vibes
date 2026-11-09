@@ -2973,6 +2973,15 @@ export type paths = {
          */
         post: operations['lojo___boot-report'];
     };
+    '/lojo/conn-report': {
+        /**
+         * lojo/conn-report
+         * @description Vibes: an anonymous record of how the live connection held up while a page was open, sent without the account when the page goes to the background or is closed (see src/misc/lojo-boot-report.ts, ConnReport). Kept only where LOJO_SPEED_FIELDS=on.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___conn-report'];
+    };
     '/lojo/create/copy': {
         /**
          * lojo/create/copy
@@ -29518,6 +29527,90 @@ export interface operations {
                     keptContent?: boolean | null;
                     firstApiMs?: number | null;
                     error?: string | null;
+                    ttfbMs?: number | null;
+                    fcpMs?: number | null;
+                    wsMs?: number | null;
+                    bot?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___conn-report': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    os: 'ios' | 'android' | 'mac' | 'windows' | 'linux' | 'other';
+                    /** @enum {string} */
+                    browser: 'safari' | 'chrome' | 'wechat' | 'xhs' | 'edge' | 'firefox' | 'other';
+                    bot: boolean;
+                    visibleSec: number;
+                    drops: number;
+                    hiddenDrops: number;
+                    reconnectMs: number[];
+                    down: boolean;
                 };
             };
         };

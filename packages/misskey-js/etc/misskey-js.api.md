@@ -2027,6 +2027,7 @@ declare namespace entities {
         LojoAgentPromptRequest,
         LojoAgentPromptResponse,
         LojoBootReportRequest,
+        LojoConnReportRequest,
         LojoCreateCopyRequest,
         LojoCreateCopyResponse,
         LojoCreateImportRequest,
@@ -2957,6 +2958,9 @@ type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses'][
 
 // @public (undocumented)
 type LojoBootReportRequest = operations['lojo___boot-report']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoConnReportRequest = operations['lojo___conn-report']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type LojoCreateCopyRequest = operations['lojo___create___copy']['requestBody']['content']['application/json'];

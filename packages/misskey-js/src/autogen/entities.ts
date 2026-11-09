@@ -493,6 +493,7 @@ export type LojoAgentEnglishResponse = operations['lojo___agent___english']['res
 export type LojoAgentPromptRequest = operations['lojo___agent___prompt']['requestBody']['content']['application/json'];
 export type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses']['200']['content']['application/json'];
 export type LojoBootReportRequest = operations['lojo___boot-report']['requestBody']['content']['application/json'];
+export type LojoConnReportRequest = operations['lojo___conn-report']['requestBody']['content']['application/json'];
 export type LojoCreateCopyRequest = operations['lojo___create___copy']['requestBody']['content']['application/json'];
 export type LojoCreateCopyResponse = operations['lojo___create___copy']['responses']['200']['content']['application/json'];
 export type LojoCreateImportRequest = operations['lojo___create___import']['requestBody']['content']['application/json'];

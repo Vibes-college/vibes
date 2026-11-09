@@ -469,6 +469,7 @@ export * as 'lojo/create/import' from './endpoints/lojo/create/import.js';
 export * as 'lojo/agent/prompt' from './endpoints/lojo/agent/prompt.js';
 export * as 'lojo/boot-report' from './endpoints/lojo/boot-report.js';
 export * as 'lojo/admin/boot-report' from './endpoints/lojo/admin/boot-report.js';
+export * as 'lojo/conn-report' from './endpoints/lojo/conn-report.js';
 export * as 'lojo/tutor/poke' from './endpoints/lojo/tutor/poke.js';
 export * as 'lojo/gates/progress' from './endpoints/lojo/gates/progress.js';
 export * as 'lojo/gates/start' from './endpoints/lojo/gates/start.js';

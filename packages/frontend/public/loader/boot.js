@@ -206,6 +206,7 @@
 				retries: code === 'APP_IMPORT' ? 2 : 0, // APP_IMPORT shows only after two reloads (retryBoot)
 				bootMs: null,
 				error: /^[A-Z_]{1,40}$/.test(code) ? code : 'OTHER',
+				bot: navigator.webdriver === true, // our own automated checks, left out of the figures
 			};
 			if (!['navigate', 'reload', 'back_forward', 'prerender'].includes(report.nav)) report.nav = 'other';
 			navigator.sendBeacon('/api/lojo/boot-report', new Blob([JSON.stringify(report)], { type: 'application/json' }));
