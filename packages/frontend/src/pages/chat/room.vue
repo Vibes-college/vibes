@@ -138,6 +138,9 @@ const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
+// Vibes: AI tutor accounts get "AI 英语老师" under their name.
+const tutorIds = ref<string[]>([]);
+(misskeyApi as unknown as (endpoint: string) => Promise<string[]>)('lojo/tutor/ids').then(ids => { tutorIds.value = ids; }, () => {});
 const room = ref<Misskey.entities.ChatRoom | null>(null);
 const connection = ref<Misskey.IChannelConnection<Misskey.Channels['chatUser']> | Misskey.IChannelConnection<Misskey.Channels['chatRoom']> | null>(null);
 const showIndicator = ref(false);
@@ -483,6 +486,7 @@ definePage(computed(() => {
 				userName: user.value,
 				title: user.value.name ?? user.value.username,
 				avatar: user.value,
+				...(tutorIds.value.includes(user.value.id) ? { subtitle: chatLabels.aiTutor } : {}),
 			};
 		} else if (room.value) {
 			return {

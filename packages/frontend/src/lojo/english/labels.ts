@@ -66,6 +66,8 @@ export const chatLabels = {
 	voicePlay: '播放语音',
 	voiceFailed: '这条语音没放出来，稍后再试。',
 	typing: '正在输入',
+	// Under the tutor's name at the top of the chat: interactive AI services have to say they are AI.
+	aiTutor: 'AI 英语老师',
 } as const;
 
 // 生词本 (pages/lojo/wordbook*.vue): today's reviews, the two review cards and the word list. Chinese first, short

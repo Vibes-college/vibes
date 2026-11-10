@@ -153,7 +153,8 @@ export function applyMemoryUpdate(memory: TutorMemory, update: MemoryUpdate, now
 	};
 }
 
-export type TutorReply = { messages: string[]; voice: boolean };
+// next: in quest mode, the id of the one step she suggests (checked against the list by the caller).
+export type TutorReply = { messages: string[]; voice: boolean; next?: string };
 
 // Chat-app style: one to three short messages.
 export function normalizeTutorReply(raw: unknown): TutorReply {
@@ -164,7 +165,8 @@ export function normalizeTutorReply(raw: unknown): TutorReply {
 		.filter(x => x !== '')
 		.slice(0, 3);
 	if (messages.length === 0) throw new LojoTutorInvalidResponse('no messages');
-	return { messages, voice: r.voice === true };
+	const next = str(r.next, 60);
+	return { messages, voice: r.voice === true, ...(next !== '' ? { next } : {}) };
 }
 
 // When the tutor may write first. Times are milliseconds since the epoch.
@@ -220,6 +222,8 @@ export type TutorPromptContext = {
 	opener?: { reason: string; recentPosts: string[] };
 	// where they are on the route maps with gates (IELTS listening 1.3 …), from LojoGateService.profileText
 	gates?: string | null;
+	// quest mode after a failed level, from questPromptSection (lojo-tutor-quest.ts)
+	quest?: string | null;
 };
 
 export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: TutorPromptContext): string {
@@ -256,9 +260,10 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 			`You are writing first to start a conversation (${ctx.opener.reason}). Send one or two short messages that mention something specific: their goal, where you left off, a gate they just took on the route map, or one of these recent posts on Vibes. Never repeat something you already said in this chat. End with an easy question.`,
 			...ctx.opener.recentPosts.map(post => `Recent post: ${post}`),
 		] : []),
+		...(ctx.quest ? ['', ctx.quest] : []),
 		card.post_history_instructions,
 		'',
-		'Answer in JSON: {"messages": ["..."], "voice": false}',
+		ctx.quest ? 'Answer in JSON: {"messages": ["..."], "voice": false, "next": "<one id from the list, or leave it out>"}' : 'Answer in JSON: {"messages": ["..."], "voice": false}',
 	].filter(line => line !== undefined).join('\n');
 }
 

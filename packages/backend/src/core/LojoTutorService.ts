@@ -20,6 +20,7 @@ import { LojoEnglishService } from '@/core/LojoEnglishService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { LojoGateService } from '@/core/LojoGateService.js';
 import type Logger from '@/logger.js';
+import type { Config } from '@/config.js';
 import { looksEnglish } from '@/misc/lojo-english.js';
 import {
 	applyMemoryUpdate,
@@ -35,12 +36,19 @@ import {
 	proactiveDecision,
 	tutorSystemPrompt,
 } from '@/misc/lojo-tutor.js';
-import type { ProactiveState, TutorCard, TutorMemory } from '@/misc/lojo-tutor.js';
+import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
+import { normalizeQuestKnowledge, normalizeQuestTry, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
+import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 
 const SCOPE = ['lojo', 'tutor'];
 const HISTORY = 24;
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
+// After "Ask Mia" on a failed level, her replies carry that try for two hours; a learner can ask at most 10 times a day.
+const QUEST_TTL_SECONDS = 2 * 60 * 60;
+const QUEST_DAILY = 10;
+
+export type QuestAskResult = 'sent' | 'already' | 'limit' | 'off';
 
 type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
@@ -61,6 +69,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	private logger: Logger;
 
 	constructor(
+		@Inject(DI.config)
+		private config: Config,
 		@Inject(DI.redis)
 		private redisClient: Redis.Redis,
 		@Inject(DI.redisForSub)
@@ -138,15 +148,15 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				}
 				return;
 			}
-			const [card, memory, history, gates] = await Promise.all([
-				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId),
+			const [card, memory, history, gates, quest] = await Promise.all([
+				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
 			]);
 			// Already answered (another attempt got there first).
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
 			if (!(await this.spendBudget())) return;
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates });
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: quest && questPromptSection(quest.knowledge, quest.questTry) });
 			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
-			await this.send(tutor, learner, answer.messages, answer.voice, card.extensions.vibes?.voice);
+			await this.send(tutor, learner, this.withNextLink(answer, quest?.questTry), answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
@@ -256,6 +266,83 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
 		}
+	}
+
+	// "Ask Mia" on a failed level (endpoint lojo/quest/ask-tutor, after it checked the try is the learner's own, submitted
+	// and failed). Not a proactive message: no quiet hours, and it does not use up today's first message.
+	// Returns at once; she shows "typing" and writes within seconds.
+	public async openFromQuest(tutorId: string, learnerId: string, rawTry: unknown): Promise<QuestAskResult> {
+		if (!this.tutors.includes(tutorId)) return 'off';
+		const questTry = normalizeQuestTry(rawTry);
+		if (questTry == null) return 'off';
+		// No quest knowledge on the tutor account means no quest mode (the production tutor has none yet).
+		if ((await this.questKnowledge(tutorId)) == null) return 'off';
+		if (await this.redisClient.set(`lojoTutor:questOnce:${tutorId}:${questTry.attemptId}`, '1', 'EX', 3 * 24 * 60 * 60, 'NX') !== 'OK') return 'already';
+		const asked = await this.count(`lojoTutor:questAsks:${tutorId}:${learnerId}:${localDay(new Date(), this.tz)}`);
+		if (asked > QUEST_DAILY) return 'limit';
+		await this.redisClient.set(this.questKey(tutorId, learnerId), JSON.stringify(questTry), 'EX', QUEST_TTL_SECONDS);
+		this.writeForQuest(tutorId, learnerId).catch(err => this.logger.warn(`quest message to ${learnerId} failed: ${err}`));
+		return 'sent';
+	}
+
+	private async writeForQuest(tutorId: string, learnerId: string, attempt = 1): Promise<void> {
+		// Another reply may be on its way (the learner just wrote); try again shortly instead of talking over it.
+		if (await this.redisClient.set(`lojoTutor:replying:${tutorId}:${learnerId}`, '1', 'EX', 120, 'NX') !== 'OK') {
+			if (attempt < 4) setTimeout(() => this.writeForQuest(tutorId, learnerId, attempt + 1).catch(err => this.logger.warn(`quest message failed: ${err}`)), 8000);
+			return;
+		}
+		try {
+			if (!(await this.spendBudget())) return;
+			const [tutor, learner] = await Promise.all([
+				this.usersRepository.findOneByOrFail({ id: tutorId }),
+				this.usersRepository.findOneByOrFail({ id: learnerId }),
+			]);
+			const [card, memory, history, gates, quest] = await Promise.all([
+				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
+			]);
+			if (quest == null) return;
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: questPromptSection(quest.knowledge, quest.questTry) });
+			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
+			const cue = '(The learner just failed this level and tapped "Ask Mia". Write first now, in quest mode as described above.)';
+			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
+				? [...history.slice(0, -1), { role: 'user', content: `${history.at(-1)!.content}\n${cue}` }]
+				: [...history, { role: 'user', content: cue }];
+			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply));
+			await this.send(tutor, learner, this.withNextLink(answer, quest.questTry), answer.voice, card.extensions.vibes?.voice);
+			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
+		} finally {
+			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
+		}
+	}
+
+	// The try from "Ask Mia" in the last two hours, with the quest knowledge; null outside quest mode.
+	private async questContext(tutorId: string, learnerId: string): Promise<{ knowledge: QuestKnowledge; questTry: QuestTry } | null> {
+		try {
+			const raw = await this.redisClient.get(this.questKey(tutorId, learnerId));
+			if (raw == null) return null;
+			const questTry = normalizeQuestTry(JSON.parse(raw));
+			const knowledge = questTry && await this.questKnowledge(tutorId);
+			return questTry && knowledge ? { knowledge, questTry } : null;
+		} catch (err) {
+			this.logger.warn(`quest context failed: ${err}`);
+			return null;
+		}
+	}
+
+	private async questKnowledge(tutorId: string): Promise<QuestKnowledge | null> {
+		const item = await this.registryApiService.getItem(tutorId, null, SCOPE, 'quest');
+		return item ? normalizeQuestKnowledge(item.value) : null;
+	}
+
+	// The app writes the link for the step she chose, so it always opens; a step not on the list is dropped.
+	private withNextLink(answer: TutorReply, questTry: QuestTry | undefined): string[] {
+		const line = questTry ? questNextLine(questTry, answer.next, this.config.url) : null;
+		if (line == null) return answer.messages;
+		return [...answer.messages.slice(0, -1), `${answer.messages.at(-1)}\n${line}`];
+	}
+
+	private questKey(tutorId: string, learnerId: string): string {
+		return `lojoTutor:quest:${tutorId}:${learnerId}`;
 	}
 
 	// The learning record from the route map; a failure here only leaves it out of the prompt.
