@@ -236,7 +236,8 @@ async function stop(): Promise<void> {
 	ended = true;
 	stopSpeaking(`${uid}:`);
 	await writes;
-	os.toast(wordbookLabels.stopped(done.value));
+	// from 闯关 the result page shows the heart line instead; a toast there covered it
+	if (questFrom(router.getCurrentFullPath()) == null) os.toast(wordbookLabels.stopped(done.value));
 	reportSet();
 	emit('finish', null, 'today');
 }
