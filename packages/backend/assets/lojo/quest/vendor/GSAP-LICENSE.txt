@@ -1,0 +1,7 @@
+GSAP 3.12.5 (gsap.min.js), copied unchanged.
+Source: https://gsap.com  (npm package "gsap" 3.12.5, dist/gsap.min.js)
+Copyright 2024, GreenSock. All rights reserved.
+
+License: GSAP standard 'no charge' license, https://gsap.com/standard-license
+GSAP is not under AGPL-3.0. This file is shipped next to the 闯关 page as a third-party
+library under its own license; the rest of this folder follows the repository's AGPL-3.0-only.

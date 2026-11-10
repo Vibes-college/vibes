@@ -89,6 +89,7 @@ import { typingLabels, typingLang } from '@/lojo/typing/labels.js';
 import { loadEnglishStatus } from '@/lojo/english/api.js';
 import * as os from '@/os.js';
 import { definePage } from '@/page.js';
+import { reportQuestSet } from '@/lojo/quest-refill.js';
 
 type View =
 	| { kind: 'line' }
@@ -178,6 +179,9 @@ function onFinish(result: StopTry) {
 		best: { pass: result.pass, score: result.score, total: result.total, acc: result.acc, wpm: result.wpm },
 	});
 	if (newPass) justLit.value = result.stop;
+	// 闯关 · 装备补心: a long-sentence stop (each counts 2) and the mock (a whole passage) count as a set of 10.
+	const now = Date.now();
+	reportQuestSet('typing', `stop:${stop.id}`, stop.kind === 'mock' ? 10 : stop.kind === 'listen' ? stop.rows.length : stop.kind === 'copy' && stop.need == null ? stop.items.length * 2 : stop.items.length, now - result.ms, now);
 	void saveTypingProgress().catch(() => { /* said on the line; the next save takes it along */ });
 	void show({ kind: 'result', stop, result, newPass, newAll });
 }

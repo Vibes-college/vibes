@@ -69,6 +69,7 @@ import { durationMs } from '@/lojo/english/review.js';
 import { wordbookLabels } from '@/lojo/english/labels.js';
 import { speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
 import * as os from '@/os.js';
+import { reportQuestSet } from '@/lojo/quest-refill.js';
 
 const props = defineProps<{
 	// today's queue as the page last fetched it, and when
@@ -207,6 +208,7 @@ async function refill(): Promise<void> {
 		} else {
 			minutes.value = Math.max(1, Math.round((Date.now() - startedAt) / 60000));
 			phase.value = 'done';
+			reportSet();
 		}
 	} catch {
 		if (!isOver()) phase.value = 'failed';
@@ -215,6 +217,17 @@ async function refill(): Promise<void> {
 
 /* ---------- ending ---------- */
 
+// 闯关 · 装备补心: once per session, at the end or on a stop; the server counts the reviews saved in this time.
+let reported = false;
+
+function reportSet(): void {
+	if (reported || done.value === 0) return;
+	reported = true;
+	const d = new Date(startedAt);
+	const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	reportQuestSet('wordbook', `wb:${day}:${startedAt}`, done.value, startedAt);
+}
+
 // ✕ or Esc in the middle: what was answered is saved already.
 async function stop(): Promise<void> {
 	if (ended) return;
@@ -222,6 +235,7 @@ async function stop(): Promise<void> {
 	stopSpeaking(`${uid}:`);
 	await writes;
 	os.toast(wordbookLabels.stopped(done.value));
+	reportSet();
 	emit('finish', null, 'today');
 }
 

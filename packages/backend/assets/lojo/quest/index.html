@@ -1,0 +1,280 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>闯关 · Vibes</title>
+<!-- 动画：GSAP 3.12.5 本地副本（GSAP 标准免费许可，见 vendor/GSAP-LICENSE.txt）。音效：Kenney，CC0，见 sounds/ 里的许可文件。 -->
+<link rel="stylesheet" href="./quest.css?v=1">
+<script src="./vendor/gsap.min.js?v=3.12.5"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- 顶栏：Logo · 连胜火苗 · 冻结卡 · 心 · 声音 -->
+  <div class="top">
+    <div class="logo">v<i>i</i>bes</div>
+    <div class="sp"></div>
+    <button class="chip flame" id="streakChip" title="连胜">
+      <svg id="flameSvg" width="16" height="18" viewBox="0 0 16 18"><path d="M8 1c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z" fill="#E8603F" stroke="#141E52" stroke-width="1.3"/></svg>
+      <span id="streakN">0</span>
+    </button>
+    <button class="chip frz" id="frzChip" title="连胜冻结卡">
+      <svg width="15" height="15" viewBox="0 0 16 16"><g stroke="#2B6FA3" stroke-width="1.8" stroke-linecap="round"><path d="M8 1v14M2 4.5l12 7M2 11.5l12-7"/></g></svg>
+      <span id="frzN">0</span><small style="font-size:10px;opacity:.7">/2</small>
+    </button>
+    <div class="chip" id="heartChip"><div class="hearts" id="hearts"></div><span id="heartT"></span><button id="refillChip" title="补心">+</button></div>
+    <button class="snd" id="sndBtn" title="声音">🔊</button>
+  </div>
+
+  <!-- 第一章：分叉地图（点和路都由服务器给） -->
+  <div id="mapwrap">
+    <svg id="map" viewBox="0 0 390 560" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <radialGradient id="fogG"><stop offset="0" stop-color="#F6F1E7" stop-opacity="1"/><stop offset=".7" stop-color="#F6F1E7" stop-opacity=".85"/><stop offset="1" stop-color="#F6F1E7" stop-opacity="0"/></radialGradient>
+        <filter id="gray"><feColorMatrix type="saturate" values="0"/></filter>
+      </defs>
+      <path d="M-10 365 C 60 350, 120 380, 200 368 S 320 345, 400 360" fill="none" stroke="#BFD7E6" stroke-width="12" stroke-linecap="round" opacity=".5"/>
+      <path d="M20 130 q30 -18 60 0 t60 0" fill="none" stroke="#d8ccb4" stroke-width="1.4"/>
+      <path d="M250 500 q24 -14 48 0 t48 0" fill="none" stroke="#d8ccb4" stroke-width="1.4"/>
+      <g id="edges"></g>
+      <g id="nodes"></g>
+      <g id="ch2">
+        <ellipse cx="195" cy="52" rx="200" ry="62" fill="url(#fogG)"/>
+        <g opacity=".35"><circle cx="120" cy="44" r="9" fill="none" stroke="#a99e88" stroke-width="1.5"/><circle cx="175" cy="30" r="9" fill="none" stroke="#a99e88" stroke-width="1.5"/><circle cx="240" cy="42" r="9" fill="none" stroke="#a99e88" stroke-width="1.5"/><path d="M120 44 Q150 30 175 30 T240 42" fill="none" stroke="#a99e88" stroke-dasharray="2 5" stroke-width="2"/></g>
+        <text x="195" y="72" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="14" fill="#6E7088">第二章 · 还在画</text>
+      </g>
+      <g transform="translate(345 26)" opacity=".8">
+        <rect x="-14" y="-2" width="28" height="16" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3"/>
+        <path d="M-17 -1 L0 -11 L17 -1Z" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3" stroke-linejoin="round"/>
+        <line x1="0" y1="-11" x2="0" y2="-22" stroke="#141E52" stroke-width="1.3"/><path id="flag" d="M0 -22 l10 3 l-10 3z" fill="#E8603F"/>
+        <text x="0" y="27" text-anchor="middle" font-size="9.5" font-weight="800" fill="#141E52" font-family="PingFang SC,sans-serif">考场</text>
+      </g>
+      <g class="nd" id="lm-guild" transform="translate(338 512)">
+        <path d="M-24 14 L-11 -8 L2 14 Z" fill="#ECB637" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M0 14 L12 -3 L24 14 Z" fill="#CFE6DA" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/>
+        <text class="lab" x="0" y="30" text-anchor="middle">公会 · 本周榜</text>
+      </g>
+      <g id="pracNote" transform="translate(14 500)"></g>
+      <g id="pinPos"><g id="pin">
+        <path d="M0 -26 c-6 -10 -20 -6 -16 6 c2 6 10 11 16 16 c6 -5 14 -10 16 -16 c4 -12 -10 -16 -16 -6z" fill="#E8603F" stroke="#141E52" stroke-width="1.8" stroke-linejoin="round"/>
+        <ellipse cx="0" cy="2" rx="8" ry="2.5" fill="#141E52" opacity=".18"/>
+      </g></g>
+    </svg>
+  </div>
+
+  <div class="dock">
+    <div id="mia">
+      <svg class="mia-face" id="miaFace" viewBox="0 0 46 46">
+        <rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/>
+        <path id="miaHeart" d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/>
+        <rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/>
+        <g id="miaEyes"><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></g>
+      </svg>
+      <div class="bubble" id="miaSay"></div>
+    </div>
+    <div class="today"><h3 id="todayH"></h3><span id="todayS"></span><em id="todayE"></em></div>
+    <button class="go" id="go">出发</button>
+    <div class="fine"><span>练习难度，不是官方分数</span><button class="lb" id="boardBtn">本周</button></div>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet"><button class="close" data-close>✕</button><div id="sheetBody"></div></div>
+
+  <svg id="ink" viewBox="0 0 390 844" preserveAspectRatio="none"><circle id="inkC" cx="195" cy="420" r="0" fill="#141E52"/><circle id="inkC2" cx="195" cy="420" r="0" fill="#FFFDF8"/></svg>
+
+  <!-- 关卡 -->
+  <div id="quiz" class="scene">
+    <div class="qtop"><button id="qBack" style="font-size:20px" title="回地图">✕</button><div class="bar"><i id="qbar"></i></div><div class="hearts" id="qHearts"></div></div>
+    <div class="qtag" id="qTag"></div>
+    <div class="qdots" id="qDots"></div>
+    <div class="hint" id="qHint"></div>
+    <div class="passage" id="qPass"></div>
+    <div class="stmt" id="qStmt"></div>
+    <div class="opts" id="qOpts"></div>
+    <div class="qex" id="qEx"><div id="qExT"></div><button class="btn2" id="qNext">下一题</button></div>
+    <div class="qfoot" style="padding-top:12px">示例题，是我们自己编的 · 练习难度，不是官方分数</div>
+    <div class="stamp" id="stamp">过<small></small></div>
+  </div>
+
+  <div class="pop" id="fail">
+    <h4 id="failH">这关没过</h4>
+    <p id="failP"></p>
+    <div class="review" id="failReview"></div>
+    <button class="btn2 coral" id="failMia">问 Mia<small>她看得到你错在哪</small></button>
+    <button class="btn2" id="failShelf">去书屋</button>
+    <button class="btn2 line" id="failGear">去装备练一组</button>
+    <button class="btn3" id="failRetry">再打一次</button>
+    <button class="btn3" id="failMap">回地图</button>
+  </div>
+
+  <!-- Boss -->
+  <div id="boss" class="scene">
+    <div class="qtop"><button id="bBack" style="font-size:20px" title="回地图">✕</button><div class="bhp" id="bhp"></div><div class="hearts" id="bHearts"></div></div>
+    <svg id="bossFig" viewBox="0 0 150 150">
+      <ellipse cx="75" cy="140" rx="46" ry="6" fill="#000" opacity=".25"/>
+      <g id="bossBody">
+        <path d="M30 136 Q24 70 75 48 Q126 70 120 136Z" fill="#2340A3" stroke="#FFFDF8" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M44 30 L75 12 L106 30 L96 38 L54 38Z" fill="#ECB637" stroke="#FFFDF8" stroke-width="2.5" stroke-linejoin="round"/>
+        <g id="bossCard"><rect x="40" y="56" width="70" height="44" rx="8" fill="#FFFDF8" stroke="#141E52" stroke-width="2"/>
+          <text id="bossWord" x="75" y="84" text-anchor="middle" font-family="Georgia,serif" font-size="17" font-weight="700" fill="#141E52">rise</text></g>
+        <circle cx="60" cy="114" r="4" fill="#FFFDF8"/><circle cx="90" cy="114" r="4" fill="#FFFDF8"/>
+        <path id="bossMouth" d="M64 126 Q75 132 86 126" fill="none" stroke="#FFFDF8" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <div class="bname" id="bName">Boss</div>
+    <div class="brule" id="bRule"></div>
+    <div class="qtag" style="justify-content:center"><span class="demo">示例题</span></div>
+    <div class="stmt" id="bStmt"></div>
+    <div class="opts" id="bOpts"></div>
+    <div class="qex" id="bEx"><div id="bExT"></div><button class="btn2" id="bNext">下一题</button></div>
+    <div class="qfoot" style="padding-top:12px">示例题，是我们自己编的 · 练习难度，不是官方分数</div>
+  </div>
+
+  <div class="pop" id="bossLose">
+    <h4 id="bossLoseH">Boss 赢了这一局</h4>
+    <p id="bossLoseP"></p>
+    <div class="review" id="bossReview"></div>
+    <button class="btn2 coral" id="bossMia">问 Mia<small>她看得到你错在哪</small></button>
+    <button class="btn2" id="bossRetry">再打一次</button>
+    <button class="btn3" id="bossQuit">回地图</button>
+  </div>
+
+  <!-- 书屋 = 社区「攻略」板块里的一间屋子 -->
+  <div id="shelf">
+    <div id="lightSpill"></div>
+    <div class="door l"><div class="sign">锦囊</div><div class="knob"></div></div><div class="door r"><div class="knob"></div><div class="sign">书屋</div></div>
+    <div class="shelfhead"><div class="crumb"><button id="shelfBack">‹ 回去</button><u>社区</u> · <u>攻略</u></div><h2>锦囊书屋</h2><p id="shelfSub"></p></div>
+    <div class="rowlab" style="top:128px" id="row1Lab">第一章</div>
+    <div class="row" id="row1" style="top:144px"></div>
+    <div class="rowlab" style="top:380px">第二章 · 还在写</div>
+    <div class="row" id="row2" style="top:394px;height:150px"></div>
+    <div id="shelfMia">
+      <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
+      <div class="bubble" id="shelfSay"></div>
+    </div>
+    <div id="bag">
+      <svg viewBox="0 0 70 70"><path d="M24 16 q0 -12 11 -12 q11 0 11 12" fill="none" stroke="#141E52" stroke-width="3.5" stroke-linecap="round"/>
+        <path d="M10 22 q0 -6 6 -6 h38 q6 0 6 6 v34 q0 10 -10 10 h-30 q-10 0 -10 -10z" fill="#2340A3" stroke="#141E52" stroke-width="2.5"/>
+        <g id="bagFlap"><path d="M10 22 q0 -6 6 -6 h38 q6 0 6 6 v10 q-25 12 -50 0z" fill="#E8603F" stroke="#141E52" stroke-width="2.5" stroke-linejoin="round"/>
+        <rect x="31" y="32" width="8" height="9" rx="2" fill="#ECB637" stroke="#141E52" stroke-width="2"/></g>
+        <path d="M18 50 h34" stroke="#FFFDF8" stroke-width="2" stroke-dasharray="3 4" opacity=".5"/></svg>
+      <div id="bagN"><div class="roll"><span>0</span><span>1</span><span>2</span><span>3</span></div></div>
+      <div id="bagLab">背包</div>
+    </div>
+    <div id="book">
+      <div class="page">
+        <div class="pbar"><span class="plogo">v<i>i</i>bes</span><span class="pall">锦囊</span></div>
+        <div class="pcrumb"><u>攻略</u> › 锦囊 · <span id="bCh"></span></div>
+        <h3 id="bt"></h3>
+        <p class="sum" id="bw"></p>
+        <h5>现在就做</h5><div class="pc" id="ba"></div>
+        <h5>去哪验证</h5><div class="pc" id="bl"></div>
+        <div class="pk" id="bk"></div>
+      </div>
+      <div class="cover"><div class="ck" id="cK"></div><div class="ct" id="cT"></div><div class="cs">Vibes 锦囊</div></div>
+    </div>
+    <div id="bookBar">
+      <button class="btn2 coral" id="chkBtn">做小验证补心<small>3 题，对 2 题补 1 颗心</small></button>
+      <div class="two"><button class="btn2" id="takeBtn">带上它</button><button class="btn2 line" id="putBack">放回书架</button></div>
+    </div>
+    <div id="chk"><div class="hd"><span id="chkN"></span><span class="dots"><i></i><i></i><i></i></span></div>
+      <div id="chkQ"></div><div id="chkOpts"></div><div id="chkRes"></div><div id="chkBtns"></div></div>
+    <div id="bagPanel"></div>
+  </div>
+
+  <!-- 首胜宝箱 -->
+  <div class="overlay" id="chestOv">
+    <div class="ovcard">
+      <h4>今日首胜宝箱</h4><div class="sub">每天第一次过关，开一个</div>
+      <svg id="chestSvg" viewBox="0 0 150 130">
+        <g id="rays" opacity="0"><g stroke="#ECB637" stroke-width="5" stroke-linecap="round">
+          <path d="M75 40 V6"/><path d="M75 40 L40 14"/><path d="M75 40 L110 14"/><path d="M75 40 L24 40"/><path d="M75 40 L126 40"/></g></g>
+        <g id="chestBox">
+          <rect x="30" y="62" width="90" height="56" rx="6" fill="#E8603F" stroke="#141E52" stroke-width="2.5"/>
+          <rect x="68" y="62" width="14" height="56" fill="#ECB637" stroke="#141E52" stroke-width="2"/>
+          <g id="lid"><path d="M28 64 Q28 34 75 34 Q122 34 122 64 Z" fill="#F27A55" stroke="#141E52" stroke-width="2.5" stroke-linejoin="round"/>
+            <rect x="68" y="35" width="14" height="29" fill="#ECB637" stroke="#141E52" stroke-width="2"/>
+            <rect x="69" y="56" width="12" height="14" rx="2" fill="#FFFDF8" stroke="#141E52" stroke-width="2"/></g>
+        </g>
+      </svg>
+      <div class="loot" id="loot"></div>
+      <button class="btn2 coral" id="chestOk" style="margin-top:12px">收下</button>
+    </div>
+  </div>
+
+  <!-- 冻结卡 -->
+  <div class="overlay" id="frzOv">
+    <div class="ovcard">
+      <h4 id="frzH">送你 1 张冻结卡</h4><div class="sub" id="frzSub"></div>
+      <svg id="frzBig" viewBox="0 0 110 110"><rect x="18" y="8" width="74" height="94" rx="12" fill="#E3F0FA" stroke="#2B6FA3" stroke-width="2.5"/>
+        <g stroke="#2B6FA3" stroke-width="4" stroke-linecap="round"><path d="M55 30v50M33 42l44 26M33 68l44-26"/></g></svg>
+      <div class="slots"><div class="slot" id="slot1"></div><div class="slot" id="slot2"></div></div>
+      <div class="sub">漏一天会自动用掉一张，连胜不断。<br>只能靠打出来，不卖；最多存 2 张。</div>
+      <button class="btn2" id="frzOk" style="margin-top:12px">好</button>
+    </div>
+  </div>
+
+  <!-- Boss 打赢 -->
+  <div class="overlay" id="winOv">
+    <div class="ovcard">
+      <h4>Boss 倒了！</h4><div class="sub" id="winSub"></div>
+      <div class="loot" id="winLoot"></div>
+      <button class="btn2 coral" id="winOk" style="margin-top:12px">回地图</button>
+    </div>
+  </div>
+
+  <!-- 备战清零 -->
+  <div id="resetOv">
+    <h4>连输 2 次 · 备战清零</h4>
+    <p>锦囊、装备、情报要重新备齐，Boss 门才会再开</p>
+    <div class="prep3">
+      <div class="pcard"><span class="e">📕</span>锦囊<span class="ck">✓</span></div>
+      <div class="pcard"><span class="e">🎧</span>装备<span class="ck">✓</span></div>
+      <div class="pcard"><span class="e">📰</span>情报<span class="ck">✓</span></div>
+    </div>
+  </div>
+
+  <!-- 心不够：两条补心路 + 等回满 -->
+  <div id="empty">
+    <svg id="bigHeart" viewBox="0 0 110 100"><g id="bhL"><path d="M55 22 c-8 -18 -48 -14 -44 12 c3 18 26 32 44 50 l-6 -20 l8 -10 l-6 -12 l4 -20z" fill="#E9E1D2" stroke="#141E52" stroke-width="2.5" stroke-linejoin="round"/></g>
+      <g id="bhR"><path d="M55 22 c8 -18 48 -14 44 12 c-3 18 -26 32 -44 50 l-6 -20 l8 -10 l-6 -12 l4 -20z" fill="#E9E1D2" stroke="#141E52" stroke-width="2.5" stroke-linejoin="round"/></g></svg>
+    <h2 id="emptyH">心打光了</h2>
+    <div class="sub" id="emptySub"></div>
+    <button class="way" id="refillShelf"><span class="wi">📕</span><span><b>读一个锦囊 + 3 题小验证</b><small>对 2 题补 1 颗心 · 每天一次 · 顺手给备战「锦囊」打勾</small></span><span class="plus">+1 ❤</span></button>
+    <button class="way" id="refillGear"><span class="wi">🎧</span><span><b id="gearWayT">去装备练一组</b><small>练完一组（10 题以上、2 分钟以上）补 1 颗心，每天一次</small></span><span class="plus">+1 ❤</span></button>
+    <button class="way wait" id="waitBtn"><span class="wi">🌙</span><span><b id="waitT"></b><small>还有 <span id="wakeT">--:--:--</span> · 每天 8:00、20:00 各回满一次</small></span></button>
+    <div class="sub" id="emptyNote">情报不补心 · 心不卖 · 最多 5 颗</div>
+    <button class="btn2" id="emptyBack">回地图</button>
+  </div>
+
+  <!-- 加载中 -->
+  <div class="full" id="loader" style="display:flex">
+    <svg id="loadSvg" viewBox="0 0 220 130">
+      <path d="M20 112 C 60 112, 50 70, 95 72 S 150 40, 125 26 S 180 6, 200 18" fill="none" stroke="#cbbfa8" stroke-width="2.6" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <path id="loadInk" d="M20 112 C 60 112, 50 70, 95 72 S 150 40, 125 26 S 180 6, 200 18" fill="none" stroke="#141E52" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="20" cy="112" r="5" fill="#141E52"/>
+      <g transform="translate(200 18)"><rect x="-10" y="-1" width="20" height="12" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3"/><path d="M-12 0 L0 -8 L12 0Z" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3" stroke-linejoin="round"/></g>
+    </svg>
+    <h2>正在铺地图…</h2>
+    <p>把你走过的路一笔一笔画回来</p>
+  </div>
+
+  <!-- 出错 -->
+  <div class="full" id="errScr">
+    <svg viewBox="0 0 46 46" width="76" height="76"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E9E1D2"/><rect x="20" y="24" width="6" height="13" rx="3" fill="#F6F1E7"/><g stroke="#F6F1E7" stroke-width="2" stroke-linecap="round"><path d="M11 24l6 4M17 24l-6 4M29 24l6 4M35 24l-6 4"/></g></svg>
+    <h2>地图没铺出来</h2>
+    <p id="errP">网卡了一下，或者我们这边出了点小问题。<br>你的进度、连胜和心都存着，不会丢。</p>
+    <button class="btn2 coral" id="errRetry" style="margin-top:18px;max-width:300px">再试一次</button>
+    <button class="btn3" id="errHome" style="max-width:300px">先去社区逛逛</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+<script src="./quest.js?v=1"></script>
+</body>
+</html>

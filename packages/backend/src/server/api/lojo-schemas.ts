@@ -548,3 +548,14 @@ export const lojoCreateDraftRes = {
 		updatedAt: { type: 'string', ...req, format: 'date-time' },
 	},
 } as const;
+
+// 闯关 (lojo/quest/*)
+export const lojoQuestErrors = {
+	noSuchLevel: { message: 'No such level.', code: 'NO_SUCH_LEVEL', id: '0f7b0d39-6a4e-4d0c-9a51-6f0f1b3c2a11' },
+	levelLocked: { message: 'This level is not open yet.', code: 'LEVEL_LOCKED', id: '7c2e8f61-3b4a-4f0e-8d2c-1a9e5b6c7d22' },
+	noHearts: { message: 'No hearts left. Earn one back or wait for the next refill.', code: 'NO_HEARTS', id: 'b3d1e2f4-5a6b-4c7d-8e9f-0a1b2c3d4e33' },
+	bossNotReady: { message: 'The Boss needs a guide, a gear set and a timeline post first.', code: 'BOSS_NOT_READY', id: 'c4e2f3a5-6b7c-4d8e-9f0a-1b2c3d4e5f44' },
+	noSuchAttempt: { message: 'No such try, or it has ended.', code: 'NO_SUCH_ATTEMPT', id: 'd5f3a4b6-7c8d-4e9f-a01b-2c3d4e5f6a55' },
+	wrongQuestion: { message: 'Answer the questions in order.', code: 'WRONG_QUESTION', id: 'e6a4b5c7-8d9e-4fa0-b12c-3d4e5f6a7b66' },
+	noSuchBook: { message: 'No such guide in the bookshop.', code: 'NO_SUCH_BOOK', id: 'f7b5c6d8-9eaf-40b1-c23d-4e5f6a7b8c77' },
+} as const;

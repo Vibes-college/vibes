@@ -54,6 +54,16 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/maps.vue')),
 	loginRequired: true,
 }, {
+	// 闯关: the chapter map game (map, levels, 书屋, hearts, Boss). ?book=<slug> opens a book, ?level=<id> a level.
+	name: 'lojo-quest',
+	path: '/quest',
+	component: page(() => import('@/pages/lojo/quest.vue')),
+	loginRequired: true,
+	query: {
+		book: 'book',
+		level: 'level',
+	},
+}, {
 	// 生词本: expressions saved from the English explanations under posts.
 	name: 'lojo-wordbook',
 	path: '/wordbook',

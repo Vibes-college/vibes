@@ -1,0 +1,32 @@
+闯关 · 音效出处（全部 CC0 1.0，可商用，不用署名；这里照样写明出处）
+Sound credits for the 闯关 page. All files: Kenney (www.kenney.nl), CC0 1.0
+http://creativecommons.org/publicdomain/zero/1.0/  — the four pack license texts are in this folder.
+Only changes: .ogg converted to .mp3, volume adjusted.
+
+file            pack                                              original file
+tap.mp3         Interface Sounds  https://kenney.nl/assets/interface-sounds   click_001.ogg
+open.mp3        Interface Sounds                                  open_002.ogg
+stamp.mp3       Interface Sounds                                  drop_002.ogg
+pass.mp3        Interface Sounds                                  confirmation_002.ogg
+fail.mp3        Interface Sounds                                  error_004.ogg
+heartbreak.mp3  Interface Sounds                                  glass_002.ogg
+whoosh.mp3      Interface Sounds                                  maximize_003.ogg
+scratch.mp3     Interface Sounds                                  scratch_002.ogg
+freeze.mp3      Interface Sounds                                  glass_004.ogg
+warn.mp3        Interface Sounds                                  question_002.ogg
+tick.mp3        Interface Sounds                                  tick_002.ogg
+lighton.mp3     Interface Sounds                                  switch_002.ogg
+heartup.mp3     Digital Audio     https://kenney.nl/assets/digital-audio      powerUp2.ogg
+reset.mp3       Digital Audio                                     spaceTrash3.ogg
+bosshit.mp3     Digital Audio                                     lowThreeTone.ogg
+chest.mp3       Music Jingles     https://kenney.nl/assets/music-jingles      Pizzicato/jingles_PIZZI03.ogg
+milestone.mp3   Music Jingles                                     Steel/jingles_STEEL08.ogg
+lose.mp3        Music Jingles                                     8-Bit/jingles_NES09.ogg
+latch.mp3       RPG Audio         https://kenney.nl/assets/rpg-audio          metalLatch.ogg
+dooropen.mp3    RPG Audio                                         doorOpen_1.ogg
+bookslide.mp3   RPG Audio                                         bookPlace2.ogg
+bookclose.mp3   RPG Audio                                         bookClose.ogg
+bookflip.mp3    RPG Audio                                         bookFlip2.ogg
+bagin.mp3       RPG Audio                                         dropLeather.ogg
+
+The page also synthesises a few short tones with WebAudio at runtime (no audio file).

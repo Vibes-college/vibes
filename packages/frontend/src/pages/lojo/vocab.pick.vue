@@ -22,6 +22,7 @@ modes, each with its last result on this device. -->
 			<i v-if="c.color" :style="{ background: c.color }" aria-hidden="true"></i>{{ c.label }}<b>{{ c.count }}</b>
 		</button>
 	</div>
+	<p :class="$style.questHint">练整站（10 个词以上）可以补心</p>
 	<label :class="$style.switch">
 		<input type="checkbox" :checked="vocabPrefs.shuffle" data-shuffle @change="onShuffle">
 		<span :class="$style.sw" aria-hidden="true"></span>
@@ -111,6 +112,12 @@ function onShuffle(ev: Event) {
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-bottom: 10px;
+}
+
+.questHint {
+	margin: -4px 0 10px;
+	font-size: 12px;
+	color: var(--MI_THEME-fgTransparentWeak);
 }
 
 .chip {

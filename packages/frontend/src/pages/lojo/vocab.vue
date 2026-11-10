@@ -118,7 +118,7 @@ import { findStop, gatePath, vocabContent } from '@/lojo/vocab/content.js';
 import { learnedOf, missedOf } from '@/lojo/vocab/record.js';
 import { flushVocabProgress, progressLoad, recordWord, saveFailed, syncVocabProgress, vocabProgress } from '@/lojo/vocab/progress.js';
 import { saveLastRun, setPref, vocabPrefs } from '@/lojo/vocab/prefs.js';
-import { groupOf, scopeWords, shuffled } from '@/lojo/vocab/round.js';
+import { doneCount, groupOf, scopeWords, shuffled } from '@/lojo/vocab/round.js';
 import { stopWordAudio, unlockWordAudio } from '@/lojo/vocab/audio.js';
 import { vocabLabels as L } from '@/lojo/vocab/labels.js';
 import { typingAccuracy, wordsPerMinute } from '@/lojo/vocab/spell.js';
@@ -127,6 +127,7 @@ import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
 import { useOnScreen } from '@/lojo/typing/screen.js';
 import * as os from '@/os.js';
 import { definePage } from '@/page.js';
+import { reportQuestSet } from '@/lojo/quest-refill.js';
 
 const props = defineProps<{
 	stop: string;
@@ -249,6 +250,9 @@ async function onFinish(end: RoundEnd) {
 		saveLastRun(s.id, r.mode, { acc: typingAccuracy(end.keys, end.errs), wpm: wordsPerMinute(end.done, end.typedMs), at: Date.now() });
 	}
 	void flushVocabProgress().catch(() => { /* said on the stop; the next write takes them along */ });
+	// 闯关 · 装备补心: a left-early round counts too; the server wants 10 words and 2 minutes.
+	const now = Date.now();
+	reportQuestSet('vocab', `${s.id}:${scope.value}:${r.mode}`, doneCount(end), now - end.ms, now);
 	round.value = null;
 	summary.value = { round: r, end };
 	toTop();

@@ -22,6 +22,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA v-tooltip.noDelay.right="lojoLabels.map" :class="$style.item" :activeClass="$style.active" :aria-label="lojoLabels.map" to="/map">
 				<i :class="$style.itemIcon" class="ti ti-road ti-fw"></i><span :class="$style.itemText">{{ lojoLabels.map }}</span>
 			</MkA>
+			<MkA v-if="$i != null" v-tooltip.noDelay.right="'闯关'" :class="$style.item" :activeClass="$style.active" aria-label="闯关" to="/quest">
+				<i :class="$style.itemIcon" class="ti ti-flag-3 ti-fw"></i><span :class="$style.itemText">闯关</span>
+			</MkA>
 			<MkA v-tooltip.noDelay.right="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 			</MkA>

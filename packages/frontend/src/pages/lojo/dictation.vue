@@ -89,6 +89,7 @@ import { guideTitle } from '@/lojo/gates/api.js';
 import { coursePath } from '@/lojo/route/my-maps.js';
 import { definePage } from '@/page.js';
 import { useRouter } from '@/router.js';
+import { reportQuestSet } from '@/lojo/quest-refill.js';
 
 const props = defineProps<{
 	// from a gate's result: its attempt, and the tag of the card that was opened
@@ -243,6 +244,7 @@ function onNext() {
 		prefetch(index.value + 1);
 	} else {
 		r.endedAt = Date.now();
+		reportQuestSet('dictation', `${r.kind}:${r.setId ?? 'mixed'}`, r.results.length, r.startedAt, r.endedAt);
 		if (r.kind === 'gate' && carry.value != null) carry.value = { ...carry.value, runs: countRun(carry.value.attemptId) };
 		void show('end');
 	}

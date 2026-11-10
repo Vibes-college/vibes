@@ -23,6 +23,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</MkA>
 
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/quest" aria-label="闯关" :aria-current="routeName === 'lojo-quest' ? 'page' : undefined">
+		<div :class="$style.itemInner">
+			<i :class="$style.itemIcon" class="ti ti-flag-3"></i>
+		</div>
+	</MkA>
+
 	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/guides" aria-label="攻略" :aria-current="routeName === 'lojo-guides' ? 'page' : undefined">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-book"></i>

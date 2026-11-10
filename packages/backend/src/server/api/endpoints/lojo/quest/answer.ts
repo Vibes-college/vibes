@@ -1,0 +1,29 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+import { Injectable } from '@nestjs/common';
+import { Endpoint } from '@/server/api/endpoint-base.js';
+import { LojoQuestService } from '@/core/LojoQuestService.js';
+import { lojoQuestErrors } from '@/server/api/lojo-schemas.js';
+
+export const meta = {
+	tags: ['lojo'], requireCredential: true, kind: 'write:account',
+	description: 'Answers the next question of a try. The server judges it and takes a heart for a wrong answer. When the try ends, end has the result, XP, the chest, the streak and the review.',
+	limit: { duration: 60 * 60 * 1000, max: 3000 },
+	errors: { noSuchAttempt: lojoQuestErrors.noSuchAttempt, wrongQuestion: lojoQuestErrors.wrongQuestion },
+	res: { type: 'object', optional: false, nullable: false },
+} as const;
+export const paramDef = {
+	type: 'object',
+	properties: { attemptId: { type: 'string', format: 'misskey:id' }, qid: { type: 'string', maxLength: 32 }, choice: { type: 'integer', minimum: 0, maximum: 9 } },
+	required: ['attemptId', 'qid', 'choice'],
+} as const;
+
+@Injectable()
+export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
+	constructor(private svc: LojoQuestService) {
+		super(meta, paramDef, async (ps, me) => this.svc.answer(me.id, ps.attemptId, ps.qid, ps.choice));
+	}
+}
