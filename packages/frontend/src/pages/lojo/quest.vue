@@ -6,13 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <!-- 闯关: the chapter map game. The game itself is a static page (backend/assets/lojo/quest/) shown in a frame; this page
 lends it the community login (api) and the community router (go) through window.__vibesQuest. -->
 <template>
-<div :class="$style.root">
+<div :class="$style.root" :style="{ '--quest-bottom': bottom }">
 	<iframe ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
@@ -25,6 +25,17 @@ const props = defineProps<{
 
 const router = useRouter();
 const frame = ref<HTMLIFrameElement | null>(null);
+
+// 手机底栏在的时候（它会在 body 上写 --MI-minBottomSpacing），闯关页停在底栏上方；电脑上没有底栏就铺满
+const bottom = ref('0px');
+const measureBottom = () => {
+	bottom.value = window.document.body.style.getPropertyValue('--MI-minBottomSpacing') !== '' ? 'var(--MI-minBottomSpacing)' : '0px';
+};
+onMounted(() => {
+	measureBottom();
+	window.addEventListener('resize', measureBottom);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', measureBottom));
 // ?from=<app> (back from a mini app) and ?s=<screen> (preview, ignored on app.vibes.college) come straight from the address bar.
 const here = new URLSearchParams(window.location.search);
 const from = here.get('from') ?? undefined;
@@ -68,8 +79,8 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 
 <style lang="scss" module>
 .root {
-	// 手机上底栏盖在页面上面（--MI-minBottomSpacing），闯关页要停在它上方，不然底部按钮点不到
-	height: calc(100dvh - var(--MI-stickyTop, 0px) - var(--MI-stickyBottom, 0px) - var(--MI-minBottomSpacing, 0px));
+	// 手机上底栏盖在页面上面，闯关页要停在它上方，不然底部按钮点不到（--quest-bottom 见上面 measureBottom）
+	height: calc(100dvh - var(--MI-stickyTop, 0px) - var(--MI-stickyBottom, 0px) - var(--quest-bottom, 0px));
 	display: flex;
 }
 
