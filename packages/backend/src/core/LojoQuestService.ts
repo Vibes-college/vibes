@@ -361,7 +361,9 @@ export class LojoQuestService {
 			for (const l of lines) {
 				const v = voices[l.who];
 				const voice = v != null && (lojoVoiceIds as readonly string[]).includes(v) ? v : lojoDefaultVoice;
-				const file = await this.lojoSpeechService.speakFile(l.text, voice, { speed: rate });
+				// 合成偶尔连不上（网络抖一下），先重试一次再退回文字稿：文字稿会把填空题的答案露出来
+				const file = await this.lojoSpeechService.speakFile(l.text, voice, { speed: rate })
+					.catch(() => this.lojoSpeechService.speakFile(l.text, voice, { speed: rate }));
 				out.push({ who: l.who, url: this.driveFileEntityService.getPublicUrl(file) });
 			}
 			return { lines: out, rate };

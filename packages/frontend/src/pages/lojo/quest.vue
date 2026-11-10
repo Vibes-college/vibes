@@ -68,8 +68,8 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 
 <style lang="scss" module>
 .root {
-	height: 100%;
-	min-height: calc(100dvh - var(--MI-stickyTop, 0px) - var(--MI-stickyBottom, 0px));
+	// 手机上底栏盖在页面上面（--MI-minBottomSpacing），闯关页要停在它上方，不然底部按钮点不到
+	height: calc(100dvh - var(--MI-stickyTop, 0px) - var(--MI-stickyBottom, 0px) - var(--MI-minBottomSpacing, 0px));
 	display: flex;
 }
 
