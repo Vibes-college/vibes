@@ -517,9 +517,11 @@ function newsSheet(n) {
 	const tags = n.tags ?? [];
 	openSheet(`<h4>情报站</h4><div class="sub">社区时间线里，跟这几关有关的帖子</div>
 		<div class="card">看看同一关的人在聊什么、踩过什么坑。<br><b>情报不补心，只算 Boss 准备。</b></div>
-		<div>${tags.map(t => `<button class="tagBtn" data-tag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>
+		<div id="newsList"><div class="sub">正在拉最新的帖子…</div></div>
+		<div style="margin-top:6px">${tags.map(t => `<button class="tagBtn" data-tag="${esc(t)}">看全部 #${esc(t)}</button>`).join('')}</div>
 		<div class="sub" style="margin-top:10px" id="newsSt">${D.prep.news ? '备战「情报」已经打勾 ✓' : '正在记下：备战「情报」…'}</div>`, b => {
 		b.querySelectorAll('[data-tag]').forEach(el => { el.onclick = () => { play('whoosh', 0.6); closeSheet(true); go('/tags/' + encodeURIComponent(el.dataset.tag)); }; });
+		newsPreview(tags);
 	});
 	const tg = target();
 	api('lojo/quest/news', { levelId: tg && tg.kind !== 'boss' ? tg.id : (tg?.id ?? null) }).then(r => {
@@ -528,6 +530,26 @@ function newsSheet(n) {
 		if (r.xp) toast(`看了情报 · 经验 +${r.xp}`, 1600);
 		if (!was) { play('pass', 0.6); refreshQuiet().then(() => gsap.from('#pp-news', { scale: 2.4, transformOrigin: '50% 50%', duration: 0.5, ease: 'back.out(3)' })); }
 	}).catch(e => { const st = $('#newsSt'); if (st) st.textContent = '没记上：' + errText(e); });
+}
+// 情报预览：每个话题标签拉最新几条，合并去重（Boss 的帖子同时带两个标签），只放第一段约 80 字，点开进帖子
+function newsSnippet(text) {
+	const first = String(text ?? '').split(/\n\s*\n/).find(x => x.replace(/#\S+/g, '').trim()) ?? '';
+	const t = first.replace(/#\S+/g, '').replace(/\s+/g, ' ').trim();
+	return t.length > 80 ? t.slice(0, 80) + '…' : t;
+}
+function newsPreview(tags) {
+	const box = $('#newsList'); if (!box) return;
+	if (!tags.length) { box.innerHTML = '<div class="sub">这一关还没有情报。</div>'; return; }
+	Promise.all(tags.map(t => api('notes/search-by-tag', { tag: t, limit: 5 }).catch(() => []))).then(lists => {
+		const seen = new Set(), notes = [];
+		for (const n of lists.flat()) if (n && n.id && !seen.has(n.id) && (n.text ?? '').trim()) { seen.add(n.id); notes.push(n); }
+		notes.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+		const el = $('#newsList'); if (!el) return;
+		if (!notes.length) { el.innerHTML = '<div class="sub">这一关还没有人发帖，去话题里发第一条吧。</div>'; return; }
+		el.innerHTML = notes.slice(0, 3).map(n => `<button class="card newsItem" data-note="${esc(n.id)}" style="display:block;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit">
+			<span>${esc(newsSnippet(n.text))}</span><br><span class="sub">@${esc(n.user?.username ?? '')} · 点开看全文 ›</span></button>`).join('');
+		el.querySelectorAll('[data-note]').forEach(x => { x.onclick = () => { play('whoosh', 0.6); closeSheet(true); go('/notes/' + encodeURIComponent(x.dataset.note)); }; });
+	}).catch(() => { const el = $('#newsList'); if (el) el.innerHTML = '<div class="sub">帖子没拉到，点下面的话题看。</div>'; });
 }
 function prepRows() {
 	const gearN = NODE[Object.keys(NODE).find(k => NODE[k].kind === 'gear')];
