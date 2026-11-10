@@ -3966,6 +3966,127 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Answers the next question of a try: an option key (choice, TFNG), the words typed (gap) or the chips joined by spaces (build). The server judges it and takes a heart for a wrong answer. When the try ends, end has the result, XP, the chest, the streak and the review.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/answer', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 「问 Mia」 on a failed try: the server builds what happened (wrong questions, hearts, streak, where to go next) and the tutor writes first in DM. Once per try; result is sent, already, limit or off.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/ask-tutor', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/quest/audio', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * This week's XP board. It opens only when at least 5 real learners have XP this week; nobody is made up.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/quest/board', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 锦囊补心: the 3-question check of a book in the bookshop. 2 right passes: the book goes in the bag, Boss prep and the streak tick, and 1 heart comes back if below 5 and the 锦囊 path has not given one today. Once a day per book.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/check', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Opened the 情报站 (timeline posts): ticks Boss prep. Never gives a heart.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/news', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * A practice app finished one set. It counts with at least 10 items and 2 minutes, once a day per setKey: Boss prep and the streak tick, and 1 heart comes back if below 5 and the 装备 path has not given one today (语法线 gives none in v1). 生词本 sets are checked against its saved reviews.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/refill', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it) and whether the first-time walkthrough is done. Returns the same as lojo/quest/show.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/settings', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Everything the 闯关 page needs: hearts (refilled at 08:00 and 20:00 Beijing), streak, XP, Boss prep, today's 补心, the chapter map with each node's state and the bookshop. Answers are not included.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/quest/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Starts a try at a level, the Boss, or a retest of a faded level (retest: 3 questions, no hearts). Levels give their two sets in turn, then a mix. Wrong answers cost a heart, except in practice levels and retests.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/start', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Puts a book from the bookshop in the bag (3 at most) to carry into a level. Counts as the guide for Boss prep; gives no heart.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/take', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * No description provided.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
@@ -3988,11 +4109,33 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * The AI tutor accounts, so chats with them can be marked as AI.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/tutor/ids', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Have the AI tutor write first to a learner now, skipping the daily schedule (for trying it out).
      * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
      */
     request<E extends 'lojo/tutor/poke', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Have the AI tutor write first about a failed quest try, as after "Ask Mia" (for trying quest mode out with a sample try).
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/tutor/quest-poke', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

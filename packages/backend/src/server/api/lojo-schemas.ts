@@ -558,4 +558,7 @@ export const lojoQuestErrors = {
 	noSuchAttempt: { message: 'No such try, or it has ended.', code: 'NO_SUCH_ATTEMPT', id: 'd5f3a4b6-7c8d-4e9f-a01b-2c3d4e5f6a55' },
 	wrongQuestion: { message: 'Answer the questions in order.', code: 'WRONG_QUESTION', id: 'e6a4b5c7-8d9e-4fa0-b12c-3d4e5f6a7b66' },
 	noSuchBook: { message: 'No such guide in the bookshop.', code: 'NO_SUCH_BOOK', id: 'f7b5c6d8-9eaf-40b1-c23d-4e5f6a7b8c77' },
+	notRetestable: { message: 'Only a passed level that has faded can be retested.', code: 'NOT_RETESTABLE', id: 'e0460462-4416-4d2d-90d7-14af868e4ecc' },
+	noAudio: { message: 'This question has no recording.', code: 'NO_AUDIO', id: 'a51cf114-7082-44ab-9d53-ba4ade721be9' },
+	invalidExamDate: { message: 'The exam date must be a day after today and within two years (YYYY-MM-DD).', code: 'INVALID_EXAM_DATE', id: '2982c072-7c22-4e4a-9541-457ae50f700e' },
 } as const;

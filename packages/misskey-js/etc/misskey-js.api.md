@@ -2086,11 +2086,34 @@ declare namespace entities {
         LojoNotesLinkResponse,
         LojoNotesListRequest,
         LojoNotesListResponse,
+        LojoQuestAnswerRequest,
+        LojoQuestAnswerResponse,
+        LojoQuestAskTutorRequest,
+        LojoQuestAskTutorResponse,
+        LojoQuestAudioRequest,
+        LojoQuestAudioResponse,
+        LojoQuestBoardResponse,
+        LojoQuestCheckRequest,
+        LojoQuestCheckResponse,
+        LojoQuestNewsRequest,
+        LojoQuestNewsResponse,
+        LojoQuestRefillRequest,
+        LojoQuestRefillResponse,
+        LojoQuestSettingsRequest,
+        LojoQuestSettingsResponse,
+        LojoQuestShowResponse,
+        LojoQuestStartRequest,
+        LojoQuestStartResponse,
+        LojoQuestTakeRequest,
+        LojoQuestTakeResponse,
         LojoStateShowResponse,
         LojoStateUpdateRequest,
         LojoStateUpdateResponse,
+        LojoTutorIdsResponse,
         LojoTutorPokeRequest,
         LojoTutorPokeResponse,
+        LojoTutorQuestPokeRequest,
+        LojoTutorQuestPokeResponse,
         LojoWordsAddRequest,
         LojoWordsAddResponse,
         LojoWordsImportRequest,
@@ -3137,6 +3160,66 @@ type LojoNotesListRequest = operations['lojo___notes___list']['requestBody']['co
 type LojoNotesListResponse = operations['lojo___notes___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoQuestAnswerRequest = operations['lojo___quest___answer']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestAnswerResponse = operations['lojo___quest___answer']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestAskTutorRequest = operations['lojo___quest___ask-tutor']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestAskTutorResponse = operations['lojo___quest___ask-tutor']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestAudioRequest = operations['lojo___quest___audio']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestAudioResponse = operations['lojo___quest___audio']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestBoardResponse = operations['lojo___quest___board']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestCheckRequest = operations['lojo___quest___check']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestCheckResponse = operations['lojo___quest___check']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestNewsRequest = operations['lojo___quest___news']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestNewsResponse = operations['lojo___quest___news']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestRefillRequest = operations['lojo___quest___refill']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestRefillResponse = operations['lojo___quest___refill']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestSettingsRequest = operations['lojo___quest___settings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestSettingsResponse = operations['lojo___quest___settings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestShowResponse = operations['lojo___quest___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestStartRequest = operations['lojo___quest___start']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestStartResponse = operations['lojo___quest___start']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTakeRequest = operations['lojo___quest___take']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTakeResponse = operations['lojo___quest___take']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoStateShowResponse = operations['lojo___state___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
@@ -3146,10 +3229,19 @@ type LojoStateUpdateRequest = operations['lojo___state___update']['requestBody']
 type LojoStateUpdateResponse = operations['lojo___state___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoTutorIdsResponse = operations['lojo___tutor___ids']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorPokeResponse = operations['lojo___tutor___poke']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorQuestPokeRequest = operations['lojo___tutor___quest-poke']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorQuestPokeResponse = operations['lojo___tutor___quest-poke']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoWordsAddRequest = operations['lojo___words___add']['requestBody']['content']['application/json'];

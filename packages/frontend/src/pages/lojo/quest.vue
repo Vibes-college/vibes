@@ -25,12 +25,16 @@ const props = defineProps<{
 
 const router = useRouter();
 const frame = ref<HTMLIFrameElement | null>(null);
-const src = '/lojo-assets/quest/index.html?v=1';
+// ?from=<app> (back from a mini app) and ?s=<screen> (preview, ignored on app.vibes.college) come straight from the address bar.
+const here = new URLSearchParams(window.location.search);
+const from = here.get('from') ?? undefined;
+const screen = here.get('s');
+const src = '/lojo-assets/quest/index.html?v=2' + (screen != null ? '&s=' + encodeURIComponent(screen) : '');
 
 type Bridge = {
 	api: (endpoint: string, params?: Record<string, unknown>) => Promise<unknown>;
 	go: (path: string) => void;
-	query: { book?: string; level?: string };
+	query: { book?: string; level?: string; from?: string };
 };
 
 const bridge: Bridge = {
@@ -49,7 +53,7 @@ const bridge: Bridge = {
 		if (!path.startsWith('/quest')) markFromQuest();
 		router.pushByPath(path);
 	},
-	query: { book: props.book, level: props.level },
+	query: { book: props.book, level: props.level, from },
 };
 
 (window as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;

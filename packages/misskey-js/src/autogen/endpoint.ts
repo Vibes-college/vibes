@@ -549,11 +549,34 @@ import type {
 	LojoNotesLinkResponse,
 	LojoNotesListRequest,
 	LojoNotesListResponse,
+	LojoQuestAnswerRequest,
+	LojoQuestAnswerResponse,
+	LojoQuestAskTutorRequest,
+	LojoQuestAskTutorResponse,
+	LojoQuestAudioRequest,
+	LojoQuestAudioResponse,
+	LojoQuestBoardResponse,
+	LojoQuestCheckRequest,
+	LojoQuestCheckResponse,
+	LojoQuestNewsRequest,
+	LojoQuestNewsResponse,
+	LojoQuestRefillRequest,
+	LojoQuestRefillResponse,
+	LojoQuestSettingsRequest,
+	LojoQuestSettingsResponse,
+	LojoQuestShowResponse,
+	LojoQuestStartRequest,
+	LojoQuestStartResponse,
+	LojoQuestTakeRequest,
+	LojoQuestTakeResponse,
 	LojoStateShowResponse,
 	LojoStateUpdateRequest,
 	LojoStateUpdateResponse,
+	LojoTutorIdsResponse,
 	LojoTutorPokeRequest,
 	LojoTutorPokeResponse,
+	LojoTutorQuestPokeRequest,
+	LojoTutorQuestPokeResponse,
 	LojoWordsAddRequest,
 	LojoWordsAddResponse,
 	LojoWordsImportRequest,
@@ -1105,9 +1128,22 @@ export type Endpoints = {
 	'lojo/guides/threads/list': { req: LojoGuidesThreadsListRequest; res: LojoGuidesThreadsListResponse };
 	'lojo/notes/link': { req: LojoNotesLinkRequest; res: LojoNotesLinkResponse };
 	'lojo/notes/list': { req: LojoNotesListRequest; res: LojoNotesListResponse };
+	'lojo/quest/answer': { req: LojoQuestAnswerRequest; res: LojoQuestAnswerResponse };
+	'lojo/quest/ask-tutor': { req: LojoQuestAskTutorRequest; res: LojoQuestAskTutorResponse };
+	'lojo/quest/audio': { req: LojoQuestAudioRequest; res: LojoQuestAudioResponse };
+	'lojo/quest/board': { req: EmptyRequest; res: LojoQuestBoardResponse };
+	'lojo/quest/check': { req: LojoQuestCheckRequest; res: LojoQuestCheckResponse };
+	'lojo/quest/news': { req: LojoQuestNewsRequest; res: LojoQuestNewsResponse };
+	'lojo/quest/refill': { req: LojoQuestRefillRequest; res: LojoQuestRefillResponse };
+	'lojo/quest/settings': { req: LojoQuestSettingsRequest; res: LojoQuestSettingsResponse };
+	'lojo/quest/show': { req: EmptyRequest; res: LojoQuestShowResponse };
+	'lojo/quest/start': { req: LojoQuestStartRequest; res: LojoQuestStartResponse };
+	'lojo/quest/take': { req: LojoQuestTakeRequest; res: LojoQuestTakeResponse };
 	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
 	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
+	'lojo/tutor/ids': { req: EmptyRequest; res: LojoTutorIdsResponse };
 	'lojo/tutor/poke': { req: LojoTutorPokeRequest; res: LojoTutorPokeResponse };
+	'lojo/tutor/quest-poke': { req: LojoTutorQuestPokeRequest; res: LojoTutorQuestPokeResponse };
 	'lojo/words/add': { req: LojoWordsAddRequest; res: LojoWordsAddResponse };
 	'lojo/words/import': { req: LojoWordsImportRequest; res: LojoWordsImportResponse };
 	'lojo/words/list': { req: EmptyRequest; res: LojoWordsListResponse };

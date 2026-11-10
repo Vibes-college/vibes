@@ -69,7 +69,8 @@ import { durationMs } from '@/lojo/english/review.js';
 import { wordbookLabels } from '@/lojo/english/labels.js';
 import { speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
 import * as os from '@/os.js';
-import { reportQuestSet } from '@/lojo/quest-refill.js';
+import { questFrom, reportQuestSet } from '@/lojo/quest-refill.js';
+import { useRouter } from '@/router.js';
 
 const props = defineProps<{
 	// today's queue as the page last fetched it, and when
@@ -82,6 +83,7 @@ const emit = defineEmits<{
 	(ev: 'finish', today: WordToday | null, then: 'today' | 'words'): void;
 }>();
 
+const router = useRouter();
 const uid = `wordbook-review-${useId()}`;
 const rootEl = useTemplateRef('rootEl');
 // How long a card, or its answer buttons, is up before an answer counts: a double tap cannot answer the next card unseen.
@@ -225,7 +227,7 @@ function reportSet(): void {
 	reported = true;
 	const d = new Date(startedAt);
 	const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-	reportQuestSet('wordbook', `wb:${day}:${startedAt}`, done.value, startedAt);
+	reportQuestSet('wordbook', `wb:${day}:${startedAt}`, done.value, startedAt, Date.now(), questFrom(router.getCurrentFullPath()) != null);
 }
 
 // ✕ or Esc in the middle: what was answered is saved already.

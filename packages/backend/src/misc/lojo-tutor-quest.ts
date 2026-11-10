@@ -34,7 +34,7 @@ export function normalizeQuestKnowledge(raw: unknown): QuestKnowledge | null {
 
 export type QuestNext = { id: string; label: string; url: string; recommended?: boolean; readToday?: boolean; givesHeart?: boolean };
 
-export type QuestWrong = { n: number; question: string; evidence: string; picked: string; answer: string; cause: string };
+export type QuestWrong = { n: number; question: string; evidence: string; picked: string; answer: string; cause: string; why?: string };
 
 // "This try", built by the quest service from the stored attempt. Field names follow 闯关上线/Mia接入.md section 2.
 export type QuestTry = {
@@ -72,6 +72,7 @@ export function normalizeQuestTry(raw: unknown): QuestTry | null {
 		picked: str(w.picked, 120),
 		answer: str(w.answer, 120),
 		cause: str(w.cause, 40),
+		...(str(w.why, 200) !== '' ? { why: str(w.why, 200) } : {}),
 	}));
 	const next = (Array.isArray(r.next) ? r.next : []).slice(0, 6).map(obj).filter(n => n != null)
 		.map(n => ({

@@ -127,7 +127,8 @@ import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
 import { useOnScreen } from '@/lojo/typing/screen.js';
 import * as os from '@/os.js';
 import { definePage } from '@/page.js';
-import { reportQuestSet } from '@/lojo/quest-refill.js';
+import { queryParam, questFrom, reportQuestSet } from '@/lojo/quest-refill.js';
+import { useRouter } from '@/router.js';
 
 const props = defineProps<{
 	stop: string;
@@ -135,6 +136,7 @@ const props = defineProps<{
 
 type Tab = 'words' | 'practice' | 'missed';
 
+const router = useRouter();
 const content = vocabContent;
 const uid = `vocab-${useId()}`;
 const bodyEl = useTemplateRef('bodyEl');
@@ -252,7 +254,7 @@ async function onFinish(end: RoundEnd) {
 	void flushVocabProgress().catch(() => { /* said on the stop; the next write takes them along */ });
 	// 闯关 · 装备补心: a left-early round counts too; the server wants 10 words and 2 minutes.
 	const now = Date.now();
-	reportQuestSet('vocab', `${s.id}:${scope.value}:${r.mode}`, doneCount(end), now - end.ms, now);
+	reportQuestSet('vocab', `${s.id}:${scope.value}:${r.mode}`, doneCount(end), now - end.ms, now, questFrom(router.getCurrentFullPath()) != null);
 	round.value = null;
 	summary.value = { round: r, end };
 	toTop();
@@ -291,7 +293,27 @@ watch(() => props.stop, () => {
 	summary.value = null;
 	tab.value = 'words';
 	scope.value = 'all';
+	askedPath = null;
+	openAsked();
 });
+
+// ?tab=practice&scope=all (闯关 sends learners here): open on that tab with that pick. Once per address; not in the
+// middle of a round.
+let askedPath: string | null = null;
+
+function openAsked() {
+	const path = router.getCurrentFullPath();
+	if (path === askedPath || round.value != null) return;
+	askedPath = path;
+	const t = queryParam(path, 'tab');
+	const sc = queryParam(path, 'scope');
+	if (t !== 'words' && t !== 'practice' && t !== 'missed' && sc == null) return;
+	summary.value = null;
+	if (t === 'words' || t === 'practice' || (t === 'missed' && missedWords.value.length > 0)) tab.value = t;
+	if (sc != null && (sc === 'all' || sc === 'missed' || /^g\d+$/.test(sc))) scope.value = sc;
+}
+
+openAsked();
 
 // The tab of missed words goes once they are all put right and another tab is opened.
 watch(missedWords, words => {
@@ -305,7 +327,10 @@ void loadEnglishStatus();
 // on, and answers not written yet are written now.
 let opened = false;
 onActivated(() => {
-	if (opened) void syncVocabProgress();
+	if (opened) {
+		void syncVocabProgress();
+		openAsked();
+	}
 	opened = true;
 });
 

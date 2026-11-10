@@ -16,7 +16,7 @@ const sampleTry = {
 	level: { id: '1-6', name: '阅读 · 判断题', kind: 'level', skill: 'reading', type: 'TFNG' },
 	result: { correct: 3, total: 5, needed: 4, passed: false, failStreak: 1 },
 	wrong: [
-		{ n: 5, question: 'Sales rose sharply after 2010.', evidence: 'Before 2010, sales rose sharply.', picked: 'TRUE', answer: 'FALSE', cause: 'same-word' },
+		{ n: 5, question: 'Sales rose sharply after 2010.', evidence: 'Before 2010, sales rose sharply.', picked: 'TRUE', answer: 'FALSE', cause: 'same-word', why: 'The text says before 2010.' },
 	],
 	cause: 'same-word',
 	hearts: { now: 3, max: 5, nextRefill: '20:00', refilledToday: { guide: false, gear: false } },
@@ -39,6 +39,7 @@ describe('Vibes AI tutor in the quest map', () => {
 		const t = normalizeQuestTry(sampleTry)!;
 		expect(t.level.id).toBe('1-6');
 		expect(t.wrong[0].picked).toBe('TRUE');
+		expect(t.wrong[0].why).toBe('The text says before 2010.');
 		expect(t.next.map(n => n.id)).toEqual(['guide:j5', 'retry']);
 		expect(normalizeQuestTry({ level: {} })).toBeNull();
 		expect(normalizeQuestKnowledge({ version: 'x' })).toBeNull();

@@ -10,20 +10,20 @@ import { lojoQuestErrors } from '@/server/api/lojo-schemas.js';
 
 export const meta = {
 	tags: ['lojo'], requireCredential: true, kind: 'write:account',
-	description: 'Starts a try at a level or the Boss and draws its questions (new ones first on a retry). Costs nothing; wrong answers cost a heart, except in practice levels.',
+	description: 'Starts a try at a level, the Boss, or a retest of a faded level (retest: 3 questions, no hearts). Levels give their two sets in turn, then a mix. Wrong answers cost a heart, except in practice levels and retests.',
 	limit: { duration: 60 * 60 * 1000, max: 300 },
-	errors: { noSuchLevel: lojoQuestErrors.noSuchLevel, levelLocked: lojoQuestErrors.levelLocked, noHearts: lojoQuestErrors.noHearts, bossNotReady: lojoQuestErrors.bossNotReady },
+	errors: { noSuchLevel: lojoQuestErrors.noSuchLevel, levelLocked: lojoQuestErrors.levelLocked, noHearts: lojoQuestErrors.noHearts, bossNotReady: lojoQuestErrors.bossNotReady, notRetestable: lojoQuestErrors.notRetestable },
 	res: { type: 'object', optional: false, nullable: false },
 } as const;
 export const paramDef = {
 	type: 'object',
-	properties: { levelId: { type: 'string', maxLength: 32 } },
+	properties: { levelId: { type: 'string', maxLength: 32 }, retest: { type: 'boolean' } },
 	required: ['levelId'],
 } as const;
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private svc: LojoQuestService) {
-		super(meta, paramDef, async (ps, me) => this.svc.start(me.id, ps.levelId));
+		super(meta, paramDef, async (ps, me) => this.svc.start(me.id, ps.levelId, ps.retest ?? false));
 	}
 }

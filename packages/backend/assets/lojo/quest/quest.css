@@ -13,7 +13,7 @@
 html,body{margin:0;height:100%;background:#d9d2c3;font-family:var(--round);color:var(--navy)}
 body{display:flex;justify-content:center;align-items:center}
 /* 在电脑上双击打开时，也是一台手机的大小 */
-#app{position:relative;width:100%;max-width:430px;height:100dvh;max-height:932px;min-height:640px;overflow:hidden;background:var(--cream)}
+#app{position:relative;width:100%;max-width:430px;height:100dvh;max-height:932px;min-height:640px;overflow:hidden;overflow:clip;background:var(--cream)}
 #app::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;opacity:.55;mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .48  0 0 0 0 .38  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
 button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer;padding:0}
@@ -30,7 +30,7 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 .chip.frz{color:#2B6FA3}
 .hearts{display:flex;gap:1px}
 .hearts svg{width:15px;height:15px}
-.snd{width:30px;height:30px;border-radius:15px;background:var(--paper);border:1.5px solid var(--line);font-size:13px}
+.snd{flex:none;margin-left:auto;width:30px;height:30px;border-radius:15px;background:var(--paper);border:1.5px solid var(--line);font-size:13px}
 
 
 /* 地图 */
@@ -38,8 +38,8 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 #map{width:100%;height:100%;overflow:visible}
 .nd{cursor:pointer}
 .nd text{font-family:var(--round);font-weight:800}
-.lab{font-size:10.5px;fill:var(--navy)}
-.note{font-size:9.5px;font-weight:700!important}
+.lab{font-size:10.5px;fill:var(--navy);paint-order:stroke;stroke:#F6F1E7;stroke-width:3px;stroke-linejoin:round}
+.note{font-size:9.5px;font-weight:700!important;paint-order:stroke;stroke:#F6F1E7;stroke-width:3px;stroke-linejoin:round}
 
 /* 底部：Mia + 今天这一步 + 开打 */
 .dock{position:absolute;left:0;right:0;bottom:0;z-index:30;padding:0 14px 14px;background:linear-gradient(180deg,rgba(246,241,231,0),var(--cream) 18%)}
@@ -105,7 +105,7 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 .btn3{display:block;width:100%;height:42px;border-radius:14px;border:1.5px solid var(--line);font:700 13.5px var(--round);margin-top:8px;color:var(--muted)}
 
 /* 书屋 = 社区的攻略板块 */
-#shelf{position:absolute;inset:0;z-index:160;display:none;background:#F3ECDD;overflow:hidden}
+#shelf{position:absolute;inset:0;z-index:160;display:none;background:#F3ECDD;overflow:hidden;overflow:clip}
 #shelf::before{content:"";position:absolute;left:0;right:0;top:0;height:520px;background:linear-gradient(180deg,#EADFC8 0,#F3ECDD 100%);z-index:0}
 #lightSpill{position:absolute;inset:0;z-index:119;pointer-events:none;opacity:0;background:radial-gradient(ellipse 30% 70% at 50% 45%,rgba(255,236,180,.95),rgba(255,236,180,0) 70%)}
 .door{position:absolute;top:0;bottom:0;width:50.5%;background:var(--navy);z-index:120;display:flex;align-items:center;backface-visibility:hidden}
@@ -145,7 +145,7 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 .plusOne{position:absolute;z-index:118;font:900 18px var(--round);color:var(--coral);pointer-events:none}
 .dust{position:absolute;z-index:109;width:6px;height:6px;border-radius:3px;background:#E8D9B8;pointer-events:none}
 /* 打开的书 = 攻略文章页 */
-#book{position:absolute;left:22px;right:22px;top:88px;bottom:96px;max-height:540px;z-index:110;display:none;perspective:1400px}
+#book{position:absolute;left:22px;right:22px;top:112px;bottom:96px;max-height:540px;z-index:110;display:none;perspective:1400px}
 #book .page{position:absolute;inset:0;border-radius:6px 16px 16px 6px;background:#F6F1E7;color:var(--navy);padding:16px 20px;box-shadow:inset 8px 0 0 rgba(20,30,82,.06),0 18px 40px rgba(20,30,82,.28),0 2px 0 #E9E1D2;display:flex;flex-direction:column;overflow:auto;overscroll-behavior:contain}
 .pbar{display:flex;align-items:center;gap:10px}
 .plogo{font:900 22px/1 var(--round);letter-spacing:-.5px;position:relative}
@@ -290,7 +290,6 @@ html,body{background:#E9E1D2}
 .empty-board{padding:18px 6px;text-align:center;font-size:13.5px;line-height:1.7;color:#444866}
 /* 关卡 */
 #quiz{overflow-y:auto}
-.qtag .demo{background:#EEF0F7;border-color:#cfd3e6;color:#3a3f5c}
 .qtag .free{background:#E3F2EA;border-color:#A9D4BF;color:#2E7A5E}
 .qdots{display:flex;gap:5px;margin-top:10px}
 .qdots i{width:18px;height:18px;border-radius:9px;border:1.5px solid var(--line);font-style:normal;font-size:10px;line-height:15px;text-align:center;color:#fff;background:#fff}
@@ -316,7 +315,7 @@ html,body{background:#E9E1D2}
 .review div.no i{background:var(--coral)}
 .btn2 small{display:block;font-size:11px;font-weight:700;opacity:.8}
 .btn2.line{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
-.btn2.rec{outline:3px solid #FCE7DF}
+.btn2.rec{box-shadow:0 0 0 3px #FFF0D2,0 0 14px rgba(236,182,55,.7)}
 /* 书屋 */
 .spine{flex:0 1 38px;min-width:26px;width:auto;font-size:12.5px;letter-spacing:1px}
 .spine.lock{flex:0 1 30px}
@@ -336,3 +335,146 @@ html,body{background:#E9E1D2}
 #winOv .ovcard h4{font-size:26px}
 .confetti{position:absolute;z-index:135;width:8px;height:12px;border-radius:2px;pointer-events:none}
 .full{z-index:230}
+
+/* ====== v2.1：真题、练手关、回测、引导、考试日期、断网（11-10） ====== */
+/* 顶栏的心：0 颗时只放 1 颗空心 + 回满时间；补心「+」放在心外面，留 4px，点的范围 44×44 */
+.hwrap{display:flex;align-items:center;gap:4px}
+#refillChip{position:relative;right:auto;top:auto;flex:none;width:24px;height:24px;border-radius:12px;background:var(--coral);color:#fff;border:1.5px solid var(--navy);font:900 15px/1 var(--round);display:none;align-items:center;justify-content:center}
+#refillChip::before{content:"";position:absolute;inset:-10px}
+/* 倒数 + 落后提醒 */
+.count{position:absolute;top:50px;left:14px;right:14px;z-index:20;display:flex;align-items:baseline;gap:5px;font-family:var(--serif);white-space:nowrap}
+.count b{font-size:28px;color:var(--coral);font-weight:900;font-variant-numeric:tabular-nums}
+.count span{font-size:14px}
+.count .dbtn{margin-left:auto;font:800 11.5px var(--round);color:var(--ink);padding:12px 0 12px 10px;margin-top:-12px;margin-bottom:-12px;min-height:44px}
+.count .dbtn.set{color:var(--coral)}
+#behind{position:absolute;top:88px;left:12px;right:12px;z-index:22;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:12px;background:#FFF0D2;border:1.5px solid #C99520;font-size:12.5px;line-height:1.35;font-weight:700;color:#7A5410;transform:translateY(-140%);opacity:0;visibility:hidden}
+#behind .ic{font-size:16px}
+#behind button{margin-left:auto;flex:none;height:26px;padding:0 9px;border-radius:13px;background:#C99520;color:#fff;font-size:11.5px;font-weight:800}
+.fine .fr{display:flex;gap:12px}
+/* 题目：四种题型 */
+.qfoot{margin-top:auto;padding-top:12px}
+.qtag .free{background:#E3F2EA;border-color:#A9D4BF;color:#2E7A5E}
+.qtag .skill{background:#EEF0F7;border-color:#cfd3e6;color:#3a3f5c}
+.passage{white-space:pre-line}
+.passage:empty,.aud:empty{display:none}
+#boss .passage{background:#2a336a;color:var(--paper)}
+.gapRow{display:flex;flex-direction:column;gap:6px}
+.gapIn{width:100%;height:52px;border-radius:14px;border:1.5px solid var(--navy);background:#fff;padding:0 14px;font:700 16px var(--round);color:var(--navy);box-shadow:0 4px 0 var(--navy);outline:none}
+.gapIn:focus{border-color:var(--ink);box-shadow:0 4px 0 var(--ink)}
+.gapIn.ok{background:#E3F2EA;border-color:var(--green);box-shadow:0 4px 0 var(--green)}
+.gapIn.no{background:#FFF3D6;border-color:#C99520;box-shadow:0 4px 0 #C99520}
+.limit{font-size:12px;color:var(--muted);font-weight:700}
+#boss .limit{color:#aab0d6}
+.built{min-height:56px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;padding:8px;border-radius:14px;border:1.5px dashed var(--navy);background:#fff}
+.built:empty::before{content:"点下面的词块，按顺序拼成一句";font-size:12.5px;color:var(--muted);align-self:center;padding:6px}
+.built.ok{border:1.5px solid var(--green);background:#E3F2EA}
+.built.no{border:1.5px solid #C99520;background:#FFF3D6}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chip2{min-height:44px;padding:6px 14px;border-radius:12px;border:1.5px solid var(--navy);background:#fff;color:var(--navy);font:800 15px var(--round);box-shadow:0 3px 0 var(--navy)}
+.chip2.used{visibility:hidden}
+.chip2:disabled{cursor:default}
+#boss .built{background:var(--paper)}
+.subBtn{display:block;width:100%;min-height:50px;border-radius:14px;background:var(--coral);color:#fff;font:800 15.5px var(--round);box-shadow:0 4px 0 #B9472C;margin-top:4px}
+.subBtn:disabled{background:#D9D2C3;box-shadow:0 3px 0 #BDB4A2}
+/* 听力 */
+.aud{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.audBtn{display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px;border-radius:14px;background:var(--navy);color:#fff;font:800 15px var(--round);box-shadow:0 4px 0 #070C2A}
+.audBtn .ic{width:30px;height:30px;border-radius:15px;background:var(--coral);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+.audBtn small{margin-left:auto;font-size:11.5px;opacity:.75;font-weight:700}
+.audBtn.on .ic{animation:audPulse 1s ease-in-out infinite}
+@keyframes audPulse{50%{transform:scale(1.15)}}
+#boss .audBtn{background:var(--paper);color:var(--navy);box-shadow:0 4px 0 #6E7088}
+.fallback{padding:10px 12px;border-radius:12px;background:var(--cream);border:1.5px dashed #a99e88;font-size:13.5px;line-height:1.6;color:#2b2f4a}
+.fallback .fh{font-size:11.5px;font-weight:800;color:#B9472C;margin-bottom:4px}
+.fallback p{margin:2px 0}
+.fallback p b{color:var(--ink);margin-right:4px}
+/* 讲解：答案 + 为什么 + 原文 */
+.evid{margin-top:6px;padding:6px 9px;border-left:3px solid currentColor;background:rgba(255,255,255,.55);border-radius:0 8px 8px 0;font:13px/1.55 Georgia,var(--serif);opacity:.9}
+.evid::before{content:"原文：";font:800 11px var(--round);opacity:.7}
+.review .evid{font-size:12px}
+.review div span{min-width:0}
+.review .more{display:block;width:100%;padding:8px;border-radius:10px;border:1px dashed var(--line);font-size:12.5px;font-weight:800;color:var(--muted);text-align:center}
+/* 没过卡：一个实心主按钮 + 两个线框 + 两个小链接 */
+.duo{display:flex;gap:6px}
+.duo .btn2{flex:1;min-width:0;font-size:14px;padding:6px 8px}
+.links{display:flex;justify-content:center;gap:22px;margin-top:6px}
+.links button{min-height:44px;padding:0 6px;font:700 13px var(--round);color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+/* 练手关 / 回测 结果 */
+#quiz{position:absolute}
+#pqEnd{position:absolute;inset:0;z-index:5;display:none;align-items:center;justify-content:center;background:rgba(255,253,248,.94)}
+.pqStamp{width:118px;height:118px;border-radius:50%;border:5px double var(--green);color:var(--green);font:900 46px/1 var(--serif);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-12deg);margin:6px auto 4px;background:#fff}
+.pqStamp small{font:800 11px var(--round);letter-spacing:1px;margin-top:4px}
+.pqStamp.coral{border-color:var(--coral);color:var(--coral)}
+.xp:empty{display:none}
+/* 盖章放在整页最上层：过关先盖章，再开宝箱 */
+#app > .stamp{z-index:128}
+#chestOv{z-index:131}
+/* Boss 抽屉：开打按钮贴底 */
+.sheet .stick{position:sticky;bottom:-26px;margin:12px -18px -26px;padding:4px 18px 22px;background:linear-gradient(180deg,rgba(255,253,248,0),var(--paper) 22%)}
+.sheet .stick .sbtn{margin-top:8px}
+/* 心打光时的连胜提示 */
+#streakNote{margin-top:12px;padding:9px 12px;border-radius:12px;background:#FCE7DF;border:1.5px dashed var(--coral);font-size:12.5px;line-height:1.5;color:#B9472C;text-align:center}
+#streakNote b{color:#B9472C}
+#streakNote.lit{background:#FFF0D2;border:1.5px solid var(--mustard);color:#7A5410}
+/* 第一次进来的引导 */
+#coach{position:absolute;inset:0;z-index:190;display:none}
+#coachHole{position:absolute;border-radius:18px;box-shadow:0 0 0 2400px rgba(20,30,82,.62);border:2px dashed var(--mustard);pointer-events:none}
+#coachCard{position:absolute;left:14px;right:14px;background:var(--paper);border:1.5px solid var(--navy);border-radius:18px;box-shadow:4px 5px 0 var(--navy);padding:12px 14px 12px}
+#coachCard .row1{display:flex;gap:10px;align-items:flex-start}
+#coachCard .mia-face{width:38px;height:38px}
+#coachT{font-size:13.5px;line-height:1.55;flex:1}
+#coachT b{color:var(--coral)}
+#coachCard .ft{display:flex;align-items:center;gap:8px;margin-top:10px}
+#coachCard .dots{display:flex;gap:5px;margin-right:auto}
+#coachCard .dots i{width:7px;height:7px;border-radius:4px;background:var(--line)}
+#coachCard .dots i.on{background:var(--coral);width:18px}
+#coachSkip{font-size:12.5px;color:var(--muted);padding:8px 6px;min-height:44px}
+#coachNext{height:38px;padding:0 16px;border-radius:12px;background:var(--coral);color:#fff;font:800 14px var(--round);box-shadow:0 3px 0 #B9472C}
+#coachNext:disabled,.sbtn:disabled{background:#D9D2C3;box-shadow:0 3px 0 #BDB4A2;color:#fff}
+/* 考试日期（引导第 3 步 + 改日期抽屉共用） */
+.exam{margin-top:10px}
+.ticket{position:relative;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#FFF7DF;border:1.5px solid var(--navy);box-shadow:3px 3px 0 var(--navy);min-height:64px}
+.ticket::after{content:'';position:absolute;left:58px;top:8px;bottom:8px;border-left:1.5px dashed #C99520}
+.ticket .tk{width:34px;text-align:center;font:900 11px/1.2 var(--round);color:#7A5410}
+.ticket .tv{flex:1;padding-left:8px}
+.ticket .tv b{display:block;font:900 22px var(--serif);color:var(--navy);font-variant-numeric:tabular-nums}
+.ticket .tv b.ph{color:var(--muted);font-size:17px}
+.ticket .tv small{font-size:11.5px;color:var(--muted)}
+.ticket .tc{font:800 12px var(--round);color:var(--ink)}
+.ticket input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px}
+.exam .pv{margin-top:9px;font-size:12.5px;line-height:1.5;color:var(--navy);min-height:19px}
+.exam .pv b{color:var(--coral);font-family:var(--serif);font-size:16px}
+.exam .pv.err{color:#B9472C;font-weight:800}
+.sheet .exLinks{display:flex;justify-content:space-between;margin-top:6px}
+.sheet .exLinks button{font:800 12.5px var(--round);color:var(--muted);padding:12px 4px;min-height:44px}
+.sheet .exLinks button.clr{color:#B9472C}
+/* 冻结卡自动用掉 / 连胜断了 */
+.week{display:flex;gap:4px;justify-content:center;margin:14px 0 8px}
+.wd{width:32px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:800;color:var(--muted)}
+.wd i{width:30px;height:38px;border-radius:9px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:16px;background:#fff}
+.wd.on i{background:#FCE7DF;border-color:#F3B9A6}
+.wd.miss i{border-style:dashed;border-color:#C99520;background:#FFF8E6;color:#C99520;font-weight:900}
+.wd.ice i{background:#E3F0FA;border:1.5px solid #2B6FA3;color:#2B6FA3}
+.wd.today i{border-style:dashed;border-color:var(--coral);color:var(--coral);font-size:11px;font-weight:900}
+.wd.broke i{border-style:dashed;border-color:#B9472C;background:#FBEDE8;color:#B9472C}
+.wd.out i{filter:grayscale(1);opacity:.45}
+.flyIce{position:absolute;z-index:215;width:30px;height:38px;pointer-events:none}
+#fuTxt b{color:#2B6FA3}
+#fuOv.lost #fuTxt b{color:var(--coral)}
+/* 背包空 */
+.bagEmptyIc{display:block;width:84px;height:84px;margin:4px auto 6px}
+/* 出错 / 断网 */
+.ecode{margin-top:14px;font-size:11px;color:#a99e88}
+#offBar{position:absolute;top:88px;left:12px;right:12px;z-index:23;display:none;align-items:center;gap:8px;padding:7px 10px;border-radius:12px;background:#EEF0F7;border:1.5px solid #6E7088;font-size:12.5px;line-height:1.35;font-weight:700;color:#3a3f5c}
+#offBar.ok{background:#E3F2EA;border-color:var(--green);color:#24493B}
+#offBar .ic{font-size:15px;flex:none}
+#offBar button{margin-left:auto;flex:none;height:26px;padding:0 10px;border-radius:13px;background:#6E7088;color:#fff;font-size:11.5px;font-weight:800}
+/* 画面目录（只在预览里有） */
+.stl{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px dashed var(--line);font-size:13.5px;color:var(--navy);text-decoration:none;line-height:1.4}
+.stl small{display:block;font-size:11px;color:var(--muted)}
+.stl em{margin-left:auto;font-style:normal;font-size:11px;color:var(--coral);font-weight:800;flex:none}
+.stl.cur{background:#FCE7DF;border-radius:10px;border-bottom:0;padding-left:8px}
+/* 系统里打开了「减少动态效果」 */
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important;animation:none!important}
+}

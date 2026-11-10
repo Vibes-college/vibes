@@ -7,6 +7,15 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typ
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 
+export type MiLojoQuestLevel = {
+	passedAt?: string; lastAt?: string; best?: number; tries?: number; failStreak?: number; lastCause?: string; prevCause?: string;
+	stars?: number; setsUsed?: string[]; lastQs?: string[];
+};
+
+export type MiLojoQuestNotice = { kind: 'freeze'; used: number } | { kind: 'lost'; days: number; best: number };
+
+export type MiLojoQuestAnswer = { qid: string; given: string; correct: boolean; cause: string | null };
+
 // 闯关: one row per learner with hearts, streak, freeze cards, XP, Boss prep and level progress. Rules in misc/lojo-quest.ts.
 @Entity('lojo_quest')
 export class MiLojoQuest {
@@ -48,9 +57,10 @@ export class MiLojoQuest {
 	@Column('smallint', { default: 0 })
 	public bossLosses: number;
 
-	// per level: { passedAt, lastAt, best, tries, fails } and the question ids of the last try
+	// per level: when first passed, last touched (a passed retest relights it), best score, tries, fails in a row and the
+	// main cause of the last fail, stars (0-3), the sets used since the last mix and the question ids of the last try
 	@Column('jsonb', { default: {} })
-	public levels: Record<string, { passedAt?: string; lastAt?: string; best?: number; tries?: number; failStreak?: number; lastQs?: string[] }>;
+	public levels: Record<string, MiLojoQuestLevel>;
 
 	// the 锦囊 slugs in the bag
 	@Column('jsonb', { default: [] })
@@ -59,6 +69,18 @@ export class MiLojoQuest {
 	// the Beijing day of the last first-win chest
 	@Column('varchar', { length: 10, nullable: true })
 	public chestDay: string | null;
+
+	// the learner's exam date (YYYY-MM-DD, Beijing), null when not given or skipped
+	@Column('varchar', { length: 10, nullable: true })
+	public examDate: string | null;
+
+	// the first-time walkthrough was finished or skipped
+	@Column('boolean', { default: false })
+	public onboarded: boolean;
+
+	// one-time notice for the next visit: freeze cards used, or the streak lost
+	@Column('jsonb', { nullable: true })
+	public notice: MiLojoQuestNotice | null;
 
 	@Column('timestamp with time zone')
 	public createdAt: Date;
@@ -88,9 +110,13 @@ export class MiLojoQuestAttempt {
 	@Column('jsonb')
 	public questionIds: string[];
 
-	// { qid, choice, correct } in order
+	// { qid, given, correct, cause } in order
 	@Column('jsonb', { default: [] })
-	public answers: { qid: string; choice: number; correct: boolean }[];
+	public answers: MiLojoQuestAnswer[];
+
+	// practice, level, retest or boss
+	@Column('varchar', { length: 8, default: 'level' })
+	public mode: string;
 
 	// open, passed, failed or quit
 	@Column('varchar', { length: 8 })

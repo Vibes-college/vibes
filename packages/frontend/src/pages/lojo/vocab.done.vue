@@ -29,6 +29,7 @@ same words in another mode; the gate once every word was right; back to the word
 		</b>
 		<h2 ref="headingEl" :class="$style.verdict" tabindex="-1">{{ verdict }}</h2>
 		<p :class="$style.meta">{{ meta }}</p>
+		<XQuestBack app="vocab"/>
 	</section>
 
 	<section v-if="wrong.length > 0" :class="$style.missed" :aria-labelledby="`${uid}-missed`" data-round-missed>
@@ -56,6 +57,7 @@ same words in another mode; the gate once every word was right; back to the word
 <script lang="ts" setup>
 import { computed, useId, useTemplateRef } from 'vue';
 import XMissList from './vocab.misslist.vue';
+import XQuestBack from '@/lojo/QuestBack.vue';
 import type { VocabStop, VocabWord } from '@/lojo/vocab/content.js';
 import type { PracticeMode } from '@/lojo/vocab/prefs.js';
 import type { Round, RoundEnd } from '@/lojo/vocab/round.js';
@@ -235,7 +237,11 @@ defineExpose({ focusHeading });
 	font-size: 22px;
 	font-weight: 700;
 	color: var(--vl-ink);
-	outline: none;
+
+	// focused by the page when the round ends (tabindex -1, never by Tab): no ring for that
+	&:focus {
+		outline: none;
+	}
 
 	.pass > & {
 		color: var(--vl-ok);

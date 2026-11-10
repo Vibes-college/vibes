@@ -13,6 +13,7 @@ to the map to try the gate again. -->
 		<h2 :id="`${uid}-title`" ref="headingEl" tabindex="-1" :class="$style.verdict">{{ wrong.length === 0 ? dictLabels.allRight : dictLabels.done }}</h2>
 		<b :class="$style.score" :aria-label="dictLabels.scoreLabel(right, total)">{{ right }}<span aria-hidden="true"> / {{ total }}</span></b>
 		<p :class="$style.sub">{{ round.title }}</p>
+		<XQuestBack app="dictation"/>
 	</div>
 	<div :class="$style.tiles">
 		<div :class="$style.tile"><small>{{ dictLabels.accuracy }}</small><b>{{ accuracy }}<span>%</span></b></div>
@@ -85,6 +86,7 @@ to the map to try the gate again. -->
 import { computed, onBeforeUnmount, useId, useTemplateRef } from 'vue';
 import type { DictItem, Round } from '@/lojo/dictation/content.js';
 import MkButton from '@/components/MkButton.vue';
+import XQuestBack from '@/lojo/QuestBack.vue';
 import { audioKey, audioState, playAudio, stopAudio } from '@/lojo/dictation/audio.js';
 import { dictLabels } from '@/lojo/dictation/labels.js';
 
@@ -183,7 +185,9 @@ onBeforeUnmount(() => {
 	margin: 6px 0 2px;
 	letter-spacing: 0.06em;
 
-	&:focus:not(:focus-visible) {
+	// focused by the page when the round ends (tabindex -1, never reached by Tab). After an answer sent with Enter the
+	// browser would count that focus as a keyboard one and ring the heading: no ring here at all.
+	&:focus {
 		outline: none;
 	}
 }

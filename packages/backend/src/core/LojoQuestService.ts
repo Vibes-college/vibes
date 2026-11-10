@@ -4,45 +4,75 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource, EntityManager, In, MoreThanOrEqual } from 'typeorm';
+import { DataSource, EntityManager, In, LessThan } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestLog } from '@/models/LojoQuest.js';
-import { MiLojoWordReview } from '@/models/LojoWord.js';
+import type { MiLojoQuestLevel } from '@/models/LojoQuest.js';
+import { MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
 import { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
 import { LojoTutorService } from '@/core/LojoTutorService.js';
+import { LojoSpeechService } from '@/core/LojoSpeechService.js';
+import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
-import { QUEST_CH1 } from '@/misc/lojo-quest-ch1.js';
+import { lojoDefaultVoice, lojoVoiceIds } from '@/misc/lojo-voices.js';
+import { QUEST_CH1, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
 import type { QuestNode, QuestQuestion } from '@/misc/lojo-quest-ch1.js';
 import { QUEST_BOOKS, bookForCause } from '@/misc/lojo-quest-books.js';
 import type { QuestBook } from '@/misc/lojo-quest-books.js';
-import { MAX_HEARTS, NO_HEART_APPS, XP, addDays, dayOf, daysBetween, drawQuestions, heartsNow, nextRefillAt, setCounts, streakNow, touchStreak } from '@/misc/lojo-quest.js';
-import type { QuestNext, QuestTry } from '@/misc/lojo-tutor-quest.js';
+import {
+	MAX_FREEZES, MAX_HEARTS, NO_HEART_APPS, REPLAY_XP, XP, addDays, ageOf, behindOf, bookGear, dayOf, daysBetween, displayAnswer, drawQuestions, examDateOk, gearPath,
+	heartsNow, judge, mainCause, nextRefillAt, pickSet, setCounts, settleStreak, shelfFor, shuffle, starsAfter, streakNow, touchStreak, wrongCause,
+} from '@/misc/lojo-quest.js';
+import type { QuestNext, QuestTry, QuestWrong } from '@/misc/lojo-tutor-quest.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoQuestErrors } from '@/server/api/lojo-schemas.js';
 
 type Row = Omit<MiLojoQuest, 'user'>;
 type Log = { kind: string; ref: string; hearts: number; xp: number; data?: Record<string, unknown> };
+type Mode = 'practice' | 'level' | 'retest' | 'boss';
 
 const CH = QUEST_CH1;
+const N = QUEST_NUMBERS;
 const nodeOf = (id: string): QuestNode | undefined => CH.nodes.find(n => n.id === id);
-const questionOf = (node: QuestNode, qid: string): QuestQuestion | undefined => node.pool?.find(q => q.id === qid);
+const questionOf = (node: QuestNode | undefined, qid: string): QuestQuestion | undefined => node?.pool?.find(q => q.id === qid);
 const bookOf = (slug: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.slug === slug);
-const PREP_KEYS = ['guide', 'gear', 'news'] as const;
+const bookByRef = (ref: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.ref === ref);
+// every level of the chapter in map order, the Boss last (for 落后提醒)
+const LEVEL_ORDER = CH.nodes.filter(n => n.kind === 'level').map(n => n.id).concat(CH.nodes.filter(n => n.kind === 'boss').map(n => n.id));
 const BOARD_MIN_PLAYERS = 5;
-
-// Where a level's 「去装备练一组」 goes (路线图 gear 字段): dictation, vocab:5.N, grammar:6.N, typing, wordbook.
-export function gearPath(gear: string | undefined): { app: string; path: string; zh: string; givesHeart: boolean } {
-	const g = gear ?? 'dictation';
-	const [app, stop] = g.split(':');
-	if (app === 'vocab') return { app, path: `/vocab/${stop ?? '5.3'}?scope=all`, zh: `词汇线 ${stop ?? '5.3'} 站`, givesHeart: true };
-	if (app === 'grammar') return { app, path: `/grammar/${stop ?? '6.3'}`, zh: `语法线 ${stop ?? '6.3'} 站`, givesHeart: false };
-	if (app === 'typing') return { app, path: '/typing', zh: '机考打字', givesHeart: true };
-	if (app === 'wordbook') return { app, path: '/wordbook', zh: '生词本', givesHeart: true };
-	return { app: 'dictation', path: '/dictation', zh: '听写', givesHeart: true };
-}
+const BADGE = N.chest.chapterClear.badge;
+// 生词本 today below this many cards: a 「去生词本」 gear goes to its fallback (错因对照表.json 规则)
+const WORDBOOK_MIN = N.hearts.earnBack.gear.minItems;
 
 const guidePath = (b: QuestBook) => `/guides/${b.slug}`;
+
+// need / maxWrong / total / heart cost of a try. Levels: 5 questions, 4 right passes, 2 wrong fails. Boss: 6, 5 hits
+// (its hp) win, 2 wrong or no hearts lose. Retest: 3 from both sets, 2 right passes, no hearts.
+function rulesOf(node: QuestNode, mode: Mode): { need: number; maxWrong: number; total: number; heartCost: number } {
+	if (mode === 'retest') {
+		const r = N.level.retest;
+		return { need: r.passAt, maxWrong: r.questions - r.passAt + 1, total: r.questions, heartCost: r.heartCost };
+	}
+	if (mode === 'boss') return { need: N.boss.hp, maxWrong: N.boss.loseAtWrong, total: N.boss.questionsPerTry, heartCost: node.heartCost };
+	return { need: N.level.passAtCorrect, maxWrong: N.level.failAtWrong, total: N.level.questionsPerTry, heartCost: node.heartCost };
+}
+
+// What the page gets for a question: never the answer, accept list, evidence or the recording's script. Chips shuffled.
+function publicQuestion(q: QuestQuestion) {
+	let chips = q.chips;
+	if (chips != null) {
+		const target = q.answer.toLowerCase();
+		for (let i = 0; i < 6; i++) {
+			chips = shuffle(q.chips!);
+			if (chips.join(' ').toLowerCase() !== target) break;
+		}
+	}
+	return {
+		id: q.id, type: q.type, skill: q.skill, passage: q.passage, question: q.question,
+		options: q.options, chips, limit: q.limit, audio: q.audio != null,
+	};
+}
 
 // 闯关: hearts, streak, levels, 补心 and the Boss for a learner. Rules in misc/lojo-quest.ts, chapter in misc/lojo-quest-ch1.ts.
 @Injectable()
@@ -52,17 +82,20 @@ export class LojoQuestService {
 		private db: DataSource,
 		private idService: IdService,
 		private lojoTutorService: LojoTutorService,
+		private lojoSpeechService: LojoSpeechService,
+		private driveFileEntityService: DriveFileEntityService,
 	) {
 	}
 
 	private newRow(userId: string, now: Date): Row {
 		return {
 			userId, hearts: MAX_HEARTS, heartsAt: now, streak: 0, streakDay: null, bestStreak: 0, freezes: 0, xp: 0,
-			prep: {}, bossLosses: 0, levels: {}, bag: [], chestDay: null, createdAt: now, updatedAt: now,
+			prep: {}, bossLosses: 0, levels: {}, bag: [], chestDay: null, examDate: null, onboarded: false, notice: null, createdAt: now, updatedAt: now,
 		};
 	}
 
-	// Read the row for update inside a transaction, creating it on first use. Hearts are brought up to date.
+	// Read the row for update inside a transaction, creating it on first use. Hearts are brought up to date; coming
+	// back after missed days uses freeze cards or ends the streak, and leaves a one-time notice for the page.
 	private async lock(em: EntityManager, userId: string, now: Date): Promise<Row> {
 		await em.createQueryBuilder().insert().into(MiLojoQuest).values(this.newRow(userId, now)).orIgnore().execute();
 		const row = await em.findOneOrFail(MiLojoQuest, { where: { userId }, lock: { mode: 'pessimistic_write' } });
@@ -70,6 +103,15 @@ export class LojoQuestService {
 		if (h !== row.hearts) {
 			row.hearts = h;
 			row.heartsAt = now;
+		}
+		const settled = settleStreak(row, dayOf(now));
+		if (settled.notice) {
+			row.streak = settled.state.streak;
+			row.streakDay = settled.state.streakDay;
+			row.freezes = settled.state.freezes;
+			row.notice = settled.notice;
+			if (settled.notice.kind === 'freeze') await this.log(em, userId, now, { kind: 'freeze', ref: 'used', hearts: 0, xp: 0, data: { n: settled.notice.used } });
+			await this.save(em, row, now);
 		}
 		return row;
 	}
@@ -86,6 +128,13 @@ export class LojoQuestService {
 
 	private async todayLogs(em: EntityManager | DataSource, userId: string, now: Date): Promise<MiLojoQuestLog[]> {
 		return em.getRepository(MiLojoQuestLog).find({ where: { userId, day: dayOf(now) } });
+	}
+
+	// 生词本 cards due by the end of today (Beijing): below 10, a wordbook gear cannot give a heart today.
+	private async wordbookLow(userId: string, now: Date): Promise<boolean> {
+		const end = new Date(Date.parse(`${addDays(dayOf(now), 1)}T00:00:00+08:00`));
+		const due = await this.db.getRepository(MiLojoWordCard).count({ where: { userId, due: LessThan(end) }, take: WORDBOOK_MIN });
+		return due < WORDBOOK_MIN;
 	}
 
 	private setHearts(row: Row, hearts: number, now: Date): void {
@@ -107,34 +156,39 @@ export class LojoQuestService {
 		return { days: row.streak, changed: t.changed, usedFreezes: t.usedFreezes, gotFreeze: t.gotFreeze };
 	}
 
-	// Which nodes are open: a level opens when one node before it is cleared; the Boss when every level before it is
-	// passed. Stations (装备、情报、书屋) never block: they count as cleared once open.
+	private prepOf(row: Row) {
+		return { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news };
+	}
+
+	// Which nodes are open (numbers.json unlock): a node opens when the from of any line into it is passed (the start
+	// counts as passed); stations never block and are done once their Boss prep item is. The Boss opens with 1-6 passed
+	// and can be started once prep is done.
 	private nodeStates(row: Row): Record<string, 'done' | 'open' | 'locked'> {
-		const states: Record<string, 'done' | 'open' | 'locked'> = { S: 'done' };
-		const cleared = (id: string) => states[id] === 'done' || (states[id] === 'open' && nodeOf(id)?.kind !== 'level' && nodeOf(id)?.kind !== 'boss');
+		const passed = (id: string) => id === 'start' || row.levels[id]?.passedAt != null;
+		const states: Record<string, 'done' | 'open' | 'locked'> = {};
 		for (const n of CH.nodes) {
-			if (n.kind === 'start') continue;
-			const before = CH.edges.filter(([, b]) => b === n.id).map(([a]) => a);
-			const open = n.kind === 'boss'
-				? before.filter(a => nodeOf(a)?.kind === 'level').every(cleared)
-				: before.some(cleared);
-			const passed = row.levels[n.id]?.passedAt != null;
+			if (n.kind === 'start') {
+				states[n.id] = 'done';
+				continue;
+			}
+			const reached = CH.edges.some(([a, b]) => b === n.id && passed(a));
 			const stationDone = (n.kind === 'gear' && row.prep.gear) || (n.kind === 'news' && row.prep.news) || (n.kind === 'shelf' && row.prep.guide);
-			states[n.id] = !open ? 'locked' : (passed || stationDone) ? 'done' : 'open';
+			states[n.id] = !reached ? 'locked' : (passed(n.id) && (n.kind === 'level' || n.kind === 'boss')) || stationDone ? 'done' : 'open';
 		}
 		return states;
 	}
 
-	private bookFor(cause: string | null, failStreak: number): QuestBook {
-		// 错因 → 锦囊 follows 攻略's causeKeys; failing the same level twice in a row points to 「卡住多半在练已经会的」
-		return (failStreak >= 2 ? bookForCause('same-mistake-again') : null) ?? bookForCause(cause ?? '') ?? QUEST_BOOKS.find(b => b.no === 5) ?? QUEST_BOOKS[0];
+	// The level's 3 books and the recommended first one (numbers.json shelfRule).
+	private shelfOf(node: QuestNode | undefined, cause: string | null, failStreak: number): { refs: string[]; book: QuestBook } {
+		const refs = shelfFor(node?.shelf ?? [], cause ? bookForCause(cause)?.ref ?? null : null, failStreak);
+		const book = bookByRef(refs[0] ?? '') ?? bookForCause('same-word') ?? QUEST_BOOKS[0];
+		return { refs, book };
 	}
 
 	private lastFail(row: Row): { levelId: string; cause: string | null; failStreak: number } | null {
 		let best: { levelId: string; at: string; cause: string | null; failStreak: number } | null = null;
 		for (const [levelId, l] of Object.entries(row.levels)) {
-			const x = l as typeof l & { lastCause?: string };
-			if ((l.failStreak ?? 0) > 0 && l.lastAt && (best == null || l.lastAt > best.at)) best = { levelId, at: l.lastAt, cause: x.lastCause ?? null, failStreak: l.failStreak ?? 0 };
+			if ((l.failStreak ?? 0) > 0 && l.lastAt && (best == null || l.lastAt > best.at)) best = { levelId, at: l.lastAt, cause: l.lastCause ?? null, failStreak: l.failStreak ?? 0 };
 		}
 		return best;
 	}
@@ -143,23 +197,45 @@ export class LojoQuestService {
 		const now = new Date();
 		const row = await this.db.transaction(async em => {
 			const r = await this.lock(em, userId, now);
+			// the notice is shown once
+			if (r.notice != null) await em.update(MiLojoQuest, { userId }, { notice: null });
 			return r;
 		});
-		const logs = await this.todayLogs(this.db, userId, now);
-		return this.pack(row, logs, now);
+		const [logs, wordbookLow] = await Promise.all([this.todayLogs(this.db, userId, now), this.wordbookLow(userId, now)]);
+		return this.pack(row, logs, now, wordbookLow);
 	}
 
-	private pack(row: Row, logs: MiLojoQuestLog[], now: Date) {
+	// Exam date and the first-time walkthrough. Returns the same as show.
+	public async settings(userId: string, p: { examDate?: string | null; onboarded?: boolean }) {
+		const now = new Date();
+		if (p.examDate != null && !examDateOk(p.examDate, dayOf(now))) throw new ApiError(lojoQuestErrors.invalidExamDate);
+		await this.db.transaction(async em => {
+			const row = await this.lock(em, userId, now);
+			if (p.examDate !== undefined) row.examDate = p.examDate;
+			if (p.onboarded !== undefined) row.onboarded = p.onboarded;
+			await this.save(em, row, now);
+		});
+		return this.show(userId);
+	}
+
+	private pack(row: Row, logs: MiLojoQuestLog[], now: Date, wordbookLow: boolean) {
 		const today = dayOf(now);
 		const s = streakNow(row, today);
 		const states = this.nodeStates(row);
 		const fail = this.lastFail(row);
-		const rec = fail ? this.bookFor(fail.cause, fail.failStreak) : null;
+		const failNode = fail ? nodeOf(fail.levelId) : undefined;
+		const shelf = fail ? this.shelfOf(failNode, fail.cause, fail.failStreak) : null;
+		const rec = shelf?.book ?? null;
+		const lit = new Set(shelf?.refs ?? []);
 		const checked = new Set(logs.filter(l => l.kind === 'check' && l.data.passed === true).map(l => l.ref));
 		const refilled = { guide: logs.some(l => l.kind === 'refill' && l.ref === 'guide'), gear: logs.some(l => l.kind === 'refill' && l.ref === 'gear') };
-		const lit = new Set<number>(rec ? [rec.no] : []);
-		if (fail) for (const b of [bookForCause(fail.cause ?? ''), bookForCause('same-mistake-again')]) if (b) lit.add(b.no);
-		const prep = { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news };
+		const prep = this.prepOf(row);
+		const daysLeft = row.examDate ? Math.max(0, daysBetween(today, row.examDate)) : null;
+		const passedDays: Record<string, string | undefined> = {};
+		for (const id of LEVEL_ORDER) {
+			const at = row.levels[id]?.passedAt;
+			passedDays[id] = at ? dayOf(new Date(at)) : undefined;
+		}
 		return {
 			now: now.toISOString(),
 			day: today,
@@ -175,92 +251,153 @@ export class LojoQuestService {
 			bossLosses: row.bossLosses,
 			chestToday: row.chestDay === today,
 			bag: row.bag,
+			badges: row.levels.boss?.passedAt ? [BADGE] : [],
 			lastFail: fail ? { levelId: fail.levelId, cause: fail.cause, failStreak: fail.failStreak } : null,
 			tutorId: lojoTutorIds()[0] ?? null,
+			examDate: row.examDate,
+			daysLeft,
+			onboarded: row.onboarded,
+			behind: behindOf({ order: LEVEL_ORDER, passed: passedDays, today, daysLeft }),
+			notice: row.notice,
 			chapter: {
-				id: CH.id, title: CH.title, band: CH.band, boss: CH.boss,
+				id: CH.id, version: CH.version, title: CH.title, band: CH.band, disclaimer: CH.disclaimer, boss: CH.boss,
+				branches: CH.branches,
 				edges: CH.edges,
 				nodes: CH.nodes.map(n => {
-					const l = row.levels[n.id];
-					const idle = l?.passedAt && l.lastAt ? daysBetween(dayOf(new Date(l.lastAt)), today) : 0;
-					const g = n.kind === 'level' || n.kind === 'boss' || n.kind === 'gear' ? gearPath(n.gear) : null;
+					const l: MiLojoQuestLevel | undefined = row.levels[n.id];
+					const isLevel = n.kind === 'level' || n.kind === 'boss';
+					// 7 days untouched fades, 14 turns gray; a passed retest relights
+					const age = l?.passedAt && l.lastAt ? ageOf(dayOf(new Date(l.lastAt)), today) : null;
 					return {
-						id: n.id, kind: n.kind, x: n.x, y: n.y, label: n.label, name: n.name ?? null, skill: n.skill ?? null, type: n.type ?? null,
-						hint: n.hint ?? null, practice: !!n.practice, ask: n.ask ?? null, need: n.need ?? null, tags: n.tags ?? [],
-						gear: g, state: states[n.id],
+						id: n.id, kind: n.kind, x: n.x, y: n.y, label: n.label, name: n.name, zh: n.zh, hint: n.zh, branch: n.branch,
+						skill: n.skill, type: n.type, practice: n.practice, ask: n.ask, need: n.need, maxWrong: n.maxWrong,
+						hashtags: n.hashtags, tags: n.hashtags, shelf: n.shelf.map(r => Number(r.slice(1))), heartCost: n.heartCost,
+						gear: isLevel || n.kind === 'gear' ? gearPath(n.gear) : null, state: states[n.id],
 						best: l?.best ?? null, tries: l?.tries ?? 0, failStreak: l?.failStreak ?? 0,
-						// 7 days untouched fades, 14 turns gray (display only)
-						age: l?.passedAt ? (idle >= 14 ? 'gray' : idle >= 7 ? 'fade' : null) : null,
+						stars: l?.stars ?? (l?.passedAt ? 1 : 0),
+						age,
+						retestable: n.retest && l?.passedAt != null && age != null,
 					};
 				}),
 			},
-			books: QUEST_BOOKS.map(b => ({
-				no: b.no, id: b.id, slug: b.slug, spine: b.spine, title: b.title, summary: b.summary, kind: b.kind, evidence: b.evidence, color: b.color,
-				app: b.app, verify: b.verify, path: guidePath(b), gear: b.gear ? gearPath(b.gear === 'level' ? undefined : b.gear) : null, givesHeart: b.givesHeart,
-				quiz: b.quiz.map(q => ({ q: q.q, o: q.o })),
-				checkedToday: checked.has(b.slug), inBag: row.bag.includes(b.slug), lit: lit.has(b.no), recommended: rec?.no === b.no,
-			})),
+			books: QUEST_BOOKS.map(b => {
+				const g = bookGear(b, failNode?.gear, { wordbookLow, hearts: row.hearts });
+				const gp = g ? gearPath(g) : null;
+				return {
+					no: b.no, ref: b.ref, id: b.id, slug: b.slug, spine: b.spine, title: b.title, summary: b.summary, kind: b.kind, evidence: b.evidence, color: b.color,
+					app: b.app, verify: b.verify, path: guidePath(b), gear: gp, givesHeart: b.givesHeart && (gp?.givesHeart ?? false),
+					quiz: b.quiz.map(q => ({ q: q.q, o: q.o })),
+					checkedToday: checked.has(b.slug), inBag: row.bag.includes(b.slug), lit: lit.has(b.ref), recommended: rec?.no === b.no,
+				};
+			}),
 		};
 	}
 
-	public async start(userId: string, levelId: string) {
+	public async start(userId: string, levelId: string, retest = false) {
 		const now = new Date();
 		const node = nodeOf(levelId);
 		if (node == null || (node.kind !== 'level' && node.kind !== 'boss') || node.pool == null) throw new ApiError(lojoQuestErrors.noSuchLevel);
+		const pool = node.pool;
 		return await this.db.transaction(async em => {
 			const row = await this.lock(em, userId, now);
+			const prev = row.levels[levelId] ?? {};
+			const mode: Mode = retest ? 'retest' : node.kind === 'boss' ? 'boss' : node.practice ? 'practice' : 'level';
 			if (this.nodeStates(row)[levelId] === 'locked') throw new ApiError(lojoQuestErrors.levelLocked);
-			if (node.kind === 'boss' && !(row.prep.guide && row.prep.gear && row.prep.news)) throw new ApiError(lojoQuestErrors.bossNotReady);
-			if (!node.practice && row.hearts <= 0) throw new ApiError(lojoQuestErrors.noHearts);
+			if (retest) {
+				const age = prev.passedAt && prev.lastAt ? ageOf(dayOf(new Date(prev.lastAt)), dayOf(now)) : null;
+				if (!node.retest || age == null) throw new ApiError(lojoQuestErrors.notRetestable);
+			}
+			if (mode === 'boss' && !(row.prep.guide && row.prep.gear && row.prep.news)) throw new ApiError(lojoQuestErrors.bossNotReady);
+			const rules = rulesOf(node, mode);
+			if (rules.heartCost > 0 && row.hearts <= 0) throw new ApiError(lojoQuestErrors.noHearts);
 			await em.update(MiLojoQuestAttempt, { userId, status: 'open' }, { status: 'quit', endedAt: now });
-			const qs = drawQuestions(node.pool!, node.ask ?? 5, row.levels[levelId]?.lastQs ?? []);
-			const attempt = { id: this.idService.gen(now.getTime()), userId, levelId, questionIds: qs.map(q => q.id), answers: [], status: 'open', createdAt: now, endedAt: null, askedTutor: false };
+			let qs: QuestQuestion[];
+			let set: string | null = null;
+			let setsUsed = prev.setsUsed ?? [];
+			if (mode === 'retest') {
+				qs = drawQuestions(pool, rules.total, prev.lastQs ?? []);
+			} else {
+				const picked = pickSet(pool, node.sets, rules.total, setsUsed, prev.lastQs ?? []);
+				qs = picked.questions;
+				set = picked.set;
+				setsUsed = picked.used;
+			}
+			const attempt = { id: this.idService.gen(now.getTime()), userId, levelId, questionIds: qs.map(q => q.id), answers: [], status: 'open', mode, createdAt: now, endedAt: null, askedTutor: false };
 			await em.insert(MiLojoQuestAttempt, attempt);
-			row.levels = { ...row.levels, [levelId]: { ...row.levels[levelId], lastQs: attempt.questionIds } };
+			row.levels = { ...row.levels, [levelId]: { ...prev, lastQs: attempt.questionIds, setsUsed } };
 			await this.save(em, row, now);
 			return {
 				attemptId: attempt.id,
 				levelId,
+				mode,
 				kind: node.kind,
-				practice: !!node.practice,
-				need: node.kind === 'boss' ? CH.boss.hp : node.need ?? qs.length,
+				practice: node.practice,
+				set,
+				need: rules.need,
 				total: qs.length,
-				maxWrong: node.kind === 'boss' ? CH.boss.maxWrong : qs.length - (node.need ?? qs.length) + 1,
-				hint: node.hint ?? null,
+				maxWrong: rules.maxWrong,
+				heartCost: rules.heartCost,
+				hp: mode === 'boss' ? CH.boss.hp : null,
+				hint: node.zh,
 				hearts: row.hearts,
-				questions: qs.map(q => ({ id: q.id, p: q.p ?? null, s: q.s, o: q.o })),
+				questions: qs.map(publicQuestion),
 			};
 		});
 	}
 
-	public async answer(userId: string, attemptId: string, qid: string, choice: number) {
+	// The current question's recording, made by the server's voices (each line once, shared by every learner). Without
+	// speech (no key, the day's quota used, an error) the script comes back to show as text instead.
+	public async audio(userId: string, attemptId: string, qid: string) {
+		const at = await this.db.getRepository(MiLojoQuestAttempt).findOneBy({ id: attemptId, userId });
+		if (at == null || at.status !== 'open') throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		if (at.questionIds[at.answers.length] !== qid) throw new ApiError(lojoQuestErrors.wrongQuestion);
+		const q = questionOf(nodeOf(at.levelId), qid);
+		if (q?.audio == null) throw new ApiError(lojoQuestErrors.noAudio);
+		const { voices, rate, lines } = q.audio;
+		const fallback = { lines: [] as { who: string; url: string }[], rate, fallback: lines.map(l => ({ who: l.who, text: l.text })) };
+		if (!this.lojoSpeechService.available) return fallback;
+		try {
+			const out: { who: string; url: string }[] = [];
+			for (const l of lines) {
+				const v = voices[l.who];
+				const voice = v != null && (lojoVoiceIds as readonly string[]).includes(v) ? v : lojoDefaultVoice;
+				const file = await this.lojoSpeechService.speakFile(l.text, voice, { speed: rate });
+				out.push({ who: l.who, url: this.driveFileEntityService.getPublicUrl(file) });
+			}
+			return { lines: out, rate };
+		} catch {
+			return fallback;
+		}
+	}
+
+	public async answer(userId: string, attemptId: string, qid: string, given: string) {
 		const now = new Date();
 		return await this.db.transaction(async em => {
 			const row = await this.lock(em, userId, now);
 			const at = await em.findOne(MiLojoQuestAttempt, { where: { id: attemptId, userId }, lock: { mode: 'pessimistic_write' } });
 			if (at == null || at.status !== 'open') throw new ApiError(lojoQuestErrors.noSuchAttempt);
-			const node = nodeOf(at.levelId)!;
+			const node = nodeOf(at.levelId);
 			if (at.questionIds[at.answers.length] !== qid) throw new ApiError(lojoQuestErrors.wrongQuestion);
-			const q = questionOf(node, qid)!;
-			const correct = choice === q.a;
-			at.answers = [...at.answers, { qid, choice, correct }];
+			const q = questionOf(node, qid);
+			if (node == null || q == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
+			const mode = at.mode as Mode;
+			const rules = rulesOf(node, mode);
+			const correct = judge(q, given);
+			const cause = correct ? null : wrongCause(q, given);
+			at.answers = [...at.answers, { qid, given: given.slice(0, 200), correct, cause }];
 			let heartLost = false;
-			if (!correct && !node.practice) {
-				if (row.hearts > 0) {
-					this.setHearts(row, row.hearts - 1, now);
-					heartLost = true;
-					await this.log(em, userId, now, { kind: 'wrong', ref: at.levelId, hearts: -1, xp: 0, data: { qid } });
-				}
+			if (!correct && rules.heartCost > 0 && row.hearts > 0) {
+				this.setHearts(row, row.hearts - rules.heartCost, now);
+				heartLost = true;
+				await this.log(em, userId, now, { kind: 'wrong', ref: at.levelId, hearts: -rules.heartCost, xp: 0, data: { qid, cause } });
 			}
 			const right = at.answers.filter(a => a.correct).length;
 			const wrong = at.answers.length - right;
-			const isBoss = node.kind === 'boss';
-			const need = isBoss ? CH.boss.hp : node.need ?? at.questionIds.length;
-			const maxWrong = isBoss ? CH.boss.maxWrong : at.questionIds.length - need + 1;
-			const outOfHearts = !node.practice && row.hearts <= 0 && !correct;
+			// the Boss is lost when hearts run out; a level just goes on (0 hearts only stops the next start)
+			const outOfHearts = mode === 'boss' && row.hearts <= 0 && !correct;
 			let ended: null | 'passed' | 'failed' = null;
-			if (right >= need) ended = 'passed';
-			else if (wrong >= maxWrong || outOfHearts || at.answers.length >= at.questionIds.length) ended = 'failed';
+			if (right >= rules.need) ended = 'passed';
+			else if (wrong >= rules.maxWrong || outOfHearts || at.answers.length >= at.questionIds.length) ended = 'failed';
 
 			let end = null;
 			if (ended) {
@@ -271,8 +408,8 @@ export class LojoQuestService {
 			await em.update(MiLojoQuestAttempt, { id: at.id }, { answers: at.answers, status: at.status, endedAt: at.endedAt });
 			await this.save(em, row, now);
 			return {
-				correct, answer: q.a, why: q.why, heartLost, hearts: row.hearts,
-				progress: { answered: at.answers.length, right, wrong, need, maxWrong, total: at.questionIds.length },
+				correct, answer: displayAnswer(q), why: q.why, evidence: q.evidence, cause, heartLost, hearts: row.hearts,
+				progress: { answered: at.answers.length, right, wrong, need: rules.need, maxWrong: rules.maxWrong, total: at.questionIds.length },
 				end,
 			};
 		});
@@ -280,73 +417,107 @@ export class LojoQuestService {
 
 	private async finish(em: EntityManager, row: Row, at: MiLojoQuestAttempt, node: QuestNode, passed: boolean, now: Date, outOfHearts: boolean) {
 		const today = dayOf(now);
-		const prev = row.levels[at.levelId] ?? {};
+		const mode = at.mode as Mode;
+		const retest = mode === 'retest';
+		const rules = rulesOf(node, mode);
+		const prev: MiLojoQuestLevel = row.levels[at.levelId] ?? {};
 		const right = at.answers.filter(a => a.correct).length;
-		const causes: string[] = at.answers.filter(a => !a.correct).map(a => questionOf(node, a.qid)?.cause as string | undefined).filter((c): c is string => c != null);
-		const mainCause = causes.length ? [...causes].sort((a, b) => causes.filter(c => c === b).length - causes.filter(c => c === a).length)[0] : null;
-		const level = {
-			...prev,
-			lastAt: now.toISOString(),
-			tries: (prev.tries ?? 0) + 1,
-			best: Math.max(prev.best ?? 0, right),
-			failStreak: passed ? 0 : (prev.failStreak ?? 0) + 1,
-			lastCause: passed ? undefined : mainCause ?? undefined,
-			...(passed && prev.passedAt == null ? { passedAt: now.toISOString() } : {}),
-		};
+		const causes = at.answers.filter(a => !a.correct && a.cause != null).map(a => a.cause!);
+		const main = mainCause(causes);
+		const perfect = passed && right === at.questionIds.length && at.answers.every(a => a.correct);
+		const firstPass = passed && !retest && prev.passedAt == null;
+		let level: MiLojoQuestLevel;
+		if (retest) {
+			// a passed retest relights the level and adds a star; a failed one changes nothing
+			level = passed ? { ...prev, lastAt: now.toISOString(), stars: starsAfter(prev.stars ?? 1, { retest: true, perfect }) } : prev;
+		} else {
+			level = {
+				...prev,
+				lastAt: now.toISOString(),
+				tries: (prev.tries ?? 0) + 1,
+				best: Math.max(prev.best ?? 0, right),
+				failStreak: passed ? 0 : (prev.failStreak ?? 0) + 1,
+				lastCause: passed ? undefined : main ?? undefined,
+				prevCause: passed ? undefined : prev.lastCause,
+				stars: passed ? starsAfter(prev.stars ?? 0, { retest: false, perfect }) : prev.stars ?? 0,
+				...(firstPass ? { passedAt: now.toISOString() } : {}),
+			};
+		}
 		row.levels = { ...row.levels, [at.levelId]: level };
 		let xp = 0;
-		let chest = null;
+		let chest: { xp: number; freeze: boolean; preview: string | null } | null = null;
+		let sideChest: { xp: number; freeze: boolean } | null = null;
+		let badge: string | null = null;
 		let streak = null;
 		let prepReset = false;
-		const firstPass = passed && prev.passedAt == null;
-		if (node.kind === 'boss') {
+		if (mode === 'boss') {
 			if (passed) {
-				xp = firstPass ? XP.boss : XP.replay;
+				xp = firstPass ? XP.bossWin : REPLAY_XP;
 				row.bossLosses = 0;
+				if (firstPass) {
+					xp += N.chest.chapterClear.xp;
+					badge = BADGE;
+				}
 			} else {
 				row.bossLosses += 1;
-				// 连输两次，三样准备清零
-				if (row.bossLosses >= 2) {
+				// 连输两次，备战清零
+				if (row.bossLosses >= N.boss.resetPrepAfterLossesInARow) {
 					row.prep = {};
 					row.bossLosses = 0;
 					prepReset = true;
 				}
 			}
-			await this.log(em, row.userId, now, { kind: 'boss', ref: passed ? 'won' : 'lost', hearts: 0, xp, data: { attemptId: at.id, prepReset } });
+			await this.log(em, row.userId, now, { kind: 'boss', ref: passed ? 'won' : 'lost', hearts: 0, xp, data: { attemptId: at.id, prepReset, badge } });
 		} else if (passed) {
-			xp = firstPass ? XP.pass : XP.replay;
-			await this.log(em, row.userId, now, { kind: 'pass', ref: at.levelId, hearts: 0, xp, data: { attemptId: at.id, first: firstPass } });
+			xp = retest ? XP.retestPass : !firstPass ? REPLAY_XP : mode === 'practice' ? XP.practicePass : XP.levelPass + (perfect ? XP.perfectBonus : 0);
+			await this.log(em, row.userId, now, { kind: retest ? 'retest' : 'pass', ref: at.levelId, hearts: 0, xp, data: { attemptId: at.id, first: firstPass, perfect } });
 		}
 		if (passed) {
-			// 每天第一次过关开宝箱：经验，四分之一的机会多一张冻结卡（最多 2 张）
-			if (row.chestDay !== today) {
-				row.chestDay = today;
-				const freeze = row.freezes < 2 && Math.random() < 0.25;
+			// 支线宝箱: the first pass of 1-12, XP and a freeze card when below the max
+			const side = N.chest.sideQuest;
+			if (firstPass && at.levelId === side.at) {
+				const freeze = row.freezes < MAX_FREEZES;
 				if (freeze) row.freezes += 1;
-				chest = { xp: XP.chest, freeze };
-				await this.log(em, row.userId, now, { kind: 'chest', ref: at.levelId, hearts: 0, xp: XP.chest, data: { freeze } });
-				xp += XP.chest;
+				sideChest = { xp: side.xp, freeze };
+				await this.log(em, row.userId, now, { kind: 'chest', ref: `side:${at.levelId}`, hearts: 0, xp: side.xp, data: { freeze } });
+				xp += side.xp;
+			}
+			// 每天第一次过关开宝箱：经验；10% 多一张冻结卡（满了不出），20% 给一本这关书屋里的锦囊预览
+			if (row.chestDay !== today) {
+				const daily = N.chest.dailyFirstWin;
+				row.chestDay = today;
+				const freezeChance = daily.bonus.find(b => b.item === 'freeze')?.chance ?? 0;
+				const previewChance = daily.bonus.find(b => b.item === 'guide-preview')?.chance ?? 0;
+				const freeze = row.freezes < MAX_FREEZES && Math.random() < freezeChance;
+				if (freeze) row.freezes += 1;
+				const books = node.shelf.map(bookByRef).filter((b): b is QuestBook => b != null);
+				const preview = books.length > 0 && Math.random() < previewChance ? books[Math.floor(Math.random() * books.length)].slug : null;
+				chest = { xp: daily.xp, freeze, preview };
+				await this.log(em, row.userId, now, { kind: 'chest', ref: at.levelId, hearts: 0, xp: daily.xp, data: { freeze, preview } });
+				xp += daily.xp;
 			}
 			row.xp += xp;
 			streak = await this.streak(em, row, now);
 		}
+		const failStreak = level.failStreak ?? 0;
 		return {
-			passed, right, total: at.answers.length, need: node.kind === 'boss' ? CH.boss.hp : node.need, outOfHearts,
-			xp, chest, streak, firstPass, failStreak: level.failStreak, cause: mainCause,
-			bossLosses: row.bossLosses, prepReset, prep: { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news },
+			passed, mode, right, total: at.questionIds.length, need: rules.need, outOfHearts,
+			xp, stars: level.stars ?? 0, chest, sideChest, badge, streak, firstPass, failStreak, cause: main,
+			bossLosses: row.bossLosses, prepReset, prep: this.prepOf(row),
 			review: at.answers.map((a, i) => {
-				const q = questionOf(node, a.qid)!;
-				return { n: i + 1, qid: a.qid, correct: a.correct, choice: a.choice, answer: q.a, why: q.why };
+				const q = questionOf(node, a.qid);
+				return {
+					n: i + 1, qid: a.qid, correct: a.correct, given: q ? displayAnswer(q, a.given) : a.given,
+					answer: q ? displayAnswer(q) : '', why: q?.why ?? '', evidence: q?.evidence ?? '', cause: a.cause,
+				};
 			}),
 			recommended: passed ? null : (() => {
-				const b = this.bookFor(mainCause, level.failStreak);
-				return { slug: b.slug, no: b.no, spine: b.spine, path: guidePath(b) };
+				const { book: b, refs } = this.shelfOf(node, main, failStreak);
+				return { slug: b.slug, no: b.no, ref: b.ref, spine: b.spine, path: guidePath(b), shelf: refs.map(r => Number(r.slice(1))) };
 			})(),
 		};
 	}
 
-	// 锦囊补心: the book's 3-question check, 2 right passes. A pass puts the book in the bag, ticks Boss prep and the
-	// streak, and gives 1 heart if hearts are below 5 and the 锦囊 path has not given one today. Once a day per book.
 	public async check(userId: string, slug: string, answers: number[]) {
 		const now = new Date();
 		const book = bookOf(slug);
@@ -356,7 +527,7 @@ export class LojoQuestService {
 			const logs = await this.todayLogs(em, userId, now);
 			const results = book.quiz.map((q, i) => ({ correct: answers[i] === q.a, answer: q.a, why: q.why }));
 			const right = results.filter(r => r.correct).length;
-			const passed = right >= 2;
+			const passed = right >= N.hearts.earnBack.guide.quizPassAt;
 			const already = logs.some(l => l.kind === 'check' && l.ref === slug && l.data.passed === true);
 			let refilled = false;
 			let reason: string | null = null;
@@ -364,8 +535,8 @@ export class LojoQuestService {
 			if (!passed) reason = 'failed';
 			else if (already) reason = 'duplicate';
 			else {
-				await this.log(em, userId, now, { kind: 'check', ref: slug, hearts: 0, xp: XP.check, data: { passed: true, right } });
-				row.xp += XP.check;
+				await this.log(em, userId, now, { kind: 'check', ref: slug, hearts: 0, xp: XP.guideQuizPass, data: { passed: true, right } });
+				row.xp += XP.guideQuizPass;
 				row.prep = { ...row.prep, guide: true };
 				if (!row.bag.includes(slug)) row.bag = [...row.bag, slug].slice(-3);
 				if (row.hearts >= MAX_HEARTS) reason = 'full';
@@ -379,7 +550,7 @@ export class LojoQuestService {
 			}
 			if (!passed) await this.log(em, userId, now, { kind: 'check', ref: slug, hearts: 0, xp: 0, data: { passed: false, right } });
 			await this.save(em, row, now);
-			return { passed, right, refilled, reason, hearts: row.hearts, results, streak, prep: { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news } };
+			return { passed, right, refilled, reason, hearts: row.hearts, results, streak, prep: this.prepOf(row) };
 		});
 	}
 
@@ -393,7 +564,7 @@ export class LojoQuestService {
 			row.prep = { ...row.prep, guide: true };
 			await this.log(em, userId, now, { kind: 'take', ref: slug, hearts: 0, xp: 0 });
 			await this.save(em, row, now);
-			return { bag: row.bag, prep: { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news } };
+			return { bag: row.bag, prep: this.prepOf(row) };
 		});
 	}
 
@@ -402,10 +573,14 @@ export class LojoQuestService {
 		const now = new Date();
 		return await this.db.transaction(async em => {
 			const row = await this.lock(em, userId, now);
+			// 看情报 +2 XP, once a day
+			const logs = await this.todayLogs(em, userId, now);
+			const xp = logs.some(l => l.kind === 'news' && l.xp > 0) ? 0 : XP.intelRead;
 			row.prep = { ...row.prep, news: true };
-			await this.log(em, userId, now, { kind: 'news', ref: levelId ?? '', hearts: 0, xp: 0 });
+			row.xp += xp;
+			await this.log(em, userId, now, { kind: 'news', ref: levelId ?? '', hearts: 0, xp });
 			await this.save(em, row, now);
-			return { prep: { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news } };
+			return { xp, prep: this.prepOf(row) };
 		});
 	}
 
@@ -430,8 +605,8 @@ export class LojoQuestService {
 			const logs = await this.todayLogs(em, userId, now);
 			const ref = `${p.app}:${p.setKey}`.slice(0, 256);
 			if (logs.some(l => l.kind === 'set' && l.ref === ref)) return { ...base, reason: 'duplicate' };
-			await this.log(em, userId, now, { kind: 'set', ref, hearts: 0, xp: XP.set, data: { items, durationMs: p.durationMs } });
-			row.xp += XP.set;
+			await this.log(em, userId, now, { kind: 'set', ref, hearts: 0, xp: XP.gearSet, data: { items, durationMs: p.durationMs } });
+			row.xp += XP.gearSet;
 			row.prep = { ...row.prep, gear: true };
 			let reason: string | null = null;
 			let refilled = false;
@@ -488,22 +663,30 @@ export class LojoQuestService {
 		if (tutorId == null) return { tutorId, result: 'off' as const };
 		const row = await this.db.transaction(em => this.lock(em, userId, now));
 		const logs = await this.todayLogs(this.db, userId, now);
-		const node = nodeOf(at.levelId)!;
+		const node = nodeOf(at.levelId);
+		if (node == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
 		const level = row.levels[at.levelId] ?? {};
-		const wrong = at.answers.map((a, i) => ({ a, i })).filter(x => !x.a.correct).map(({ a, i }) => {
-			const q = questionOf(node, a.qid)!;
-			return {
-				n: i + 1, question: [q.p, q.s].filter(Boolean).join(' / ').slice(0, 200), evidence: (q.ev ?? q.p ?? '').slice(0, 300),
-				picked: q.o[a.choice] ?? '', answer: q.o[q.a], cause: q.cause,
-			};
+		const wrong: QuestWrong[] = [];
+		at.answers.forEach((a, i) => {
+			const q = questionOf(node, a.qid);
+			if (a.correct || q == null) return;
+			wrong.push({
+				n: i + 1,
+				question: [q.question, q.passage].filter(Boolean).join(' / ').slice(0, 200),
+				evidence: q.evidence.slice(0, 300),
+				picked: displayAnswer(q, a.given).slice(0, 120),
+				answer: displayAnswer(q).slice(0, 120),
+				cause: a.cause ?? q.cause ?? '',
+				why: q.why.slice(0, 200),
+			});
 		});
-		const causes: string[] = wrong.map(w => w.cause as string);
-		const prevCause = (level as { lastCause?: string }).lastCause ?? null;
-		let cause: string | null = causes.length ? [...causes].sort((x, y) => causes.filter(c => c === y).length - causes.filter(c => c === x).length)[0] : null;
-		if (cause != null && (level.failStreak ?? 0) >= 2 && prevCause === cause) cause = 'same-mistake-again';
+		const main = mainCause(at.answers.filter(a => !a.correct && a.cause != null).map(a => a.cause!));
+		// failing the same level again for the same main cause: 「同一个错又犯了」
+		const failStreak = level.failStreak ?? 1;
+		const cause: string | null = main != null && failStreak >= N.shelfRule.sameLevelFailsInARow.count && level.prevCause === main ? 'same-mistake-again' : main;
 		const s = streakNow(row, dayOf(now));
 		const refilledToday = { guide: logs.some(l => l.kind === 'refill' && l.ref === 'guide'), gear: logs.some(l => l.kind === 'refill' && l.ref === 'gear') };
-		const book = this.bookFor(causes[0] ?? null, level.failStreak ?? 0);
+		const { book } = this.shelfOf(node, main, failStreak);
 		const gear = gearPath(node.gear);
 		const read = logs.some(l => l.kind === 'check' && l.ref === book.slug && l.data.passed === true);
 		const next: QuestNext[] = [
@@ -517,8 +700,8 @@ export class LojoQuestService {
 			attemptId: at.id,
 			at: (at.endedAt ?? now).toISOString(),
 			chapter: CH.title,
-			level: { id: node.id, name: node.name ?? node.label, kind: node.kind === 'boss' ? 'boss' : 'level', skill: node.skill ?? '', type: node.type ?? '' },
-			result: { correct: at.answers.filter(a => a.correct).length, total: at.questionIds.length, needed: node.kind === 'boss' ? CH.boss.hp : node.need ?? 0, passed: false, failStreak: level.failStreak ?? 1 },
+			level: { id: node.id, name: node.name || node.label, kind: node.kind === 'boss' ? 'boss' : 'level', skill: node.skill ?? '', type: node.type ?? '' },
+			result: { correct: at.answers.filter(a => a.correct).length, total: at.questionIds.length, needed: rulesOf(node, at.mode as Mode).need, passed: false, failStreak },
 			wrong,
 			cause,
 			hearts: { now: row.hearts, max: MAX_HEARTS, nextRefill: new Date(nextRefill.getTime() + 8 * 3600_000).toISOString().slice(11, 16), refilledToday },

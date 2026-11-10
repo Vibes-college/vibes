@@ -89,7 +89,8 @@ import { typingLabels, typingLang } from '@/lojo/typing/labels.js';
 import { loadEnglishStatus } from '@/lojo/english/api.js';
 import * as os from '@/os.js';
 import { definePage } from '@/page.js';
-import { reportQuestSet } from '@/lojo/quest-refill.js';
+import { queryParam, questFrom, reportQuestSet } from '@/lojo/quest-refill.js';
+import { useRouter } from '@/router.js';
 
 type View =
 	| { kind: 'line' }
@@ -100,6 +101,7 @@ type View =
 // What each screen offers the page: its heading takes the focus when it comes up; Enter does its main action.
 type Screen = { focusHeading?: () => void; primary?: () => void };
 
+const router = useRouter();
 const content = typingContent;
 const ids = content.stops.map(s => s.id);
 const rootEl = useTemplateRef('rootEl');
@@ -181,7 +183,7 @@ function onFinish(result: StopTry) {
 	if (newPass) justLit.value = result.stop;
 	// 闯关 · 装备补心: a long-sentence stop (each counts 2) and the mock (a whole passage) count as a set of 10.
 	const now = Date.now();
-	reportQuestSet('typing', `stop:${stop.id}`, stop.kind === 'mock' ? 10 : stop.kind === 'listen' ? stop.rows.length : stop.kind === 'copy' && stop.need == null ? stop.items.length * 2 : stop.items.length, now - result.ms, now);
+	reportQuestSet('typing', `stop:${stop.id}`, stop.kind === 'mock' ? 10 : stop.kind === 'listen' ? stop.rows.length : stop.kind === 'copy' && stop.need == null ? stop.items.length * 2 : stop.items.length, now - result.ms, now, questFrom(router.getCurrentFullPath()) != null);
 	void saveTypingProgress().catch(() => { /* said on the line; the next save takes it along */ });
 	void show({ kind: 'result', stop, result, newPass, newAll });
 }
@@ -215,6 +217,19 @@ function onKeydown(ev: KeyboardEvent) {
 
 useWindowKeys(onKeydown);
 
+// ?stop=spelling (闯关 sends learners here): straight to that stop's intro. Once per address; not in the middle of a stop.
+let askedPath: string | null = null;
+
+function openAsked() {
+	const path = router.getCurrentFullPath();
+	if (path === askedPath || view.value.kind === 'play') return;
+	askedPath = path;
+	const id = queryParam(path, 'stop');
+	if (id != null && ids.includes(id)) openStop(id);
+}
+
+openAsked();
+
 // The account's copy, and whether recordings can be made (stop 3).
 void syncTypingProgress();
 void loadEnglishStatus();
@@ -224,6 +239,7 @@ void loadEnglishStatus();
 let opened = false;
 onActivated(() => {
 	if (opened && view.value.kind !== 'play') void syncTypingProgress();
+	if (opened) openAsked();
 	opened = true;
 });
 

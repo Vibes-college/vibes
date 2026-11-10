@@ -36,6 +36,7 @@ item looked at again. -->
 		<p v-if="result.pass && result.device === 'phone'" :class="$style.meta">{{ L.phonePass }}</p>
 		<p :class="$style.level">{{ L.level }}</p>
 	</section>
+	<XQuestBack app="typing"/>
 	<p v-if="!result.pass && fails >= 3" :class="$style.streak">{{ L.streak(fails) }}</p>
 	<div :class="$style.acts">
 		<button
@@ -57,6 +58,7 @@ item looked at again. -->
 import { computed, useId, useTemplateRef } from 'vue';
 import XTiles from './typing.tiles.vue';
 import XReview from './typing.review.vue';
+import XQuestBack from '@/lojo/QuestBack.vue';
 import type { Tile } from './typing.tiles.vue';
 import type { Stop, TypingContent } from '@/lojo/typing/content.js';
 import type { StopTry } from '@/lojo/typing/score.js';
@@ -221,7 +223,8 @@ defineExpose({ focusHeading, primary });
 	color: var(--tl-ink);
 	margin: 0 0 6px;
 
-	&:focus:not(:focus-visible) {
+	// focused by the page when the stop ends (tabindex -1, never reached by Tab): no ring for that
+	&:focus {
 		outline: none;
 	}
 }

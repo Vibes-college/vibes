@@ -93,6 +93,7 @@ workspace, read by lojo/grammar/content.ts. -->
 			<section :class="$style.end" :aria-labelledby="`${uid}-end`">
 				<h2 :id="`${uid}-end`" :class="$style.endTitle">{{ L.endTitle }}</h2>
 				<p>{{ stop.types ? L.endTypes(stop.types[grammarLang]) : '' }}{{ L.endNote }}</p>
+				<XQuestBack app="grammar" noHeart :class="$style.quest"/>
 				<MkA :to="gateTo" :class="[$style.cta, $style.wide]" data-gate><i class="ti ti-flag" aria-hidden="true"></i>{{ L.toGate }}<i class="ti ti-arrow-right" aria-hidden="true"></i></MkA>
 			</section>
 
@@ -115,6 +116,7 @@ workspace, read by lojo/grammar/content.ts. -->
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, useId, useTemplateRef } from 'vue';
 import { getScrollContainer } from '@@/js/scroll.js';
 import XExample from './grammar.example.vue';
+import XQuestBack from '@/lojo/QuestBack.vue';
 import { GRAMMAR_COURSE, bandText, findStop, gatePath, grammarContent, lessonPath, neighbours, sectionFromPath } from '@/lojo/grammar/content.js';
 import { grammarLabels as L, grammarLang } from '@/lojo/grammar/labels.js';
 import { stopSaying } from '@/lojo/grammar/audio.js';
@@ -730,6 +732,10 @@ html[data-color-scheme=dark] .root {
 		font-size: 13.5px;
 		line-height: 1.7;
 	}
+}
+
+.quest {
+	margin: 0 0 14px;
 }
 
 .endTitle {

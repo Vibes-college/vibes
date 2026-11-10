@@ -16,6 +16,9 @@ freeze.mp3      Interface Sounds                                  glass_004.ogg
 warn.mp3        Interface Sounds                                  question_002.ogg
 tick.mp3        Interface Sounds                                  tick_002.ogg
 lighton.mp3     Interface Sounds                                  switch_002.ogg
+freezeuse.mp3   Interface Sounds                                  glass_001.ogg
+page.mp3        Interface Sounds                                  toggle_001.ogg
+offline.mp3     Interface Sounds                                  error_006.ogg
 heartup.mp3     Digital Audio     https://kenney.nl/assets/digital-audio      powerUp2.ogg
 reset.mp3       Digital Audio                                     spaceTrash3.ogg
 bosshit.mp3     Digital Audio                                     lowThreeTone.ogg

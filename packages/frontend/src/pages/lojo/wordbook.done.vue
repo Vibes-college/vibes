@@ -15,6 +15,7 @@ words just learned come back. -->
 		<li :class="$style.hard"><b>{{ tally[2] }}</b>{{ wordbookLabels.tallyHard }}</li>
 		<li :class="$style.good"><b>{{ tally[3] }}</b>{{ wordbookLabels.tallyRemembered }}</li>
 	</ul>
+	<XQuestBack app="wordbook" :class="$style.quest"/>
 	<p v-if="today && today.streak > 0" :class="$style.streak"><i class="ti ti-flame" aria-hidden="true"></i> {{ wordbookLabels.streakLine(today.streak) }}</p>
 	<p :class="$style.next">{{ nextText }}</p>
 	<div :class="$style.buttons">
@@ -29,6 +30,7 @@ import { computed, onMounted, useId, useTemplateRef } from 'vue';
 import type { WordToday } from '@/lojo/english/wordbook.js';
 import type { ReviewRating } from '@/lojo/english/review.js';
 import MkButton from '@/components/MkButton.vue';
+import XQuestBack from '@/lojo/QuestBack.vue';
 import { intervalText } from '@/lojo/english/review.js';
 import { wordbookLabels, wordbookLang } from '@/lojo/english/labels.js';
 
@@ -91,9 +93,14 @@ onMounted(() => {
 	color: var(--MI_THEME-brandInk);
 	letter-spacing: 0.03em;
 
+	// focused when the round ends (tabindex -1, never reached by Tab): no ring for that
 	&:focus {
 		outline: none;
 	}
+}
+
+.quest {
+	align-self: stretch;
 }
 
 .lede {
