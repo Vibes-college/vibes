@@ -209,7 +209,8 @@ export class ClientServerService {
 
 		fastify.addHook('onRequest', (request, reply, done) => {
 			// クリックジャッキング防止のためiFrameの中に入れられないようにする
-			reply.header('X-Frame-Options', 'DENY');
+			// Vibes: the 闯关 game page is shown in a frame by /quest, on this site only.
+			reply.header('X-Frame-Options', request.url.startsWith('/lojo-assets/quest/') ? 'SAMEORIGIN' : 'DENY');
 			done();
 		});
 
