@@ -213,7 +213,7 @@ function nodeInner(n, cur) {
 		const ready = D.bossReady && n.state !== 'locked';
 		return `<path d="M-30 22 V-8 Q-30 -30 0 -30 Q30 -30 30 -8 V22Z" fill="#141E52" stroke="#141E52" stroke-width="1.5"/>
 			<path id="bossDoor" d="M-16 22 V-4 Q-16 -16 0 -16 Q16 -16 16 -4 V22Z" fill="${ready ? '#ECB637' : '#2a336a'}" stroke="#ECB637" stroke-width="1.5"/>
-			<text y="-19" text-anchor="middle" font-size="8.5" fill="#ECB637">BOSS</text><text y="8" text-anchor="middle" font-size="9.5" fill="${ready ? '#141E52' : '#FFFDF8'}">${n.state === 'done' ? '已打赢' : '守门人'}</text>
+			<text y="-19" text-anchor="middle" font-size="8.5" fill="#ECB637">BOSS</text><text y="8" text-anchor="middle" font-size="9.5" fill="${ready ? '#141E52' : '#FFFDF8'}">${n.state === 'done' ? '已打赢' : esc(n.name || 'Boss')}</text>
 			<g id="prep" transform="translate(0 36)">
 				<rect x="-50" y="-10" width="100" height="20" rx="10" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3"/>
 				<text x="-44" y="4" font-size="9" fill="#141E52">备战</text>
