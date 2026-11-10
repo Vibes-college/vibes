@@ -10,7 +10,7 @@ import { lojoQuestErrors } from '@/server/api/lojo-schemas.js';
 
 export const meta = {
 	tags: ['lojo'], requireCredential: true, kind: 'read:account',
-	description: 'The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text.',
+	description: 'The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text, except for a gap question (the script would give the answer away): that question is swapped for another one of the level, skip.next, with nothing judged and no heart taken (skip.next is null when the level has none left).',
 	limit: { duration: 60 * 60 * 1000, max: 600 },
 	errors: { noSuchAttempt: lojoQuestErrors.noSuchAttempt, wrongQuestion: lojoQuestErrors.wrongQuestion, noAudio: lojoQuestErrors.noAudio },
 	res: { type: 'object', optional: false, nullable: false },

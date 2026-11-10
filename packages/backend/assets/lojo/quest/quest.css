@@ -34,12 +34,14 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 
 
 /* 地图 */
-#mapwrap{position:absolute;left:0;right:0;top:128px;bottom:206px;z-index:5;transform-origin:50% 50%}
-#map{width:100%;height:100%;overflow:visible}
+/* 地图铺满屏宽（左右各 14px），比一屏高就上下拖 */
+#mapwrap{position:absolute;left:0;right:0;top:128px;bottom:206px;z-index:5;transform-origin:50% 50%;padding:0 14px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#mapwrap::-webkit-scrollbar{display:none}
+#map{display:block;width:100%;height:auto;aspect-ratio:390/600;overflow:visible}
 .nd{cursor:pointer}
 .nd text{font-family:var(--round);font-weight:800}
-.lab{font-size:10.5px;fill:var(--navy);paint-order:stroke;stroke:#F6F1E7;stroke-width:3px;stroke-linejoin:round}
-.note{font-size:9.5px;font-weight:700!important;paint-order:stroke;stroke:#F6F1E7;stroke-width:3px;stroke-linejoin:round}
+.lab{font-size:12.5px;fill:var(--navy);paint-order:stroke;stroke:#F6F1E7;stroke-width:4px;stroke-linejoin:round}
+.note{font-size:12.5px;font-weight:700!important;paint-order:stroke;stroke:#F6F1E7;stroke-width:4px;stroke-linejoin:round}
 
 /* 底部：Mia + 今天这一步 + 开打 */
 .dock{position:absolute;left:0;right:0;bottom:0;z-index:30;padding:0 14px 14px;background:linear-gradient(180deg,rgba(246,241,231,0),var(--cream) 18%)}
@@ -478,3 +480,15 @@ html,body{background:#E9E1D2}
 @media (prefers-reduced-motion: reduce){
   *{transition:none!important;animation:none!important}
 }
+
+/* 第 2 轮手机验收（闯关体验设计 11-10）*/
+/* G2 没过的卡片：顶边离屏幕顶至少 64px，顶栏的心一直露在外面；放不下的在卡片里滚 */
+#fail,#bossLose{max-height:calc(100% - 18px - 64px)}
+/* G3 听力填空的录音出不来：这题跳过 */
+.skipCard{padding:12px 14px;border-radius:14px;background:var(--paper);border:1.5px solid var(--navy);box-shadow:3px 3px 0 var(--navy);font-size:13.5px;line-height:1.55;color:#2b2f4a}
+.skipCard .fh{font-weight:900;color:#B9472C;margin-bottom:4px}
+.skipCard p{margin:0 0 10px}
+/* X2 背包卡片放在背包上面，不压「背包」两个字 */
+#bagPanel{bottom:104px}
+/* X4 书屋顶上回到社区攻略板块的深色小按钮（原型截图 44）*/
+#toGuides{position:absolute;top:12px;right:14px;z-index:106;height:30px;padding:0 12px;border-radius:15px;background:var(--navy);color:#fff;font:800 12px var(--round);box-shadow:0 3px 0 #070C2A}

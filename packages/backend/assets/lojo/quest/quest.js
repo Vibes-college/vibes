@@ -196,13 +196,11 @@ const cleared = n => n && (n.state === 'done' || (n.state === 'open' && n.kind !
 function nodeInner(n, cur) {
 	const lab = esc(n.label);
 	if (n.kind === 'start') return '<circle r="6" fill="#141E52"/><text class="lab" y="20" text-anchor="middle">起点</text>';
-	if (n.kind === 'level') {
+	if (n.kind === 'level') { // 手机上地图铺满屏宽（约 0.9 倍）：圆点 ≥28px、关卡号 ≥12px。过了的关，关卡号和星星画在 nodeTags 里（不跟着褪色）
 		const done = n.state === 'done', locked = n.state === 'locked';
-		return `<circle r="${cur ? 14 : 11}" fill="${cur ? '#FCE7DF' : done ? '#FFFDF8' : '#F6F1E7'}" stroke="${cur ? '#E8603F' : '#141E52'}" stroke-width="${cur ? 2.4 : 1.6}" ${locked ? 'stroke-dasharray="2 2"' : ''}/>` +
-			(done ? CHECK : `<text y="4" text-anchor="middle" font-size="10" fill="${cur ? '#E8603F' : '#a99e88'}">${lab}</text>`) +
-			(n.practice && !done ? `<circle r="${cur ? 18 : 15}" fill="none" stroke="#3E9E7A" stroke-width="1.3" stroke-dasharray="2 3"/>` : '') +
-			(done ? `<text class="lab" y="25" text-anchor="middle" font-size="10">${lab}</text>` : '') +
-			(done && n.stars ? `<text y="35" text-anchor="middle" font-size="8.5" fill="#C99520" letter-spacing="1">${'★'.repeat(Math.min(3, n.stars))}<tspan fill="#d8ccb4">${'★'.repeat(Math.max(0, 3 - n.stars))}</tspan></text>` : '');
+		return `<circle r="${cur ? 18 : 16}" fill="${cur ? '#FCE7DF' : done ? '#FFFDF8' : '#F6F1E7'}" stroke="${cur ? '#E8603F' : '#141E52'}" stroke-width="${cur ? 2.6 : 1.8}" ${locked ? 'stroke-dasharray="3 3"' : ''}/>` +
+			(done ? `<g transform="scale(1.35)">${CHECK}</g>` : `<text y="5" text-anchor="middle" font-size="${n.label.length > 3 ? 12.5 : 14}" fill="${cur ? '#E8603F' : '#8f846f'}">${lab}</text>`) +
+			(n.practice && !done ? `<circle r="${cur ? 23 : 21}" fill="none" stroke="#3E9E7A" stroke-width="1.5" stroke-dasharray="3 4"/>` : '');
 	}
 	const tick = n.state === 'done' ? CHECK : '';
 	if (n.kind === 'gear') return `<path d="M-18 14 V-2 h36 V14z" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><path d="M-21 -2 q5 7 10.5 0 q5 7 10.5 0 q5 7 10.5 0 q5 7 10.5 0 v-9 h-42z" fill="#3E9E7A" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/><text x="0" y="11" text-anchor="middle" font-size="11">🎧</text><text class="lab" y="28" text-anchor="middle">${lab}</text><g transform="translate(20 -14)">${tick}</g>`;
@@ -244,20 +242,59 @@ function drawMap() {
 	D.chapter.nodes.forEach(n => {
 		const g = document.createElementNS(svgNS, 'g'); g.setAttribute('class', 'nd' + (n.state === 'locked' ? ' locked' : '')); g.id = 'nd-' + n.id; g.dataset.id = n.id;
 		g.setAttribute('transform', `translate(${n.x} ${n.y})`);
+		if (n.kind === 'level') g.insertAdjacentHTML('beforeend', '<circle class="hit" r="25" fill="transparent"/>'); // 点击区域 ≥44×44
 		const inner = document.createElementNS(svgNS, 'g'); inner.setAttribute('class', 'ndi'); inner.innerHTML = nodeInner(n, tg && tg.id === n.id && n.kind === 'level'); g.appendChild(inner);
 		if (n.state === 'locked' && n.kind !== 'boss') { inner.setAttribute('opacity', '.42'); inner.setAttribute('filter', 'url(#gray)'); }
-		const ny = n.stars ? 46 : 38;
-		if (n.age === 'fade') { inner.setAttribute('opacity', '.45'); g.insertAdjacentHTML('beforeend', `<text class="note" x="0" y="${ny}" text-anchor="middle" fill="#B9472C">7 天没碰 · 在褪色</text>`); }
-		if (n.age === 'gray') { inner.setAttribute('filter', 'url(#gray)'); inner.setAttribute('opacity', '.4'); g.insertAdjacentHTML('beforeend', `<text class="note" x="0" y="${ny}" text-anchor="middle" fill="#8b8b8b">14 天没回测 · 灰了</text>`); }
+		if (n.age === 'fade') inner.setAttribute('opacity', '.45');
+		if (n.age === 'gray') { inner.setAttribute('filter', 'url(#gray)'); inner.setAttribute('opacity', '.4'); }
+		if (n.kind === 'level' && n.state === 'done') {
+			const muted = n.age ? ' fill="#6E7088"' : '';
+			g.insertAdjacentHTML('beforeend', `<text class="lab" y="34" text-anchor="middle" font-size="13.5"${muted}>${esc(n.label)}</text>` +
+				(n.stars ? `<text class="lab" y="48" text-anchor="middle" font-size="12" fill="#C99520" letter-spacing="1">${'★'.repeat(Math.min(3, n.stars))}<tspan fill="#d8ccb4">${'★'.repeat(Math.max(0, 3 - n.stars))}</tspan></text>` : ''));
+		}
 		if (n.kind !== 'start') g.addEventListener('click', () => { bounce(inner); nodeTap(n.id); });
 		nodes.appendChild(g);
 	});
+	placeNotes();
 	gsap.to('.recEdge', { strokeDashoffset: -22, duration: 1, repeat: -1, ease: 'none' });
 	// 练习关的图例
 	const prac = D.chapter.nodes.some(n => n.kind === 'level' && n.practice && n.state !== 'done');
 	$('#pracNote').innerHTML = prac ? '<circle cx="6" cy="0" r="6" fill="none" stroke="#3E9E7A" stroke-width="1.3" stroke-dasharray="2 3"/><text x="16" y="3.5" font-size="9.5" font-weight="800" fill="#3E9E7A" font-family="PingFang SC,sans-serif">练手关 · 不扣心</text>' : '';
 	// 图钉
-	if (tg) { show('#pinPos', 'inline'); $('#pinPos').setAttribute('transform', tg.kind === 'boss' ? `translate(${tg.x - 44} ${tg.y})` : `translate(${tg.x} ${tg.y - 16})`); } else hide('#pinPos');
+	if (tg) { show('#pinPos', 'inline'); $('#pinPos').setAttribute('transform', tg.kind === 'boss' ? `translate(${tg.x - 44} ${tg.y})` : `translate(${tg.x} ${tg.y - 20})`); } else hide('#pinPos');
+	// 手机上地图比一屏高：打开时（和当前关换了以后）停在当前这一关
+	if (tg && tg.id !== mapAt) { mapAt = tg.id; requestAnimationFrame(() => mapScrollTo(tg)); }
+}
+let mapAt = null;
+function mapScrollTo(n) {
+	const w = $('#mapwrap'), sc = $('#map').getBoundingClientRect().width / 390;
+	if (w.scrollHeight <= w.clientHeight + 1) return;
+	w.scrollTop = Math.max(0, n.y * sc - w.clientHeight * 0.45);
+}
+// 「7 天没碰」「14 天没回测」这类状态字：在关卡下方、右边、左边里挑一个不压线、不压别的关、不出图的位置
+function placeNotes() {
+	const notes = { fade: ['7 天没碰 · 在褪色', '#B9472C'], gray: ['14 天没回测 · 灰了', '#7a7a7a'] };
+	const rects = [], hit = (A, B) => A[0] < B[2] && A[2] > B[0] && A[1] < B[3] && A[3] > B[1];
+	$$('#edges path').forEach(p => { const L = p.getTotalLength(); for (let d = 0; d <= L; d += 4) { const q = p.getPointAtLength(d); rects.push([q.x - 2, q.y - 2, q.x + 2, q.y + 2]); } });
+	D.chapter.nodes.forEach(m => {
+		if (m.kind === 'level' || m.kind === 'boss') rects.push([m.x - 22, m.y - 22, m.x + 22, m.y + (m.state === 'done' ? (m.stars ? 52 : 38) : 22)]);
+		else if (m.kind === 'start') rects.push([m.x - 16, m.y - 8, m.x + 16, m.y + 26]);
+		else rects.push([m.x - 34, m.y - 26, m.x + 34, m.y + 38]);
+	});
+	D.chapter.nodes.forEach(n => {
+		if (!notes[n.age] || n.kind !== 'level') return;
+		const [txt, color] = notes[n.age], fs = 12.5;
+		const g = $('#nd-' + n.id);
+		g.insertAdjacentHTML('beforeend', `<text class="note" x="0" y="0" font-size="${fs}" fill="${color}">${txt}</text>`);
+		const t = g.lastElementChild, w = t.getComputedTextLength() + 4;
+		const below = n.state === 'done' ? (n.stars ? 66 : 52) : 38;
+		const cands = [[n.x + 26, n.y + 5, 'start'], [n.x - 26, n.y + 5, 'end'], [n.x, n.y + below, 'middle'], [n.x + 26, n.y + 24, 'start'], [n.x - 26, n.y + 24, 'end'], [n.x + 24, n.y + 44, 'start'], [n.x - 24, n.y + 44, 'end'], [n.x + 26, n.y - 12, 'start'], [n.x - 26, n.y - 12, 'end'], [n.x, n.y - 28, 'middle']];
+		const box = ([x, y, a]) => { const l = a === 'start' ? x : a === 'end' ? x - w : x - w / 2; return [l, y - fs, l + w, y + 3]; };
+		const free = c => { const B = box(c); return B[0] >= 4 && B[2] <= 386 && B[1] >= 4 && B[3] <= 596 && !rects.some(R => hit(R, B)); };
+		const c = cands.find(free) ?? cands[2];
+		t.setAttribute('x', c[0] - n.x); t.setAttribute('y', c[1] - n.y); t.setAttribute('text-anchor', c[2]);
+		rects.push(box(c));
+	});
 }
 function drawTop() {
 	$('#streakN').textContent = D.streak.days;
@@ -376,7 +413,7 @@ function refresh() {
 			$('#errP').innerHTML = e?.code === 'NOT_SIGNED_IN' ? '要先登录社区，才能记下你的进度。' : '网卡了一下，或者我们这边出了点小问题。<br>你的进度、连胜和心都存着，不会丢。';
 			$('#errRetry').textContent = e?.code === 'NOT_SIGNED_IN' ? '去登录' : '再试一次';
 			$('#errRetry').dataset.login = e?.code === 'NOT_SIGNED_IN' ? '1' : '';
-			$('#errCode').textContent = e?.code ? '错误码 ' + e.code : '';
+			$('#errCode').textContent = e?.code ? '错误码 ' + e.code + ' · 一直这样，就截图发到公会' : '一直这样，就截图发到公会';
 			show('#errScr');
 		} else if (isOffline(e)) goOffline(); else toast(errText(e));
 		throw e;
@@ -664,18 +701,44 @@ function paintAudio(pre, q) {
 	const got = audioCache[qid] ?? (audioCache[qid] = api('lojo/quest/audio', { attemptId: at, qid }).catch(e => { delete audioCache[qid]; throw e; }));
 	got.then(r => {
 		if (!AT || AT.questions[AT.i]?.id !== qid) return;
-		if (!r?.lines?.length) { fallbackText(box, r?.fallback ?? []); return; }
+		if (r?.skip) { skipQ(pre, q, r.skip.next); return; }
+		if (!r?.lines?.length) { fallbackText(box, r?.fallback ?? [], q); return; }
 		box.innerHTML = '<button class="audBtn"><span class="ic">▶</span>播放录音<small>可以多听几遍</small></button>';
 		const b = box.querySelector('.audBtn');
 		b.onclick = () => playLines(b, r.lines, r.rate ?? 1);
 	}).catch(e => {
 		if (!AT || AT.questions[AT.i]?.id !== qid) return;
 		if (isOffline(e)) { box.innerHTML = '<div class="fallback"><div class="fh">断网了，录音放不出来</div>连上以后点这里再试。</div>'; box.querySelector('.fallback').onclick = () => paintAudio(pre, q); return; }
-		fallbackText(box, e?.fallback ?? []);
+		fallbackText(box, e?.fallback ?? [], q, () => paintAudio(pre, q));
 	});
 }
-function fallbackText(box, lines) {
-	box.innerHTML = `<div class="fallback"><div class="fh">录音暂时出不来，先看文字</div>${lines.map(l => `<p><b>${esc(l.who)}</b>${esc(l.text)}</p>`).join('') || '<p>这题先按题面作答。</p>'}</div>`;
+function fallbackText(box, lines, q, retry) {
+	// 填空题不给文字稿（答案就在里面）；服务器那边会换题，这里只在连不上服务器时出现：点了再试
+	if (q?.type === 'gap' || !lines.length) {
+		box.innerHTML = `<div class="fallback"><div class="fh">录音暂时出不来</div>${retry ? '点这里再试一次。' : '这题先按题面作答。'}</div>`;
+		if (retry) box.querySelector('.fallback').onclick = retry;
+		return;
+	}
+	box.innerHTML = `<div class="fallback"><div class="fh">录音暂时出不来，先看文字</div>${lines.map(l => `<p>${l.who ? `<b>${esc(l.who)}</b>` : ''}${esc(l.text)}</p>`).join('')}</div>`;
+}
+// 填空题的录音出不来：这题跳过（服务器已换成同一关另一道题，不记对错、不扣心）。连着跳 3 道还是出不来，这关先停
+function skipQ(pre, q, next) {
+	const box = $('#' + pre + 'Aud');
+	AT.skips = (AT.skips ?? 0) + 1;
+	const stop = !next || AT.skips >= 3;
+	lockQ(pre, true);
+	$('#' + pre + 'Opts').style.display = 'none';
+	box.innerHTML = `<div class="skipCard"><div class="fh">录音暂时出不来 · 这题先跳过，不扣心</div>` +
+		(stop ? '<p>录音这会儿一直出不来，这关先停在这儿，心和进度都没动。过一会儿再来。</p><button class="btn2 coral">回地图</button>'
+			: '<p>听力题要听着做才算数，换一道给你。</p><button class="btn2 coral">换下一题</button>') + '</div>';
+	gsap.from(box.firstChild, { y: 12, opacity: 0, duration: 0.3, ease: 'back.out(1.6)' });
+	box.querySelector('button').onclick = () => {
+		play('tap');
+		$('#' + pre + 'Opts').style.display = '';
+		if (stop) { backToMap(); return; }
+		AT.questions[AT.i] = next;
+		if (pre === 'b') showBQ(false); else showQ(false);
+	};
 }
 function playLines(btn, lines, rate) {
 	stopAudio();
@@ -1259,6 +1322,7 @@ function shelfExit() { // 从书屋回到来的地方
 	});
 }
 $('#shelfBack').onclick = () => { play('tap'); shelfExit(); };
+$('#toGuides').onclick = () => { play('whoosh', 0.6); go('/guides'); };
 $('#putBack').onclick = () => { play('tap'); bookBack(); };
 $('#takeBtn').onclick = () => {
 	const b = shelf.book; if (!b) return;
@@ -1818,6 +1882,12 @@ const FAKE = (() => {
 	function audio(p) {
 		const a = AT2[p.attemptId]; const q = a?.qs.find(x => x.id === p.qid); if (!q?.lines) throw { code: 'NO_AUDIO' };
 		if (k === 'listen') return { lines: q.lines.map(([who], i) => ({ who, url: './sounds/' + (i % 2 ? 'tick' : 'page') + '.mp3' })), rate: 1 };
+		if (q.type === 'gap') { // 跟服务器一样：填空题没有录音就换一道，不给文字稿
+			const i = a.qs.indexOf(q), used = a.qs.map(x => x.id);
+			const pick = Object.values(Q).filter(x => !used.includes(x.id)).sort((x, y) => !!x.lines - !!y.lines)[0] ?? null;
+			if (pick) a.qs[i] = pick;
+			return { lines: [], rate: 1, skip: { next: pick ? pub(pick) : null } };
+		}
 		return { lines: [], rate: 1, fallback: q.lines.map(([who, text]) => ({ who, text })) };
 	}
 	const handle = (ep, p) => {
@@ -1844,7 +1914,7 @@ function fakeApi(ep, p) {
 }
 
 /* ================= 开始 ================= */
-if (PREVIEW && SP === 'error') { $('#errP').innerHTML = '网卡了一下，或者我们这边出了点小问题。<br>你的进度、连胜和心都存着，不会丢。'; $('#errCode').textContent = '错误码 NETWORK'; show('#errScr'); }
+if (PREVIEW && SP === 'error') { $('#errP').innerHTML = '网卡了一下，或者我们这边出了点小问题。<br>你的进度、连胜和心都存着，不会丢。'; $('#errCode').textContent = '错误码 NETWORK · 一直这样，就截图发到公会'; show('#errScr'); }
 else if (PREVIEW && SP === 'loading') showLoader();
 else { showLoader(); refreshQuiet(); }
 

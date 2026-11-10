@@ -15,7 +15,7 @@ import { LojoTutorService } from '@/core/LojoTutorService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
-import { lojoDefaultVoice, lojoVoiceIds } from '@/misc/lojo-voices.js';
+import { lojoDefaultVoice, lojoVoiceIds, lojoVoices } from '@/misc/lojo-voices.js';
 import { QUEST_CH1, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
 import type { QuestNode, QuestQuestion } from '@/misc/lojo-quest-ch1.js';
 import { QUEST_BOOKS, bookForCause } from '@/misc/lojo-quest-books.js';
@@ -351,11 +351,31 @@ export class LojoQuestService {
 		const at = await this.db.getRepository(MiLojoQuestAttempt).findOneBy({ id: attemptId, userId });
 		if (at == null || at.status !== 'open') throw new ApiError(lojoQuestErrors.noSuchAttempt);
 		if (at.questionIds[at.answers.length] !== qid) throw new ApiError(lojoQuestErrors.wrongQuestion);
-		const q = questionOf(nodeOf(at.levelId), qid);
+		const node = nodeOf(at.levelId);
+		const q = questionOf(node, qid);
 		if (q?.audio == null) throw new ApiError(lojoQuestErrors.noAudio);
 		const { voices, rate, lines } = q.audio;
-		const fallback = { lines: [] as { who: string; url: string }[], rate, fallback: lines.map(l => ({ who: l.who, text: l.text })) };
-		if (!this.lojoSpeechService.available) return fallback;
+		// 文字稿的说话人：一个人念的不标；两个人对话标 Woman / Man（按声音），认不出来就照原样
+		const solo = new Set(lines.map(l => l.who)).size <= 1;
+		const whoOf = (who: string) => {
+			if (solo) return '';
+			const label = lojoVoices.find(v => v.id === voices[who])?.label ?? '';
+			return label.startsWith('女声') ? 'Woman' : label.startsWith('男声') ? 'Man' : who;
+		};
+		// 没有录音时：选择、判断题给文字稿；填空题的文字稿会把答案露出来，所以这题跳过，换同一关没出过的一道，不记对错、不扣心
+		const noSpeech = async () => {
+			if (q.type !== 'gap') return { lines: [] as { who: string; url: string }[], rate, fallback: lines.map(l => ({ who: whoOf(l.who), text: l.text })) };
+			const pool = node?.pool ?? [];
+			const left = pool.filter(x => !at.questionIds.includes(x.id));
+			const pick = shuffle(left.filter(x => x.audio == null))[0] ?? shuffle(left)[0] ?? null;
+			if (pick == null) return { lines: [] as { who: string; url: string }[], rate, skip: { next: null } };
+			const ids = [...at.questionIds];
+			ids[at.answers.length] = pick.id;
+			const res = await this.db.getRepository(MiLojoQuestAttempt).update({ id: at.id, userId, status: 'open' }, { questionIds: ids });
+			if (!res.affected) throw new ApiError(lojoQuestErrors.noSuchAttempt);
+			return { lines: [] as { who: string; url: string }[], rate, skip: { next: publicQuestion(pick) } };
+		};
+		if (!this.lojoSpeechService.available) return await noSpeech();
 		try {
 			const out: { who: string; url: string }[] = [];
 			for (const l of lines) {
@@ -368,7 +388,7 @@ export class LojoQuestService {
 			}
 			return { lines: out, rate };
 		} catch {
-			return fallback;
+			return await noSpeech();
 		}
 	}
 
