@@ -533,14 +533,21 @@ function newsSheet(n) {
 }
 // 情报预览：每个话题标签拉最新几条，合并去重（Boss 的帖子同时带两个标签），只放第一段约 80 字，点开进帖子
 function newsSnippet(text) {
-	const first = String(text ?? '').split(/\n\s*\n/).find(x => x.replace(/#\S+/g, '').trim()) ?? '';
-	const t = first.replace(/#\S+/g, '').replace(/\s+/g, ' ').trim();
+	// 帖子第一行是关卡开头语（Stop 1-4 · … / Chapter 1 boss · …），每条都一样，预览里跳过；也去掉标签、More/Source 行
+	const t = String(text ?? '').replace(/^(Stop [\w-]+|Chapter \d+ boss) · [^.\n]*\.\s*/i, '')
+		.split('\n').filter(l => !/^\s*(More|Source)s?:/i.test(l)).join(' ')
+		.replace(/#\S+/g, '').replace(/\s+/g, ' ').trim();
 	return t.length > 80 ? t.slice(0, 80) + '…' : t;
+}
+function publicNotesByTag(tag) {
+	if (PREVIEW) return Promise.resolve([]);
+	return fetch('/api/notes/search-by-tag', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit', body: JSON.stringify({ tag, limit: 5 }) })
+		.then(r => r.ok ? r.json() : []).then(x => Array.isArray(x) ? x.filter(n => n.visibility === 'public') : []);
 }
 function newsPreview(tags) {
 	const box = $('#newsList'); if (!box) return;
 	if (!tags.length) { box.innerHTML = '<div class="sub">这一关还没有情报。</div>'; return; }
-	Promise.all(tags.map(t => api('notes/search-by-tag', { tag: t, limit: 5 }).catch(() => []))).then(lists => {
+	Promise.all(tags.map(t => publicNotesByTag(t).catch(() => []))).then(lists => {
 		const seen = new Set(), notes = [];
 		for (const n of lists.flat()) if (n && n.id && !seen.has(n.id) && (n.text ?? '').trim()) { seen.add(n.id); notes.push(n); }
 		notes.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
