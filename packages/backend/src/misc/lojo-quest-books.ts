@@ -551,7 +551,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"title": "文章没说，不等于文章说反了：判断题先找「证明它错」的那句",
 		"summary": "FALSE 和 NOT GIVEN 最容易混。差别只有一个：FALSE 能在原文里指出一句证明它错的话，NOT GIVEN 指不出来。所以先找这句话，找不到才选 NOT GIVEN。",
 		"kind": "反常识",
-		"evidence": "官方 + 老师共识",
+		"evidence": "官方说明 + 常见经验",
 		"color": "#7A5BA8",
 		"app": {
 			"id": "vocab",
