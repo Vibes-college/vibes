@@ -27,7 +27,7 @@ const router = useRouter();
 const frame = ref<HTMLIFrameElement | null>(null);
 
 // 手机底栏在的时候（它会在 body 上写 --MI-minBottomSpacing），闯关页停在底栏和发帖按钮上方；电脑上没有底栏就铺满。
-// 底栏连同浮在上面的发帖按钮比那个变量高（实测 133px 对 84px），所以量实际盖住了多少
+// 底栏（排在页面下面，不是 fixed）比那个变量高（实测 133px 对 84px），所以量贴着窗口底边、在下半屏的东西从哪儿开始
 const bottom = ref('0px');
 const root = ref<HTMLElement | null>(null);
 const measureBottom = () => {
@@ -38,7 +38,7 @@ const measureBottom = () => {
 	const h = window.innerHeight;
 	let top = h;
 	for (const el of window.document.body.querySelectorAll<HTMLElement>('*')) {
-		if (root.value?.contains(el) || getComputedStyle(el).position !== 'fixed') continue;
+		if (root.value?.contains(el)) continue;
 		const r = el.getBoundingClientRect();
 		if (r.height > 0 && r.width > 0 && r.bottom >= h - 1 && r.top > h / 2) top = Math.min(top, r.top);
 	}
