@@ -138,7 +138,7 @@ const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-// Vibes: AI tutor accounts get "AI 英语老师" under their name.
+// Vibes: AI tutor accounts get "AI 英语助教" under their name.
 const tutorIds = ref<string[]>([]);
 (misskeyApi as unknown as (endpoint: string) => Promise<string[]>)('lojo/tutor/ids').then(ids => { tutorIds.value = ids; }, () => {});
 const room = ref<Misskey.entities.ChatRoom | null>(null);

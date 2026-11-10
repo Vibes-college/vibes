@@ -509,7 +509,7 @@ function retestSheet(n) {
 function gearSheet(n) {
 	const g = n.gear;
 	const tg = target();
-	openSheet(`<h4>装备站 · ${esc(g?.zh ?? '')}</h4><div class="sub">社区里的小程序，免费</div>
+	openSheet(`<h4>装备站 · ${esc(g?.zh ?? '')}</h4><div class="sub">社区里的小程序，现在都免费用</div>
 		<div class="card">练完一组（10 题以上、2 分钟以上）补 1 颗心，每天一次。练完也给 Boss 备战「装备」打勾。${g && !g.givesHeart ? '<br><b>这个装备暂时不补心</b>，只算备战。' : ''}</div>
 		<div class="card">今天装备这条路：${D.refilledToday.gear ? '<b>已经补过 1 颗心</b>' : '还没用'}</div>
 		<button class="sbtn" data-a="go">去「${esc(g?.zh ?? '装备')}」练一组</button>`, b => {
@@ -1517,7 +1517,7 @@ $('#emptyBack').onclick = () => {
 /* ================= 第一次进来：3 步引导 ================= */
 function rel(el) { const a = AR(), r = el.getBoundingClientRect(); return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height }; }
 const COACH = [
-	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，你的向导。这是你的雅思地图：从<b>起点</b>一关一关往上走，右上角那座房子是<b>考场</b>。' },
+	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，你的向导。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
 	{ el: () => [$('#streakChip'), $('#heartChip')], pad: 5, t: '<b>火苗</b>是连胜，每天打一关就续上；漏一天会断。<b>心</b>每天 5 颗，正式关答错扣 1 颗。' },
 	{ el: () => $('#count'), pad: 6, t: '最后一件：<b>哪天考雅思？</b>定了日子，这行就开始倒数；走慢了我会提醒你。', exam: true },
 ];
@@ -1558,6 +1558,8 @@ function afterCoach(dated, skippedDate) {
 		: skippedDate ? `没事，想好了点上面的「<b>设考试日期</b>」。先打 <b>${lab} 练手关</b>，错了不扣心。`
 			: `先打 <b>${lab} 练手关</b>，3 道题热身，错了不扣心。`);
 	gsap.fromTo('#go', { scale: 1 }, { scale: 1.06, duration: 0.35, yoyo: true, repeat: 3, ease: 'sine.inOut', delay: 0.6 });
+	// 第一次来的人从锦囊或 Mia 的链接（?level= / ?book=）进来：引导走完再打开那一关或那本书
+	if (QUERY.level || QUERY.book) setTimeout(handleQuery, 900);
 }
 
 /* ================= 考试日期：引导第 3 步和改日期抽屉共用 ================= */

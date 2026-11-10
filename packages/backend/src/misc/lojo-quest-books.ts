@@ -4,11 +4,13 @@
  */
 
 // 第一章锦囊（书屋的书）和各自的 3 题小验证。由 apps/community/scripts/quest-books.mjs 从「攻略」的锦囊 index.json 生成，不要手改。
-// 来源：index.json v1.0.0（2026-11-10），对照表 ch1-2026-11-10e。答案只在服务器上。
+// 来源：index.json v1.1.0（2026-11-10），对照表 ch1-2026-11-10e，关卡表 chapter-1.json ch1-2026-11-10f。答案只在服务器上。
 export type QuestBook = {
 	no: number; ref: string; id: string; slug: string; spine: string; title: string; summary: string; kind: string; evidence: string; color: string;
 	app: { id: string; zh: string; path: string | null };
 	verify: string; verifyUrl: string | null;
+	/** 去哪几关验证（chapter-1.json 的关卡 id，"*" = 任何一关） */
+	verifyLevels: string[];
 	/** 「练一组」去哪（同关卡 gear 写法）；null = 没有装备 */
 	gear: string | null; fallbackGear: string | null;
 	/** false = 这本的装备只能练、不补心 */
@@ -19,7 +21,7 @@ export type QuestBook = {
 	quiz: { id: string; q: string; o: string[]; a: number; why: string }[];
 };
 
-export const QUEST_BOOK_RULES = {"passAt":2,"count":3,"refillHearts":1} as const;
+export const QUEST_BOOK_RULES = { passAt: 2, count: 3, refillHearts: 1 } as const;
 
 export const QUEST_BOOKS: QuestBook[] = [
 	{
@@ -38,8 +40,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "生词本",
 			"path": "/wordbook"
 		},
-		"verify": "第一章词汇关（5.1–5.3）。这几站大多是拼写题，考的正是你想不想得出来。",
-		"verifyUrl": "/gate/ielts/5.1",
+		"verify": "闯关第一章词汇岔路 1-7「会认也会拼」、1-8「固定搭配」、1-9「近义说法」。拼写题考的正是你想不想得出来。",
+		"verifyUrl": "/quest?level=1-7",
+		"verifyLevels": [
+			"1-7",
+			"1-8",
+			"1-9"
+		],
 		"gear": "wordbook",
 		"fallbackGear": null,
 		"givesHeart": true,
@@ -100,8 +107,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "生词本",
 			"path": "/wordbook"
 		},
-		"verify": "词汇关过关一周以后，回去再打同一关，看还过不过得了。考前一周：把生词本里到期的词清零一次。",
-		"verifyUrl": "/gate/ielts/5.1",
+		"verify": "词汇岔路 1-7 到 1-9 过关一周以后，回去再打同一关，看还过不过得了。考前一周：把生词本里到期的词清零一次。",
+		"verifyUrl": "/quest?level=1-7",
+		"verifyLevels": [
+			"1-7",
+			"1-8",
+			"1-9"
+		],
 		"gear": "wordbook",
 		"fallbackGear": null,
 		"givesHeart": true,
@@ -160,8 +172,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "分级阅读",
 			"path": "https://vibes.college/read/artisan/"
 		},
-		"verify": "第一章阅读关（2.1–2.3）。",
-		"verifyUrl": "/gate/ielts/2.1",
+		"verify": "闯关第一章阅读 1-4「通知和时刻表」、1-5「对、错、没提到」、1-6「换了说法」。",
+		"verifyUrl": "/quest?level=1-4",
+		"verifyLevels": [
+			"1-4",
+			"1-5",
+			"1-6"
+		],
 		"gear": "graded-reading",
 		"fallbackGear": null,
 		"givesHeart": false,
@@ -225,8 +242,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "听写",
 			"path": "/dictation"
 		},
-		"verify": "第一章听力关（1.1–1.3）。录音只放一遍，跟考场一样。",
-		"verifyUrl": "/gate/ielts/1.1",
+		"verify": "闯关第一章听力 1-1「名字和字母」、1-2「数字和日期」、1-3「他改口了」。录音只放一遍，跟考场一样。",
+		"verifyUrl": "/quest?level=1-1",
+		"verifyLevels": [
+			"1-1",
+			"1-2",
+			"1-3"
+		],
 		"gear": "dictation",
 		"fallbackGear": null,
 		"givesHeart": true,
@@ -289,8 +311,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "生词本",
 			"path": "/wordbook"
 		},
-		"verify": "第一章 Boss：1.4 ↔ 2.4 换乘站「同义替换」，听力、阅读各一半。",
-		"verifyUrl": "/gate/ielts/1.4",
+		"verify": "闯关第一章 Boss「换装者」：同义替换，听力、阅读都有。练习关 1-6「换了说法」、1-9「近义说法」也考这个。",
+		"verifyUrl": "/quest?level=boss",
+		"verifyLevels": [
+			"boss",
+			"1-6",
+			"1-9"
+		],
 		"gear": "wordbook",
 		"fallbackGear": "vocab:5.4",
 		"givesHeart": true,
@@ -351,8 +378,9 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "机考打字",
 			"path": "/typing"
 		},
-		"verify": "支线 0 号线「机考打字」。主线最后的模考关：连着做一套听力，答案边听边打。",
+		"verify": "支线 0 号线「机考打字」。过了之后，闯关里的听力关答案也试着边听边打。",
 		"verifyUrl": "/typing",
+		"verifyLevels": [],
 		"gear": "typing",
 		"fallbackGear": null,
 		"givesHeart": true,
@@ -400,8 +428,8 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"id": "ielts-c1-k7",
 		"slug": "ielts-know-practice-weak-spot",
 		"spine": "卡住多半在练已经会的",
-		"title": "卡在一个分数不动，多半是一直在练已经会的",
-		"summary": "卡住了，最常见的反应是每天多刷一套题。可一整套题，大部分时间花在你本来就会的题上。只练还不会的那一小块，分数才会动。",
+		"title": "卡在一个地方不动，多半是一直在练已经会的",
+		"summary": "卡住了，最常见的反应是每天多刷一套题。可一整套题，大部分时间花在你本来就会的题上。只练还不会的那一小块，练的时间才没白花。",
 		"kind": "通用规律",
 		"evidence": "研究 + 单人经验",
 		"color": "#B9472C",
@@ -410,8 +438,11 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "听写 · 常错词",
 			"path": "/dictation"
 		},
-		"verify": "第一章任何一关没过两次的时候。练完错得最多的那一类，再回来打同一关。",
-		"verifyUrl": "/map",
+		"verify": "闯关第一章任何一关没过两次的时候。练完错得最多的那一类，再回来打同一关。",
+		"verifyUrl": "/quest",
+		"verifyLevels": [
+			"*"
+		],
 		"gear": "level",
 		"fallbackGear": null,
 		"givesHeart": true,
@@ -433,7 +464,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			},
 			{
 				"id": "ielts-c1-k7-q2",
-				"q": "每天刷一整套题，分数还是不动。最可能的原因是？",
+				"q": "每天刷一整套题，还是卡在原地。最可能的原因是？",
 				"o": [
 					"刷得还不够多，再加一套",
 					"大部分时间花在本来就会的题上"
@@ -460,7 +491,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"slug": "ielts-know-self-correct",
 		"spine": "要有人逼你自己改",
 		"title": "天天跟外教聊，口语也可能不涨：要有人逼你自己改",
-		"summary": "只说不改，错的说法会被你一遍遍练熟。有人提醒你「这里错了」、让你自己改过来，口语才会动。",
+		"summary": "只说不改，错的说法会被你一遍遍练熟。有人提醒你「这里错了」、让你自己改过来，口语才真的在练。",
 		"kind": "真人经验",
 		"evidence": "研究 + 单人经验",
 		"color": "#3E9E7A",
@@ -471,6 +502,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		},
 		"verify": "第一章还没有口语关。先在 Mia 那里练；口语关开了以后，这本锦囊会挂上去。",
 		"verifyUrl": null,
+		"verifyLevels": [],
 		"gear": null,
 		"fallbackGear": null,
 		"givesHeart": false,
@@ -526,8 +558,12 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "词汇线 5.4",
 			"path": "/vocab/5.4"
 		},
-		"verify": "第一章阅读关 2.3（每套 7 道判断题），和 Boss 1.4 ↔ 2.4 换乘站里的判断题。",
-		"verifyUrl": "/gate/ielts/2.3",
+		"verify": "闯关第一章阅读 1-5「对、错、没提到」，和 Boss「换装者」里的判断题。",
+		"verifyUrl": "/quest?level=1-5",
+		"verifyLevels": [
+			"1-5",
+			"boss"
+		],
 		"gear": "vocab:5.4",
 		"fallbackGear": null,
 		"givesHeart": true,
@@ -587,8 +623,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"zh": "语法线",
 			"path": "/grammar/6.1"
 		},
-		"verify": "第一章语法支线（6.1–6.3）。错的那一站学完，回去再打这一关。",
-		"verifyUrl": "/gate/ielts/6.1",
+		"verify": "闯关第一章语法支线 1-10「句子主干」、1-11「单数复数和时态」、1-12「被动语态」。错的那一类学完，回去再打这一关。",
+		"verifyUrl": "/quest?level=1-10",
+		"verifyLevels": [
+			"1-10",
+			"1-11",
+			"1-12"
+		],
 		"gear": "level",
 		"fallbackGear": null,
 		"givesHeart": false,
