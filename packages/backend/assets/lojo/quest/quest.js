@@ -5,13 +5,16 @@
 /* 闯关 · 纸上地图（正式版）。
    画面和动画来自闯关原型 v2（闯关体验设计）；数据全部来自服务器（lojo/quest/*），页面不自己算规则：
    心、连胜、冻结卡、经验、关卡开没开、Boss 备战，都以服务器回来的为准。
-   跟社区的连接：社区页面在 window.__vibesQuest 上放 { api, go, query }，见文件末尾的说明。 */
+   跟社区的连接：社区页面在装它的 iframe 上（旧写法 window.__vibesQuest）放 { api, go, query }，见文件末尾的说明。 */
 (() => {
 'use strict';
 
 /* ================= 跟社区的连接 ================= */
 let Q = null;
-try { if (window.parent && window.parent !== window && window.parent.__vibesQuest) Q = window.parent.__vibesQuest; } catch (e) { Q = null; }
+// 先读自己这个框上挂的那份：社区会把看过的页面留在内存里，回到旧页面时框会重新加载，这时 window.parent 上那份
+// 可能是后来打开的另一个闯关页的（比如没带 ?book= 的地图），读了它就翻不到书了（2026-11-10 的 bug）。
+try { if (window.frameElement && window.frameElement.__vibesQuest) Q = window.frameElement.__vibesQuest; } catch (e) { Q = null; }
+try { if (!Q && window.parent && window.parent !== window && window.parent.__vibesQuest) Q = window.parent.__vibesQuest; } catch (e) { Q = null; }
 if (!Q && window.__vibesQuest) Q = window.__vibesQuest;
 
 function fetchApi(ep, params) {
@@ -1947,8 +1950,9 @@ if (PREVIEW && SP === 'error') { $('#errP').innerHTML = '网卡了一下，或�
 else if (PREVIEW && SP === 'loading') showLoader();
 else { showLoader(); refreshQuiet(); }
 
-/* 跟社区的约定（社区那边的 Vue 页面照这个实现）：
-   window.__vibesQuest = {
+/* 跟社区的约定（社区那边的 Vue 页面照这个实现）：放在装这个页面的 iframe 元素上（iframe.__vibesQuest），
+   旧写法 window.__vibesQuest（父页面上）也认：
+   __vibesQuest = {
      api(endpoint, params) → Promise<结果>；失败时 reject({ code, message })，code 是服务器的错误码（如 NO_HEARTS）
      go(path)              → 在社区里跳转（站内路径，如 /dictation、/guides/xxx、/chat/user/<id>、/tags/xxx）
      query: { book?, level?, from?, s? } → 打开时直接翻到哪本锦囊 / 哪一关；from 是从哪个小程序练完回来（dictation、typing…）；

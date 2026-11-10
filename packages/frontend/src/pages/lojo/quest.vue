@@ -12,7 +12,7 @@ lends it the community login (api) and the community router (go) through window.
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
 import { definePage } from '@/page.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
@@ -82,7 +82,16 @@ const bridge: Bridge = {
 	query: { book: props.book, level: props.level, from },
 };
 
+// The bridge goes on this page's own frame: the community keeps visited pages alive, and when it brings one back its
+// frame reloads; on window it might by then be another 闯关 page's bridge (the plain map, without ?book=), and the
+// game would show the map instead of the book (bug 2026-11-10). window.__vibesQuest stays for an older game script.
 (window as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
+onMounted(() => {
+	if (frame.value != null) (frame.value as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
+});
+onActivated(() => {
+	(window as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
+});
 
 onBeforeUnmount(() => {
 	const w = window as unknown as { __vibesQuest?: Bridge };
