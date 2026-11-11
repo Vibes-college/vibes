@@ -232,6 +232,9 @@ const PREP = { guide: ['📕', '锦囊'], gear: ['🎧', '装备'], news: ['📰
 function target() { // 图钉插在哪：第一个开着没过的关；都过了就是 Boss
 	if (!D) return null;
 	const ns = D.chapter.nodes;
+	// 定级定在哪关（1.5 及以上是 Boss）：那关没打过，图钉就插在那，不插旁边没点亮的词汇、语法支线（定级规则 branchesNeverLit）
+	const pa = D.placement?.startAt, pn = pa ? ns.find(n => n.id === (pa === '2-4' ? 'boss' : pa)) : null;
+	if (pn && pn.state === 'open') return pn;
 	return ns.find(n => n.kind === 'level' && n.state === 'open') ?? ns.find(n => n.kind === 'boss' && n.state !== 'locked') ?? null;
 }
 function edgePath(a, b, k) {
