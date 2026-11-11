@@ -4,7 +4,7 @@
  */
 
 // 第一章锦囊（书屋的书）和各自的 3 题小验证。由 apps/community/scripts/quest-books.mjs 从「攻略」的锦囊 index.json 生成，不要手改。
-// 来源：index.json v1.2.0（2026-11-11），对照表 ch1-2026-11-11a，关卡表 chapter-1.json ch1-2026-11-10f。答案只在服务器上。
+// 来源：index.json v1.2.1（2026-11-11），对照表 ch1-2026-11-11a，关卡表 chapter-1.json ch1-2026-11-10f。答案只在服务器上。
 export type QuestBook = {
 	no: number; ref: string; id: string; slug: string; spine: string; title: string; summary: string; kind: string; evidence: string; color: string;
 	app: { id: string; zh: string; path: string | null };
@@ -304,11 +304,11 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"title": "在雅思里，跟题目一字不差的那句话，多半不是答案",
 		"summary": "新手拿题目里的词去原文找一模一样的词。雅思偏偏反着出：答案那句通常换了说法，一字不差的那句常常是陷阱。",
 		"kind": "反常识",
-		"evidence": "官方",
+		"evidence": "官方 + 单人经验",
 		"color": "#141E52",
 		"app": {
 			"id": "synonym-match",
-			"zh": "换个说法",
+			"zh": "同义词连连看",
 			"path": "/synonym/index.html?topic=general"
 		},
 		"verify": "闯关第一章 Boss「换装者」：同义替换，听力、阅读都有。练习关 1-6「换了说法」、1-9「近义说法」也考这个。",
@@ -352,7 +352,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			},
 			{
 				"id": "ielts-c1-k5-q3",
-				"q": "玩「换个说法」时，卡片上有 increase。它该跟哪张配？",
+				"q": "玩「同义词连连看」时，卡片上有 increase。它该跟哪张配？",
 				"o": [
 					"increasing，长得最像",
 					"go up，长得不像，意思一样"
