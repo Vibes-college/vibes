@@ -561,6 +561,12 @@ import type {
 	LojoQuestCheckResponse,
 	LojoQuestNewsRequest,
 	LojoQuestNewsResponse,
+	LojoQuestPlacementDismissResponse,
+	LojoQuestPlacementFinishRequest,
+	LojoQuestPlacementFinishResponse,
+	LojoQuestPlacementFirstRequest,
+	LojoQuestPlacementFirstResponse,
+	LojoQuestPlacementPaperResponse,
 	LojoQuestRefillRequest,
 	LojoQuestRefillResponse,
 	LojoQuestSettingsRequest,
@@ -1145,6 +1151,10 @@ export type Endpoints = {
 	'lojo/quest/board': { req: EmptyRequest; res: LojoQuestBoardResponse };
 	'lojo/quest/check': { req: LojoQuestCheckRequest; res: LojoQuestCheckResponse };
 	'lojo/quest/news': { req: LojoQuestNewsRequest; res: LojoQuestNewsResponse };
+	'lojo/quest/placement-dismiss': { req: EmptyRequest; res: LojoQuestPlacementDismissResponse };
+	'lojo/quest/placement-finish': { req: LojoQuestPlacementFinishRequest; res: LojoQuestPlacementFinishResponse };
+	'lojo/quest/placement-first': { req: LojoQuestPlacementFirstRequest; res: LojoQuestPlacementFirstResponse };
+	'lojo/quest/placement-paper': { req: EmptyRequest; res: LojoQuestPlacementPaperResponse };
 	'lojo/quest/refill': { req: LojoQuestRefillRequest; res: LojoQuestRefillResponse };
 	'lojo/quest/settings': { req: LojoQuestSettingsRequest; res: LojoQuestSettingsResponse };
 	'lojo/quest/show': { req: EmptyRequest; res: LojoQuestShowResponse };

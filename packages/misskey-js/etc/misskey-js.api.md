@@ -2098,6 +2098,12 @@ declare namespace entities {
         LojoQuestCheckResponse,
         LojoQuestNewsRequest,
         LojoQuestNewsResponse,
+        LojoQuestPlacementDismissResponse,
+        LojoQuestPlacementFinishRequest,
+        LojoQuestPlacementFinishResponse,
+        LojoQuestPlacementFirstRequest,
+        LojoQuestPlacementFirstResponse,
+        LojoQuestPlacementPaperResponse,
         LojoQuestRefillRequest,
         LojoQuestRefillResponse,
         LojoQuestSettingsRequest,
@@ -3204,6 +3210,24 @@ type LojoQuestNewsRequest = operations['lojo___quest___news']['requestBody']['co
 
 // @public (undocumented)
 type LojoQuestNewsResponse = operations['lojo___quest___news']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestPlacementDismissResponse = operations['lojo___quest___placement-dismiss']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestPlacementFinishRequest = operations['lojo___quest___placement-finish']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestPlacementFinishResponse = operations['lojo___quest___placement-finish']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestPlacementFirstRequest = operations['lojo___quest___placement-first']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestPlacementFirstResponse = operations['lojo___quest___placement-first']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestPlacementPaperResponse = operations['lojo___quest___placement-paper']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoQuestRefillRequest = operations['lojo___quest___refill']['requestBody']['content']['application/json'];

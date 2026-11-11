@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>闯关 · Vibes</title>
 <!-- 动画：GSAP 3.12.5 本地副本（GSAP 标准免费许可，见 vendor/GSAP-LICENSE.txt）。音效：Kenney，CC0，见 sounds/ 里的许可文件。 -->
-<link rel="stylesheet" href="./quest.css?v=4">
+<link rel="stylesheet" href="./quest.css?v=5">
 <script src="./vendor/gsap.min.js?v=3.12.5"></script>
 </head>
 <body>
@@ -29,10 +29,22 @@ SPDX-License-Identifier: AGPL-3.0-only
     </button>
     <div class="hwrap"><div class="chip" id="heartChip"><div class="hearts" id="hearts"></div><span id="heartT"></span></div><button id="refillChip" title="补心：不满 5 颗随时能补" aria-label="补心">+</button></div>
     <button class="snd" id="sndBtn" title="声音">🔊</button>
+    <button class="snd" id="menuBtn" aria-label="菜单" aria-haspopup="menu"><svg width="14" height="11" viewBox="0 0 16 12"><path d="M1 1h14M1 6h14M1 11h14" stroke="#141E52" stroke-width="2" stroke-linecap="round"/></svg></button>
+  </div>
+  <!-- 菜单：定级测试一直在这里（横条关掉以后也能找到） -->
+  <div id="pmenu" role="menu">
+    <button id="mPlace" role="menuitem"><i>🎧</i>测一下我该在哪关</button>
+    <button id="mBoard" role="menuitem"><i>🏆</i>公会榜</button>
   </div>
 
   <!-- 离考场倒数 + 落后提醒（每天最多一次） -->
   <div class="count" id="count"></div>
+  <!-- 定级横条：压在倒数那行下面，地图从它下沿往下排（JS 现场量，不写死） -->
+  <div id="pbar" role="button" tabindex="0" aria-label="有基础？测一下从哪关开始（听力，约 8 分钟）" style="display:none">
+    <span class="ic"><svg width="26" height="26" viewBox="-13 -13 26 26"><path d="M-9 3 v-3 a9 9 0 0 1 18 0 v3" fill="none" stroke="#141E52" stroke-width="2.2"/><rect x="-11" y="1" width="6" height="9" rx="2.5" fill="#E8603F" stroke="#141E52" stroke-width="1.6"/><rect x="5" y="1" width="6" height="9" rx="2.5" fill="#E8603F" stroke="#141E52" stroke-width="1.6"/></svg></span>
+    <span class="tx">有基础？测一下从哪关开始（听力，约 8 分钟）</span>
+    <button class="x" id="pbarX" aria-label="关掉，以后不再出现">✕</button>
+  </div>
   <div id="behind"><span class="ic">⏰</span><span id="behindT"></span><button id="catchUp">今天多打 1 关</button></div>
 
   <!-- 第一章：分叉地图（点和路都由服务器给） -->
@@ -88,6 +100,33 @@ SPDX-License-Identifier: AGPL-3.0-only
     <!-- 社区底栏收起后留的小横条：点一下或往上拨，底栏回来 -->
     <button class="handle" id="barHandle" aria-label="叫出底栏"><i></i></button>
   </div>
+
+  <!-- 定级测试：两段听力，各 5 空 -->
+  <div id="ptest" aria-label="定级测试">
+    <div class="thead"><button class="qx" id="pquit" aria-label="退出测试">✕</button><div class="segs" id="psegs"></div></div>
+    <div class="tsub"><span id="psec">第一段 · 5 题</span><span id="pfilled">已填 0 / 5</span></div>
+    <div class="tbody">
+      <div id="deck">
+        <svg width="70" height="50" viewBox="0 0 70 50" aria-hidden="true">
+          <rect x="1.5" y="1.5" width="67" height="47" rx="7" fill="#FFFDF8" stroke="#141E52" stroke-width="2"/>
+          <rect x="9" y="8" width="52" height="22" rx="4" fill="#F6F1E7" stroke="#141E52" stroke-width="1.5"/>
+          <g id="reelL" transform="translate(22 19)"><circle r="7.5" fill="#FFFDF8" stroke="#141E52" stroke-width="1.6"/><path d="M0 -7.5 V-3 M6.5 3.7 L2.6 1.5 M-6.5 3.7 L-2.6 1.5" stroke="#141E52" stroke-width="1.6"/></g>
+          <g id="reelR" transform="translate(48 19)"><circle r="7.5" fill="#FFFDF8" stroke="#141E52" stroke-width="1.6"/><path d="M0 -7.5 V-3 M6.5 3.7 L2.6 1.5 M-6.5 3.7 L-2.6 1.5" stroke="#141E52" stroke-width="1.6"/></g>
+          <path d="M14 48 L19 37 H51 L56 48" fill="#E8603F" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <div class="info">
+          <div class="st" id="dSt">先看题</div>
+          <div class="big" id="dBig" role="timer" aria-live="off">0:20</div>
+          <div class="trk"><div class="fill" id="dFill"></div><div class="nib" id="dNib"></div></div>
+          <div class="once">录音只放一遍，不能暂停 · 占位录音</div>
+        </div>
+      </div>
+      <div id="pnotes"></div>
+    </div>
+    <div class="tfoot"><div class="hint2" id="phint"></div><button class="go" id="psubmit" disabled>交这一段</button></div>
+  </div>
+  <div id="pbetween"><div class="card"><small>接着来</small><b>第二段</b><span>换一段录音，还是 5 题。</span></div></div>
+  <div id="plocate"><div class="pstamp">收卷了</div><svg id="pruler" width="354" height="124" viewBox="0 0 354 124"></svg><p>看看你从哪关开始……</p></div>
 
   <div class="scrim" id="scrim"></div>
   <div class="sheet" id="sheet"><button class="close" data-close>✕</button><div id="sheetBody"></div></div>
@@ -313,6 +352,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <div class="toast" id="toast"></div>
 </div>
-<script src="./quest.js?v=4"></script>
+<script src="./quest.js?v=5"></script>
 </body>
 </html>

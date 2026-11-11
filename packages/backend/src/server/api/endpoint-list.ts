@@ -495,6 +495,10 @@ export * as 'lojo/quest/trial-start' from './endpoints/lojo/quest/trial-start.js
 export * as 'lojo/quest/trial-audio' from './endpoints/lojo/quest/trial-audio.js';
 export * as 'lojo/quest/trial-answer' from './endpoints/lojo/quest/trial-answer.js';
 export * as 'lojo/quest/trial-claim' from './endpoints/lojo/quest/trial-claim.js';
+export * as 'lojo/quest/placement-paper' from './endpoints/lojo/quest/placement-paper.js';
+export * as 'lojo/quest/placement-first' from './endpoints/lojo/quest/placement-first.js';
+export * as 'lojo/quest/placement-finish' from './endpoints/lojo/quest/placement-finish.js';
+export * as 'lojo/quest/placement-dismiss' from './endpoints/lojo/quest/placement-dismiss.js';
 export * as 'lojo/funnel' from './endpoints/lojo/funnel.js';
 export * as 'lojo/words/list' from './endpoints/lojo/words/list.js';
 export * as 'lojo/words/add' from './endpoints/lojo/words/add.js';

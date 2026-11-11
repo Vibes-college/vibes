@@ -10,6 +10,16 @@ import { MiUser } from './User.js';
 export type MiLojoQuestLevel = {
 	passedAt?: string; lastAt?: string; best?: number; tries?: number; failStreak?: number; lastCause?: string; prevCause?: string;
 	stars?: number; setsUsed?: string[]; lastQs?: string[];
+	// lit by the placement test (1 star, 0 XP): the first real pass still counts as a first pass
+	placed?: boolean;
+};
+
+// 闯关定级: the last test (placedAt, station, path, total right, startAt), the first part handed in on a test not yet
+// finished, the banner closed, the first Boss try without prep, chapter-2 levels to light once chapter 2 is in.
+export type MiLojoQuestPlacement = {
+	placedAt?: string; station?: string; path?: string; total?: number; startAt?: string;
+	part1?: { right: number; path: string; at: string };
+	dismissedAt?: string; prepWaived?: boolean; ch2?: string[];
 };
 
 export type MiLojoQuestNotice = { kind: 'freeze'; used: number } | { kind: 'lost'; days: number; best: number };
@@ -85,6 +95,10 @@ export class MiLojoQuest {
 	// one-time notice for the next visit: freeze cards used, or the streak lost
 	@Column('jsonb', { nullable: true })
 	public notice: MiLojoQuestNotice | null;
+
+	// 闯关定级 (冲刺1111), null until the banner is closed or a test is handed in
+	@Column('jsonb', { nullable: true })
+	public placement: MiLojoQuestPlacement | null;
 
 	@Column('timestamp with time zone')
 	public createdAt: Date;

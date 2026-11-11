@@ -4043,6 +4043,50 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 闯关定级: closes the banner on the map for good (the menu entry stays). Returns the same as lojo/quest/show.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/placement-dismiss', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 闯关定级: hands in the second part (5 answers). Lights the levels before the suggested one (1 star, 0 XP), gives 20 XP and counts today. Returns the suggestion and the same as lojo/quest/show under quest.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/placement-finish', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 闯关定级: hands in the first part (5 answers). Returns the second part, chosen by how the first went.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/placement-first', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 闯关定级: the test paper (the first part, or the second when the first was kept from a test quit later), whether a test can be taken now (once in 30 days) and the last result.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/quest/placement-paper', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * A practice app finished one set. It counts with at least 10 items and 2 minutes, once a day per setKey: Boss prep and the streak tick, and 1 heart comes back if below 5 and the 装备 path has not given one today (语法线 gives none in v1). 生词本 sets are checked against its saved reviews.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*

@@ -9,7 +9,7 @@ import * as Redis from 'ioredis';
 import { DataSource, EntityManager, In, LessThan } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestLog } from '@/models/LojoQuest.js';
-import type { MiLojoQuestLevel } from '@/models/LojoQuest.js';
+import type { MiLojoQuestLevel, MiLojoQuestPlacement } from '@/models/LojoQuest.js';
 import { MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
 import { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
@@ -27,6 +27,10 @@ import {
 	heartsNow, judge, mainCause, nextRefillAt, pickSet, setCounts, settleStreak, shelfFor, shuffle, starsAfter, streakNow, touchStreak, wrongCause,
 } from '@/misc/lojo-quest.js';
 import type { QuestNext, QuestTry, QuestWrong } from '@/misc/lojo-tutor-quest.js';
+import {
+	PLACEMENT_COOLDOWN_DAYS, PLACEMENT_MAP, PLACEMENT_PARTS, PLACEMENT_VERSION, PLACEMENT_XP, gradePart, pathAfterFirst, publicPart, stationOf,
+} from '@/misc/lojo-quest-placement.js';
+import type { PlacementPath } from '@/misc/lojo-quest-placement.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoQuestErrors } from '@/server/api/lojo-schemas.js';
 
@@ -117,7 +121,7 @@ export class LojoQuestService {
 	private newRow(userId: string, now: Date): Row {
 		return {
 			userId, hearts: MAX_HEARTS, heartsAt: now, streak: 0, streakDay: null, bestStreak: 0, freezes: 0, xp: 0,
-			prep: {}, bossLosses: 0, levels: {}, bag: [], chestDay: null, examDate: null, onboarded: false, trial: false, notice: null, createdAt: now, updatedAt: now,
+			prep: {}, bossLosses: 0, levels: {}, bag: [], chestDay: null, examDate: null, onboarded: false, trial: false, notice: null, placement: null, createdAt: now, updatedAt: now,
 		};
 	}
 
@@ -276,7 +280,9 @@ export class LojoQuestService {
 			xp: row.xp,
 			todayXp: logs.reduce((a, l) => a + l.xp, 0),
 			prep,
-			bossReady: prep.guide && prep.gear && prep.news,
+			bossReady: (prep.guide && prep.gear && prep.news) || !!row.placement?.prepWaived,
+			prepWaived: !!row.placement?.prepWaived,
+			placement: this.placementState(row, now),
 			bossLosses: row.bossLosses,
 			chestToday: row.chestDay === today,
 			bag: row.bag,
@@ -298,7 +304,8 @@ export class LojoQuestService {
 					const l: MiLojoQuestLevel | undefined = row.levels[n.id];
 					const isLevel = n.kind === 'level' || n.kind === 'boss';
 					// 7 days untouched fades, 14 turns gray; a passed retest relights
-					const age = l?.passedAt && l.lastAt ? ageOf(dayOf(new Date(l.lastAt)), today) : null;
+					// a level lit by the placement test never fades: it was not played
+					const age = l?.passedAt && l.lastAt && !l.placed ? ageOf(dayOf(new Date(l.lastAt)), today) : null;
 					return {
 						id: n.id, kind: n.kind, x: n.x, y: n.y, label: n.label, name: n.name, zh: n.zh, hint: n.zh, branch: n.branch,
 						skill: n.skill, type: n.type, practice: n.practice, ask: n.ask, need: n.need, maxWrong: n.maxWrong,
@@ -308,6 +315,7 @@ export class LojoQuestService {
 						stars: l?.stars ?? (l?.passedAt ? 1 : 0),
 						age,
 						retestable: n.retest && l?.passedAt != null && age != null,
+						placed: !!l?.placed,
 					};
 				}),
 			},
@@ -336,9 +344,9 @@ export class LojoQuestService {
 			if (this.nodeStates(row)[levelId] === 'locked') throw new ApiError(lojoQuestErrors.levelLocked);
 			if (retest) {
 				const age = prev.passedAt && prev.lastAt ? ageOf(dayOf(new Date(prev.lastAt)), dayOf(now)) : null;
-				if (!node.retest || age == null) throw new ApiError(lojoQuestErrors.notRetestable);
+				if (!node.retest || age == null || prev.placed) throw new ApiError(lojoQuestErrors.notRetestable);
 			}
-			if (mode === 'boss' && !(row.prep.guide && row.prep.gear && row.prep.news)) throw new ApiError(lojoQuestErrors.bossNotReady);
+			if (mode === 'boss' && !(row.prep.guide && row.prep.gear && row.prep.news) && !row.placement?.prepWaived) throw new ApiError(lojoQuestErrors.bossNotReady);
 			const rules = rulesOf(node, mode);
 			if (rules.heartCost > 0 && row.hearts <= 0) throw new ApiError(lojoQuestErrors.noHearts);
 			await em.update(MiLojoQuestAttempt, { userId, status: 'open' }, { status: 'quit', endedAt: now });
@@ -486,7 +494,8 @@ export class LojoQuestService {
 		const causes = at.answers.filter(a => !a.correct && a.cause != null).map(a => a.cause!);
 		const main = mainCause(causes);
 		const perfect = passed && right === at.questionIds.length && at.answers.every(a => a.correct);
-		const firstPass = passed && !retest && prev.passedAt == null;
+		// a level lit by the placement test: its first real pass is a first pass (定级规则 firstRealPassOnLitLevel)
+		const firstPass = passed && !retest && (prev.passedAt == null || !!prev.placed);
 		let level: MiLojoQuestLevel;
 		if (retest) {
 			// a passed retest relights the level and adds a star; a failed one changes nothing
@@ -500,8 +509,8 @@ export class LojoQuestService {
 				failStreak: passed ? 0 : (prev.failStreak ?? 0) + 1,
 				lastCause: passed ? undefined : main ?? undefined,
 				prevCause: passed ? undefined : prev.lastCause,
-				stars: passed ? starsAfter(prev.stars ?? 0, { retest: false, perfect }) : prev.stars ?? 0,
-				...(firstPass ? { passedAt: now.toISOString() } : {}),
+				stars: passed ? starsAfter(prev.placed ? 0 : prev.stars ?? 0, { retest: false, perfect }) : prev.stars ?? 0,
+				...(firstPass ? { passedAt: now.toISOString(), placed: undefined } : {}),
 			};
 		}
 		row.levels = { ...row.levels, [at.levelId]: level };
@@ -515,6 +524,7 @@ export class LojoQuestService {
 			if (passed) {
 				xp = firstPass ? XP.bossWin : REPLAY_XP;
 				row.bossLosses = 0;
+				if (row.placement?.prepWaived) row.placement = { ...row.placement, prepWaived: false };
 				if (firstPass) {
 					xp += N.chest.chapterClear.xp;
 					badge = BADGE;
@@ -526,6 +536,8 @@ export class LojoQuestService {
 					row.prep = {};
 					row.bossLosses = 0;
 					prepReset = true;
+					// 定级免备战 only holds until two losses in a row: then prep as usual
+					if (row.placement?.prepWaived) row.placement = { ...row.placement, prepWaived: false };
 				}
 			}
 			await this.log(em, row.userId, now, { kind: 'boss', ref: passed ? 'won' : 'lost', hearts: 0, xp, data: { attemptId: at.id, prepReset, badge } });
@@ -678,6 +690,111 @@ export class LojoQuestService {
 				row.trial = true;
 			}
 			row.onboarded = true;
+			await this.save(em, row, now);
+		});
+		return this.show(userId);
+	}
+
+	// 闯关定级: the banner (after saving, until closed, 1-2 first passed or one test done), whether a test can be taken
+	// now (once in 30 days), the last result and the first part kept from a test quit in its second part.
+	private placementState(row: Row, now: Date) {
+		const p = row.placement ?? {};
+		const nextAt = p.placedAt ? new Date(Date.parse(p.placedAt) + PLACEMENT_COOLDOWN_DAYS * 24 * 60 * 60 * 1000) : null;
+		const realPass = (id: string) => row.levels[id]?.passedAt != null && !row.levels[id]?.placed;
+		return {
+			version: PLACEMENT_VERSION,
+			banner: row.onboarded && !p.dismissedAt && !p.placedAt && !realPass('1-2'),
+			canTest: nextAt == null || nextAt <= now,
+			lastAt: p.placedAt ?? null,
+			nextAt: nextAt?.toISOString() ?? null,
+			station: p.station ?? null,
+			startAt: p.startAt ?? null,
+			kept: p.part1 != null,
+		};
+	}
+
+	private placementOpen(row: Row, now: Date) {
+		const st = this.placementState(row, now);
+		if (!st.canTest) throw new ApiError(lojoQuestErrors.placementTooSoon);
+		return st;
+	}
+
+	// The test paper: the first part, or straight the second part when the first was handed in on a test quit later.
+	public async placementPaper(userId: string) {
+		const now = new Date();
+		const row = await this.db.transaction(async em => this.lock(em, userId, now));
+		const st = this.placementState(row, now);
+		const kept = row.placement?.part1;
+		return {
+			...st,
+			first: publicPart(PLACEMENT_PARTS.first, 1),
+			second: st.canTest && kept ? publicPart(PLACEMENT_PARTS[kept.path as PlacementPath], 6) : null,
+		};
+	}
+
+	// The first part handed in: judged here, kept (a quit in the second part does not lose it), and the second part
+	// chosen by it goes back. Which part it is never shows on the page.
+	public async placementFirst(userId: string, answers: string[]) {
+		const now = new Date();
+		return await this.db.transaction(async em => {
+			const row = await this.lock(em, userId, now);
+			this.placementOpen(row, now);
+			const right = gradePart(PLACEMENT_PARTS.first, answers).filter(x => x).length;
+			const path = pathAfterFirst(right);
+			row.placement = { ...row.placement, part1: { right, path, at: now.toISOString() } };
+			await this.save(em, row, now);
+			return { second: publicPart(PLACEMENT_PARTS[path], 6) };
+		});
+	}
+
+	// The second part handed in: the station from both parts, the levels before it lit (1 star, 0 XP, never taken
+	// back), +20 XP and today's check-in, no hearts. Returns the result card and the map.
+	public async placementFinish(userId: string, answers: string[]) {
+		const now = new Date();
+		const out = await this.db.transaction(async em => {
+			const row = await this.lock(em, userId, now);
+			this.placementOpen(row, now);
+			const p1 = row.placement?.part1;
+			if (p1 == null) throw new ApiError(lojoQuestErrors.placementNoFirstPart);
+			const path = p1.path as PlacementPath;
+			const total = p1.right + gradePart(PLACEMENT_PARTS[path], answers).filter(x => x).length;
+			const station = stationOf(path, total);
+			const map = PLACEMENT_MAP[station];
+			const lit: string[] = [];
+			const levels = { ...row.levels };
+			for (const id of map.lit) {
+				if (levels[id]?.passedAt != null) continue;
+				levels[id] = { ...levels[id], passedAt: now.toISOString(), lastAt: now.toISOString(), stars: 1, placed: true };
+				lit.push(id);
+			}
+			row.levels = levels;
+			// where to go now: the suggested level, or the first one after it not passed yet; the Boss when it is next
+			const order = ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', 'boss'];
+			const startIdx = map.startAt === '2-4' ? order.length - 1 : order.indexOf(map.startAt);
+			const from = order.slice(startIdx).find(id => row.levels[id]?.passedAt == null) ?? 'boss';
+			const prev = row.placement ?? {};
+			const bossBeaten = row.levels.boss?.passedAt != null;
+			row.placement = {
+				...prev, part1: undefined, placedAt: now.toISOString(), station, path, total, startAt: map.startAt,
+				// 只往前不往后: a waiver or chapter-2 levels from an earlier test stay
+				prepWaived: (prev.prepWaived ?? false) || (map.prepWaived && !bossBeaten),
+				ch2: [...new Set([...(prev.ch2 ?? []), ...map.ch2])],
+			};
+			row.xp += PLACEMENT_XP;
+			await this.log(em, userId, now, { kind: 'placement', ref: station, hearts: 0, xp: PLACEMENT_XP, data: { version: PLACEMENT_VERSION, path, total, lit } });
+			const streak = await this.streak(em, row, now);
+			await this.save(em, row, now);
+			return { station, startAt: map.startAt, from, lit, card2: map.ch2.length > 0, xp: PLACEMENT_XP, streak };
+		});
+		return { ...out, quest: await this.show(userId) };
+	}
+
+	// The banner's ✕: it never comes back. The menu entry stays.
+	public async placementDismiss(userId: string) {
+		const now = new Date();
+		await this.db.transaction(async em => {
+			const row = await this.lock(em, userId, now);
+			row.placement = { ...row.placement, dismissedAt: now.toISOString() };
 			await this.save(em, row, now);
 		});
 		return this.show(userId);

@@ -561,4 +561,6 @@ export const lojoQuestErrors = {
 	notRetestable: { message: 'Only a passed level that has faded can be retested.', code: 'NOT_RETESTABLE', id: 'e0460462-4416-4d2d-90d7-14af868e4ecc' },
 	noAudio: { message: 'This question has no recording.', code: 'NO_AUDIO', id: 'a51cf114-7082-44ab-9d53-ba4ade721be9' },
 	invalidExamDate: { message: 'The exam date must be a day after today and within two years (YYYY-MM-DD).', code: 'INVALID_EXAM_DATE', id: '2982c072-7c22-4e4a-9541-457ae50f700e' },
+	placementTooSoon: { message: 'The placement test can be taken once in 30 days.', code: 'PLACEMENT_TOO_SOON', id: 'e21fe3c9-26fe-4f67-be40-fdc1f9161c95' },
+	placementNoFirstPart: { message: 'Hand in the first part of the placement test first.', code: 'PLACEMENT_NO_FIRST_PART', id: '986f5e1a-607b-4ec9-97a0-25834023b2df' },
 } as const;

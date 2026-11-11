@@ -521,3 +521,85 @@ html,body{background:#E9E1D2}
 .sheet .agree{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;text-align:center}
 .sheet .agree a{color:var(--navy);font-weight:800}
 #miaSay a{color:var(--coral);font-weight:800}
+
+/* ================= 定级测试（冲刺1111）：画面照闯关体验设计的定级原型（11-11 01:44 版） ================= */
+/* 菜单：顶栏右边 ☰，第一项是定级 */
+#menuBtn{margin-left:0;display:grid;place-items:center}
+#pmenu{position:absolute;right:12px;top:48px;z-index:45;background:var(--paper);border:1.5px solid var(--navy);border-radius:12px;box-shadow:3px 4px 0 var(--navy);padding:6px;min-width:200px;display:none}
+#pmenu.on{display:block}
+#pmenu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:11px 10px;border-radius:8px;font-size:14px;font-weight:800;color:var(--navy);min-height:44px}
+#pmenu button:active{background:var(--cream)}
+#pmenu button i{font-style:normal;width:20px;text-align:center}
+/* 横条：压在倒数那行下面，不是弹窗；地图从它下面开始（JS 量它的下沿，不写死） */
+#pbar{position:absolute;left:12px;right:12px;top:92px;z-index:21;display:flex;align-items:center;gap:10px;background:var(--paper);border:1.8px solid var(--navy);border-radius:14px;padding:10px 4px 10px 10px;box-shadow:3px 4px 0 var(--navy);cursor:pointer;text-align:left;color:var(--navy)}
+#pbar .ic{flex:none;width:40px;height:40px;border-radius:10px;background:#FCE7DF;display:grid;place-items:center}
+#pbar .tx{flex:1;font-size:14.5px;line-height:1.4;font-weight:800}
+#pbar .x{flex:none;width:44px;height:44px;color:var(--muted);font-size:17px}
+/* 卡片里的字（开测说明、退出、结果、30 天、第二章门口） */
+.sheet .pl h2{margin:4px 30px 12px 0;font:900 23px/1.3 var(--serif)}
+.sheet .pl p{margin:0 0 10px;font-size:15px;line-height:1.65}
+.sheet .pl .fine{margin-top:12px;font-size:12px;color:var(--muted);text-align:center;line-height:1.5}
+.sheet .pl .sbtn.line{margin-top:10px}
+.sheet .facts{list-style:none;margin:4px 0 6px;padding:0}
+.sheet .facts li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.5;padding:7px 0;border-bottom:1px dashed var(--line)}
+.sheet .facts li:last-child{border-bottom:0}
+.sheet .facts li i{flex:none;font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--cream);display:grid;place-items:center;font-size:13px}
+.sheet .kept{background:var(--cream);border-radius:12px;padding:8px 12px;font-size:13.5px;font-weight:800;margin:0 0 12px}
+.sheet .paused{display:flex;align-items:center;justify-content:center;gap:6px;margin:2px 0 4px;font-size:12.5px;font-weight:800;color:var(--muted)}
+.sheet .paused i{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--cream);border:1.3px solid var(--navy);font-size:9px;color:var(--navy)}
+.sheet .lit-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+.sheet .lit-row span{font-size:13px;font-weight:800;border:1.5px solid var(--navy);border-radius:16px;padding:3px 9px;background:var(--cream)}
+.sheet .lit-row span b{color:#C99520;font-weight:900;margin-left:3px}
+.sheet .plate{display:flex;align-items:center;gap:12px;background:var(--cream);border-radius:14px;padding:12px;margin:2px 0 14px}
+.sheet .plate .n{flex:none;width:58px;height:58px;border-radius:50%;background:#FCE7DF;border:2.6px solid var(--coral);display:grid;place-items:center;font:900 17px var(--round);color:var(--coral)}
+.sheet .plate .n.boss{border-radius:30px 30px 6px 6px;background:var(--navy);color:var(--mustard);border-color:var(--navy);font-size:11px}
+.sheet .plate .t b{display:block;font:900 17px var(--serif)}
+.sheet .plate .t span{font-size:13px;color:var(--muted)}
+/* 测试页：全屏盖住地图，卡片（退出）还能盖在它上面 */
+#ptest{position:absolute;inset:0;z-index:50;background:var(--cream);display:none;flex-direction:column}
+#ptest .thead{flex:none;padding:12px 14px 6px;display:flex;align-items:center;gap:10px}
+#ptest .qx{flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line);background:var(--paper);font-size:16px;color:var(--navy)}
+#ptest .segs{flex:1;display:flex;gap:4px;align-items:center}
+#ptest .segs i{flex:1;height:8px;border-radius:4px;background:#E6DDCB;transition:background .2s}
+#ptest .segs i.on{background:var(--navy)}
+#ptest .segs i.now{box-shadow:0 0 0 1.5px var(--coral)}
+#ptest .segs i.gap{flex:none;width:8px;background:none;height:auto;box-shadow:none}
+#ptest .tsub{padding:0 16px 8px 68px;font-size:12.5px;color:var(--muted);font-weight:800;display:flex;justify-content:space-between}
+#ptest .tbody{flex:1;overflow-y:auto;padding:4px 14px 12px;-webkit-overflow-scrolling:touch}
+#deck{background:var(--paper);border:1.8px solid var(--navy);border-radius:16px;padding:12px 14px;box-shadow:3px 4px 0 var(--navy);display:flex;gap:12px;align-items:center;margin-bottom:12px}
+#deck svg{flex:none}
+#deck .info{flex:1;min-width:0}
+#deck .st{font-size:13px;font-weight:900;color:var(--muted);letter-spacing:.5px}
+#deck .st.play{color:var(--coral)}
+#deck .big{font:900 24px "SF Mono",Menlo,ui-monospace,monospace;margin:2px 0 6px;font-variant-numeric:tabular-nums}
+#deck .trk{position:relative;height:6px;border-radius:3px;background:#EDE5D4}
+#deck .fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px;background:var(--navy)}
+#deck .nib{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--coral);border:2px solid var(--navy)}
+#deck .once{font-size:11.5px;color:var(--muted);margin-top:6px}
+#deck.reading .trk{background:#FCE7DF}
+#deck.reading .fill{background:var(--coral)}
+#deck.paused .st{color:var(--navy)}
+#deck.paused .nib{background:#FFFDF8}
+#pnotes{border-radius:14px;border:1.5px solid var(--line);padding:12px 14px 6px;background:var(--paper) repeating-linear-gradient(transparent 0 43px,#EFE7D6 43px 44px);background-position:0 46px}
+#pnotes .ins{font-size:12.5px;color:var(--muted);line-height:1.45;margin-bottom:8px}
+#pnotes .ins b{color:var(--navy)}
+#pnotes h4{margin:2px 0 6px;font:900 16px Georgia,var(--serif)}
+#pnotes .ln{font:16px/1.5 Georgia,"Times New Roman",serif;padding:8px 0 9px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 4px}
+#pnotes .num{font:900 12px var(--round);background:var(--navy);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-grid;place-items:center;margin-right:2px;flex:none;transform:translateY(-1px)}
+#pnotes input{font:16px Georgia,serif;color:var(--ink);width:104px;border:0;border-bottom:2px solid var(--navy);background:#FBF6EA;border-radius:4px 4px 0 0;padding:3px 6px;outline:none}
+#pnotes input:focus{border-bottom-color:var(--coral);background:#FCE7DF}
+#ptest .tfoot{flex:none;padding:10px 14px 18px;background:linear-gradient(rgba(246,241,231,0),var(--cream) 30%)}
+#ptest .tfoot .hint2{font-size:12px;color:var(--muted);text-align:center;margin-bottom:8px;min-height:16px}
+#psubmit{letter-spacing:2px;font-size:18px}
+#psubmit:disabled{background:#d8ccb4;color:#7d7461;box-shadow:0 4px 0 #bcae94;cursor:default}
+/* 两段之间的过场 */
+#pbetween{position:absolute;inset:0;z-index:52;display:none;place-items:center;background:rgba(246,241,231,.94)}
+#pbetween .card{background:var(--paper);border:2px solid var(--navy);border-radius:16px;box-shadow:4px 5px 0 var(--navy);padding:22px 26px;text-align:center;width:280px;margin:0}
+#pbetween small{display:block;font-size:12px;letter-spacing:4px;font-weight:800;color:var(--muted)}
+#pbetween b{display:block;font:900 30px var(--serif);margin:6px 0}
+#pbetween span{font-size:14px}
+/* 收卷 → 定位 */
+#plocate{position:absolute;inset:0;z-index:53;display:none;flex-direction:column;align-items:center;justify-content:center;background:var(--cream);padding:0 18px}
+#plocate .pstamp{font:900 22px var(--serif);color:var(--coral);border:3px solid var(--coral);border-radius:10px;padding:6px 16px;transform:rotate(-5deg);margin-bottom:26px}
+#plocate p{font-size:15px;color:var(--muted);margin:16px 0 0}
+#plocate svg{max-width:100%;height:auto}
