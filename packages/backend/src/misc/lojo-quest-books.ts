@@ -4,7 +4,7 @@
  */
 
 // 第一章锦囊（书屋的书）和各自的 3 题小验证。由 apps/community/scripts/quest-books.mjs 从「攻略」的锦囊 index.json 生成，不要手改。
-// 来源：index.json v1.1.0（2026-11-10），对照表 ch1-2026-11-10e，关卡表 chapter-1.json ch1-2026-11-10f。答案只在服务器上。
+// 来源：index.json v1.2.0（2026-11-11），对照表 ch1-2026-11-11a，关卡表 chapter-1.json ch1-2026-11-10f。答案只在服务器上。
 export type QuestBook = {
 	no: number; ref: string; id: string; slug: string; spine: string; title: string; summary: string; kind: string; evidence: string; color: string;
 	app: { id: string; zh: string; path: string | null };
@@ -57,7 +57,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"vocab-spell",
 			"spelling"
 		],
-		"when": "词汇关拼写题错得多",
+		"when": "词汇关拼写题常错",
 		"quiz": [
 			{
 				"id": "ielts-c1-k1-q1",
@@ -98,7 +98,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"slug": "ielts-know-spacing",
 		"spine": "隔几天见一次才记得住",
 		"title": "一口气背完的单词，过几天就还回去了；隔几天见一次才记得住",
-		"summary": "一口气背完，刚背完测确实记得，过几天就忘了一大半。同样的复习次数，隔开几天做，记得多得多。",
+		"summary": "一口气背完马上测，确实都记得，可过几天就忘了一大半。同样复习几次，隔开几天做，过后还记得的更多。",
 		"kind": "通用规律",
 		"evidence": "研究",
 		"color": "#3E9E7A",
@@ -142,7 +142,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 					"今天一口气连着复习 3 遍"
 				],
 				"a": 0,
-				"why": "次数一样，隔开做记得多得多。"
+				"why": "次数一样，隔开几天做，一周后还记得的更多。"
 			},
 			{
 				"id": "ielts-c1-k2-q3",
@@ -261,7 +261,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"plural",
 			"form"
 		],
-		"when": "听力关填空题错得多",
+		"when": "听力关填空题常错",
 		"quiz": [
 			{
 				"id": "ielts-c1-k4-q1",
@@ -307,9 +307,9 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"evidence": "官方",
 		"color": "#141E52",
 		"app": {
-			"id": "wordbook",
-			"zh": "生词本",
-			"path": "/wordbook"
+			"id": "synonym-match",
+			"zh": "换个说法",
+			"path": "/synonym/index.html?topic=general"
 		},
 		"verify": "闯关第一章 Boss「换装者」：同义替换，听力、阅读都有。练习关 1-6「换了说法」、1-9「近义说法」也考这个。",
 		"verifyUrl": "/quest?level=boss",
@@ -318,7 +318,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"1-6",
 			"1-9"
 		],
-		"gear": "wordbook",
+		"gear": "synonym-match:general",
 		"fallbackGear": "vocab:5.4",
 		"givesHeart": true,
 		"causeKeys": [
@@ -328,7 +328,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			"paraphrase",
 			"distractor"
 		],
-		"when": "Boss 没过；或任何一关同义替换、干扰项错得多",
+		"when": "Boss 没过；或任何一关同义替换、干扰项常错",
 		"quiz": [
 			{
 				"id": "ielts-c1-k5-q1",
@@ -352,13 +352,13 @@ export const QUEST_BOOKS: QuestBook[] = [
 			},
 			{
 				"id": "ielts-c1-k5-q3",
-				"q": "收生词 increase 时，顺手做哪件事最能帮你打 Boss？",
+				"q": "玩「换个说法」时，卡片上有 increase。它该跟哪张配？",
 				"o": [
-					"把中文意思多抄几遍",
-					"把 rise、go up 一起收进来"
+					"increasing，长得最像",
+					"go up，长得不像，意思一样"
 				],
 				"a": 1,
-				"why": "Boss 考的就是认出换过的说法，收进近义说法正是在练这个。"
+				"why": "长得像的是陷阱卡。Boss 考的就是认出换过的说法，配意思不配长相。"
 			}
 		]
 	},

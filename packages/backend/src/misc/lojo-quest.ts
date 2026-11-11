@@ -268,7 +268,8 @@ export function settleStreak(s: StreakState, today: string): { state: StreakStat
 	return { state: s, notice: null };
 }
 
-// Where a level's 「去装备练一组」 goes (路线图 gear 字段): dictation, vocab:5.N, grammar:6.N, typing, wordbook, graded-reading.
+// Where a level's 「去装备练一组」 goes (路线图 gear 字段): dictation, vocab:5.N, grammar:6.N, typing, wordbook,
+// synonym-match:<话题>（换个说法，/synonym/），graded-reading.
 export function gearPath(gear: string | null | undefined): { app: string; path: string; zh: string; givesHeart: boolean } {
 	const g = gear ?? 'dictation';
 	const [app, stop] = g.split(':');
@@ -276,6 +277,7 @@ export function gearPath(gear: string | null | undefined): { app: string; path: 
 	if (app === 'grammar') return { app, path: `/grammar/${stop ?? '6.3'}`, zh: `语法线 ${stop ?? '6.3'} 站`, givesHeart: false };
 	if (app === 'typing') return { app, path: '/typing?stop=spelling', zh: '机考打字 · 拼写站', givesHeart: true };
 	if (app === 'wordbook') return { app, path: '/wordbook', zh: '生词本', givesHeart: true };
+	if (app === 'synonym-match') return { app, path: `/synonym/index.html?topic=${encodeURIComponent(stop ?? 'general')}`, zh: '换个说法', givesHeart: true };
 	if (app === 'graded-reading') return { app, path: 'https://vibes.college/read/artisan/', zh: '分级阅读', givesHeart: false };
 	return { app: 'dictation', path: '/dictation', zh: '听写', givesHeart: true };
 }
