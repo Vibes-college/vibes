@@ -196,8 +196,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// without the 👉 link again: a link only goes out for a step not linked yet for this try (AI tutor, 2026-11-10:
 			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
 			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage({ now: this.nowText(), progress, recall, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
+			const system = tutorSystemPrompt(card, memory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
+			const context = tutorContextMessage({ now: this.nowText(), learnerName: this.nameOf(learner), progress, recall, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
 			let answer: TutorReply;
 			try {
 				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history, { role: 'system', content: context }], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`));
@@ -272,7 +272,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			notes: { profile: memory.profile, facts: memory.facts.map(({ id, text }) => ({ id, text })), summary: memory.summary },
 		});
 		const update = await this.lojoEnglishService.chatJson([
-			{ role: 'system', content: tutorSystemPrompt(card, sessionMemory, { learnerName: this.nameOf(learner), questKnowledge: quest && questKnowledgeSection(quest.knowledge) }) },
+			{ role: 'system', content: tutorSystemPrompt(card, sessionMemory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) }) },
 			...history,
 			{ role: 'system', content: task },
 		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`);
@@ -337,9 +337,10 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			]);
 			// If the learner's last message is still unanswered, answer it instead of opening a new topic.
 			const unanswered = history.at(-1)?.role === 'user';
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner) });
+			const system = tutorSystemPrompt(card, memory, {});
 			const context = tutorContextMessage({
 				now: this.nowText(),
+				learnerName: this.nameOf(learner),
 				opener: unanswered ? undefined : { reason: this.openerReason(memory, history), recentPosts },
 				progress,
 			});
@@ -401,8 +402,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				await this.sayAwayForQuest(tutor, learner, quest.knowledge, quest.questTry);
 				return;
 			}
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), questKnowledge: questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage({ now: this.nowText(), progress, quest: questTrySection(quest.knowledge, quest.questTry) });
+			const system = tutorSystemPrompt(card, memory, { questKnowledge: questKnowledgeSection(quest.knowledge) });
+			const context = tutorContextMessage({ now: this.nowText(), learnerName: this.nameOf(learner), progress, quest: questTrySection(quest.knowledge, quest.questTry) });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
 			const cue = '(The learner just failed this level and tapped "Ask Mia". Write first now, in quest mode as described above.)';
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
@@ -756,12 +757,12 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	// For the Mastra pilot (endpoint lojo/tutor/pilot-tool): Mia's fixed system prompt word for word, without her notes
-	// (the pilot keeps its own working memory), and the "Now:" line of the last message.
-	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string }> {
+	// (the pilot keeps its own working memory), and the "Now:" line and name of the last message.
+	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string }> {
 		const [card, learner] = await Promise.all([this.card(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId })]);
-		const full = tutorSystemPrompt(card, emptyMemory(), { learnerName: this.nameOf(learner) });
+		const full = tutorSystemPrompt(card, emptyMemory(), {});
 		const cut = full.lastIndexOf('\nWhat you know about ');
-		return { system: cut === -1 ? full : full.slice(0, cut).trimEnd(), now: this.nowText() };
+		return { system: cut === -1 ? full : full.slice(0, cut).trimEnd(), now: this.nowText(), name: this.nameOf(learner) };
 	}
 
 	private nameOf(user: MiUser): string {

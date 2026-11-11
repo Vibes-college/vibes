@@ -53,12 +53,12 @@ describe('Vibes AI tutor in the quest map', () => {
 		expect(section).toContain('- guide:j5: 锦囊 5 · 一字不差的多半不是答案 (recommended)');
 		expect(section).toContain('"picked":"TRUE"');
 		expect(section).not.toContain('/guides/j5');
-		const prompt = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin', questKnowledge: questKnowledgeSection(normalizeQuestKnowledge(knowledge)!) });
+		const prompt = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { questKnowledge: questKnowledgeSection(normalizeQuestKnowledge(knowledge)!) });
 		expect(prompt).toContain('"next"');
 		expect(prompt).toContain('QUEST MODE. Test rules.');
 		expect(prompt).not.toContain('"picked":"TRUE"');
 		expect(questTrySection(normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!)).toContain('"picked":"TRUE"');
-		const plain = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin' });
+		const plain = tutorSystemPrompt(defaultTutorCard, emptyMemory(), {});
 		expect(plain).not.toContain('QUEST MODE');
 		expect(plain).not.toContain('"next"');
 		expect(section).not.toContain('Do not repeat the hearts');

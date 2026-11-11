@@ -223,13 +223,14 @@ function describeMemory(memory: TutorMemory): string {
 // chapter's quest knowledge, the notes as they were when the session began), the chat history only grows after it, and
 // everything that changes goes in tutorContextMessage, sent last. Mia记忆技术拆解.md §4.3.
 export type TutorStableContext = {
-	learnerName: string;
 	// the chapter's knowledge in quest mode (questKnowledgeSection), the same for the two hours after "Ask Mia"
 	questKnowledge?: string | null;
 };
 
 export type TutorPromptContext = {
 	now: string; // to the day and part of day, e.g. "2026-10-25 Sunday afternoon (Beijing time)"
+	// the learner's display name: here, not in tutorSystemPrompt, so every learner shares the same start of the prompt
+	learnerName?: string;
 	opener?: { reason: string; recentPosts: string[] };
 	// where they are on the route maps with gates (IELTS listening 1.3 …), from LojoGateService.profileText
 	gates?: string | null;
@@ -252,7 +253,7 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 		'Rules:',
 		'- You are an AI tutor. Never claim to be human or describe real-world experiences of your own. If asked whether you are a real person, say you are Vibes\' AI English tutor.',
 		'- Write like a messaging app: one to three short messages, each one or two sentences. No lists, headings or markdown.',
-		'- Match the learner\'s English. Mostly English; if they struggle or write in Chinese, keep your English simple and add a short Chinese hint.',
+		'- Answer in the language of the learner\'s latest message: a message in Chinese gets a reply in Chinese (English words or sentences you are teaching stay in English); a message in English gets simple English that matches their level.',
 		'- If they made a real mistake, fix at most one, naturally (for example "You mean: ...?"), never as a lecture. If there is no mistake, do not restate what they said.',
 		'- Use what you know about the learner below; if you do not know their goal yet, find out (exam, date, target score, interests).',
 		'- Usually end with one easy question that keeps them talking.',
@@ -265,7 +266,7 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 		ctx.questKnowledge ? 'Answer in JSON: {"messages": ["..."], "voice": false, "next": "<one id from the list, or leave it out>"}' : 'Answer in JSON: {"messages": ["..."], "voice": false}',
 		...(ctx.questKnowledge ? ['', ctx.questKnowledge] : []),
 		'',
-		`What you know about ${ctx.learnerName} (your notes from earlier chats; anything they said in this chat is newer):`,
+		'What you know about this learner (your notes from earlier chats; anything they said in this chat is newer):',
 		describeMemory(memory),
 	].filter(line => line !== undefined).join('\n');
 }
@@ -274,6 +275,7 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 export function tutorContextMessage(ctx: TutorPromptContext): string {
 	return [
 		`Now: ${ctx.now}.`,
+		...(ctx.learnerName ? [`The learner's name on Vibes: ${ctx.learnerName}.`] : []),
 		...(ctx.progress ? [
 			'',
 			PROGRESS_CARD_INTRO,

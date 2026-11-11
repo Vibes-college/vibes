@@ -72,12 +72,15 @@ describe('Vibes AI tutor', () => {
 		const card = normalizeTutorCard({ name: '  ', personality: 'Calm and precise.' });
 		expect(card.name).toBe(defaultTutorCard.name);
 		expect(card.personality).toBe('Calm and precise.');
-		const prompt = tutorSystemPrompt(card, { ...emptyMemory(), facts: [{ id: 'f1', text: 'Exam on 12 December.', updatedAt: '' }] }, { learnerName: 'Lin' });
+		const prompt = tutorSystemPrompt(card, { ...emptyMemory(), facts: [{ id: 'f1', text: 'Exam on 12 December.', updatedAt: '' }] }, {});
 		expect(prompt).toContain('Never claim to be human');
 		expect(prompt).toContain('- Exam on 12 December.');
 		expect(prompt).toContain('"messages"');
 		// What changes from call to call goes after the chat, so the start of the prompt stays cached.
 		expect(prompt).not.toContain('Sunday');
+		// Every learner shares the same start: the name goes in the last message.
+		expect(prompt).toContain('What you know about this learner');
+		expect(tutorContextMessage({ now: 'x', learnerName: 'Lin' })).toContain('name on Vibes: Lin');
 		const context = tutorContextMessage({
 			now: '2026-10-25 Sunday afternoon (Beijing time)', opener: { reason: 'a friendly daily check-in', recentPosts: ['Vibes 编辑部: Quick fix: "We discussed the plan"'] },
 		});
