@@ -17,6 +17,8 @@ import { GetterService } from '@/server/api/GetterService.js';
 import type { MiLocalUser } from '@/models/User.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type Logger from '@/logger.js';
+import { logModelUsage } from '@/misc/lojo-model-usage.js';
+import type { ChatCompletion } from '@/misc/lojo-model-usage.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoEnglishErrors } from '@/server/api/lojo-schemas.js';
 import {
@@ -42,10 +44,6 @@ const PROMPT_VERSION = 2;
 const EXPLAIN_TTL_SEC = 60 * 60 * 24 * 30;
 const REPLY_TTL_SEC = 60 * 60 * 24;
 const POST_MAX_CHARS = 2000;
-
-type ChatCompletion = {
-	choices?: { finish_reason?: string; message?: { content?: string | null } }[];
-};
 
 @Injectable()
 export class LojoEnglishService implements OnApplicationShutdown {
@@ -100,7 +98,7 @@ export class LojoEnglishService implements OnApplicationShutdown {
 	public explain(text: string, lang: LojoEnglishLang): Promise<LojoEnglishExplanation> {
 		const input = JSON.stringify({ post: text });
 		return this.cached(`explain:${lang}`, input, EXPLAIN_TTL_SEC, false, () =>
-			this.complete(explainSystemPrompt(lang), input, 0.3, 4000, normalizeExplanation));
+			this.complete(`english.explain.${lang}`, explainSystemPrompt(lang), input, 0.3, 4000, normalizeExplanation));
 	}
 
 	// A new public English post gets its explanation right away, so the first reader who taps the button
@@ -140,22 +138,22 @@ export class LojoEnglishService implements OnApplicationShutdown {
 	}
 
 	public async compose(text: string): Promise<LojoEnglishDraft> {
-		return this.complete(composeSystemPrompt, JSON.stringify({ draft: text }), 0.8, 3000, normalizeDraft);
+		return this.complete('english.compose', composeSystemPrompt, JSON.stringify({ draft: text }), 0.8, 3000, normalizeDraft);
 	}
 
 	// "召唤 Agent": what the user wants to tell their own coding agent. Same daily budget as the other helpers.
 	public agentEnglish(text: string): Promise<LojoAgentEnglish> {
-		return this.complete(agentEnglishSystemPrompt, JSON.stringify({ draft: text }), 0.5, 1200, normalizeAgentEnglish);
+		return this.complete('agent.english', agentEnglishSystemPrompt, JSON.stringify({ draft: text }), 0.5, 1200, normalizeAgentEnglish);
 	}
 
 	public agentPrompt(text: string): Promise<LojoAgentPrompt> {
-		return this.complete(agentPromptSystemPrompt, JSON.stringify({ draft: text }), 0.3, 1200, normalizeAgentPrompt);
+		return this.complete('agent.prompt', agentPromptSystemPrompt, JSON.stringify({ draft: text }), 0.3, 1200, normalizeAgentPrompt);
 	}
 
 	public replyIdeas(text: string, context: string | null, refresh: boolean): Promise<LojoEnglishReplyIdeas> {
 		const input = JSON.stringify(context ? { context, post: text } : { post: text });
 		return this.cached('reply', input, REPLY_TTL_SEC, refresh, () =>
-			this.complete(replySystemPrompt, input, 0.9, 1500, normalizeReplyIdeas));
+			this.complete('english.reply-ideas', replySystemPrompt, input, 0.9, 1500, normalizeReplyIdeas));
 	}
 
 	private async cached<T>(kind: string, input: string, ttlSec: number, refresh: boolean, produce: () => Promise<T>): Promise<T> {
@@ -189,12 +187,12 @@ export class LojoEnglishService implements OnApplicationShutdown {
 	}
 
 	// One retry on a malformed answer: JSON mode occasionally returns empty content.
-	private async complete<T>(system: string, input: string, temperature: number, maxTokens: number, normalize: (raw: unknown) => T): Promise<T> {
+	private async complete<T>(source: string, system: string, input: string, temperature: number, maxTokens: number, normalize: (raw: unknown) => T): Promise<T> {
 		if (this.apiKey === '') throw new ApiError(lojoEnglishErrors.unavailable);
 		for (let attempt = 1; ; attempt++) {
 			await this.spendBudget();
 			try {
-				return withoutNewLinks(normalize(await this.request(system, input, temperature, maxTokens)), input);
+				return withoutNewLinks(normalize(await this.request(source, system, input, temperature, maxTokens)), input);
 			} catch (err) {
 				if (attempt < 2 && err instanceof LojoEnglishInvalidResponse) continue;
 				this.logger.warn(`DeepSeek request failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -215,11 +213,12 @@ export class LojoEnglishService implements OnApplicationShutdown {
 
 	// A multi-turn JSON chat for the AI tutor, with up to two retries on a malformed or empty answer.
 	// It does not spend the English helper's daily budget: the tutor keeps its own.
-	public async chatJson<T>(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number, normalize: (raw: unknown) => T): Promise<T> {
+	// source names the caller in the usage log line (e.g. "tutor.reply learner=<id>").
+	public async chatJson<T>(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number, normalize: (raw: unknown) => T, source = 'tutor'): Promise<T> {
 		if (this.apiKey === '') throw new ApiError(lojoEnglishErrors.unavailable);
 		for (let attempt = 1; ; attempt++) {
 			try {
-				return normalize(await this.requestMessages(messages, temperature, maxTokens));
+				return normalize(await this.requestMessages(source, messages, temperature, maxTokens));
 			} catch (err) {
 				if (attempt < 3 && (err instanceof LojoEnglishInvalidResponse || err instanceof LojoTutorInvalidResponse)) continue;
 				throw err;
@@ -246,14 +245,15 @@ export class LojoEnglishService implements OnApplicationShutdown {
 		}
 	}
 
-	private request(system: string, input: string, temperature: number, maxTokens: number): Promise<unknown> {
-		return this.requestMessages([
+	private request(source: string, system: string, input: string, temperature: number, maxTokens: number): Promise<unknown> {
+		return this.requestMessages(source, [
 			{ role: 'system', content: system },
 			{ role: 'user', content: input },
 		], temperature, maxTokens);
 	}
 
-	private async requestMessages(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number): Promise<unknown> {
+	private async requestMessages(source: string, messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number): Promise<unknown> {
+		const started = Date.now();
 		const res = await this.httpRequestService.send(ENDPOINT, {
 			method: 'POST',
 			headers: {
@@ -282,6 +282,7 @@ export class LojoEnglishService implements OnApplicationShutdown {
 		}
 
 		const json = await res.json() as ChatCompletion;
+		logModelUsage(this.logger, source, json, Date.now() - started);
 		const choice = json.choices?.[0];
 		const content = choice?.message?.content ?? '';
 		// A cut-off answer would be cut off again on retry, so it is not worth a second call.

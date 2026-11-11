@@ -173,7 +173,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: quest && questTry && questPromptSection(quest.knowledge, questTry, true) });
 			let answer: TutorReply;
 			try {
-				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`));
 			} catch (err) {
 				if (!(await this.markDownOn(err))) throw err;
 				await this.sayAway(tutor, learner);
@@ -219,7 +219,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const update = await this.lojoEnglishService.chatJson([
 			{ role: 'system', content: memoryUpdateSystemPrompt },
 			{ role: 'user', content: input },
-		], 0.2, 1200, normalizeMemoryUpdate);
+		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`);
 		const next = applyMemoryUpdate(memory, update, new Date(), () => this.idService.gen());
 		await this.registryApiService.set(learnerId, null, SCOPE, tutorId, next);
 	}
@@ -289,7 +289,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// or she repeats it; an empty chat starts from a neutral cue too.
 			const cue = history.length === 0 ? '(The learner has not written yet.)' : '(The learner has not replied yet. Write first now, as described above.)';
 			const turns: ChatTurn[] = unanswered ? history : [...history, { role: 'user', content: cue }];
-			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.9, 600, normalizeTutorReply));
+			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.9, 600, normalizeTutorReply, `tutor.first learner=${learnerId}`));
 			await this.send(tutor, learner, unanswered ? answer.messages : answer.messages.slice(0, 2), answer.voice, card.extensions.vibes?.voice);
 			if (!unanswered) {
 				const key = this.stateKey(tutorId, learnerId);
@@ -350,7 +350,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				: [...history, { role: 'user', content: cue }];
 			let answer: TutorReply;
 			try {
-				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply));
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply, `tutor.quest learner=${learnerId}`));
 			} catch (err) {
 				// The first learner to run into it still gets where to go next, built from this try without the model.
 				if (!(await this.markDownOn(err))) throw err;

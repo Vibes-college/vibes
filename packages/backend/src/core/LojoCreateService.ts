@@ -15,6 +15,8 @@ import { GetterService } from '@/server/api/GetterService.js';
 import type { MiMeta } from '@/models/_.js';
 import type { MiLocalUser } from '@/models/User.js';
 import type Logger from '@/logger.js';
+import { logModelUsage } from '@/misc/lojo-model-usage.js';
+import type { ChatCompletion } from '@/misc/lojo-model-usage.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoCreateErrors } from '@/server/api/lojo-schemas.js';
 import {
@@ -58,10 +60,6 @@ const MAX_DRAFTS = 100;
 // The formats and the source accounts, imported by an admin, kept in the root account's registry: private, not in this source.
 const ADMIN_SCOPE = ['lojo', 'createAdmin'];
 const CONFIG_KEY = 'config';
-
-type ChatCompletion = {
-	choices?: { finish_reason?: string; message?: { content?: string | null } }[];
-};
 
 type Plans = { plans: LojoCreatePlan[]; model: string; at: string };
 type Source = LojoCreateSource & { id: string; username: string };
@@ -314,6 +312,7 @@ export class LojoCreateService {
 	}
 
 	private async request(model: string, messages: LojoCreateMessage[], temperature: number, maxTokens: number): Promise<unknown> {
+		const started = Date.now();
 		const res = await this.httpRequestService.send(ENDPOINT, {
 			method: 'POST',
 			headers: {
@@ -343,6 +342,7 @@ export class LojoCreateService {
 		}
 
 		const json = await res.json() as ChatCompletion;
+		logModelUsage(this.logger, 'create', json, Date.now() - started);
 		const choice = json.choices?.[0];
 		const content = choice?.message?.content ?? '';
 		if (choice?.finish_reason === 'length') throw new Error('answer hit max_tokens');
