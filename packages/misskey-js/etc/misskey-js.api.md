@@ -2050,6 +2050,7 @@ declare namespace entities {
         LojoEntitiesListResponse,
         LojoEntitiesShowRequest,
         LojoEntitiesShowResponse,
+        LojoFunnelRequest,
         LojoGatesImportRequest,
         LojoGatesImportResponse,
         LojoGatesPeersRequest,
@@ -2106,6 +2107,15 @@ declare namespace entities {
         LojoQuestStartResponse,
         LojoQuestTakeRequest,
         LojoQuestTakeResponse,
+        LojoQuestTrialAnswerRequest,
+        LojoQuestTrialAnswerResponse,
+        LojoQuestTrialAudioRequest,
+        LojoQuestTrialAudioResponse,
+        LojoQuestTrialClaimRequest,
+        LojoQuestTrialClaimResponse,
+        LojoQuestTrialShowRequest,
+        LojoQuestTrialShowResponse,
+        LojoQuestTrialStartResponse,
         LojoStateShowResponse,
         LojoStateUpdateRequest,
         LojoStateUpdateResponse,
@@ -3052,6 +3062,9 @@ type LojoEntitiesShowRequest = operations['lojo___entities___show']['requestBody
 type LojoEntitiesShowResponse = operations['lojo___entities___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoFunnelRequest = operations['lojo___funnel']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 type LojoGatesImportRequest = operations['lojo___gates___import']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3218,6 +3231,33 @@ type LojoQuestTakeRequest = operations['lojo___quest___take']['requestBody']['co
 
 // @public (undocumented)
 type LojoQuestTakeResponse = operations['lojo___quest___take']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialAnswerRequest = operations['lojo___quest___trial-answer']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialAnswerResponse = operations['lojo___quest___trial-answer']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialAudioRequest = operations['lojo___quest___trial-audio']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialAudioResponse = operations['lojo___quest___trial-audio']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialClaimRequest = operations['lojo___quest___trial-claim']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialClaimResponse = operations['lojo___quest___trial-claim']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialShowRequest = operations['lojo___quest___trial-show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialShowResponse = operations['lojo___quest___trial-show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTrialStartResponse = operations['lojo___quest___trial-start']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoStateShowResponse = operations['lojo___state___show']['responses']['200']['content']['application/json'];

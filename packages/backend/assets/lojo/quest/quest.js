@@ -35,8 +35,46 @@ const URLQ = new URLSearchParams(window.location.search);
 /* ?s=<画面名>：预览某个画面，用假数据、不连服务器。正式站（app.vibes.college）上不认这个参数。 */
 const SP = URLQ.get('s') ?? Q?.query?.s ?? null;
 const PREVIEW = SP != null && window.location.hostname !== 'app.vibes.college';
-const api = (ep, params) => PREVIEW ? fakeApi(ep, params || {})
+const rawApi = (ep, params) => PREVIEW ? fakeApi(ep, params || {})
 	: (Q && typeof Q.api === 'function') ? Promise.resolve(Q.api(ep, params || {})) : fetchApi(ep, params);
+/* 先打一关，不用注册（冲刺1111 新人前三分钟 第 2–4 条）：游客的框带 ?trial=1。存档前只叫 trial-* 接口（服务器判题、不存进度，
+   这一局在服务器上留 6 小时），别的都「存档后解锁」；存档 = 社区那边建号（Q.save），再把这一关过关记到新账号上（trial-claim） */
+const TRIAL = !PREVIEW && URLQ.get('trial') === '1';
+const TR = { id: null, saved: false, skips: 0 };
+try { TR.id = sessionStorage.getItem('vibesQuestTrial'); } catch (e) { TR.id = null; }
+const inTrial = () => TRIAL && !TR.saved;
+const TRIAL_EP = { 'lojo/quest/show': 'trial-show', 'lojo/quest/start': 'trial-start', 'lojo/quest/audio': 'trial-audio', 'lojo/quest/answer': 'trial-answer' };
+const TRIAL_HINT = '听他们报名字、地址，一个字母一个字母拼出来。错了我告诉你对的，这关不扣心。';
+function api(ep, params) {
+	params = params || {};
+	if (!inTrial() || !ep.startsWith('lojo/quest/')) return rawApi(ep, params);
+	const t = TRIAL_EP[ep];
+	if (!t || (t === 'trial-start' && params.levelId !== D?.trialLevel)) return Promise.reject({ code: 'TRIAL_SAVE', message: ep });
+	if (t === 'trial-show') params = { trialId: TR.id };
+	if (t === 'trial-start') params = {};
+	return rawApi('lojo/quest/' + t, params).then(r => {
+		if (t === 'trial-start') {
+			TR.id = r.attemptId; r.hint = TRIAL_HINT;
+			try { sessionStorage.setItem('vibesQuestTrial', TR.id); } catch (e) { /* 隐私模式：刷新就从头 */ }
+			funnel('trial_start', true);
+		}
+		return r;
+	});
+}
+/* 埋点（增长 埋点清单）：只报「哪一步 + 从哪来」，不带任何认人的东西；once = 这台浏览器一天只报一次 */
+function funnel(event, once) {
+	if (PREVIEW) return;
+	let src = 'other';
+	try {
+		src = localStorage.getItem('vibesQuestSrc') || 'other';
+		if (once) {
+			const day = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10), k = 'vibesFunnel:' + event;
+			if (localStorage.getItem(k) === day) return;
+			localStorage.setItem(k, day);
+		}
+	} catch (e) { /* 存不了照报 */ }
+	rawApi('lojo/funnel', { event, src }).catch(() => {});
+}
 function go(path) {
 	if (!path) return;
 	if (PREVIEW) { toast('预览：这里会跳到 ' + path, 2000); return; }
@@ -115,6 +153,7 @@ function errText(e) {
 	if (c === 'INVALID_EXAM_DATE') return '日期不对：要选明天以后、两年以内的一天';
 	if (c === 'NO_AUDIO') return '录音暂时出不来，先看文字';
 	if (c === 'NOT_SIGNED_IN') return '先登录社区';
+	if (c === 'TRIAL_SAVE') return '存档后解锁';
 	if (c === 'RATE_LIMIT_EXCEEDED') return '点得太快了，歇一下再来';
 	return '网卡了一下，再试一次';
 }
@@ -345,6 +384,7 @@ function loadRank() {
 	}).catch(() => { RANK.busy = false; });
 }
 function miaLine() {
+	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Mia，你的 AI 英语助教。从这儿一关一关往上走，右上角那座房子就是考场。';
 	const tg = target(), h = D.hearts;
 	if (h <= 0) return `心打光了。<b>读本锦囊</b>或<b>练一组</b>，各补 1 颗；不补就等${refillLabel()} 回满。`;
 	if (D.lastFail && NODE[D.lastFail.levelId]?.state === 'open') {
@@ -366,6 +406,12 @@ function render() {
 function levelsLeft() { return D.chapter.nodes.filter(n => (n.kind === 'level' || n.kind === 'boss') && n.state !== 'done').length; }
 function drawCount() {
 	const c = $('#count');
+	if (inTrial()) {
+		const done = NODE[D.trialLevel]?.state === 'done';
+		c.innerHTML = `<span>试玩中 · 过了这关就能存档</span>${done ? '<button class="dbtn" id="dateBtn">存档 ›</button>' : ''}`;
+		if (done) $('#dateBtn').onclick = () => { play('tap'); saveCard(); };
+		hideBehind(); return;
+	}
 	if (D.examDate == null) c.innerHTML = '<span>离考场</span><b style="font-size:20px">还没定日子</b><button class="dbtn" id="dateBtn">设考试日期 ›</button>';
 	else c.innerHTML = `<span>离考场还有</span><b id="days">${D.daysLeft ?? 0}</b><span>天 · 还有 ${levelsLeft()} 关</span><button class="dbtn set" id="dateBtn">${esc(D.examDate)} ›</button>`;
 	$('#dateBtn').onclick = () => openExamSheet();
@@ -407,6 +453,8 @@ function intro() {
 }
 /* 进场动画之后：第一次来走引导；漏了一天的通知（服务器只给一次）；再处理地址栏 */
 function afterIntro() {
+	// 试玩：不走引导（Mia 在地图上一句、1-1 题目上方一句）；刷新回来已经过了 1-1 就再给一次存档卡
+	if (inTrial()) { if (NODE[D.trialLevel]?.state === 'done') setTimeout(saveCard, 400); return; }
 	if (!D.onboarded || SP === 'new') { startCoach(); return; }
 	const nt = D.notice;
 	if (nt?.kind === 'freeze') { showFreezeUse(nt.used); return; }
@@ -495,6 +543,7 @@ scrim.onclick = () => closeSheet(); sheet.querySelector('[data-close]').onclick 
 function nodeTap(id) {
 	const n = NODE[id]; if (!n) return;
 	barAway();
+	if (inTrial() && id !== D.trialLevel) { trialLocked(); return; }
 	if (n.kind === 'level') {
 		if (n.state === 'locked') { play('fail', 0.4); toast('这关还没开：先过前面连着它的一关'); return; }
 		if (n.state === 'done' && n.retestable) { retestSheet(n); return; }
@@ -509,12 +558,15 @@ function nodeTap(id) {
 function levelSheet(n) {
 	const out = !n.practice && D.hearts <= 0;
 	const kind = n.practice ? '练手关' : '';
+	const heartsOnce = !n.practice && !heartsTold();
 	const html = `<h4>${esc(n.label)} ${kind} · ${esc(n.name ?? '')}</h4>
-		<div class="sub">${esc(n.zh ?? '')} · ${n.practice ? '<b style="color:#3E9E7A">练手关 · 不扣心</b>' : `${n.ask} 题 · 对 ${n.need} 题过`}</div>
+		<div class="sub">${esc(n.zh ?? '')} · ${n.practice ? `<b style="color:#3E9E7A">练手关</b> · ${n.ask} 题，对 ${n.need} 题过` : `${n.ask} 题，对 ${n.need} 题过`}</div>
 		${n.hint ? `<div class="hint">${md(n.hint)}</div>` : ''}
-		<div class="card">${n.state === 'done' ? `过了 ✓ · 最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.tries ? `打过 ${n.tries} 次，最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.practice ? '练手关答错不扣心，每题打完告诉你为什么。打完这关，今天的火苗就点着了。' : '第一次打。今天第一次过关还有宝箱。'}</div>
-		${n.gear ? `<div class="card">卡住了可以先去装备「${esc(n.gear.zh)}」练一组。</div>` : ''}
+		${heartsOnce ? '<div class="card"><b>从这关起答错扣 1 颗心。</b>每天 5 颗，读本锦囊、练一组装备，各补 1 颗。</div>' : ''}
+		<div class="card">${n.state === 'done' ? `过了 ✓ · 最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.tries ? `打过 ${n.tries} 次，最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.practice ? '错了不扣心，每题告诉你为什么。过了，点亮今天的火苗。' : '今天第一次过关，有宝箱。'}</div>
+		${n.gear && !inTrial() && n.tries ? `<div class="card">卡住了可以先去装备「${esc(n.gear.zh)}」练一组。</div>` : ''}
 		${out ? '<button class="sbtn" data-a="refill">心打光了 · 去补心</button>' : `<button class="sbtn" data-a="start">${n.state === 'done' ? '再打一遍' : `开打 ${esc(n.label)}`}</button>`}`;
+	if (heartsOnce) heartsTold(true);
 	openSheet(html, b => {
 		b.querySelector('[data-a="start"]')?.addEventListener('click', () => { closeSheet(true); startLevel(n.id); });
 		b.querySelector('[data-a="refill"]')?.addEventListener('click', () => { closeSheet(true); showEmpty('map'); });
@@ -641,6 +693,7 @@ function barAway() {
 	try { ok = !!Q.chrome(true); } catch (e) { ok = false; }
 	if (!ok) return;
 	setBarOff(true);
+	keepMapTop();
 	const h = $('#barHandle');
 	let first = false;
 	try { first = localStorage.getItem(BAR_TIP) == null; if (first) localStorage.setItem(BAR_TIP, '1'); } catch (e) { first = false; }
@@ -651,6 +704,18 @@ function barAway() {
 			.set(h, { clearProps: 'transform' });
 		miaSay('底栏我先收起来了，地图大一点。要用就点最下面那道小横条。');
 	} else gsap.fromTo(h, { opacity: 0 }, { opacity: 1, duration: 0.25, clearProps: 'opacity' });
+}
+/* 验收结论 11-11：收起那一下的拖动只用来收底栏，地图顶边不动（以前跟着滚了约 50px，Boss 被顶栏切掉）。
+   等这一下的滚动停了（手指松开、惯性、滚轮平滑滚动），把地图滚回拖之前的位置；让出来的高度只往下长。 */
+let topBefore = null, touching = false;
+function keepMapTop() {
+	const w = $('#mapwrap'), top = topBefore; topBefore = null;
+	if (top == null) return;
+	let t = null; const t0 = Date.now();
+	const back = () => { w.removeEventListener('scroll', later); if (Math.abs(w.scrollTop - top) > 1) w.scrollTo({ top, behavior: RM ? 'auto' : 'smooth' }); };
+	const later = () => { clearTimeout(t); t = setTimeout(() => (touching ? later() : back()), Date.now() - t0 > 900 && !touching ? 0 : 160); };
+	w.addEventListener('scroll', later, { passive: true });
+	later();
 }
 function barBack() {
 	if (!barOff) return;
@@ -666,9 +731,21 @@ if (Q) { try { Q.onChrome = hidden => { if (!!hidden !== barOff) setBarOff(hidde
 	h.addEventListener('touchmove', e => { if (y0 != null && y0 - e.touches[0].clientY > 12) { y0 = null; barBack(); } }, { passive: true });
 	// 拖地图（手指或鼠标真的拖了，不算程序自己滚到当前关）
 	const w = $('#mapwrap'); let p0 = null;
+	// 滚轮的监听是 passive 的，浏览器往往先滚完才叫它，那时 scrollTop 已经是滚过的值。
+	// 所以平时记着「上一次停下来的位置」：一串滚动的第一下记下滚之前在哪（burstFrom），停 200ms 算这串结束。
+	let knownTop = w.scrollTop, burstFrom = null, burstT = null;
+	w.addEventListener('scroll', () => {
+		if (burstFrom == null) burstFrom = knownTop;
+		knownTop = w.scrollTop;
+		clearTimeout(burstT); burstT = setTimeout(() => { burstFrom = null; }, 200);
+	}, { passive: true });
+	const restTop = () => burstFrom ?? knownTop;
+	w.addEventListener('touchstart', () => { touching = true; if (!barOff) topBefore = w.scrollTop; }, { passive: true });
+	w.addEventListener('touchend', () => { touching = false; }, { passive: true });
+	w.addEventListener('touchcancel', () => { touching = false; }, { passive: true });
 	w.addEventListener('touchmove', () => barAway(), { passive: true });
-	w.addEventListener('wheel', () => barAway(), { passive: true });
-	w.addEventListener('pointerdown', e => { p0 = [e.clientX, e.clientY]; });
+	w.addEventListener('wheel', () => { if (!barOff) topBefore = restTop(); barAway(); }, { passive: true });
+	w.addEventListener('pointerdown', e => { p0 = [e.clientX, e.clientY]; if (!barOff) topBefore = w.scrollTop; });
 	w.addEventListener('pointermove', e => { if (p0 && Math.hypot(e.clientX - p0[0], e.clientY - p0[1]) > 8) { p0 = null; barAway(); } });
 	w.addEventListener('pointerup', () => { p0 = null; });
 }
@@ -741,6 +818,7 @@ $('#go').onclick = () => {
 };
 let starting = false;
 function startLevel(id, opt) {
+	if (inTrial() && id !== D.trialLevel) { trialLocked(); return; }
 	if (starting) return; starting = true;
 	const n = NODE[id];
 	api('lojo/quest/start', { levelId: id, retest: !!opt?.retest }).then(st => {
@@ -962,7 +1040,120 @@ document.addEventListener('click', e => {
 	const b = e.target.closest?.('[data-more-btn]'); if (!b) return;
 	play('tap', 0.5); b.parentElement.querySelectorAll('[data-more]').forEach(x => { x.style.display = ''; }); b.remove();
 });
+/* ================= 试玩：过了 1-1 → 存档卡（和结算合成一屏）→ 存档表单（在闯关里，不跳走） ================= */
+const HEARTS_KEY = 'vibesQuestHeartsTold';
+function heartsTold(set) {
+	try { if (set) localStorage.setItem(HEARTS_KEY, '1'); return localStorage.getItem(HEARTS_KEY) === '1'; } catch (e) { return false; }
+}
+function trialLocked() {
+	play('fail', 0.4);
+	if (NODE[D.trialLevel]?.state === 'done') saveCard(); else toast('存档后解锁：先打 1-1');
+}
+function trialEnd(end) {
+	practiceEnd(end);
+	$('#pqEndS').innerHTML = `对 ${end.right} / ${end.total}<br>存个档，明天从 1-2 接着打。30 秒就好。`;
+	$('#pqDone').textContent = '存档，继续 1-2';
+	$('#pqSkip').textContent = '先不存'; show('#pqSkip', 'block');
+	funnel('save_card_shown');
+	$('#pqDone').onclick = () => { play('tap'); funnel('save_open'); backToMap(() => saveForm()); };
+	$('#pqSkip').onclick = () => {
+		play('tap');
+		if (TR.skips++ === 0) {
+			funnel('save_skip');
+			$('#pqEndS').textContent = '不存的话，关掉网页这一关就白打了。';
+			$('#pqDone').textContent = '还是存一下'; $('#pqSkip').textContent = '不存，继续玩';
+			gsap.fromTo('#pqEnd .ovcard', { x: -6 }, { x: 0, duration: 0.4, ease: 'elastic.out(1,.3)' });
+			return;
+		}
+		funnel('save_skip_final');
+		backToMap(() => flameThenFreeze(end.streak, null, () => miaSay('1-2 存档后解锁。想存了，点上面的<b>存档</b>。')));
+	};
+}
+/* 地图上的存档卡：刷新回来、点了锁着的关、点顶上「存档」 */
+function saveCard() {
+	funnel('save_card_shown');
+	openSheet(`<h4>${esc(NODE[D.trialLevel]?.label ?? '1-1')} 拿下了！</h4><div class="sub">存个档，明天从 1-2 接着打。30 秒就好。</div>
+		<button class="sbtn" data-a="save">存档，继续 1-2</button>
+		<div class="exLinks"><span></span><button data-a="skip">先不存</button></div>`, b => {
+		b.querySelector('[data-a="save"]').onclick = () => { play('tap'); funnel('save_open'); closeSheet(true); setTimeout(saveForm, 300); };
+		b.querySelector('[data-a="skip"]').onclick = () => { funnel(TR.skips++ === 0 ? 'save_skip' : 'save_skip_final'); closeSheet(); };
+	});
+}
+const USER_RE = /^[a-zA-Z0-9_]{1,20}$/;
+const newUsername = () => 'vb_' + Math.random().toString(36).slice(2, 8);
+function saveForm() {
+	const invite = !!Q?.needsInvite;
+	openSheet(`<h4>存档</h4><div class="sub">存好以后，明天从 1-2 接着打。</div>
+		<label class="fld"><span>昵称</span><input id="svName" maxlength="30" autocomplete="nickname" enterkeyhint="next"><small>大家看到的名字，中文也行，随时能改</small></label>
+		<label class="fld"><span>登录名</span><input id="svUser" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" enterkeyhint="next"><small id="svUserTip">已经帮你填好了，用来登录；英文或数字，定了以后不能改</small></label>
+		<label class="fld"><span>密码</span><span class="pw"><input id="svPw" type="password" autocomplete="new-password" enterkeyhint="done"><button type="button" id="svShow">显示</button></span><small id="svPwTip">至少 8 位，别和别的网站用同一个</small></label>
+		${invite ? '<label class="fld"><span>内测码</span><input id="svInv" autocapitalize="off" spellcheck="false"><small>测试站才要</small></label>' : ''}
+		<button class="sbtn" id="svGo" disabled>存档</button>
+		<div class="agree">点「存档」就表示你已满 18 岁，并同意<a href="/guild-rules" id="svRules">《公会守则》</a></div>
+		<div class="exLinks"><span></span><button id="svSignin">已有账号？登录</button></div>`, b => {
+		const name = b.querySelector('#svName'), user = b.querySelector('#svUser'), pw = b.querySelector('#svPw'), inv = b.querySelector('#svInv'), goBtn = b.querySelector('#svGo');
+		const userTip = b.querySelector('#svUserTip'), pwTip = b.querySelector('#svPwTip');
+		let userOk = true, checkN = 0;
+		user.value = newUsername();
+		const sync = () => {
+			const p = pw.value.length;
+			pwTip.textContent = p > 0 && p < 8 ? `至少 8 位，现在 ${p} 位` : '至少 8 位，别和别的网站用同一个';
+			pwTip.classList.toggle('bad', p > 0 && p < 8);
+			goBtn.disabled = !(name.value.trim() && USER_RE.test(user.value) && userOk && p >= 8 && (!inv || inv.value.trim()));
+		};
+		const checkUser = () => {
+			const v = user.value, n = ++checkN;
+			if (!USER_RE.test(v)) { userOk = false; userTip.textContent = '只能用英文字母、数字和 _，最多 20 个'; userTip.classList.add('bad'); sync(); return; }
+			userOk = true; userTip.classList.remove('bad'); userTip.textContent = '已经帮你填好了，用来登录；英文或数字，定了以后不能改'; sync();
+			if (!Q || typeof Q.available !== 'function') return;
+			Q.available(v).then(ok => {
+				if (n !== checkN || ok !== false) return;
+				userOk = false; userTip.textContent = '这个登录名有人用了，换一个'; userTip.classList.add('bad'); sync();
+			});
+		};
+		checkUser();
+		[name, pw, inv].forEach(el => el?.addEventListener('input', sync));
+		user.addEventListener('input', checkUser);
+		b.querySelector('#svShow').onclick = e => { e.preventDefault(); const on = pw.type === 'password'; pw.type = on ? 'text' : 'password'; e.currentTarget.textContent = on ? '藏起来' : '显示'; };
+		b.querySelector('#svRules').onclick = e => { e.preventDefault(); window.open('/guild-rules', '_blank', 'noopener'); };
+		b.querySelector('#svSignin').onclick = () => { closeSheet(true); try { Q?.signin?.(); } catch (e) { /* 社区那边没有就算了 */ } };
+		setTimeout(() => name.focus({ preventScroll: true }), 350);
+		goBtn.onclick = async () => {
+			if (goBtn.disabled || !Q || typeof Q.save !== 'function') return;
+			goBtn.disabled = true; goBtn.textContent = '正在存档…';
+			let r = null;
+			try { r = await Q.save({ name: name.value.trim(), username: user.value, password: pw.value, invitationCode: inv?.value.trim() || undefined }); } catch (e) { r = { ok: false, code: 'NETWORK' }; }
+			if (!r?.ok) {
+				goBtn.textContent = '存档'; sync();
+				if (r?.code === 'DIALOG') { closeSheet(true); return; }
+				play('fail', 0.5);
+				toast(r?.code === 'NETWORK' ? '网卡了一下，再点一次' : r?.code === 'RATE_LIMIT_EXCEEDED' ? '点得太快了，歇一下再来' : invite ? '没存上：看看内测码对不对，或者换个登录名' : '没存上：换个登录名再试一次', 2600);
+				return;
+			}
+			TR.saved = true;
+			closeSheet(true);
+			claimTrial();
+		};
+	});
+}
+function claimTrial() {
+	const id = TR.id;
+	try { sessionStorage.removeItem('vibesQuestTrial'); } catch (e) { /* 无所谓 */ }
+	const done = (claimed) => {
+		render(); loadRank();
+		if (claimed) {
+			play('pass', 0.8);
+			toast(`存好了 · 火苗 🔥${D.streak?.days || 1}，明天来续上`, 2600);
+			miaSay('存好了。<a href="#" id="miaExam">哪天考雅思？</a>定了日子，我帮你倒数；走慢了我叫你。');
+			const a = $('#miaExam'); if (a) a.onclick = e => { e.preventDefault(); e.stopPropagation(); openExamSheet(); };
+		} else toast('账号存好了，这一关没记上：再打一次 1-1', 2600);
+	};
+	if (!id) { refresh().then(() => done(false), () => {}); return; }
+	api('lojo/quest/trial-claim', { trialId: id }).then(r => { D = r; done(true); }, () => refresh().then(() => done(false), () => {}));
+}
+
 function endLevel(end) {
+	if (inTrial()) { funnel(end.passed ? 'trial_pass' : 'trial_fail'); if (end.passed) { trialEnd(end); return; } }
 	if (AT.mode === 'retest' || (AT.mode === 'practice' && end.passed)) { practiceEnd(end); return; }
 	if (end.passed) passFlow(end); else failFlow(end);
 }
@@ -974,20 +1165,21 @@ function practiceEnd(end) {
 	$('#pqStamp').className = 'pqStamp' + (retest && passed ? ' coral' : '');
 	$('#pqStamp').firstChild.textContent = retest ? (passed ? '亮' : '再') : '过';
 	$('#pqStamp small').textContent = retest ? '回测' : '练手关';
-	$('#pqEndH').textContent = retest ? (passed ? `${AT.node.label} 重新点亮` : '还差一点') : '练手关过了';
+	$('#pqEndH').textContent = retest ? (passed ? `${AT.node.label} 重新点亮` : '还差一点') : `${AT.node.label} 拿下了！`;
 	$('#pqEndS').innerHTML = retest
 		? (passed ? `对 ${end.right} / ${end.total} · 这关不再褪色，7 天后再回测` : `对 ${end.right} / ${end.total} · 要对 ${end.need} 题才亮。没扣心，明天再测`)
-		: `对 ${end.right} / ${end.total} · 练手关，答错不扣心`;
+		: `对 ${end.right} / ${end.total}`;
 	$('#pqXp').textContent = end.xp ? `+${end.xp} 经验` : '';
 	gsap.to('#qbar', { width: '100%', duration: 0.4 });
 	show('#pqEnd');
 	gsap.from('#pqEnd .ovcard', { scale: 0.7, opacity: 0, duration: 0.35, ease: 'back.out(2)' });
 	gsap.fromTo('#pqStamp', { scale: 2.2, opacity: 0, rotation: -30 }, { scale: 1, opacity: 1, rotation: -12, duration: 0.35, ease: 'back.out(3)', delay: 0.15 });
 	setTimeout(() => { play(passed ? 'stamp' : 'fail', passed ? 1 : 0.5); if (passed) tune([523, 659, 784], 'triangle', 0.09, 0.3, 0.1); }, 180);
+	$('#pqDone').textContent = '回地图'; hide('#pqSkip');
 	$('#pqDone').onclick = () => {
 		play('tap');
 		backToMap(() => {
-			flameThenFreeze(end.streak, null, () => miaSay(retest ? (passed ? `${lab} 又亮了。` : `${lab} 明天再测一次，不扣心。`) : `${lab} 热身完了。下一步，看图钉。`));
+			flameThenFreeze(end.streak, null, () => miaSay(retest ? (passed ? `${lab} 又亮了。` : `${lab} 明天再测一次，不扣心。`) : `${lab} 热身完了。下一关在图钉那儿。`));
 		});
 	};
 	void lab;
@@ -1061,7 +1253,7 @@ function showFreeze(title, sub, done) {
 function failFlow(end) {
 	const n = AT.node, out = !n.practice && (end.outOfHearts || D.hearts <= 0);
 	$('#failH').textContent = out ? '心打光了，这关没过' : '这关没过';
-	$('#failP').innerHTML = `对 <b>${end.right}</b> 题，要对 ${end.need} 题才过。心还剩 <b>${D.hearts}</b> 颗。` +
+	$('#failP').innerHTML = (n.practice ? `对 <b>${end.right}</b> 题，差 ${Math.max(1, end.need - end.right)} 题。再打会换一组题。` : `对 <b>${end.right}</b> 题，要对 ${end.need} 题才过。心还剩 <b>${D.hearts}</b> 颗。`) +
 		(end.failStreak >= 2 ? `<br>这关连着没过 ${end.failStreak} 次了，先别急着重打。` : '');
 	$('#failReview').innerHTML = reviewHtml(end);
 	const rec = end.recommended;
@@ -1076,6 +1268,8 @@ function failFlow(end) {
 	$('#failGear').innerHTML = `去装备练一组<small>${sub}</small>`;
 	$('#failRetry').textContent = out ? '先补心' : '再打一次';
 	$('#failMap').textContent = '回地图';
+	// 试玩：书屋、装备、问 Mia 都要账号，先不出
+	$('#failShelf').style.display = inTrial() ? 'none' : ''; $('#failGear').parentElement.style.display = inTrial() ? 'none' : '';
 	gsap.to('#fail', { y: '0%', duration: 0.55, ease: 'back.out(1.4)', delay: 0.2 });
 	$('#fail').scrollTop = 0;
 	play('fail', 0.5);

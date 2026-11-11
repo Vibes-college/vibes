@@ -114,7 +114,22 @@ export async function mainBoot() {
 			});
 		};
 
+		// Vibes: signed up from 闯关 (pages/lojo/quest.vue writes the flag): on that Beijing day no setup dialog and no
+		// home-screen card; the 存档 card was the day's one pop-up (冲刺1111 新人前三分钟 第 5 条). From the next day on, as usual.
+		const questSignupToday = (() => {
+			try {
+				const raw = window.localStorage.getItem('vibesQuestSignup');
+				if (raw == null) return false;
+				const at = (JSON.parse(raw) as { at?: number }).at ?? 0;
+				const day = (t: number) => new Date(t + 8 * 3600000).toISOString().slice(0, 10);
+				if (day(at) === day(Date.now())) return true;
+				window.localStorage.removeItem('vibesQuestSignup');
+			} catch { /* unreadable: as usual */ }
+			return false;
+		})();
+
 		store.loaded.then(async () => {
+			if (questSignupToday) return;
 			// Vibes: after 稍后, not again for a week; upstream opens it on every launch until it is finished or skipped
 			if (store.s.accountSetupWizard !== -1 && Date.now() - store.s.accountSetupWizardLaterAt >= SETUP_LATER_MS) {
 				const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUserSetupDialog.vue')), {}, {

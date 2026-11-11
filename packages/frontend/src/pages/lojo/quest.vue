@@ -9,11 +9,11 @@ lends it the community login (api) and the community router (go) through window.
 <div ref="root" :class="$style.root" :style="{ '--quest-bottom': bottom }">
 	<!-- 页面一打开就已经在跑的那个闯关框（服务器那边 LojoQuestInstant.ts）：不再新开一个，把它摆到这里来 -->
 	<div v-if="$i && instant != null" ref="slot" :class="$style.frame" data-vibes-quest-hole></div>
-	<!-- 刚注册完（$i 还是空的）：挂到 body 上，社区外壳的层叠上下文盖不住它 -->
-	<Teleport v-else-if="$i || fresh != null" to="body" :disabled="$i != null">
+	<!-- 刚注册完或在试玩（$i 还是空的）：挂到 body 上，社区外壳的层叠上下文盖不住它。试玩中存档不换框，接着玩 -->
+	<Teleport v-else-if="$i || fresh != null || trial" to="body" :disabled="$i != null">
 		<iframe ref="frame" :class="[$style.frame, { [$style.alone]: $i == null }]" :src="src" title="闯关" allow="autoplay"></iframe>
 	</Teleport>
-	<!-- Not signed in: the game needs an account (hearts, stars, progress are saved per person), so a door instead of 「未找到」. -->
+	<!-- Not signed in: the door. 先打一关 opens the first level without an account (冲刺1111 新人前三分钟 第 2 条); 存档 inside the game makes one. -->
 	<div v-else :class="$style.door">
 		<!-- 门面上方露一小截纸上地图（只是装饰，不能点） -->
 		<svg :class="$style.peek" viewBox="0 0 390 150" aria-hidden="true">
@@ -30,11 +30,10 @@ lends it the community login (api) and the community router (go) through window.
 		<div :class="$style.card">
 			<div :class="$style.kicker">闯关 · 雅思第一章</div>
 			<h1 :class="$style.title">用闯关的方式，让你沉迷学习</h1>
-			<p :class="$style.text">一张纸上地图，一关一关往前走。卡住了，走进锦囊书屋挑本书；答错了，问 AI 英语助教 Mia。</p>
-			<p :class="$style.text">进度、星星和心都记在你的账号上，所以要先登录。</p>
+			<p :class="$style.text">一关一关，打到考场。第一关：听人报名字、地址，一个字母一个字母拼出来。</p>
 			<div :class="$style.actions">
-				<button :class="[$style.btn, $style.primary]" type="button" :disabled="opening != null" @click="signup()">{{ opening === 'signup' ? '正在打开…' : '注册，开始闯关' }}</button>
-				<button :class="$style.btn" type="button" :disabled="opening != null" @click="signin()">{{ opening === 'signin' ? '正在打开…' : '已有账号，登录' }}</button>
+				<button :class="[$style.btn, $style.primary]" type="button" :disabled="opening != null" @click="startTrial()">先打一关，不用注册</button>
+				<button :class="$style.btn" type="button" :disabled="opening != null" @click="signin()">{{ opening === 'signin' ? '正在打开…' : '已有账号？登录' }}</button>
 			</div>
 		</div>
 	</div>
@@ -45,7 +44,9 @@ lends it the community login (api) and the community router (go) through window.
 import { inject, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
+import * as config from '@@/js/config.js';
 import * as os from '@/os.js';
+import { instance } from '@/instance.js';
 import { saveLogin } from '@/accounts.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
@@ -77,6 +78,7 @@ async function openDialog(which: 'signin' | 'signup') {
 				done: async (res: { token?: string } | undefined) => {
 					if (res?.token == null) return;
 					await saveLogin(res.token);
+					markQuestSignup();
 					fresh.value = res.token;
 				},
 				closed: () => dispose(),
@@ -89,6 +91,21 @@ async function openDialog(which: 'signin' | 'signup') {
 
 // 刚在这一页注册完的凭证（社区还没按登录状态启动）：闯关框直接用它，离开闯关页时整页打开一次
 const fresh = ref<string | null>(null);
+// 先打一关（游客试玩）：框带 ?trial=1，游戏只叫 trial-* 接口；在游戏里存档（save）后拿到 fresh，同一个框接着玩
+const trial = ref(false);
+// 存档后社区第一次按登录状态打开时，不弹「初始设定」、当天不弹「装到桌面」（方案第 5 条：第一天只有存档卡一个弹窗；boot/main-boot.ts 读）
+const QUEST_SIGNUP_KEY = 'vibesQuestSignup';
+
+function markQuestSignup() {
+	try {
+		window.localStorage.setItem(QUEST_SIGNUP_KEY, JSON.stringify({ at: Date.now() }));
+	} catch { /* 隐私模式：照常弹 */ }
+}
+
+function startTrial() {
+	trial.value = true;
+}
+
 const signin = () => openDialog('signin');
 const signup = () => openDialog('signup');
 const frame = ref<HTMLIFrameElement | null>(null);
@@ -97,7 +114,7 @@ const frame = ref<HTMLIFrameElement | null>(null);
 // 这一页是那次打开的第一个闯关页（地址的 ?book= ?level= 一样）就接手那个框：摆到自己的位置上，api 和 go 换成社区的。
 type InstantBridge = Bridge & { via: Bridge | null; ready?: () => void };
 type Instant = { frame: HTMLIFrameElement; bridge: InstantBridge; search: string; taken: boolean };
-const w = window as unknown as { vibesQuestInstant?: Instant; vibesQuestDoor?: { el: HTMLElement; pending: 'signin' | 'signup' | null }; vibesQuestFrame?: string };
+const w = window as unknown as { vibesQuestInstant?: Instant; vibesQuestDoor?: { el: HTMLElement; pending: 'signin' | 'signup' | 'trial' | null }; vibesQuestFrame?: string };
 const instant: Instant | null = (() => {
 	const it = w.vibesQuestInstant;
 	if (it == null || it.taken || !it.frame.isConnected || window.location.pathname !== '/quest') return null;
@@ -180,7 +197,8 @@ onMounted(() => {
 	if (door != null) {
 		door.el.remove();
 		delete w.vibesQuestDoor;
-		if ($i == null && door.pending != null) openDialog(door.pending);
+		if ($i == null && door.pending === 'trial') startTrial();
+		else if ($i == null && door.pending != null) openDialog(door.pending);
 	}
 	measureBottom();
 	// 底栏和发帖按钮可能晚一点才画出来
@@ -193,7 +211,8 @@ const here = new URLSearchParams(window.location.search);
 const from = here.get('from') ?? undefined;
 const screen = here.get('s');
 // 地址带闯关文件的内容版本（服务器给），手机上能长期缓存；老网页里没有就用旧的写法
-const src = (w.vibesQuestFrame ?? '/lojo-assets/quest/index.html?v=3') + (screen != null ? '&s=' + encodeURIComponent(screen) : '');
+// 游客也带 ?trial=1：只有点了「先打一关」才会摆出这个框，存档后地址不变（框不重新加载）
+const src = (w.vibesQuestFrame ?? '/lojo-assets/quest/index.html?v=3') + (screen != null ? '&s=' + encodeURIComponent(screen) : '') + ($i == null ? '&trial=1' : '');
 
 type Bridge = {
 	api: (endpoint: string, params?: Record<string, unknown>) => Promise<unknown>;
@@ -206,14 +225,47 @@ type Bridge = {
 	onChrome?: (hidden: boolean) => void;
 	// 打开「召唤 Agent」的对话面板；没召唤就返回 false
 	agent?: () => boolean;
+	// 试玩（游客）才有：存档 = 建号并在这一页登录；登录名能不能用；要不要内测码（测试站注册是关的）；改用登录
+	save?: (p: SaveParams) => Promise<{ ok: true } | { ok: false; code: string }>;
+	available?: (username: string) => Promise<boolean | null>;
+	needsInvite?: boolean;
+	signin?: () => void;
 };
+type SaveParams = { name: string; username: string; password: string; invitationCode?: string };
+
+// 试玩的人能叫的接口：只有 trial-* 和埋点（服务器那边这几个本来就不用登录）
+const VISITOR_API = /^lojo\/(quest\/trial-(show|start|audio|answer)|funnel)$/;
+
+// 存档：照 MkSignupDialog.form.vue 的注册写法直接调，不弹社区的注册弹窗。要人机验证或邮箱的站（现在两个站都不要）回到社区的注册弹窗
+async function save(p: SaveParams): Promise<{ ok: true } | { ok: false; code: string }> {
+	if (instance.emailRequiredForSignup || instance.enableHcaptcha || instance.enableMcaptcha || instance.enableRecaptcha || instance.enableTurnstile || instance.enableTestcaptcha) {
+		await openDialog('signup');
+		return { ok: false, code: 'DIALOG' };
+	}
+	const res = await window.fetch(`${config.apiUrl}/signup`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ username: p.username, password: p.password, invitationCode: p.invitationCode ?? null }),
+	}).catch(() => null);
+	if (res == null) return { ok: false, code: 'NETWORK' };
+	if (!res.ok || res.status === 204) return { ok: false, code: res.status === 429 ? 'RATE_LIMIT_EXCEEDED' : 'SIGNUP_FAILED' };
+	const body = await res.json().catch(() => null) as { token?: string } | null;
+	if (body?.token == null) return { ok: false, code: 'SIGNUP_FAILED' };
+	await saveLogin(body.token);
+	markQuestSignup();
+	fresh.value = body.token;
+	if (p.name.trim() !== '') await misskeyApi('i/update', { name: p.name.trim().slice(0, 50) }, body.token).catch(() => null);
+	return { ok: true };
+}
 
 const bridge: Bridge = {
 	api(endpoint, params = {}) {
-		// Only the game's own endpoints go through the frame.
-		if (!/^lojo\/quest\/[a-z-]+$/.test(endpoint)) return Promise.reject({ code: 'NOT_ALLOWED', message: endpoint });
+		// Only the game's own endpoints go through the frame; a visitor (no account yet) only the trial ones.
+		const token = $i == null ? fresh.value : undefined;
+		if (!/^lojo\/(quest\/[a-z-]+|funnel)$/.test(endpoint)) return Promise.reject({ code: 'NOT_ALLOWED', message: endpoint });
+		if ($i == null && token == null && !VISITOR_API.test(endpoint)) return Promise.reject({ code: 'NOT_SIGNED_IN', message: endpoint });
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		return misskeyApi(endpoint as any, { ...params } as any, $i == null ? fresh.value : undefined);
+		return misskeyApi(endpoint as any, { ...params } as any, token);
 	},
 	go(path) {
 		if (/^https?:\/\//.test(path)) {
@@ -245,6 +297,12 @@ const bridge: Bridge = {
 		// lojo/agent/LojoAgent.vue 在的时候会接住（preventDefault）
 		return !window.dispatchEvent(ev);
 	},
+	...($i == null ? {
+		save,
+		available: (username: string) => misskeyApi('username/available', { username }).then(r => r.available, () => null),
+		needsInvite: instance.disableRegistration,
+		signin: () => { openDialog('signin'); },
+	} : {}),
 };
 if (chrome != null) {
 	watch(() => chrome.hidden.value === true && chrome.enabled.value, hidden => {

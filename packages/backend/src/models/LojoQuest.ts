@@ -78,6 +78,10 @@ export class MiLojoQuest {
 	@Column('boolean', { default: false })
 	public onboarded: boolean;
 
+	// played 1-1 as a visitor first and saved after (先玩后注册, 冲刺1111)
+	@Column('boolean', { default: false })
+	public trial: boolean;
+
 	// one-time notice for the next visit: freeze cards used, or the streak lost
 	@Column('jsonb', { nullable: true })
 	public notice: MiLojoQuestNotice | null;

@@ -513,6 +513,7 @@ import type {
 	LojoEntitiesListResponse,
 	LojoEntitiesShowRequest,
 	LojoEntitiesShowResponse,
+	LojoFunnelRequest,
 	LojoGatesImportRequest,
 	LojoGatesImportResponse,
 	LojoGatesPeersRequest,
@@ -569,6 +570,15 @@ import type {
 	LojoQuestStartResponse,
 	LojoQuestTakeRequest,
 	LojoQuestTakeResponse,
+	LojoQuestTrialAnswerRequest,
+	LojoQuestTrialAnswerResponse,
+	LojoQuestTrialAudioRequest,
+	LojoQuestTrialAudioResponse,
+	LojoQuestTrialClaimRequest,
+	LojoQuestTrialClaimResponse,
+	LojoQuestTrialShowRequest,
+	LojoQuestTrialShowResponse,
+	LojoQuestTrialStartResponse,
 	LojoStateShowResponse,
 	LojoStateUpdateRequest,
 	LojoStateUpdateResponse,
@@ -1110,6 +1120,7 @@ export type Endpoints = {
 	'lojo/entities/import': { req: LojoEntitiesImportRequest; res: LojoEntitiesImportResponse };
 	'lojo/entities/list': { req: LojoEntitiesListRequest; res: LojoEntitiesListResponse };
 	'lojo/entities/show': { req: LojoEntitiesShowRequest; res: LojoEntitiesShowResponse };
+	'lojo/funnel': { req: LojoFunnelRequest; res: EmptyResponse };
 	'lojo/gates/import': { req: LojoGatesImportRequest; res: LojoGatesImportResponse };
 	'lojo/gates/peers': { req: LojoGatesPeersRequest; res: LojoGatesPeersResponse };
 	'lojo/gates/placement': { req: LojoGatesPlacementRequest; res: LojoGatesPlacementResponse };
@@ -1139,6 +1150,11 @@ export type Endpoints = {
 	'lojo/quest/show': { req: EmptyRequest; res: LojoQuestShowResponse };
 	'lojo/quest/start': { req: LojoQuestStartRequest; res: LojoQuestStartResponse };
 	'lojo/quest/take': { req: LojoQuestTakeRequest; res: LojoQuestTakeResponse };
+	'lojo/quest/trial-answer': { req: LojoQuestTrialAnswerRequest; res: LojoQuestTrialAnswerResponse };
+	'lojo/quest/trial-audio': { req: LojoQuestTrialAudioRequest; res: LojoQuestTrialAudioResponse };
+	'lojo/quest/trial-claim': { req: LojoQuestTrialClaimRequest; res: LojoQuestTrialClaimResponse };
+	'lojo/quest/trial-show': { req: LojoQuestTrialShowRequest; res: LojoQuestTrialShowResponse };
+	'lojo/quest/trial-start': { req: EmptyRequest; res: LojoQuestTrialStartResponse };
 	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
 	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
 	'lojo/tutor/ids': { req: EmptyRequest; res: LojoTutorIdsResponse };

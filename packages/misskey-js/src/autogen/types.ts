@@ -3090,6 +3090,15 @@ export type paths = {
          */
         post: operations['lojo___entities___show'];
     };
+    '/lojo/funnel': {
+        /**
+         * lojo/funnel
+         * @description Counts one visitor step of 先玩后注册 for today (Beijing): only the day, the step and where the visitor came from. No account, IP or device is kept.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___funnel'];
+    };
     '/lojo/gates/import': {
         /**
          * lojo/gates/import
@@ -3273,7 +3282,7 @@ export type paths = {
     '/lojo/quest/audio': {
         /**
          * lojo/quest/audio
-         * @description The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text.
+         * @description The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text, except for a gap question (the script would give the answer away): that question is swapped for another one of the level, skip.next, with nothing judged and no heart taken (skip.next is null when the level has none left).
          *
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
@@ -3350,6 +3359,51 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *write:account*
          */
         post: operations['lojo___quest___take'];
+    };
+    '/lojo/quest/trial-answer': {
+        /**
+         * lojo/quest/trial-answer
+         * @description Answers the next question of a visitor’s try; the same as answer, without hearts. At the end, end shows the result as it will be once the visitor saves.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___quest___trial-answer'];
+    };
+    '/lojo/quest/trial-audio': {
+        /**
+         * lojo/quest/trial-audio
+         * @description The recording of the current question of a visitor’s try; the same as audio.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___quest___trial-audio'];
+    };
+    '/lojo/quest/trial-claim': {
+        /**
+         * lojo/quest/trial-claim
+         * @description 存档: right after signing up, the passed try the visitor played (trialId) is moved onto this account. Returns the same as show.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___quest___trial-claim'];
+    };
+    '/lojo/quest/trial-show': {
+        /**
+         * lojo/quest/trial-show
+         * @description A visitor’s 闯关 map (先玩后注册): the same as show for a new learner, with the first level passed once the visitor’s try (trialId) was passed. Nothing is stored.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___quest___trial-show'];
+    };
+    '/lojo/quest/trial-start': {
+        /**
+         * lojo/quest/trial-start
+         * @description A visitor starts the first level without an account. attemptId is the trial id, kept a few hours; the same as start otherwise.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___quest___trial-start'];
     };
     '/lojo/state/show': {
         /**
@@ -30819,6 +30873,79 @@ export interface operations {
             };
         };
     };
+    lojo___funnel: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    event: 'quest_arrive' | 'trial_start' | 'trial_pass' | 'trial_fail' | 'save_card_shown' | 'save_skip' | 'save_skip_final' | 'save_open';
+                    src?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___gates___import: {
         requestBody: {
             content: {
@@ -33511,6 +33638,372 @@ export interface operations {
                 };
             };
         };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___trial-answer': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    attemptId: string;
+                    qid: string;
+                    answer: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___trial-audio': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    attemptId: string;
+                    qid: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___trial-claim': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    trialId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___trial-show': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    trialId?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___trial-start': {
         responses: {
             /** @description OK (with results) */
             200: {

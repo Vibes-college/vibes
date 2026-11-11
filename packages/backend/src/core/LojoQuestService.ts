@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import * as Redis from 'ioredis';
 import { DataSource, EntityManager, In, LessThan } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestLog } from '@/models/LojoQuest.js';
@@ -47,6 +49,14 @@ const WORDBOOK_MIN = N.hearts.earnBack.gear.minItems;
 
 const guidePath = (b: QuestBook) => `/guides/${b.slug}`;
 
+// 先玩后注册 (冲刺1111 新手前三分钟 第 2–4 条): a visitor may play the first level without an account. The try is kept in
+// redis for a few hours under a random id only the visitor's page has; nothing about the visitor is stored. Saving
+// (存档 = signing up) moves the pass onto the new account (trialClaim).
+const TRIAL_LEVEL = LEVEL_ORDER[0];
+const TRIAL_TTL_S = 6 * 60 * 60;
+const trialKey = (id: string) => `lojoQuestTrial:${id}`;
+type Trial = { levelId: string; questionIds: string[]; answers: MiLojoQuestAttempt['answers']; status: string; mode: Mode; createdAt: string };
+
 // need / maxWrong / total / heart cost of a try. Levels: 5 questions, 4 right passes, 2 wrong fails. Boss: 6, 5 hits
 // (its hp) win, 2 wrong or no hearts lose. Retest: 3 from both sets, 2 right passes, no hearts.
 function rulesOf(node: QuestNode, mode: Mode): { need: number; maxWrong: number; total: number; heartCost: number } {
@@ -80,6 +90,8 @@ export class LojoQuestService {
 	constructor(
 		@Inject(DI.db)
 		private db: DataSource,
+		@Inject(DI.redis)
+		private redisClient: Redis.Redis,
 		private idService: IdService,
 		private lojoTutorService: LojoTutorService,
 		private lojoSpeechService: LojoSpeechService,
@@ -102,7 +114,7 @@ export class LojoQuestService {
 	private newRow(userId: string, now: Date): Row {
 		return {
 			userId, hearts: MAX_HEARTS, heartsAt: now, streak: 0, streakDay: null, bestStreak: 0, freezes: 0, xp: 0,
-			prep: {}, bossLosses: 0, levels: {}, bag: [], chestDay: null, examDate: null, onboarded: false, notice: null, createdAt: now, updatedAt: now,
+			prep: {}, bossLosses: 0, levels: {}, bag: [], chestDay: null, examDate: null, onboarded: false, trial: false, notice: null, createdAt: now, updatedAt: now,
 		};
 	}
 
@@ -134,7 +146,9 @@ export class LojoQuestService {
 		await em.update(MiLojoQuest, { userId }, rest);
 	}
 
-	private async log(em: EntityManager, userId: string, now: Date, entry: Log): Promise<void> {
+	// em null: a visitor's 1-1 (先玩后注册), worked out but not written anywhere
+	private async log(em: EntityManager | null, userId: string, now: Date, entry: Log): Promise<void> {
+		if (em == null) return;
 		await em.insert(MiLojoQuestLog, { id: this.idService.gen(now.getTime()), userId, at: now, day: dayOf(now), kind: entry.kind, ref: entry.ref, hearts: entry.hearts, xp: entry.xp, data: (entry.data ?? {}) as never });
 	}
 
@@ -155,7 +169,7 @@ export class LojoQuestService {
 	}
 
 	// Count today for the streak; returns what changed for the page's flame animation.
-	private async streak(em: EntityManager, row: Row, now: Date): Promise<{ days: number; changed: boolean; usedFreezes: number; gotFreeze: boolean }> {
+	private async streak(em: EntityManager | null, row: Row, now: Date): Promise<{ days: number; changed: boolean; usedFreezes: number; gotFreeze: boolean }> {
 		const t = touchStreak(row, dayOf(now));
 		if (t.changed) {
 			row.streak = t.streak;
@@ -364,6 +378,15 @@ export class LojoQuestService {
 	public async audio(userId: string, attemptId: string, qid: string) {
 		const at = await this.db.getRepository(MiLojoQuestAttempt).findOneBy({ id: attemptId, userId });
 		if (at == null || at.status !== 'open') throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		return await this.speak(at, qid, async ids => {
+			const res = await this.db.getRepository(MiLojoQuestAttempt).update({ id: at.id, userId, status: 'open' }, { questionIds: ids });
+			return !!res.affected;
+		});
+	}
+
+	// The recording of the try's current question; swap stores the try's questions when a gap question without speech is
+	// swapped for another (false: the try is gone).
+	private async speak(at: Pick<MiLojoQuestAttempt, 'levelId' | 'questionIds' | 'answers'>, qid: string, swap: (ids: string[]) => Promise<boolean>) {
 		if (at.questionIds[at.answers.length] !== qid) throw new ApiError(lojoQuestErrors.wrongQuestion);
 		const node = nodeOf(at.levelId);
 		const q = questionOf(node, qid);
@@ -385,8 +408,7 @@ export class LojoQuestService {
 			if (pick == null) return { lines: [] as { who: string; url: string }[], rate, skip: { next: null } };
 			const ids = [...at.questionIds];
 			ids[at.answers.length] = pick.id;
-			const res = await this.db.getRepository(MiLojoQuestAttempt).update({ id: at.id, userId, status: 'open' }, { questionIds: ids });
-			if (!res.affected) throw new ApiError(lojoQuestErrors.noSuchAttempt);
+			if (!await swap(ids)) throw new ApiError(lojoQuestErrors.noSuchAttempt);
 			return { lines: [] as { who: string; url: string }[], rate, skip: { next: publicQuestion(pick) } };
 		};
 		if (!this.lojoSpeechService.available) return await noSpeech();
@@ -451,7 +473,7 @@ export class LojoQuestService {
 		});
 	}
 
-	private async finish(em: EntityManager, row: Row, at: MiLojoQuestAttempt, node: QuestNode, passed: boolean, now: Date, outOfHearts: boolean) {
+	private async finish(em: EntityManager | null, row: Row, at: MiLojoQuestAttempt, node: QuestNode, passed: boolean, now: Date, outOfHearts: boolean) {
 		const today = dayOf(now);
 		const mode = at.mode as Mode;
 		const retest = mode === 'retest';
@@ -552,6 +574,118 @@ export class LojoQuestService {
 				return { slug: b.slug, no: b.no, ref: b.ref, spine: b.spine, path: guidePath(b), shelf: refs.map(r => Number(r.slice(1))) };
 			})(),
 		};
+	}
+
+	private async trialGet(id: string): Promise<Trial | null> {
+		if (!/^[A-Za-z0-9_-]{16,40}$/.test(id)) return null;
+		const raw = await this.redisClient.get(trialKey(id));
+		return raw == null ? null : JSON.parse(raw) as Trial;
+	}
+
+	private async trialPut(id: string, t: Trial): Promise<void> {
+		await this.redisClient.set(trialKey(id), JSON.stringify(t), 'EX', TRIAL_TTL_S);
+	}
+
+	// What a visitor's map looks like: a new learner's, with the first level passed once the try in hand was passed.
+	private async trialRow(id: string | null, now: Date): Promise<Row> {
+		const row = this.newRow('trial', now);
+		const t = id ? await this.trialGet(id) : null;
+		const node = t ? nodeOf(t.levelId) : undefined;
+		if (t?.status === 'passed' && node) await this.finish(null, row, { ...t, id, userId: 'trial', createdAt: new Date(t.createdAt), endedAt: now, askedTutor: false } as MiLojoQuestAttempt, node, true, now, false);
+		return row;
+	}
+
+	public async trialShow(id: string | null) {
+		const now = new Date();
+		const row = await this.trialRow(id, now);
+		return { ...this.pack(row, [], now, true), trial: true, trialLevel: TRIAL_LEVEL };
+	}
+
+	public async trialStart() {
+		const now = new Date();
+		const node = nodeOf(TRIAL_LEVEL)!;
+		const rules = rulesOf(node, 'practice');
+		const { questions } = pickSet(node.pool ?? [], node.sets, rules.total, [], []);
+		const id = randomBytes(18).toString('base64url');
+		await this.trialPut(id, { levelId: node.id, questionIds: questions.map(q => q.id), answers: [], status: 'open', mode: 'practice', createdAt: now.toISOString() });
+		return {
+			attemptId: id, levelId: node.id, mode: 'practice', kind: node.kind, practice: true, set: null,
+			need: rules.need, total: questions.length, maxWrong: rules.maxWrong, heartCost: 0, hp: null, hint: node.zh, hearts: MAX_HEARTS,
+			questions: questions.map(publicQuestion),
+		};
+	}
+
+	public async trialAudio(id: string, qid: string) {
+		const t = await this.trialGet(id);
+		if (t == null || t.status !== 'open') throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		return await this.speak(t, qid, async ids => {
+			await this.trialPut(id, { ...t, questionIds: ids });
+			return true;
+		});
+	}
+
+	// Same judging as answer; no hearts (the first level is a practice level). At the end the result is worked out on a
+	// new learner's row and shown, but only kept once the visitor saves.
+	public async trialAnswer(id: string, qid: string, given: string) {
+		const now = new Date();
+		const t = await this.trialGet(id);
+		if (t == null || t.status !== 'open') throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		const node = nodeOf(t.levelId);
+		if (t.questionIds[t.answers.length] !== qid) throw new ApiError(lojoQuestErrors.wrongQuestion);
+		const q = questionOf(node, qid);
+		if (node == null || q == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		const rules = rulesOf(node, t.mode);
+		const correct = judge(q, given);
+		const cause = correct ? null : wrongCause(q, given);
+		t.answers = [...t.answers, { qid, given: given.slice(0, 200), correct, cause }];
+		const right = t.answers.filter(a => a.correct).length;
+		const wrong = t.answers.length - right;
+		const ended = right >= rules.need ? 'passed' : wrong >= rules.maxWrong || t.answers.length >= t.questionIds.length ? 'failed' : null;
+		let end = null;
+		if (ended) {
+			t.status = ended;
+			const at = { ...t, id, userId: 'trial', createdAt: new Date(t.createdAt), endedAt: now, askedTutor: false } as MiLojoQuestAttempt;
+			end = await this.finish(null, this.newRow('trial', now), at, node, ended === 'passed', now, false);
+		}
+		await this.trialPut(id, t);
+		return {
+			correct, answer: displayAnswer(q), why: q.why, evidence: q.evidence, cause, heartLost: false, hearts: MAX_HEARTS,
+			progress: { answered: t.answers.length, right, wrong, need: rules.need, maxWrong: rules.maxWrong, total: t.questionIds.length },
+			end,
+		};
+	}
+
+	// 存档: the visitor has just signed up; their passed first level becomes the account's (XP, chest, the first day of the
+	// streak), they are marked as having played first (growth report), and the first-time walkthrough is not shown
+	// (方案 第 5 条: on the first day the save card is the only pop-up). Returns the same as show.
+	public async trialClaim(userId: string, id: string) {
+		const now = new Date();
+		const t = await this.trialGet(id);
+		if (t == null || t.status !== 'passed') throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		const node = nodeOf(t.levelId);
+		if (node == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
+		await this.redisClient.del(trialKey(id));
+		await this.db.transaction(async em => {
+			const row = await this.lock(em, userId, now);
+			if (row.levels[t.levelId]?.passedAt == null) {
+				const at = { id: this.idService.gen(now.getTime()), userId, levelId: t.levelId, questionIds: t.questionIds, answers: t.answers, status: 'passed', mode: t.mode, createdAt: new Date(t.createdAt), endedAt: now, askedTutor: false };
+				await em.insert(MiLojoQuestAttempt, at);
+				await this.finish(em, row, at as MiLojoQuestAttempt, node, true, now, false);
+				row.levels = { ...row.levels, [t.levelId]: { ...row.levels[t.levelId], lastQs: t.questionIds } };
+				row.trial = true;
+			}
+			row.onboarded = true;
+			await this.save(em, row, now);
+		});
+		return this.show(userId);
+	}
+
+	// 埋点 (增长 埋点清单): one more of this step today, from this source. Nothing else is kept.
+	public async funnel(event: string, src: string) {
+		await this.db.query(
+			'INSERT INTO "lojo_funnel_count" ("day", "event", "src", "n") VALUES ($1, $2, $3, 1) ON CONFLICT ("day", "event", "src") DO UPDATE SET "n" = "lojo_funnel_count"."n" + 1',
+			[dayOf(new Date()), event, src],
+		);
 	}
 
 	public async check(userId: string, slug: string, answers: number[]) {

@@ -3768,6 +3768,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Counts one visitor step of 先玩后注册 for today (Beijing): only the day, the step and where the visitor came from. No account, IP or device is kept.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/funnel', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Replace the question sets of a route map with gates. Sent by apps/community/scripts/gates-import.mjs in the Vibes workspace, which checks them first; the sets hold the answers, so they are kept out of the public source. The vocabulary and grammar questions are marked against their own answers and tests first: if any of them fails, nothing is imported and the error lists them.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
@@ -3988,7 +3999,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text.
+     * The recording of the current question of a try, made by the server voices. lines has one url per speaker line, played at rate; without speech it is empty and fallback has the script to show as text, except for a gap question (the script would give the answer away): that question is swapped for another one of the level, skip.next, with nothing judged and no heart taken (skip.next is null when the level has none left).
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
@@ -4081,6 +4092,61 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *write:account*
      */
     request<E extends 'lojo/quest/take', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Answers the next question of a visitor’s try; the same as answer, without hearts. At the end, end shows the result as it will be once the visitor saves.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/quest/trial-answer', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The recording of the current question of a visitor’s try; the same as audio.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/quest/trial-audio', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 存档: right after signing up, the passed try the visitor played (trialId) is moved onto this account. Returns the same as show.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/trial-claim', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * A visitor’s 闯关 map (先玩后注册): the same as show for a new learner, with the first level passed once the visitor’s try (trialId) was passed. Nothing is stored.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/quest/trial-show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * A visitor starts the first level without an account. attemptId is the trial id, kept a few hours; the same as start otherwise.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/quest/trial-start', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
