@@ -1,4 +1,4 @@
-/* 同义词连连看（Word Swaps）v0.4
+/* 同义词连连看（Synonym Match）v0.4
    一局 2 分 30 秒、3 颗心。一屏 16 张卡 = 7 对同义 + 1 对陷阱（长得像、意思不同）。
    点两张同义的（或按住一张拖到另一张）→ 一笔墨线连上，墨点收走，下方写中文和区别；点下方这张卡能看详情（例句、发音、差在哪）。
    配错不扣心（只断连击）；配到陷阱扣 1 颗心，Mia 说为什么。
@@ -20,7 +20,7 @@ const APP_ID = 'synonym-match';
 const qs = new URLSearchParams(location.search);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// 锦囊：j21、j22 由「攻略」写，社区里的网址（slug）还没定，定了填在这里；没填时只显示书名、标「快上架」。
+// 锦囊：j21、j22 由「攻略」写，社区里的网址（slug）还没定，定了填在这里；没填时只显示书名、标「还在写」。
 const GUIDES = [
 	{ id: 'j21', title: '认识不等于认得出', sub: '单词都认识，换个说法就认不出来了', slug: null },
 	{ id: 'j22', title: '像同义的不一定能换', sub: 'nearly ≠ about：长得像的词差在哪', slug: null },
@@ -130,7 +130,7 @@ function drawHome() {
 	$$('.tp').forEach(el => { el.onclick = () => { topic = TOPICS.find(t => t.id === el.dataset.id); play('tap'); drawHome(); }; });
 	const sel = $('.tp[aria-selected="true"]'); if (sel) sel.scrollIntoView({ inline: 'center', block: 'nearest' });
 	const d = load(DAILY_KEY, {});
-	$('#dailySub').textContent = d.date === dayStr() ? `今天最快 ${(d.ms / 1000).toFixed(1)} 秒` : `今天：${dailyTopic().zh}`;
+	$('#dailySub').textContent = d.date === dayStr() ? `你今天 ${(d.ms / 1000).toFixed(1)} 秒` : `今天：${dailyTopic().zh}`;
 }
 
 /* ---------- 全部场景 ---------- */
@@ -311,9 +311,9 @@ function match(a, b) {
 	showCombo(G.combo);
 	if (G.combo === 5) {
 		// 连到 ×5 回 1 颗心，每局只给一次；心满时不补，也不算用掉（「路线图」11-11 确认）
-		if (G.hearts < HEARTS && !G.comboHeartUsed) { G.comboHeartUsed = true; G.hearts++; drawHearts(); play('heartup', 0.7); miaSay('满了！<b>回 1 颗心</b>（每局一次）'); }
-		else if (G.hearts >= HEARTS) miaSay('×5 满了！心本来就是满的。');
-		else miaSay('×5 满了！这局的心已经回过了。');
+		if (G.hearts < HEARTS && !G.comboHeartUsed) { G.comboHeartUsed = true; G.hearts++; drawHearts(); play('heartup', 0.7); miaSay('×5 连满！<b>这局回 1 颗心</b>，每局就这一次。'); }
+		else if (G.hearts >= HEARTS) miaSay('×5 连满！这局的心本来就满着。');
+		else miaSay('×5 连满！这局已经回过 1 颗心了。');
 	} else if (G.combo === 3) miaSay('<b>手感来了</b>，接着连。');
 	drawHud(true);
 	if (G.left === 1) $$('#board .card').forEach(c => { if (!c._done && c._c.pid !== 'trap') c.classList.add('last'); });
@@ -485,7 +485,7 @@ function clearScreen() {
 	const br = $('#board').getBoundingClientRect();
 	flyText('+10 秒', { x: br.left + br.width / 2, y: br.top + br.height / 2 }, $('.timer .bar'), 'sec');
 	setTimeout(() => { const bar = $('.timer .bar'); bar.classList.add('gain'); setTimeout(() => bar.classList.remove('gain'), 600); }, 600);
-	if (!G.trapTouched) { toast(`躲过了 ${G.trapNow.a} / ${G.trapNow.b}`); miaSay('陷阱都没碰，<b>眼神好</b>。'); }
+	if (!G.trapTouched) { toast(`躲过了 ${G.trapNow.a} / ${G.trapNow.b}`); miaSay('陷阱一个没碰，<b>眼神好</b>。'); }
 	play('whoosh', 0.6); setTimeout(() => play('bookflip', 0.6), 120);
 	drawHud(true);
 	renderScreen(true);
@@ -502,7 +502,7 @@ function drawHud(roll = false) {
 		requestAnimationFrame(step);
 		el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)', offset: 0.3 }, { transform: 'scale(1)' }], { duration: 300, delay: 350 });
 	}
-	$('#pCount').textContent = G.daily ? `今日一屏 · 还剩 ${G.left} 对` : G.pairs >= 10 ? `已消 ${G.pairs} 对 ✓` : `已消 ${G.pairs} 对 · 再 ${10 - G.pairs} 对补心`;
+	$('#pCount').textContent = G.daily ? `今日一屏 · 还剩 ${G.left} 对` : G.pairs >= 10 ? `已消 ${G.pairs} 对 ✓` : `已消 ${G.pairs} 对 · 再 ${10 - G.pairs} 对给闯关补心`;
 }
 
 let raf = 0, lastTick = 0;
@@ -542,9 +542,9 @@ async function startGame(daily = false) {
 	newGame(daily);
 	show('#play');
 	shownScore = 0;
-	$('#pTopic').textContent = daily ? `今日一屏 · ${G.topic.zh}` : `${G.topic.zh} · ${G.topic.en}`;
+	$('#pTopic').textContent = daily ? `今日一屏 · ${G.topic.zh}` : G.topic.zh;
 	$('#learn').innerHTML = '<span class="hint">先找一对你最有把握的。连上之后点这里看例句。</span>'; $('#learn').classList.remove('open');
-	miaSay(daily ? '今天人人都是这一屏。<b>清完就停表</b>，比谁快。' : '这屏藏着 1 对<b>长得像</b>的陷阱，别配它。');
+	miaSay(daily ? '今天人人都是这一屏。<b>清完就停表</b>，看你几秒。' : '这屏藏着 1 对<b>长得像</b>的陷阱，别配它。');
 	$('#combo').style.opacity = 0; $('.boardwrap').classList.remove('fire');
 	$$('.boardwrap .note, #wire').forEach(n => n.remove());
 	drawHearts(); drawHud();
@@ -611,7 +611,7 @@ function wordRow(k, i, list) {
 function openSheet(isRec, stars, endedAt, why) {
 	$('#stars').innerHTML = [0, 1, 2].map(() => '<span>★</span>').join('');
 	$('#rec').classList.toggle('hide', !isRec);
-	$('#rec').textContent = G.daily ? '今天最快' : '新纪录';
+	$('#rec').textContent = G.daily ? '今天最好' : '新纪录';
 	// 一颗星都没拿到：给一条进度，告诉还差多少
 	const sb = $('#starbar');
 	if (stars === 0) {
@@ -717,7 +717,7 @@ function openDetail(k) {
 	const src = isTrap ? '' : p.src === 'wn' ? 'WordNet 3.0 里两词在同一义项' : '按常见用法整理，WordNet 没直接收这对';
 	const guides = GUIDES.map(g => g.slug
 		? `<a class="gd" href="/guides/${encodeURIComponent(g.slug)}"><b>${g.title}</b><small>${g.sub}</small><span>›</span></a>`
-		: `<div class="gd off"><b>${g.title}</b><small>${g.sub}</small><span>快上架</span></div>`).join('');
+		: `<div class="gd off"><b>${g.title}</b><small>${g.sub}</small><span>还在写</span></div>`).join('');
 	$('#dBody').innerHTML = `
 		<div class="dpair"><span lang="en">${p.a}</span><em>${isTrap ? '≠' : '＝'}</em><span lang="en">${p.b}</span></div>
 		<p class="dzh">${isTrap ? '陷阱' : p.zh}<small>${it.topic.zh}</small></p>

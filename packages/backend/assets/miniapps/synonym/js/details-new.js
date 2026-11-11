@@ -202,10 +202,10 @@ export const DETAILS_NEW = {
 		{ en: 'Data centres consume huge amounts of electricity.', zh: '数据中心耗电量巨大。', t: '环境' },
 		{ en: 'We are using up the planet\'s resources too quickly.', zh: '我们把地球的资源用得太快了。', t: '环境' },
 	], diff: 'consume 书面，名词 consumption；use up 强调「用光」。consume 还能说「吃、喝」。', col: 'energy consumption' },
-	'fossil fuels|coal, oil and gas': { pa: 'n.', pb: 'n.', za: '化石燃料', zb: '煤、石油和天然气', ex: [
-		{ en: 'Most countries still depend heavily on fossil fuels.', zh: '大多数国家还很依赖化石燃料。', t: '环境' },
-		{ en: 'Power stations that burn coal, oil and gas release carbon.', zh: '烧煤、油、气的发电站会排放碳。', t: '环境' },
-	], diff: '听力和阅读里常不直接说 fossil fuels，而是把三样列出来，要能认出是同一回事。', col: 'burn fossil fuels' },
+	'carbon dioxide|CO2': { pa: 'n.', pb: 'n.', za: '二氧化碳', zb: '二氧化碳（化学式）', ex: [
+		{ en: 'Cars and factories release large amounts of carbon dioxide.', zh: '汽车和工厂排放大量二氧化碳。', t: '环境' },
+		{ en: 'The chart shows CO2 emissions in five countries.', zh: '这张图表显示五个国家的二氧化碳排放量。', t: '环境' },
+	], diff: '意思完全一样，CO2 读作 C-O-two，图表题最常见。注意 fossil fuels 和 coal, oil and gas 是总称和具体种类，不是同义词。', col: 'CO2 emissions' },
 	'wildlife|wild animals': { pa: 'n.', pb: 'n.', za: '野生动植物', zb: '野生动物', ex: [
 		{ en: 'The new motorway will affect local wildlife.', zh: '新高速公路会影响当地的野生动物。', t: '环境' },
 		{ en: 'Wild animals often move into cities to find food.', zh: '野生动物常常跑进城市找吃的。', t: '环境' },
@@ -326,10 +326,10 @@ export const DETAILS_NEW = {
 		{ en: 'Companies advertise heavily on social media.', zh: '公司在社交媒体上大量投放广告。', t: '媒体' },
 		{ en: 'The campaign promotes healthy eating in schools.', zh: '这个活动在学校推广健康饮食。', t: '媒体' },
 	], diff: 'advertise 专指做广告；promote 更宽，打折、活动、宣传理念都算，还有「升职」的意思。', col: 'advertise a product' },
-	'commercial|TV ad': { pa: 'n.', pb: 'n.', za: '（电视/电台）广告', zb: '电视广告', ex: [
-		{ en: 'Some countries ban commercials for junk food during children\'s shows.', zh: '有些国家在儿童节目时段禁播垃圾食品广告。', t: '媒体' },
-		{ en: 'A thirty-second TV ad can cost a fortune.', zh: '一条三十秒的电视广告可能花一大笔钱。', t: '媒体' },
-	], diff: 'commercial 作名词专指电视、电台里的广告；ad 是 advertisement 的口语缩写，英式也说 advert。', col: 'TV commercial' },
+	'advertisement|advert': { pa: 'n.', pb: 'n.', za: '广告', zb: '广告（英式口语）', ex: [
+		{ en: 'Some countries ban advertisements for junk food during children\'s shows.', zh: '有些国家在儿童节目时段禁播垃圾食品广告。', t: '媒体' },
+		{ en: 'I saw an advert for the new museum on the bus.', zh: '我在公交车上看到新博物馆的广告。', t: '媒体' },
+	], diff: 'advertisement 正式完整，advert 和 ad 是口语缩写，意思一样。commercial 只指电视、电台里的广告，范围更小，不能随便互换。', col: 'place an advert' },
 	'persuade|convince': { pa: 'v.', pb: 'v.', za: '劝说、说服', zb: '使相信、说服', ex: [
 		{ en: 'Adverts try to persuade us to buy things we don\'t need.', zh: '广告想说服我们买用不着的东西。', t: '媒体' },
 		{ en: 'The report convinced many readers that the plan was wrong.', zh: '这篇报道让很多读者相信这个计划不对。', t: '媒体' },

@@ -43,7 +43,7 @@ export const TOPICS = [
 		],
 	},
 	{
-		id: 'trends', zh: '涨跌和数量', en: 'Ups & Downs',
+		id: 'trends', zh: '涨跌与数量', en: 'Ups & Downs',
 		mia: '图表和听力里，<b>rise</b> 会变成 <b>increase</b>，<b>most</b> 会变成 <b>the majority</b>。数字题最吃这一套。',
 		pairs: [
 			{ a: 'rise', b: 'increase', zh: '上升', tip: '作名词：a rise in prices = an increase in prices。', g: 'up', src: 'usage' },
@@ -127,7 +127,7 @@ export const TOPICS = [
 		],
 	},
 	{
-		id: 'leisure', zh: '休闲和公共场所', en: 'Out & About',
+		id: 'leisure', zh: '休闲与公共场所', en: 'Out & About',
 		mia: '博物馆、展览、活动通知里：<b>free entry</b> 会写成 <b>no charge</b>，<b>book</b> 会写成 <b>reserve</b>。',
 		pairs: [
 			{ a: 'free entry', b: 'no charge', zh: '免费入场', tip: '也会写 free of charge / you don\'t have to pay。', g: 'money', src: 'usage' },
@@ -253,7 +253,7 @@ export const TOPICS = [
 			{ a: 'rubbish', b: 'garbage', zh: '垃圾', tip: '英式说 rubbish，美式说 garbage / trash；书面统称 waste。', g: 'waste', src: 'usage' },
 			{ a: 'dispose of', b: 'get rid of', zh: '处理掉', tip: 'dispose of 后面一定有 of：dispose of plastic waste。', g: 'waste', src: 'usage' },
 			{ a: 'consume', b: 'use up', zh: '消耗', tip: 'consume energy；use up 强调用光。名词 consumption 很常考。', g: 'energy', src: 'wn' },
-			{ a: 'fossil fuels', b: 'coal, oil and gas', zh: '化石燃料', tip: '听力里可能不说 fossil fuels，直接列出 coal, oil and gas。', g: 'energy', src: 'usage' },
+			{ a: 'carbon dioxide', b: 'CO2', zh: '二氧化碳', tip: '图表和文章里常只写 CO2；fossil fuels（化石燃料）是 coal, oil and gas 的总称，不算同义，只是题目可能用总称换掉具体的。', g: 'energy', src: 'wn' },
 			{ a: 'wildlife', b: 'wild animals', zh: '野生动物', tip: 'wildlife 不可数，不加 s；有时也包括野生植物。', g: 'nature', src: 'usage' },
 			{ a: 'habitat', b: 'natural home', zh: '栖息地', tip: 'loss of habitat = 栖息地被破坏，环境文章高频。', g: 'nature', src: 'usage' },
 		],
@@ -299,7 +299,7 @@ export const TOPICS = [
 			{ a: 'publish', b: 'bring out', zh: '出版', tip: 'bring out a new book / magazine；publish 也能说发表文章。', g: 'news', src: 'wn' },
 			{ a: 'the press', b: 'newspapers', zh: '报刊', tip: 'the press 指报刊和记者整体；freedom of the press = 新闻自由。', g: 'news', src: 'usage' },
 			{ a: 'advertise', b: 'promote', zh: '宣传', tip: 'promote 范围更大，打折、活动也算；名词 advertisement / promotion。', g: 'ads', src: 'wn' },
-			{ a: 'commercial', b: 'TV ad', zh: '电视广告', tip: 'commercial 作名词专指电视、电台广告；作形容词是「商业的」。', g: 'ads', src: 'usage' },
+			{ a: 'advertisement', b: 'advert', zh: '广告', tip: 'advert 是英式口语缩写，也说 ad；commercial 只指电视、电台广告，范围更小。', g: 'ads', src: 'wn' },
 			{ a: 'persuade', b: 'convince', zh: '说服', tip: 'persuade sb to do；convince sb that…（英式里也有 convince sb to do）。', g: 'ads', src: 'usage' },
 			{ a: 'accurate', b: 'correct', zh: '准确的', tip: 'accurate information / reporting；accurate 强调细节都对。', g: 'trust', src: 'wn' },
 			{ a: 'biased', b: 'one-sided', zh: '片面的、有偏见的', tip: 'biased reporting；反义 balanced / objective。', g: 'trust', src: 'wn' },
