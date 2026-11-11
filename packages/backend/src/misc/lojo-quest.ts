@@ -273,8 +273,8 @@ export function settleStreak(s: StreakState, today: string): { state: StreakStat
 export function gearPath(gear: string | null | undefined): { app: string; path: string; zh: string; givesHeart: boolean } {
 	const g = gear ?? 'dictation';
 	const [app, stop] = g.split(':');
-	if (app === 'vocab') return { app, path: `/vocab/${stop ?? '5.3'}?tab=practice&scope=all`, zh: `词汇线 ${stop ?? '5.3'} 站`, givesHeart: true };
-	if (app === 'grammar') return { app, path: `/grammar/${stop ?? '6.3'}`, zh: `语法线 ${stop ?? '6.3'} 站`, givesHeart: false };
+	if (app === 'vocab') return { app, path: `/vocab/${stop ?? '5.3'}?tab=practice&scope=all`, zh: '词汇线', givesHeart: true };
+	if (app === 'grammar') return { app, path: `/grammar/${stop ?? '6.3'}`, zh: '语法线', givesHeart: false };
 	if (app === 'typing') return { app, path: '/typing?stop=spelling', zh: '机考打字 · 拼写站', givesHeart: true };
 	if (app === 'wordbook') return { app, path: '/wordbook', zh: '生词本', givesHeart: true };
 	if (app === 'synonym-match') return { app, path: `/synonym/index.html?topic=${encodeURIComponent(stop ?? 'general')}`, zh: '同义词连连看', givesHeart: true };

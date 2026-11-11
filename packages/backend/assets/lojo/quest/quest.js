@@ -173,7 +173,7 @@ function refillLabel() {
 	if (!D) return '';
 	const at = new Date(D.nextRefillAt), bj = d => new Date(d.getTime() + 8 * 3600e3);
 	const h = bj(at).getUTCHours(), sameDay = bj(at).toISOString().slice(0, 10) === bj(new Date(serverNow())).toISOString().slice(0, 10);
-	return h === 20 ? '今晚 20:00' : sameDay ? '早上 8:00' : '明早 8:00';
+	return h === 20 ? '北京时间今晚 20:00' : sameDay ? '北京时间早上 8:00' : '北京时间明早 8:00';
 }
 function leftText(ms) {
 	const s = Math.max(0, Math.round(ms / 1000));
@@ -586,7 +586,7 @@ function retestSheet(n) {
 function gearSheet(n) {
 	const g = n.gear;
 	const tg = target();
-	openSheet(`<h4>装备站 · ${esc(g?.zh ?? '')}</h4><div class="sub">社区里的小程序</div>
+	openSheet(`<h4>装备站 · ${esc(g?.zh ?? '')}</h4><div class="sub">在公会里打开，练一组就回来</div>
 		<div class="card">练完一组补 1 颗心，每天一次，也算 Boss 备战。${g && !g.givesHeart ? '<br><b>这个装备暂时不补心</b>，只算备战。' : ''}</div>
 		<div class="card">今天装备这条路：${D.refilledToday.gear ? '<b>已经补过 1 颗心</b>' : '还没用'}</div>
 		<button class="sbtn" data-a="go">去「${esc(g?.zh ?? '装备')}」练一组</button>`, b => {
@@ -595,7 +595,7 @@ function gearSheet(n) {
 }
 function newsSheet(n) {
 	const tags = n.tags ?? [];
-	openSheet(`<h4>情报站</h4><div class="sub">社区时间线里，跟这几关有关的帖子</div>
+	openSheet(`<h4>情报站</h4><div class="sub">公会里，跟这几关有关的帖子</div>
 		<div class="card">看看同一关的人在聊什么、踩过什么坑。</div>
 		<div id="newsList"><div class="sub">正在拉最新的帖子…</div></div>
 		<div style="margin-top:6px">${tags.map(t => `<button class="tagBtn" data-tag="${esc(t)}">看全部 #${esc(t)}</button>`).join('')}</div>
@@ -1144,7 +1144,7 @@ function claimTrial() {
 		if (claimed) {
 			play('pass', 0.8);
 			toast(`存好了 · 火苗 🔥${D.streak?.days || 1}，明天来续上`, 2600);
-			miaSay('存好了。<a href="#" id="miaExam">哪天考雅思？</a>定了日子，我帮你倒数；走慢了我叫你。');
+			miaSay('存好了。<a href="#" id="miaExam">哪天考雅思？</a>定了日子，我帮你倒数；走慢了，地图上会提醒你。');
 			const a = $('#miaExam'); if (a) a.onclick = e => { e.preventDefault(); e.stopPropagation(); openExamSheet(); };
 		} else toast('账号存好了，这一关没记上：再打一次 1-1', 2600);
 	};
@@ -1371,7 +1371,7 @@ function bossWin(end) {
 	gsap.to('#bossBody', { y: 60, rotation: 25, opacity: 0, transformOrigin: '75px 140px', duration: 0.6, ease: 'power2.in' });
 	play('milestone'); setTimeout(() => tune([523, 659, 784, 1046, 1318], 'triangle', 0.1, 0.4, 0.13), 200);
 	const ov = $('#winOv'); show(ov);
-	$('#winSub').textContent = end.firstPass ? '第一章的门开了。第二章还在画，画好了第一时间叫你。' : '又赢了一次，手感还在。';
+	$('#winSub').textContent = end.firstPass ? '第一章的门开了。第二章「换挡」正在修路。' : '又赢了一次，手感还在。';
 	$('#winLoot').innerHTML = `<div><span class="big">+${end.xp}</span>经验${end.chest ? '（含今日首胜宝箱）' : ''}</div>` +
 		(end.badge ? `<div><span class="big">🏅</span>徽章「${esc(BADGE_ZH[end.badge] ?? end.badge)}」，挂在你的主页上</div>` : '') +
 		(end.chest?.freeze ? '<div><span class="big">❄</span>宝箱里有 1 张冻结卡</div>' : '') +
@@ -1384,7 +1384,7 @@ function bossWin(end) {
 			hide(ov); ov.style.opacity = 1; gsap.set('#bossBody', { clearProps: 'all' });
 			backToMap(() => {
 				if (end.streak?.gotFreeze) showFreeze(`连胜 ${end.streak.days} 天！`, '每连胜 7 天送 1 张', null);
-				miaSay('Boss 倒了！第一章打通。第二章还在画，先回头把褪色的关再打一遍，手感不丢。');
+				miaSay('Boss 倒了！第一章打通。第二章「换挡」正在修路，先回头把褪色的关再打一遍，手感不丢。');
 			});
 		} });
 	};
@@ -1810,9 +1810,9 @@ $('#emptyBack').onclick = () => {
 /* ================= 第一次进来：3 步引导 ================= */
 function rel(el) { const a = AR(), r = el.getBoundingClientRect(); return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height }; }
 const COACH = [
-	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，你的向导。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
+	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，你的 AI 英语助教。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
 	{ el: () => [$('#streakChip'), $('#heartChip')], pad: 5, t: '<b>火苗</b>是连胜，每天打一关就续上；漏一天会断。<b>心</b>每天 5 颗，正式关答错扣 1 颗。' },
-	{ el: () => $('#count'), pad: 6, t: '最后一件：<b>哪天考雅思？</b>定了日子，这行就开始倒数；走慢了我会提醒你。', exam: true },
+	{ el: () => $('#count'), pad: 6, t: '最后一件：<b>哪天考雅思？</b>定了日子，这行就开始倒数；走慢了，地图上会提醒你。', exam: true },
 ];
 let ci = 0;
 function coachStep(i) {
@@ -1894,7 +1894,7 @@ function saveExam(v) {
 function openExamSheet() {
 	if (!D) return; play('tap');
 	const cur = D.examDate;
-	openSheet(`<h4>${cur ? '改考试日期' : '哪天考雅思？'}</h4><div class="sub">${cur ? '改了以后倒数天数和落后提醒跟着变。' : '定了日子，地图上会倒数，走慢了 Mia 会提醒你。'}</div>${examHTML(cur)}
+	openSheet(`<h4>${cur ? '改考试日期' : '哪天考雅思？'}</h4><div class="sub">${cur ? '改了以后倒数天数和落后提醒跟着变。' : '定了日子，地图上会倒数；走慢了，地图上会提醒你。'}</div>${examHTML(cur)}
 		<button class="sbtn" id="exOk"${cur ? '' : ' disabled'}>就这天</button>
 		<div class="exLinks">${cur ? '<button class="clr" id="exClr">清掉日期</button>' : '<span></span>'}<button id="exLater">${cur ? '不改了' : '还没定，先不填'}</button></div>`, b => {
 		const box = b.querySelector('.exam'), ok = b.querySelector('#exOk');
