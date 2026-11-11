@@ -194,6 +194,19 @@ export async function login(token: AccountWithToken['token'], redirect?: string)
 	unisonReload();
 }
 
+// Vibes（新手前三分钟，2026-11-11）：只把登录存下来，不刷新页面。闯关页注册完用它接着玩，
+// 社区这边还是没登录的样子，等离开闯关页时再整页打开一次（见 pages/lojo/quest.vue）。
+export async function saveLogin(token: AccountWithToken['token']) {
+	const me = await fetchAccount(token, undefined, true);
+	miLocalStorage.setItem('account', JSON.stringify({
+		...me,
+		token,
+	}));
+	await addAccount(host, me, token);
+	reloadChannel.postMessage(null);
+	return me;
+}
+
 export async function switchAccount(host: string, id: string) {
 	const token = store.s.accountTokens[host + '/' + id];
 	if (token) {

@@ -9,7 +9,10 @@ lends it the community login (api) and the community router (go) through window.
 <div ref="root" :class="$style.root" :style="{ '--quest-bottom': bottom }">
 	<!-- 页面一打开就已经在跑的那个闯关框（服务器那边 LojoQuestInstant.ts）：不再新开一个，把它摆到这里来 -->
 	<div v-if="$i && instant != null" ref="slot" :class="$style.frame" data-vibes-quest-hole></div>
-	<iframe v-else-if="$i" ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
+	<!-- 刚注册完（$i 还是空的）：挂到 body 上，社区外壳的层叠上下文盖不住它 -->
+	<Teleport v-else-if="$i || fresh != null" to="body" :disabled="$i != null">
+		<iframe ref="frame" :class="[$style.frame, { [$style.alone]: $i == null }]" :src="src" title="闯关" allow="autoplay"></iframe>
+	</Teleport>
 	<!-- Not signed in: the game needs an account (hearts, stars, progress are saved per person), so a door instead of 「未找到」. -->
 	<div v-else :class="$style.door">
 		<!-- 门面上方露一小截纸上地图（只是装饰，不能点） -->
@@ -43,6 +46,7 @@ import { inject, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, wa
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
+import { saveLogin } from '@/accounts.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
 import { markFromQuest } from '@/lojo/quest-refill.js';
@@ -67,12 +71,24 @@ async function openDialog(which: 'signin' | 'signup') {
 	opening.value = which;
 	try {
 		const c = (await (which === 'signin' ? loadSignin() : loadSignup())).default;
-		const { dispose } = os.popup(c, { autoSet: true }, { closed: () => dispose() });
+		// 注册：不让弹窗自己登录（那会整页刷新，新人要白等十几秒），拿到凭证存下来，闯关原地接着玩
+		const { dispose } = which === 'signup'
+			? os.popup(c, { autoSet: false }, {
+				done: async (res: { token?: string } | undefined) => {
+					if (res?.token == null) return;
+					await saveLogin(res.token);
+					fresh.value = res.token;
+				},
+				closed: () => dispose(),
+			})
+			: os.popup(c, { autoSet: true }, { closed: () => dispose() });
 	} finally {
 		opening.value = null;
 	}
 }
 
+// 刚在这一页注册完的凭证（社区还没按登录状态启动）：闯关框直接用它，离开闯关页时整页打开一次
+const fresh = ref<string | null>(null);
 const signin = () => openDialog('signin');
 const signup = () => openDialog('signup');
 const frame = ref<HTMLIFrameElement | null>(null);
@@ -197,7 +213,7 @@ const bridge: Bridge = {
 		// Only the game's own endpoints go through the frame.
 		if (!/^lojo\/quest\/[a-z-]+$/.test(endpoint)) return Promise.reject({ code: 'NOT_ALLOWED', message: endpoint });
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		return misskeyApi(endpoint as any, { ...params } as any);
+		return misskeyApi(endpoint as any, { ...params } as any, $i == null ? fresh.value : undefined);
 	},
 	go(path) {
 		if (/^https?:\/\//.test(path)) {
@@ -206,6 +222,10 @@ const bridge: Bridge = {
 		}
 		if (!path.startsWith('/')) return;
 		if (!path.startsWith('/quest')) markFromQuest();
+		if ($i == null && fresh.value != null) {
+			window.location.href = path;
+			return;
+		}
 		router.pushByPath(path);
 	},
 	query: { book: props.book, level: props.level, from },
@@ -240,15 +260,22 @@ if (instant != null) instant.bridge.via = bridge;
 // frame reloads; on window it might by then be another 闯关 page's bridge (the plain map, without ?book=), and the
 // game would show the map instead of the book (bug 2026-11-10). window.__vibesQuest stays for an older game script.
 (window as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
-onMounted(() => {
-	if (frame.value != null) (frame.value as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
-});
+watch(frame, f => {
+	if (f != null) (f as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
+}, { immediate: true });
 onActivated(() => {
 	(window as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
 	shown = true;
 	place();
 });
+
+// 刚注册完、社区还是没登录的样子：去了别的板块就整页打开那一页，社区按登录状态启动
+function reopenSignedIn() {
+	if ($i == null && fresh.value != null) window.setTimeout(() => window.location.reload(), 0);
+}
+
 onDeactivated(() => {
+	reopenSignedIn();
 	// 去了社区别的页面：框留着（回来不用重新加载），先藏起来
 	shown = false;
 	if (instant != null) {
@@ -258,6 +285,7 @@ onDeactivated(() => {
 });
 
 onBeforeUnmount(() => {
+	reopenSignedIn();
 	if (instant != null) {
 		resizeObserver?.disconnect();
 		window.removeEventListener('scroll', place, true);
@@ -287,6 +315,14 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 	border: 0;
 	display: block;
 	background: #f6efe0;
+}
+
+.alone {
+	// 刚注册完：社区还是游客的样子（顶上有「注册」），闯关铺满整屏把它盖住
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	height: 100dvh;
 }
 
 .door {
