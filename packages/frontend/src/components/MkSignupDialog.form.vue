@@ -49,9 +49,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts.password }}</template>
 				<template #prefix><i class="ti ti-lock"></i></template>
 				<template #caption>
-					<span v-if="passwordStrength == 'low'" style="color: var(--MI_THEME-error)"><i class="ti ti-alert-triangle ti-fw"></i> {{ i18n.ts.weakPassword }}</span>
-					<span v-if="passwordStrength == 'medium'" style="color: var(--MI_THEME-warn)"><i class="ti ti-check ti-fw"></i> {{ i18n.ts.normalPassword }}</span>
-					<span v-if="passwordStrength == 'high'" style="color: var(--MI_THEME-success)"><i class="ti ti-check ti-fw"></i> {{ i18n.ts.strongPassword }}</span>
+					<!-- Vibes（2026-11-11）：密码最少 8 位，服务器也查（SignupApiService） -->
+					<span v-if="password.length > 0 && password.length < PASSWORD_MIN" style="color: var(--MI_THEME-error)"><i class="ti ti-alert-triangle ti-fw"></i> 至少 {{ PASSWORD_MIN }} 位，现在 {{ password.length }} 位</span>
+					<span v-else-if="password.length === 0">至少 {{ PASSWORD_MIN }} 位，别和别的网站用同一个</span>
+					<span v-if="password.length >= PASSWORD_MIN && passwordStrength == 'low'" style="color: var(--MI_THEME-error)"><i class="ti ti-alert-triangle ti-fw"></i> {{ i18n.ts.weakPassword }}</span>
+					<span v-if="password.length >= PASSWORD_MIN && passwordStrength == 'medium'" style="color: var(--MI_THEME-warn)"><i class="ti ti-check ti-fw"></i> {{ i18n.ts.normalPassword }}</span>
+					<span v-if="password.length >= PASSWORD_MIN && passwordStrength == 'high'" style="color: var(--MI_THEME-success)"><i class="ti ti-check ti-fw"></i> {{ i18n.ts.strongPassword }}</span>
 				</template>
 			</MkInput>
 			<MkInput v-model="retypedPassword" type="password" autocomplete="new-password" required data-testid="signup-password-retype" @update:modelValue="onChangePasswordRetype">
@@ -130,8 +133,11 @@ const testcaptchaResponse = ref<string | null>(null);
 const usernameAbortController = ref<null | AbortController>(null);
 const emailAbortController = ref<null | AbortController>(null);
 
+const PASSWORD_MIN = 8;
+
 const shouldDisableSubmitting = computed((): boolean => {
 	return submitting.value ||
+		password.value.length < PASSWORD_MIN ||
 		instance.enableHcaptcha && !hCaptchaResponse.value ||
 		instance.enableMcaptcha && !mCaptchaResponse.value ||
 		instance.enableRecaptcha && !reCaptchaResponse.value ||

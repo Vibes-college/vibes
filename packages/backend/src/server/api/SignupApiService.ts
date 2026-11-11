@@ -117,6 +117,12 @@ export class SignupApiService {
 		const invitationCode = body['invitationCode'];
 		const emailAddress = body['emailAddress'];
 
+		// Vibes（2026-11-11）：密码最少 8 位（之前 1 位也能注册）。注册表单也按这个提示；测试环境的老用例用短密码，不查
+		if (process.env.NODE_ENV !== 'test' && (typeof password !== 'string' || password.length < 8)) {
+			reply.code(400);
+			return;
+		}
+
 		if (this.meta.emailRequiredForSignup) {
 			if (emailAddress == null || typeof emailAddress !== 'string') {
 				reply.code(400);
