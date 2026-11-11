@@ -151,6 +151,8 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 #missed li.trapline .w b{color:var(--coral)}
 .btns{display:flex;flex-direction:column;gap:12px;margin-top:14px}
 .ghost{height:44px;border-radius:16px;border:1.5px solid var(--navy);background:var(--paper);font:800 15px var(--round);box-shadow:0 3px 0 var(--navy)}
+.hero h1 small{display:block;margin-top:6px;font:800 13px var(--round);letter-spacing:1px;color:var(--muted)}
+a.ghost{display:flex;align-items:center;justify-content:center;color:inherit;text-decoration:none}
 .ghost:active{transform:translateY(2px);box-shadow:0 1px 0 var(--navy)}
 .toast{position:absolute;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:120;background:var(--navy);color:var(--paper);font-size:13px;font-weight:700;padding:8px 14px;border-radius:14px;opacity:0;pointer-events:none;max-width:86%;text-align:center}
 .confetti{position:absolute;width:8px;height:12px;border-radius:2px;z-index:96;pointer-events:none}

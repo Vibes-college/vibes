@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#F6F1E7">
-<title>同义替换消消乐 · Vibes College</title>
+<title>换个说法 · Vibes College</title>
 <link rel="stylesheet" href="./css/app.css">
 </head>
 <body>
@@ -18,20 +18,20 @@
     </header>
     <div class="hero">
       <p class="kicker">雅思 · 同义替换</p>
-      <h1>换个说法<br>消消乐</h1>
-      <p class="sub">点两张意思一样的卡，墨点一收，换说法就记住了。</p>
+      <h1>换个说法<small lang="en">Word Swaps</small></h1>
+      <p class="sub">点两张意思一样的卡，墨点一收，这对说法就记住了。</p>
     </div>
     <div class="topics" id="topics" role="tablist" aria-label="选话题"></div>
     <div class="tcard">
       <div class="tname"><b id="tZh"></b><i id="tEn"></i></div>
-      <div class="rules">2 分 30 秒 · 3 颗心 · 一屏 7 对 + 1 对陷阱</div>
+      <div class="rules">一局 2 分半 · 3 颗心 · 每屏藏 1 对陷阱，踩到扣 1 颗心</div>
       <div class="demo" id="demo" aria-hidden="true">
         <div class="card d1"><span>purchase</span></div>
         <div class="card d2"><span>quite</span></div>
         <div class="card d3"><span>buy</span></div>
         <div class="note dnote">买</div>
       </div>
-      <div class="how"><div><b>配对</b>意思一样的两张，墨点收走</div><div><b>连击</b>3 秒内接着配，分数翻倍</div><div><b>躲陷阱</b>长得像的不是同义</div></div>
+      <div class="how"><div><b>配对</b>意思一样的两张，点掉</div><div><b>连击</b>3 秒内接着配，分数翻倍</div><div><b>躲陷阱</b>长得像，意思不一样</div></div>
       <div class="best" id="best"></div>
     </div>
     <div class="dock">
@@ -39,25 +39,25 @@
         <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
         <div class="bubble" id="homeSay"></div>
       </div>
-      <button class="go" id="goBtn">开始</button>
+      <button class="go" id="goBtn">开打</button>
     </div>
   </section>
 
   <!-- 游戏中 -->
   <section id="play" class="screen hide">
     <header class="ptop">
-      <button class="quit" id="quitBtn" aria-label="结束这局">✕</button>
+      <button class="quit" id="quitBtn" aria-label="不打了">✕</button>
       <div class="hearts" id="hearts"></div>
       <div class="timer"><div class="bar"><i id="bar"></i></div><b id="clock">2:30</b></div>
       <div class="score"><b id="score">0</b><small>分</small></div>
     </header>
     <div class="pinfo"><span id="pTopic"></span><span id="pCount">已消 0 对</span></div>
     <div class="boardwrap"><div class="board" id="board"></div><div class="combo" id="combo"></div></div>
-    <div class="learn" id="learn"><span class="hint">配对后这里会写中文和用法区别</span></div>
+    <div class="learn" id="learn"><span class="hint">先找一对你最有把握的。</span></div>
     <div class="pdock">
       <div class="mia">
         <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
-        <div class="bubble" id="playSay">每屏藏着 1 对<b>长得像、意思不同</b>的陷阱卡，别配它们。</div>
+        <div class="bubble" id="playSay">这屏藏着 1 对<b>长得像</b>的陷阱，别配它。</div>
       </div>
     </div>
     <div class="count" id="count"></div>
@@ -73,17 +73,18 @@
     <div class="stats" id="stats"></div>
     <div class="quest" id="questLine"></div>
     <div class="missed" id="missedBox">
-      <div class="mhead"><b>没配上的词对</b><button class="mini" id="addAll">全部进生词本</button></div>
+      <div class="mhead"><b>这局没拿下的词</b><button class="mini" id="addAll">全部进生词本</button></div>
       <ul id="missed"></ul>
     </div>
     <div class="btns">
-      <button class="go small" id="againBtn">再来一局</button>
+      <button class="go small" id="againBtn">再打一局</button>
       <button class="ghost" id="switchBtn">换个话题</button>
+      <a class="ghost hide" id="mapBtn" href="/quest">回地图</a>
     </div>
   </section>
   <div class="toast" id="toast"></div>
 </div>
-<noscript><p style="padding:40px;text-align:center">要打开 JavaScript 才能玩。</p></noscript>
+<noscript><p style="padding:40px;text-align:center">这个浏览器打不开游戏，换一个试试。</p></noscript>
 <script type="module" src="./js/app.js"></script>
 </body>
 </html>

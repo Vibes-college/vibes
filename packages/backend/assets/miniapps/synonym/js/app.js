@@ -1,6 +1,6 @@
-/* 同义替换消消乐 v0.1
+/* 换个说法（Word Swaps）v0.2
    一局 2 分 30 秒、3 颗心。一屏 16 张卡 = 7 对同义 + 1 对陷阱（长得像、意思不同）。
-   点两张同义的 → 墨点收走，下方写中文和用法区别；配错扣 1 颗心；配到陷阱扣 1 颗心，Mia 说为什么。
+   点两张同义的 → 墨点收走，下方写中文和用法区别；配错不扣心（只断连击）；配到陷阱扣 1 颗心，Mia 说为什么。
    3 秒内接着配对算连击，分数 ×连击数（最多 ×5）；连到 5 回 1 颗心。消完一屏 +10 秒，补一屏新的，
    新一屏第一对接着刚才的意思往下走（意思链）。
    打完报给社区：练一组补 1 颗心（≥10 对、≥2 分钟，服务器判）。只在挂进社区（同一个网址、登录了）时报。 */
@@ -68,6 +68,8 @@ const fromQuest = qs.get('from') === 'quest';
 const questLevel = /^[\w.-]{1,40}$/.test(qs.get('level') ?? '') ? qs.get('level') : null;
 $('#backLink').href = fromQuest ? (questLevel ? `/quest?level=${encodeURIComponent(questLevel)}&from=${APP_ID}` : '/quest') : (token() ? '/' : '#');
 if (!fromQuest && !token()) $('#backLink').style.visibility = 'hidden';
+// 从闯关进来的，结算页多一个「回地图」
+if (fromQuest) { $('#mapBtn').href = $('#backLink').href; $('#mapBtn').classList.remove('hide'); }
 
 /* ---------- 本机记录 ---------- */
 const BEST_KEY = 'vibes.synonym.best', LOCAL_WB = 'vibes.synonym.wordbook';
@@ -86,7 +88,7 @@ function drawHome() {
 	$('#tZh').textContent = topic.zh; $('#tEn').textContent = topic.en;
 	$('#homeSay').innerHTML = topic.mia;
 	const b = best[topic.id];
-	$('#best').innerHTML = b ? `最好成绩 <b>${b.score}</b> 分 · 一局消了 ${b.pairs} 对` : `${topic.pairs.length} 对词 · 每局随机抽`;
+	$('#best').innerHTML = b ? `最好成绩 <b>${b.score}</b> 分 · 一局消了 ${b.pairs} 对` : '';
 	$$('.tp').forEach(el => { el.onclick = () => { topic = TOPICS.find(t => t.id === el.dataset.id); play('tap'); drawHome(); }; });
 	const sel = $('.tp[aria-selected="true"]'); if (sel) sel.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
@@ -192,7 +194,7 @@ function miss(a, b) {
 	shake([a, b]);
 	setLearn(`<div><span class="pair" lang="en">${a._c.w}<em>≠</em>${b._c.w}</span></div><div class="tip">${a._c.pair ? `${a._c.w}：${a._c.pair.zh}` : a._c.w}　·　${b._c.pair ? `${b._c.w}：${b._c.pair.zh}` : b._c.w}</div>`);
 	setTimeout(() => [a, b].forEach(el => el.classList.remove('no')), 450);
-	loseHeart();
+	// 配错不扣心：让人敢试，代价是连击断掉；只有踩陷阱扣心
 }
 
 function hitTrap(a, b) {
@@ -202,7 +204,7 @@ function hitTrap(a, b) {
 	[a, b].forEach(el => el.classList.add('trap'));
 	play('warn', 0.7); buzz([30, 40, 30]); shake([a, b]);
 	setLearn(`<div><span class="pair" lang="en">${t.a}<em>≠</em>${t.b}</span><span class="zh">陷阱</span></div><div class="tip">${t.why}</div>`);
-	miaSay(`这对是陷阱：<b>${t.a}</b> 和 <b>${t.b}</b> 长得像，意思不一样。`);
+	miaSay(`陷阱！<b>${t.a}</b> 和 <b>${t.b}</b> 只是长得像。`);
 	setTimeout(() => [a, b].forEach(el => el.classList.remove('trap')), 600);
 	loseHeart();
 }
@@ -270,7 +272,7 @@ function clearScreen() {
 	if (!G.running) return;
 	G.endAt += CLEAR_BONUS_MS; G.score += 300;
 	if (!G.trapTouched) { G.trapDodged++; G.score += 200; }
-	toast(G.trapTouched ? '清屏 +10 秒' : `清屏 +10 秒 · 躲过陷阱 ${G.trapNow.a} / ${G.trapNow.b}`);
+	toast(G.trapTouched ? '清屏 +10 秒' : `清屏 +10 秒 · 躲过了 ${G.trapNow.a} / ${G.trapNow.b}`);
 	play('whoosh', 0.6); setTimeout(() => play('bookflip', 0.6), 120);
 	drawHud();
 	renderScreen(true);
@@ -278,7 +280,7 @@ function clearScreen() {
 
 function drawHud() {
 	$('#score').textContent = G.score;
-	$('#pCount').textContent = G.pairs >= 10 ? `已消 ${G.pairs} 对 ✓` : `已消 ${G.pairs} 对 · 满 10 对算一组`;
+	$('#pCount').textContent = G.pairs >= 10 ? `已消 ${G.pairs} 对 ✓` : `已消 ${G.pairs} 对 · 再 ${10 - G.pairs} 对补心`;
 }
 
 let raf = 0, lastTick = 0;
@@ -301,8 +303,8 @@ async function startGame() {
 	newGame();
 	show('#play');
 	$('#pTopic').textContent = `${topic.zh} · ${topic.en}`;
-	$('#learn').innerHTML = '<span class="hint">配对后这里会写中文和用法区别</span>';
-	miaSay('每屏藏着 1 对<b>长得像、意思不同</b>的陷阱卡，别配它们。');
+	$('#learn').innerHTML = '<span class="hint">先找一对你最有把握的。</span>';
+	miaSay('这屏藏着 1 对<b>长得像</b>的陷阱，别配它。');
 	$('#combo').style.opacity = 0; $('.boardwrap').classList.remove('fire');
 	drawHearts(); drawHud();
 	$('#bar').style.transform = 'scaleX(1)'; $('#clock').textContent = '2:30'; $('.timer').classList.remove('hot');
@@ -337,7 +339,7 @@ async function endGame(why) {
 	const endedAt = Date.now();
 	if (G.sel) G.sel.classList.remove('sel');
 	play('lose', 0.5);
-	await stamp(why === 'time' ? '时间到' : why === 'quit' ? '收工' : '心没了', `消了 ${G.pairs} 对`);
+	await stamp(why === 'time' ? '时间到' : why === 'quit' ? '这局先到这' : '心打光了', `消了 ${G.pairs} 对`);
 	const best = load(BEST_KEY, {}), prev = best[G.topic.id];
 	const isRec = G.score > 0 && (!prev || G.score > prev.score);
 	if (isRec) { best[G.topic.id] = { score: G.score, pairs: Math.max(G.pairs, prev?.pairs ?? 0) }; save(BEST_KEY, best); }
@@ -351,8 +353,8 @@ function openSheet(isRec, endedAt) {
 	$('#stars').innerHTML = [0, 1, 2].map(() => '<span>★</span>').join('');
 	$('#rec').classList.toggle('hide', !isRec);
 	const secs = Math.round((endedAt - G.startedAt) / 1000);
-	$('#stats').innerHTML = [`消对 ${G.pairs} 对`, `最高连击 ×${G.bestCombo}`, `用时 ${secs / 60 | 0}:${String(secs % 60).padStart(2, '0')}`]
-		.map(t => `<span>${t}</span>`).join('') + (G.trapHit === 0 && G.trapDodged > 0 ? '<span class="eye">火眼金睛 · 没碰陷阱</span>' : '');
+	$('#stats').innerHTML = [`消对 ${G.pairs} 对`, `最长连了 ${G.bestCombo} 对`, `用时 ${secs / 60 | 0}:${String(secs % 60).padStart(2, '0')}`]
+		.map(t => `<span>${t}</span>`).join('') + (G.trapHit === 0 && G.trapDodged > 0 ? '<span class="eye">一个陷阱都没踩</span>' : '');
 	$('#questLine').innerHTML = '';
 	const ms = [...G.missed.values()];
 	$('#missedBox').classList.toggle('hide', ms.length === 0);
@@ -393,17 +395,17 @@ function confetti() {
 async function report(endedAt) {
 	const line = $('#questLine');
 	if (!token()) {
-		line.innerHTML = G.pairs >= 10 ? '登录社区后玩，满 10 对、2 分钟的一局能给闯关<b>补 1 颗心</b>。' : '满 10 对、2 分钟算一组，登录社区后能给闯关补心。';
+		line.innerHTML = G.pairs >= 10 && endedAt - G.startedAt >= 120_000 ? '登录后，这样一局能<b>给闯关补 1 颗心</b>。' : '';
 		return;
 	}
 	line.textContent = '正在记进闯关…';
 	try {
 		const r = await api('lojo/quest/refill', { app: APP_ID, setKey: `${APP_ID}:${G.topic.id}`, items: G.pairs, durationMs: Math.min(86_400_000, endedAt - G.startedAt), startedAt: G.startedAt });
-		const why = { items: `还差 ${Math.max(1, 10 - r.items)} 对才算一组，没补心`, time: '这局不到 2 分钟，没补心', duplicate: '这个话题今天已经算过，换个话题试试', pathUsed: '今天装备这条路已经补过 1 颗心，这组记进了 Boss 准备', full: '心是满的，这组记进了 Boss 准备' };
-		line.innerHTML = r.refilled ? `闯关的心 <b>+1</b>（现在 ${r.hearts}/5）` : (why[r.reason] ?? (r.counted ? '这组记进闯关了' : '这组没算上'));
+		const why = { items: `再多配 ${Math.max(1, 10 - r.items)} 对，就能给闯关补 1 颗心`, time: '打满 2 分钟，下局就能给闯关补 1 颗心', duplicate: '这个话题今天给闯关补过心了，换个话题再补', pathUsed: '今天装备已经给闯关补过心了，这局记进 Boss 备战', full: '闯关的心是满的，这局记进 Boss 备战' };
+		line.innerHTML = r.refilled ? `<b>给闯关补 1 颗心</b>，现在 ${r.hearts} 颗` : (why[r.reason] ?? (r.counted ? '这局记进闯关了' : '这局没记上'));
 		if (r.refilled) play('heartup', 0.7);
 	} catch {
-		line.textContent = '这局没能记进闯关（社区还没接上这个小程序）';
+		line.textContent = '这局没记上，网好了再打一局试试';
 	}
 }
 
@@ -426,7 +428,7 @@ async function addWords(items, btns) {
 		}
 		b.classList.add('done'); b.textContent = '已记下';
 	}
-	toast(okN ? `已进生词本 ${okN} 条` : `先记在这台手机上（${localN} 条），登录社区后进生词本`);
+	toast(okN ? `已进生词本 ${okN} 条` : '先存在这台手机上了，登录后再点一次就能进生词本');
 }
 
 function closeSheet() { $('#sheet').classList.remove('open'); $('#veil').classList.add('hide'); }

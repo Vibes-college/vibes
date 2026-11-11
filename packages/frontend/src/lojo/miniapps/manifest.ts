@@ -48,14 +48,14 @@ export const miniApps: MiniAppDef[] = [
 	},
 	{
 		id: 'synonym-match',
-		name: '同义替换消消乐',
+		name: '换个说法',
 		icon: 'ti ti-arrows-exchange',
 		link: { kind: 'external', href: '/synonym/index.html' },
 		intro: {
-			summary: '点两张意思一样的英文卡把它们消掉，练雅思最常见的「题目换了说法」。',
+			summary: '题目换了说法，你也认得出。点两张意思一样的卡，把它们消掉。',
 			audience: '在练雅思阅读、听力，老是认不出题目换了说法的人。',
 			steps: [
-				'选一个话题，点开始',
+				'选一个话题，点开打',
 				'一屏 16 张卡，点两张意思一样的消掉，3 秒内接着配是连击',
 				'每屏有 1 对长得像、意思不同的陷阱卡，配上会扣心',
 				'一局 2 分 30 秒，打完看没配上的词，一键进生词本',
