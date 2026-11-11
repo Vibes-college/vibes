@@ -48,11 +48,11 @@ export const miniApps: MiniAppDef[] = [
 	},
 	{
 		id: 'synonym-match',
-		name: '换个说法',
+		name: '同义词连连看',
 		icon: 'ti ti-arrows-exchange',
 		link: { kind: 'external', href: '/synonym/index.html' },
 		intro: {
-			summary: '题目换了说法，你也认得出。点两张意思一样的卡，把它们消掉。',
+			summary: '题目换了说法，你也认得出。点两张意思一样的卡，把它们连起来。',
 			audience: '在练雅思阅读、听力，老是认不出题目换了说法的人。',
 			steps: [
 				'选一个话题，点开打',

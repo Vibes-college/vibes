@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#F6F1E7">
-<title>换个说法 · Vibes College</title>
+<title>雅思同义词连连看 · Vibes College</title>
+<meta name="description" content="雅思同义词连连看：把意思一样的两张卡连起来，躲开长得像的陷阱。12 个雅思常见话题，配上就能点开看例句、听发音、进生词本。">
+<meta name="keywords" content="雅思同义词,雅思同义替换,同义词连连看,IELTS synonyms,雅思阅读同替">
 <link rel="stylesheet" href="./css/app.css">
 </head>
 <body>
@@ -18,10 +20,10 @@
     </header>
     <div class="hero">
       <p class="kicker">雅思 · 同义替换</p>
-      <h1>换个说法<small lang="en">Word Swaps</small></h1>
-      <p class="sub">点两张意思一样的卡，墨点一收，这对说法就记住了。</p>
+      <h1>同义词连连看<small lang="en">Word Swaps</small></h1>
+      <p class="sub">把意思一样的两张卡连起来，一笔墨线，这对说法就记住了。</p>
     </div>
-    <div class="topics" id="topics" role="tablist" aria-label="选话题"></div>
+    <div class="trow"><div class="topics" id="topics" role="tablist" aria-label="选场景"></div><button class="allbtn" id="allBtn">全部 <b id="tCount"></b> ›</button></div>
     <div class="tcard">
       <div class="tname"><b id="tZh"></b><i id="tEn"></i></div>
       <div class="rules">一局 2 分半 · 3 颗心 · 每屏藏 1 对陷阱，踩到扣 1 颗心</div>
@@ -31,7 +33,7 @@
         <div class="card d3"><span>buy</span></div>
         <div class="note dnote">买</div>
       </div>
-      <div class="how"><div><b>配对</b>意思一样的两张，点掉</div><div><b>连击</b>3 秒内接着配，分数翻倍</div><div><b>躲陷阱</b>长得像，意思不一样</div></div>
+      <div class="how"><div><b>连线</b>点两张，或按住一张拖到另一张</div><div><b>连击</b>3 秒内接着连，分数翻倍</div><div><b>躲陷阱</b>长得像，意思不一样</div></div>
       <div class="best" id="best"></div>
     </div>
     <div class="dock">
@@ -39,7 +41,7 @@
         <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
         <div class="bubble" id="homeSay"></div>
       </div>
-      <button class="go" id="goBtn">开打</button>
+      <div class="gorow"><button class="daily" id="dailyBtn"><b>今日一屏</b><small id="dailySub">全站同一屏</small></button><button class="go" id="goBtn">开打</button></div>
     </div>
   </section>
 
@@ -51,12 +53,12 @@
       <div class="timer"><div class="bar"><i id="bar"></i></div><b id="clock">2:30</b></div>
       <div class="score"><b id="score">0</b><small>分</small></div>
     </header>
-    <div class="pinfo"><span id="pTopic"></span><span id="pCount">已消 0 对</span></div>
-    <div class="boardwrap"><div class="board" id="board"></div><div class="combo" id="combo"></div></div>
-    <div class="learn" id="learn"><span class="hint">先找一对你最有把握的。</span></div>
+    <div class="pinfo"><span id="pTopic"></span><span id="pCount">已消 0 对</span><div class="combo" id="combo"></div></div>
+    <div class="boardwrap"><div class="board" id="board"></div></div>
+    <button class="learn" id="learn" type="button"><span class="hint">先找一对你最有把握的。</span></button>
     <div class="pdock">
       <div class="mia">
-        <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
+        <svg class="mia-face" id="playMia" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><g class="eyes"><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></g><g class="frown" style="display:none" stroke="#F6F1E7" stroke-width="2.4" stroke-linecap="round"><path d="M11 23 L17 27"/><path d="M35 23 L29 27"/></g></svg>
         <div class="bubble" id="playSay">这屏藏着 1 对<b>长得像</b>的陷阱，别配它。</div>
       </div>
     </div>
@@ -70,8 +72,10 @@
     <div class="grab"></div>
     <div class="stars" id="stars"></div>
     <div class="final"><b id="fScore">0</b><small>分</small><span class="rec hide" id="rec">新纪录</span></div>
+    <div class="starbar hide" id="starbar"></div>
     <div class="stats" id="stats"></div>
     <div class="quest" id="questLine"></div>
+    <div class="missed" id="doneBox"><div class="mhead"><b>这局连上的</b><small>点开看例句</small></div><ul id="doneList" class="wl"></ul></div>
     <div class="missed" id="missedBox">
       <div class="mhead"><b>这局没拿下的词</b><button class="mini" id="addAll">全部进生词本</button></div>
       <ul id="missed"></ul>
@@ -83,6 +87,18 @@
     </div>
   </section>
   <div class="toast" id="toast"></div>
+  <!-- 全部场景 -->
+  <section class="panel hide" id="scenes" aria-label="全部场景">
+    <header class="phead"><button class="back" id="scenesBack" aria-label="返回">‹</button><b>选一个场景</b><span class="sp"></span></header>
+    <p class="psub">雅思阅读、听力里最常换说法的 12 个话题。每个场景都藏着长得像的陷阱。</p>
+    <div class="sgrid" id="sgrid"></div>
+  </section>
+  <!-- 词对详情 -->
+  <section class="panel hide" id="detail" aria-label="这一对词">
+    <header class="phead"><button class="back" id="detailBack" aria-label="返回">‹</button><b id="dTitle">这一对</b><span class="sp"></span><span class="paused hide" id="dPaused">计时停着</span></header>
+    <div class="dbody" id="dBody"></div>
+  </section>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5"/></filter></svg>
 </div>
 <noscript><p style="padding:40px;text-align:center">这个浏览器打不开游戏，换一个试试。</p></noscript>
 <script type="module" src="./js/app.js"></script>
