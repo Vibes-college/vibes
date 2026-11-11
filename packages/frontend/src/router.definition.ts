@@ -58,7 +58,7 @@ export const ROUTE_DEF = [{
 	name: 'lojo-quest',
 	path: '/quest',
 	component: page(() => import('@/pages/lojo/quest.vue')),
-	loginRequired: true,
+	// Not loginRequired: a visitor gets the 闯关 door with 登录 / 注册 (quest.vue), not 「未找到」 (prod check 2026-11-10 Z1).
 	query: {
 		book: 'book',
 		level: 'level',

@@ -35,7 +35,10 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 
 /* 地图 */
 /* 地图铺满屏宽（左右各 14px），比一屏高就上下拖 */
-#mapwrap{position:absolute;left:0;right:0;top:128px;bottom:206px;z-index:5;transform-origin:50% 50%;padding:0 14px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* 2026-11-10 正式站复查 Z2/Z3：地图顶到倒数那行下面、上边渐隐（以前 128px 起、硬切，空出约 50px）；
+   底下多留 48px，拖到底时「公会 · 本周榜」能露出 Mia 气泡 */
+#mapwrap{position:absolute;left:0;right:0;top:90px;bottom:206px;z-index:5;transform-origin:50% 50%;padding:0 14px 48px;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 26px);mask-image:linear-gradient(180deg,transparent 0,#000 26px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #mapwrap::-webkit-scrollbar{display:none}
 #map{display:block;width:100%;height:auto;aspect-ratio:390/600;overflow:visible}
 .nd{cursor:pointer}

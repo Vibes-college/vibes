@@ -192,13 +192,15 @@ function target() { // 图钉插在哪：第一个开着没过的关；都过了
 	return ns.find(n => n.kind === 'level' && n.state === 'open') ?? ns.find(n => n.kind === 'boss' && n.state !== 'locked') ?? null;
 }
 function edgePath(a, b, k) {
-	const A = NODE[a], B = NODE[b], mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, dx = B.x - A.x, dy = B.y - A.y, l = Math.hypot(dx, dy) || 1, o = k * 14;
+	const A0 = NODE[a], B = NODE[b], A = A0.kind === 'start' ? { x: A0.x, y: A0.y + 12 } : A0; // 起点的圆点往下挪了 12（见 nodeInner）
+	const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, dx = B.x - A.x, dy = B.y - A.y, l = Math.hypot(dx, dy) || 1, o = k * 14;
 	return `M${A.x} ${A.y} Q${mx - dy / l * o} ${my + dx / l * o} ${B.x} ${B.y}`;
 }
 const cleared = n => n && (n.state === 'done' || (n.state === 'open' && n.kind !== 'level' && n.kind !== 'boss'));
 function nodeInner(n, cur) {
 	const lab = esc(n.label);
-	if (n.kind === 'start') return '<circle r="6" fill="#141E52"/><text class="lab" y="20" text-anchor="middle">起点</text>';
+	// 起点画在节点下面一点、字放左边，不压 1-1 的星星（正式站复查 Z3）
+	if (n.kind === 'start') return '<circle cy="12" r="6" fill="#141E52"/><text class="lab" x="-12" y="16" text-anchor="end">起点</text>';
 	if (n.kind === 'level') { // 手机上地图铺满屏宽（约 0.9 倍）：圆点 ≥28px、关卡号 ≥12px。过了的关，关卡号和星星画在 nodeTags 里（不跟着褪色）
 		const done = n.state === 'done', locked = n.state === 'locked';
 		return `<circle r="${cur ? 18 : 16}" fill="${cur ? '#FCE7DF' : done ? '#FFFDF8' : '#F6F1E7'}" stroke="${cur ? '#E8603F' : '#141E52'}" stroke-width="${cur ? 2.6 : 1.8}" ${locked ? 'stroke-dasharray="3 3"' : ''}/>` +

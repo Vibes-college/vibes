@@ -7,13 +7,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 lends it the community login (api) and the community router (go) through window.__vibesQuest. -->
 <template>
 <div ref="root" :class="$style.root" :style="{ '--quest-bottom': bottom }">
-	<iframe ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
+	<iframe v-if="$i" ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
+	<!-- Not signed in: the game needs an account (hearts, stars, progress are saved per person), so a door instead of 「未找到」. -->
+	<div v-else :class="$style.door">
+		<div :class="$style.card">
+			<div :class="$style.kicker">闯关 · 雅思第一章</div>
+			<h1 :class="$style.title">用闯关的方式，让你沉迷学习</h1>
+			<p :class="$style.text">一张纸上地图，一关一关往前走。卡住了，走进锦囊书屋挑本书；答错了，问 AI 英语助教 Mia。</p>
+			<p :class="$style.text">进度、星星和心都记在你的账号上，所以要先登录。</p>
+			<div :class="$style.actions">
+				<button :class="[$style.btn, $style.primary]" type="button" @click="signup()">注册，开始闯关</button>
+				<button :class="$style.btn" type="button" @click="signin()">已有账号，登录</button>
+			</div>
+		</div>
+	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineAsyncComponent, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
 import { definePage } from '@/page.js';
+import { $i } from '@/i.js';
+import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
 import { markFromQuest } from '@/lojo/quest-refill.js';
@@ -24,6 +39,16 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+
+// 不登录时的门面：登录、注册都用社区自己的弹窗，登录成功后整页刷新，回到这一页就是游戏
+const XSigninDialog = defineAsyncComponent(() => import('@/components/MkSigninDialog.vue'));
+const XSignupDialog = defineAsyncComponent(() => import('@/components/MkSignupDialog.vue'));
+function signin() {
+	const { dispose } = os.popup(XSigninDialog, { autoSet: true }, { closed: () => dispose() });
+}
+function signup() {
+	const { dispose } = os.popup(XSignupDialog, { autoSet: true }, { closed: () => dispose() });
+}
 const frame = ref<HTMLIFrameElement | null>(null);
 
 // 手机底栏在的时候（它会在 body 上写 --MI-minBottomSpacing），闯关页停在底栏和发帖按钮上方；电脑上没有底栏就铺满。
@@ -55,7 +80,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', measureBottom));
 const here = new URLSearchParams(window.location.search);
 const from = here.get('from') ?? undefined;
 const screen = here.get('s');
-const src = '/lojo-assets/quest/index.html?v=2' + (screen != null ? '&s=' + encodeURIComponent(screen) : '');
+const src = '/lojo-assets/quest/index.html?v=3' + (screen != null ? '&s=' + encodeURIComponent(screen) : '');
 
 type Bridge = {
 	api: (endpoint: string, params?: Record<string, unknown>) => Promise<unknown>;
@@ -115,5 +140,66 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 	border: 0;
 	display: block;
 	background: #f6efe0;
+}
+
+.door {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px 16px;
+	background: #f6efe0;
+	overflow: auto;
+}
+
+.card {
+	max-width: 420px;
+	width: 100%;
+	padding: 28px 22px;
+	border: 2px solid #3b3127;
+	border-radius: 14px;
+	background: #fffaf0;
+	color: #3b3127;
+	box-shadow: 4px 4px 0 #3b3127;
+}
+
+.kicker {
+	font-size: 0.85em;
+	letter-spacing: 0.08em;
+	opacity: 0.7;
+}
+
+.title {
+	margin: 8px 0 12px;
+	font-size: 1.4em;
+	line-height: 1.35;
+}
+
+.text {
+	margin: 0 0 10px;
+	line-height: 1.7;
+}
+
+.actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 18px;
+}
+
+.btn {
+	padding: 12px 16px;
+	border: 2px solid #3b3127;
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: bold;
+	cursor: pointer;
+}
+
+.primary {
+	background: #3b3127;
+	color: #fffaf0;
 }
 </style>
