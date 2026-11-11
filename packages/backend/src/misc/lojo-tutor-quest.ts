@@ -15,7 +15,7 @@ const obj = (value: unknown): Record<string, unknown> | null => (value != null &
 export type QuestKnowledge = {
 	version: string;
 	rules: string;
-	causes: Record<string, { zh: string; technique: string; guide: string | null }>;
+	causes: Record<string, { zh: string; technique: string; tipZh?: string; guide: string | null }>;
 };
 
 export function normalizeQuestKnowledge(raw: unknown): QuestKnowledge | null {
@@ -27,7 +27,7 @@ export function normalizeQuestKnowledge(raw: unknown): QuestKnowledge | null {
 	for (const [tag, value] of Object.entries(obj(r.causes) ?? {}).slice(0, 30)) {
 		const c = obj(value);
 		if (c == null) continue;
-		causes[tag] = { zh: str(c.zh, 200), technique: str(c.technique, 600), guide: str(c.guide, 40) || null };
+		causes[tag] = { zh: str(c.zh, 200), technique: str(c.technique, 600), ...(str(c.tipZh, 120) !== '' ? { tipZh: str(c.tipZh, 120) } : {}), guide: str(c.guide, 40) || null };
 	}
 	return { version: str(r.version, 60), rules, causes };
 }
@@ -146,15 +146,15 @@ export function questNextLine(questTry: QuestTry, nextId: string | undefined, ba
 }
 
 // When the model cannot be reached (no balance or a bad key), "Ask Mia" still gets one fixed message built from this try
-// and the quest knowledge: the cause, the first sentence of its technique, and the next step by the hearts rules she
+// and the quest knowledge: the cause, its one-line Chinese tip (tipZh), and the next step by the hearts rules she
 // follows. No answers, no error words. Spec: 冲刺1111/Mia/兜底规格.md F2 (AI tutor, 2026-11-11).
 export const TUTOR_AWAY_PREFIX = 'Mia 这会儿不在线';
 
 export function questAwayMessage(knowledge: QuestKnowledge | null, questTry: QuestTry): { messages: string[]; next?: string } {
 	const cause = questTry.cause != null ? knowledge?.causes[questTry.cause] : undefined;
 	const lines = [cause?.zh ? `${TUTOR_AWAY_PREFIX}，先给你留个路标：这一关主要卡在「${cause.zh}」。` : `${TUTOR_AWAY_PREFIX}，先给你留个路标。`];
-	const technique = cause?.technique.match(/^.+?(?:[.!?。！？](?=\s|$)|$)/)?.[0].trim() ?? '';
-	if (technique !== '') lines.push(technique.length > 60 ? `${technique.slice(0, 59)}…` : technique);
+	// The tip in Chinese written for this (AI tutor, ch1-2026-11-11f); without one the line is left out, never the English technique.
+	if (cause?.tipZh) lines.push(cause.tipZh);
 	const { now, nextRefill, refilledToday } = questTry.hearts;
 	const book = questTry.next.find(n => n.id.startsWith('guide:') && n.recommended) ?? questTry.next.find(n => n.id.startsWith('guide:'));
 	const gear = questTry.next.find(n => n.id.startsWith('gear:') && n.givesHeart);

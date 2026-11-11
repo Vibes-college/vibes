@@ -31,7 +31,7 @@ const sampleTry = {
 const knowledge = {
 	version: 'ch1-test',
 	rules: 'QUEST MODE. Test rules.',
-	causes: { 'same-word': { zh: '找一模一样的词', technique: 'Think of two other ways to say it.', guide: 'j5' }, vocab: { zh: '不认识', technique: 'Wordbook.' } },
+	causes: { 'same-word': { zh: '找一模一样的词', technique: 'Think of two other ways to say it.', tipZh: '先想两种别的说法，再去原文找意思。', guide: 'j5' }, vocab: { zh: '不认识', technique: 'Wordbook.' } },
 };
 
 describe('Vibes AI tutor in the quest map', () => {
@@ -81,6 +81,10 @@ describe('Vibes AI tutor in the quest map', () => {
 		expect(full.messages[0]).toMatch(/^Mia 这会儿不在线/);
 		expect(full.messages[0]).not.toMatch(/FALSE|402|余额|出错/);
 		expect(full.next).toBe('retry');
+		expect(full.messages[0]).toContain('先想两种别的说法');
+		expect(full.messages[0]).not.toContain('Think of');
+		const noTip = normalizeQuestKnowledge({ ...knowledge, causes: { 'same-word': { zh: '找一模一样的词', technique: 'Think.' } } })!;
+		expect(questAwayMessage(noTip, t).messages[0].split('\n')).toHaveLength(2);
 		const low = { ...t, hearts: { ...t.hearts, now: 1 } };
 		expect(questAwayMessage(k, low).next).toBe('guide:j5');
 		const used = { ...low, hearts: { ...low.hearts, refilledToday: { guide: true, gear: true } } };
