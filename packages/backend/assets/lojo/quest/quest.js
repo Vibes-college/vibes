@@ -1373,7 +1373,7 @@ function bossWin(end) {
 	const ov = $('#winOv'); show(ov);
 	$('#winSub').textContent = end.firstPass ? '第一章的门开了。第二章「换挡」正在修路。' : '又赢了一次，手感还在。';
 	$('#winLoot').innerHTML = `<div><span class="big">+${end.xp}</span>经验${end.chest ? '（含今日首胜宝箱）' : ''}</div>` +
-		(end.badge ? `<div><span class="big">🏅</span>徽章「${esc(BADGE_ZH[end.badge] ?? end.badge)}」，挂在你的主页上</div>` : '') +
+		(end.badge ? `<div><span class="big">🏅</span>徽章「${esc(BADGE_ZH[end.badge] ?? end.badge)}」，收进你的战绩里了</div>` : '') +
 		(end.chest?.freeze ? '<div><span class="big">❄</span>宝箱里有 1 张冻结卡</div>' : '') +
 		(end.streak?.changed ? `<div><span class="big">🔥${end.streak.days}</span>连胜续上了</div>` : '');
 	gsap.from('#winOv .ovcard', { scale: 0.5, opacity: 0, duration: 0.5, ease: 'back.out(2)' });
@@ -1967,7 +1967,7 @@ function showStreakLost(days, best) {
 				onComplete: () => { $('#streakN').textContent = D.streak.days; $('#streakChip').classList.add('cold'); gsap.fromTo('#streakChip', { x: -5 }, { x: 0, duration: 0.4, ease: 'elastic.out(1,.3)' }); } });
 		}, '<')
 		.add(() => {
-			$('#fuTxt').innerHTML = `最长纪录 <b>${best ?? was} 天</b>，留在你的主页上。<br>今天打 1 关，从 1 天重新烧起来；连到 7 天送冻结卡，下次漏一天它替你顶上。`;
+			$('#fuTxt').innerHTML = `最长纪录 <b>${best ?? was} 天</b>，我帮你记着。<br>今天打 1 关，从 1 天重新烧起来；连到 7 天送冻结卡，下次漏一天它替你顶上。`;
 			gsap.from('#fuTxt,#fuOk', { y: 10, opacity: 0, stagger: 0.08, duration: 0.3 });
 		}, '+=.6');
 	fuAfter = '没事，从今天重新点火。打一关，火苗回到 <b>1</b> 天。';
