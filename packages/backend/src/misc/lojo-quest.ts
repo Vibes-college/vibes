@@ -4,7 +4,8 @@
  */
 
 // 闯关 rules, pure so they can be tested (test/unit/LojoQuest.ts). Days and refill times are Beijing time (UTC+8).
-// Numbers come from the route map's numbers.json (QUEST_NUMBERS in misc/lojo-quest-ch1.ts, generated).
+// Numbers come from the route map's numbers.json (QUEST_NUMBERS in misc/lojo-quest-ch1.ts, generated); what differs by
+// chapter is in each chapter's rules (QUEST_CH<N>.rules).
 // 补心规则 11-10 定稿（闯关核心循环-故事板.md）：
 // - at most 5 hearts; back to 5 at 08:00 and 20:00;
 // - below 5, two paths give 1 heart each, once a day each: 锦囊 (pass its 3-question check, 2 right) and 装备
@@ -12,7 +13,7 @@
 // - 情报 gives no heart, it only ticks Boss prep; hearts cannot be bought.
 
 import { QUEST_CAUSE_ORDER, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
-import type { QuestCause, QuestQuestion } from '@/misc/lojo-quest-ch1.js';
+import type { QuestCause, QuestQuestion } from '@/misc/lojo-quest-types.js';
 import type { QuestBook } from '@/misc/lojo-quest-books.js';
 
 const N = QUEST_NUMBERS;
@@ -142,17 +143,39 @@ export function normalizeAnswer(text: string, q: Pick<QuestQuestion, 'caseInsens
 	return t;
 }
 
-// The answer as the page shows it: "A. text" for a choice, the key for TFNG, the words otherwise.
+const isJudgement = (t: string) => t === 'TFNG' || t === 'YNNG';
+
+// 选两个: the keys picked, upper case, sorted, no repeats ("e, c" → ["C", "E"])
+export function multiKeys(given: string): string[] {
+	return [...new Set(given.split(/[\s,，、]+/).map(k => k.trim().toUpperCase()).filter(k => k !== ''))].sort();
+}
+
+// The answer as the page shows it: "A. text" for a choice, "C. text / E. text" for 选两个, the key for TFNG and
+// YNNG, the words otherwise.
 export function displayAnswer(q: Pick<QuestQuestion, 'type' | 'options' | 'answer'>, key: string = q.answer): string {
-	if (q.type === 'choice') {
-		const o = q.options?.find(x => x.key === key);
-		return o ? `${o.key}. ${o.text}` : key;
-	}
+	const one = (k: string) => {
+		const o = q.options?.find(x => x.key === k);
+		return o ? `${o.key}. ${o.text}` : k;
+	};
+	if (q.type === 'choice') return one(key);
+	if (q.type === 'multi') return key === '' ? '' : multiKeys(key).map(one).join(' / ');
 	return key;
 }
 
+// 选两个 (第三章起): both right is right; one right is 「对一半」 (not right, not wrong, no heart); none right is wrong.
+// Other types are right or wrong.
+export function grade(q: QuestQuestion, given: string): 'right' | 'half' | 'wrong' {
+	if (q.type !== 'multi') return judge(q, given) ? 'right' : 'wrong';
+	const want = q.answer.split(',');
+	const got = multiKeys(given);
+	const hits = got.filter(k => want.includes(k)).length;
+	if (got.length === want.length && hits === want.length) return 'right';
+	return hits > 0 ? 'half' : 'wrong';
+}
+
 export function judge(q: QuestQuestion, given: string): boolean {
-	if (q.type === 'choice' || q.type === 'TFNG') return given.trim().toUpperCase() === q.answer.toUpperCase();
+	if (q.type === 'multi') return grade(q, given) === 'right';
+	if (q.type === 'choice' || isJudgement(q.type)) return given.trim().toUpperCase() === q.answer.toUpperCase();
 	const g = normalizeAnswer(given, q);
 	if (g === '') return false;
 	return [q.answer, ...q.accept].some(a => normalizeAnswer(a, q) === g);
@@ -184,23 +207,25 @@ export function isSpellingSlip(given: string, answer: string): boolean {
 	return a.replace(/[^a-z]/g, '').length >= 5 && editDistance(g, a) <= 2;
 }
 
-// Why a wrong answer was wrong: the option's cause for choice and TFNG, the question's cause for gap and build, with
-// near-misses in gap questions counted as spelling.
-export function wrongCause(q: QuestQuestion, given: string): QuestCause {
-	if (q.type === 'choice' || q.type === 'TFNG') {
+// Why a wrong answer was wrong: the option's cause for choice, TFNG and YNNG, the question's cause for gap and build,
+// with near-misses in gap questions counted as spelling. 选两个: one right is half-right (numbers.json multi), none
+// right the question's bothWrongCause.
+export function wrongCause(q: QuestQuestion, given: string, halfCause = 'half-right'): QuestCause {
+	if (q.type === 'multi') return grade(q, given) === 'half' ? halfCause : q.bothWrongCause ?? 'too-hard';
+	if (q.type === 'choice' || isJudgement(q.type)) {
 		return q.causes?.[given.trim().toUpperCase()] ?? q.causes?.[given.trim()] ?? Object.values(q.causes ?? {})[0] ?? 'too-hard';
 	}
 	if (q.type === 'gap' && [q.answer, ...q.accept].some(a => isSpellingSlip(given, a))) return 'spelling';
 	return q.cause ?? 'too-hard';
 }
 
-// 主错因: the cause seen most often in this try; ties go by QUEST_CAUSE_ORDER.
-export function mainCause(causes: readonly string[]): string | null {
+// 主错因: the cause seen most often in this try; ties go by the chapter's order (第一章 QUEST_CAUSE_ORDER).
+export function mainCause(causes: readonly string[], order: readonly string[] = QUEST_CAUSE_ORDER): string | null {
 	if (causes.length === 0) return null;
 	const count = (c: string) => causes.filter(x => x === c).length;
 	const rank = (c: string) => {
-		const i = QUEST_CAUSE_ORDER.indexOf(c as QuestCause);
-		return i < 0 ? QUEST_CAUSE_ORDER.length : i;
+		const i = order.indexOf(c);
+		return i < 0 ? order.length : i;
 	};
 	return [...new Set(causes)].sort((a, b) => count(b) - count(a) || rank(a) - rank(b))[0];
 }

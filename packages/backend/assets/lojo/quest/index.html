@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>闯关 · Vibes</title>
 <!-- 动画：GSAP 3.12.5 本地副本（GSAP 标准免费许可，见 vendor/GSAP-LICENSE.txt）。音效：Kenney，CC0，见 sounds/ 里的许可文件。 -->
-<link rel="stylesheet" href="./quest.css?v=5">
+<link rel="stylesheet" href="./quest.css?v=6">
 <script src="./vendor/gsap.min.js?v=3.12.5"></script>
 </head>
 <body>
@@ -47,35 +47,19 @@ SPDX-License-Identifier: AGPL-3.0-only
   </div>
   <div id="behind"><span class="ic">⏰</span><span id="behindT"></span><button id="catchUp">今天多打 1 关</button></div>
 
-  <!-- 第一章：分叉地图（点和路都由服务器给） -->
+  <!-- 四章叠成一张地图（第一章在最下面）：底色、地标、门由 quest-map.js 画，点和路由服务器给 -->
   <div id="mapwrap">
     <svg id="map" viewBox="0 0 390 600" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <radialGradient id="fogG"><stop offset="0" stop-color="#F6F1E7" stop-opacity="1"/><stop offset=".7" stop-color="#F6F1E7" stop-opacity=".85"/><stop offset="1" stop-color="#F6F1E7" stop-opacity="0"/></radialGradient>
         <filter id="gray"><feColorMatrix type="saturate" values="0"/></filter>
+        <filter id="pencil" x="-5%" y="-5%" width="110%" height="110%"><feColorMatrix type="saturate" values="0" result="g"/><feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" result="n"/><feDisplacementMap in="g" in2="n" scale="2.5"/></filter>
+        <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="9" stroke="#b8ad97" stroke-width="1"/></pattern>
+        <g id="bands"></g>
       </defs>
-      <path d="M-10 365 C 60 350, 120 380, 200 368 S 320 345, 400 360" fill="none" stroke="#BFD7E6" stroke-width="12" stroke-linecap="round" opacity=".5"/>
-      <path d="M20 130 q30 -18 60 0 t60 0" fill="none" stroke="#d8ccb4" stroke-width="1.4"/>
-      <path d="M30 430 q24 -14 48 0 t48 0" fill="none" stroke="#d8ccb4" stroke-width="1.4"/>
+      <g id="chs"></g>
       <g id="edges"></g>
       <g id="nodes"></g>
-      <g id="ch2">
-        <ellipse cx="195" cy="22" rx="200" ry="44" fill="url(#fogG)"/>
-        <g opacity=".35"><circle cx="110" cy="16" r="7" fill="none" stroke="#a99e88" stroke-width="1.5"/><circle cx="280" cy="14" r="7" fill="none" stroke="#a99e88" stroke-width="1.5"/><path d="M110 16 Q195 2 280 14" fill="none" stroke="#a99e88" stroke-dasharray="2 5" stroke-width="2"/></g>
-        <text class="lab" x="195" y="22" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="13" fill="#6E7088">第二章 · 换挡 · 正在修路</text>
-        <g id="x2" transform="translate(195 42)"><rect x="-44" y="-9" width="88" height="17" rx="8.5" fill="#FFFDF8" stroke="#a99e88" stroke-width="1.2" stroke-dasharray="3 3"/><text x="0" y="3.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#6E7088" font-family="PingFang SC,sans-serif">🔒 打赢 Boss 解锁</text></g>
-      </g>
-      <g transform="translate(345 26)" opacity=".8">
-        <rect x="-14" y="-2" width="28" height="16" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3"/>
-        <path d="M-17 -1 L0 -11 L17 -1Z" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3" stroke-linejoin="round"/>
-        <line x1="0" y1="-11" x2="0" y2="-22" stroke="#141E52" stroke-width="1.3"/><path id="flag" d="M0 -22 l10 3 l-10 3z" fill="#E8603F"/>
-        <text x="0" y="27" text-anchor="middle" font-size="9.5" font-weight="800" fill="#141E52" font-family="PingFang SC,sans-serif">考场</text>
-      </g>
-      <g class="nd" id="lm-guild" transform="translate(345 565)">
-        <path d="M-24 14 L-11 -8 L2 14 Z" fill="#ECB637" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M0 14 L12 -3 L24 14 Z" fill="#CFE6DA" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/>
-        <text class="lab" x="0" y="30" text-anchor="middle">公会 · 本周榜</text>
-      </g>
+      <g id="doors"></g>
       <g id="pinPos"><g id="pin">
         <path d="M0 -26 c-6 -10 -20 -6 -16 6 c2 6 10 11 16 16 c6 -5 14 -10 16 -16 c4 -12 -10 -16 -16 -6z" fill="#E8603F" stroke="#141E52" stroke-width="1.8" stroke-linejoin="round"/>
         <ellipse cx="0" cy="2" rx="8" ry="2.5" fill="#141E52" opacity=".18"/>
@@ -135,7 +119,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <!-- 关卡 -->
   <div id="quiz" class="scene">
-    <div class="qtop"><button id="qBack" style="font-size:20px" title="回地图">✕</button><div class="bar"><i id="qbar"></i></div><div class="hearts" id="qHearts"></div></div>
+    <div class="qtop"><button id="qBack" style="font-size:20px" title="回地图">✕</button><div class="tslot" id="qT"></div><div class="bar"><i id="qbar"></i></div><div class="hearts" id="qHearts"></div></div>
     <div class="qtag" id="qTag"></div>
     <div class="qdots" id="qDots"></div>
     <div class="hint" id="qHint"></div>
@@ -166,6 +150,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <!-- Boss -->
   <div id="boss" class="scene">
     <div class="qtop"><button id="bBack" style="font-size:20px" title="回地图">✕</button><div class="bhp" id="bhp"></div><div class="hearts" id="bHearts"></div></div>
+    <div class="tslot brow" id="bT"></div>
     <svg id="bossFig" viewBox="0 0 150 150">
       <ellipse cx="75" cy="140" rx="46" ry="6" fill="#000" opacity=".25"/>
       <g id="bossBody">
@@ -272,6 +257,25 @@ SPDX-License-Identifier: AGPL-3.0-only
   </div>
 
   <!-- Boss 打赢 -->
+  <!-- 限时关：沙漏计时器（计时器 A，闯关体验设计 11-11 定稿）。JS 把 #tWrap 挪到题关顶栏 #qT 或 Boss 血条下一行 #bT -->
+  <div id="tWrap" style="display:none">
+    <div id="tA" role="timer" aria-live="off" aria-label="剩余时间">
+      <svg viewBox="-12 -16 24 32"><g id="glassInner">
+        <path d="M-9 -14 h18 M-9 14 h18" stroke="#141E52" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M-7 -14 C-7 -4 -2 -2 0 0 C2 -2 7 -4 7 -14Z M-7 14 C-7 4 -2 2 0 0 C2 2 7 4 7 14Z" fill="#FFFDF8" stroke="#141E52" stroke-width="1.6" stroke-linejoin="round"/>
+        <clipPath id="cTop"><path d="M-7 -14 C-7 -4 -2 -2 0 0 C2 -2 7 -4 7 -14Z"/></clipPath>
+        <clipPath id="cBot"><path d="M-7 14 C-7 4 -2 2 0 0 C2 2 7 4 7 14Z"/></clipPath>
+        <rect id="sandTop" clip-path="url(#cTop)" x="-8" y="-12" width="16" height="12" fill="#D9B36A"/>
+        <rect id="sandBot" clip-path="url(#cBot)" x="-8" y="14" width="16" height="0" fill="#D9B36A"/>
+        <line id="stream" x1="0" y1="0" x2="0" y2="13" stroke="#D9B36A" stroke-width="1.3" stroke-dasharray="1.5 1.5"/>
+      </g></svg>
+      <span class="digits" id="dA">0:00</span>
+    </div>
+    <div class="late30" id="late30" aria-live="polite"></div>
+  </div>
+  <div id="edge"></div>
+  <div id="up"><div id="upPaper"><div class="stampT" id="upStamp">时间到 · 收卷了</div><div class="left" id="upLeft"></div></div></div>
+
   <div class="overlay" id="winOv">
     <div class="ovcard">
       <h4>Boss 倒了！</h4><div class="sub" id="winSub"></div>
@@ -352,6 +356,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <div class="toast" id="toast"></div>
 </div>
-<script src="./quest.js?v=5"></script>
+<script src="./quest-map.js?v=6"></script>
+<script src="./quest.js?v=6"></script>
 </body>
 </html>

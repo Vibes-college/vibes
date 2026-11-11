@@ -3,96 +3,21 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 闯关第一章：地图、关卡、题库（138 题，全部原创）和规则数字。版本 ch1-2026-11-11a。
+// 闯关第1章：地图、关卡、题库（138 题，全部原创）和规则数字。版本 ch1-2026-11-11c。
 // 由 apps/community/scripts/quest-chapter.mjs 从路线图的「关卡数据」（chapter-1.json、questions/*.json、numbers.json）生成，不要手改。
 // 答案、accept、evidence、录音稿只在服务器上：页面拿到的题目不带这些，作答由 lojo/quest/answer 判。
-// 坐标是 390 宽画布里的位置（原型 v2）。难度是「练习难度」，不是官方分数。
+// 坐标是 390 宽、600 高画布里的位置。难度是「练习难度」，不是官方分数。
 
-export type QuestCause = 'same-word' | 'not-given' | 'not-heard' | 'spelling' | 'vocab' | 'grammar' | 'too-hard';
-// 主错因同票时按这个顺序取（错因和evidence说明.md）
-export const QUEST_CAUSE_ORDER: QuestCause[] = ['too-hard', 'grammar', 'vocab', 'not-given', 'same-word', 'not-heard', 'spelling'];
+import type { QuestCause, QuestChapter } from '@/misc/lojo-quest-types.js';
 
-export type QuestAudio = { voices: Record<string, string>; rate: number; lines: { who: string; text: string }[] };
+export type { QuestAudio, QuestCause, QuestChapter, QuestNode, QuestNodeKind, QuestQuestion, QuestRules, QuestTimed } from '@/misc/lojo-quest-types.js';
 
-export type QuestQuestion = {
-	id: string;
-	set: string;
-	type: 'gap' | 'choice' | 'TFNG' | 'build';
-	// Boss 混合时：这题是听力还是阅读
-	skill: string | null;
-	// 阅读原文（表格每行用 | 分列）
-	passage: string | null;
-	// 题干；gap 里 ______ 是空
-	question: string;
-	options: { key: string; text: string }[] | null;
-	// build 的词块（发给页面前打乱）
-	chips: string[] | null;
-	// 选项 key，或填空、连词成句的标准写法
-	answer: string;
-	accept: string[];
-	limit: { words?: number; number?: boolean } | null;
-	ignoreSpaces: boolean;
-	caseInsensitive: boolean;
-	// gap、build 做错时的错因
-	cause: QuestCause | null;
-	// choice、TFNG：每个错误选项的错因
-	causes: Record<string, QuestCause> | null;
-	// 决定答案的那句原文或录音稿（给 Mia、做完给看）
-	evidence: string;
-	why: string;
-	audio: QuestAudio | null;
-	tags: string[];
-};
+// 第一章的主错因顺序（旧名字，misc/lojo-quest.ts 用）
+export const QUEST_CAUSE_ORDER: QuestCause[] = ["too-hard", "grammar", "vocab", "not-given", "same-word", "not-heard", "spelling"];
 
-export type QuestNodeKind = 'start' | 'level' | 'gear' | 'news' | 'shelf' | 'boss';
-
-export type QuestNode = {
-	id: string;
-	kind: QuestNodeKind;
-	x: number;
-	y: number;
-	label: string;
-	name: string | null;
-	zh: string | null;
-	// main / vocab / grammar / station
-	branch: string;
-	// 练手关：答错不扣心
-	practice: boolean;
-	skill: string | null;
-	type: string | null;
-	stations: string[];
-	// 情报帖的话题
-	hashtags: string[];
-	// 「去装备练一组」去哪：dictation、vocab:5.N、grammar:6.N、typing、wordbook
-	gear: string | null;
-	// 没过关时书屋亮的锦囊（j1…j10），第一本是推荐
-	shelf: string[];
-	heartCost: number;
-	// 一次出几题、对几题过、错几题输
-	ask: number | null;
-	need: number | null;
-	maxWrong: number | null;
-	sets: string[];
-	retest: boolean;
-	pool: QuestQuestion[] | null;
-};
-
-export type QuestChapter = {
-	id: string;
-	version: string;
-	title: string;
-	band: string;
-	disclaimer: string;
-	boss: { hp: number; maxWrong: number; total: number };
-	branches: Record<string, { zh: string; note: string }>;
-	nodes: QuestNode[];
-	// [from, to, branch]：任意一条来路的 from 过了，to 就开
-	edges: [string, string, string][];
-};
-
-// numbers.json 原样（规则数字一律以这里为准）
+// numbers.json 原样（心、连胜、XP 这些全闯关共用的数字一律以这里为准；各章不一样的在 QUEST_CH<N>.rules）
 export const QUEST_NUMBERS = {
-	"version": "ch1-2026-11-11a",
+	"version": "ch1-2026-11-11c",
 	"timezone": "Asia/Shanghai",
 	"hearts": {
 		"max": 5,
@@ -121,12 +46,15 @@ export const QUEST_NUMBERS = {
 			"intel": 0,
 			"buy": false
 		},
-		"zeroHearts": "0 颗心不能开新关，可以去锦囊或装备补，或等 08:00 / 20:00"
+		"zeroHearts": "心少于 2 颗，开不了新关（练手关不限）。去锦囊书屋或装备站补一颗，或者等北京时间 8:00、20:00 回满"
 	},
 	"level": {
 		"questionsPerTry": 5,
 		"failAtWrong": 2,
 		"passAtCorrect": 4,
+		"minHeartsToStart": 2,
+		"minHeartsToStartPractice": 0,
+		"lowHeartsButton": "只剩 1 颗心，先去补一颗",
 		"newSetOnRetry": true,
 		"setsPerLevel": 2,
 		"afterAllSets": "两套都用过以后，重新打乱两套的题再出（题号不重复上一次）",
@@ -146,7 +74,7 @@ export const QUEST_NUMBERS = {
 		"prep": [
 			{
 				"id": "guide",
-				"zh": "读一本锦囊（推荐 j5）并过小测"
+				"zh": "读一本锦囊并过小测（推荐《一字不差的多半不是答案》）"
 			},
 			{
 				"id": "gear",
@@ -157,9 +85,11 @@ export const QUEST_NUMBERS = {
 				"zh": "看 1 篇情报帖（#IELTS_1_4 或 #IELTS_2_4）"
 			}
 		],
-		"prepRequired": 3,
+		"prepRequired": 2,
+		"prepOf": 3,
 		"prepCountsHeartRefill": true,
-		"resetPrepAfterLossesInARow": 2
+		"extraPrepAfterLossesInARow": 2,
+		"extraPrepRule": "3 项里做 2 项就能挑战；Boss 连输 2 次后要再做 1 项（没做的那项，或任意一项重做），已做的不清空"
 	},
 	"streak": {
 		"countsAs": [
@@ -256,16 +186,19 @@ export const QUEST_NUMBERS = {
 	},
 	"unlock": {
 		"rule": "一关的任意一条来路（edges 的 from）过了，这关就开；站点路过就开",
-		"boss": "1-6 过了，并且备战 3 项都做完"
+		"boss": "1-6 过了，并且备战 3 项里做完 2 项"
 	}
 } as const;
 
 export const QUEST_CH1: QuestChapter = {
 	"id": "ielts-c1",
-	"version": "ch1-2026-11-11a",
+	"no": 1,
+	"version": "ch1-2026-11-11c",
 	"title": "第一章 · 打底",
 	"band": "练习难度 4.0–5.0",
 	"disclaimer": "练习难度，不是官方分数",
+	"bossId": "boss",
+	"startId": "start",
 	"boss": {
 		"hp": 5,
 		"maxWrong": 2,
@@ -291,38 +224,38 @@ export const QUEST_CH1: QuestChapter = {
 	},
 	"nodes": [
 		{
-			"id": "start",
-			"kind": "start",
-			"x": 195,
-			"y": 570,
-			"label": "起点",
-			"name": null,
-			"zh": null,
-			"branch": "main",
 			"practice": false,
 			"skill": null,
 			"type": null,
 			"stations": [],
 			"hashtags": [],
 			"gear": null,
+			"heartGear": null,
+			"gearGivesHeart": false,
+			"gearButton": null,
+			"heartButton": null,
 			"shelf": [],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": null,
 			"need": null,
 			"maxWrong": null,
 			"sets": [],
 			"retest": false,
-			"pool": null
+			"keepOrder": false,
+			"timed": null,
+			"pool": null,
+			"id": "start",
+			"ch": 1,
+			"kind": "start",
+			"x": 195,
+			"y": 570,
+			"label": "起点",
+			"name": null,
+			"zh": null,
+			"branch": "main"
 		},
 		{
-			"id": "1-1",
-			"kind": "level",
-			"x": 195,
-			"y": 520,
-			"label": "1-1",
-			"name": "名字和字母",
-			"zh": "听力 · 一个字母一个字母地听",
-			"branch": "main",
 			"practice": true,
 			"skill": "listening",
 			"type": "gap",
@@ -333,11 +266,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_1_1"
 			],
 			"gear": "dictation",
+			"heartGear": "dictation",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j4",
 				"j6",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": 5,
 			"need": 4,
@@ -347,6 +285,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-1-A-1",
@@ -366,6 +306,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Can I take your surname, please? Yes, it's Hartley. H, A, R, T, L, E, Y.",
 					"why": "一个字母一个字母地听：H-A-R-T-L-E-Y。",
 					"audio": {
@@ -408,6 +352,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "And which road do you live on? Wexford Road. That's W, E, X, F, O, R, D.",
 					"why": "X 读作 /eks/，别听成 S。",
 					"audio": {
@@ -451,6 +399,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "What's the postcode there? It's C, B, three, nine, J, T.",
 					"why": "英国邮编字母和数字混着读，B 和 three 之间不停顿。",
 					"audio": {
@@ -494,6 +446,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Who will be your guide on the tour? Mrs Quinlan. Q, U, I, N, L, A, N.",
 					"why": "Q 读作 /kjuː/，后面几乎总跟 U。",
 					"audio": {
@@ -536,6 +492,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which hotel are we staying at? The Abbott. That's A, double B, O, double T.",
 					"why": "「double B」就是两个 B，写成 bb。",
 					"audio": {
@@ -578,6 +538,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "And your family name? Rourke. R, O, U, R, K, E.",
 					"why": "名字的拼法跟发音对不上，只能靠一个个字母。",
 					"audio": {
@@ -620,6 +584,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Where do we meet on Saturday? At Ashby village hall. A, S, H, B, Y.",
 					"why": "H 读作 /eɪtʃ/，别漏写。",
 					"audio": {
@@ -663,6 +631,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Could I have your postcode? L, S, eight, two, W, N.",
 					"why": "W 读作 double-u，是一个字母，不是两个 U。",
 					"audio": {
@@ -707,6 +679,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Do you know the course code? Yes, it's H, G, four, seven.",
 					"why": "H 和 G 都是常被听错的字母：G 读作 /dʒiː/。",
 					"audio": {
@@ -749,6 +725,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Who should I ask for when I arrive? Ask for Mr Jarvis. J, A, R, V, I, S.",
 					"why": "J 读作 /dʒeɪ/，和 G /dʒiː/ 只差一个元音。",
 					"audio": {
@@ -773,17 +753,18 @@ export const QUEST_CH1: QuestChapter = {
 						"form"
 					]
 				}
-			]
+			],
+			"id": "1-1",
+			"ch": 1,
+			"kind": "level",
+			"x": 245,
+			"y": 540,
+			"label": "1-1",
+			"name": "名字和字母",
+			"zh": "听力 · 一个字母一个字母地听",
+			"branch": "main"
 		},
 		{
-			"id": "1-2",
-			"kind": "level",
-			"x": 120,
-			"y": 470,
-			"label": "1-2",
-			"name": "数字和日期",
-			"zh": "听力 · 价格、日期、电话、时间",
-			"branch": "main",
 			"practice": true,
 			"skill": "listening",
 			"type": "gap",
@@ -794,11 +775,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_1_2"
 			],
 			"gear": "dictation",
+			"heartGear": "dictation",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j4",
 				"j6",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": 5,
 			"need": 4,
@@ -808,6 +794,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-2-A-1",
@@ -830,6 +818,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "How much is an adult ticket? Adult tickets are fourteen pounds fifty.",
 					"why": "fourteen 重音在后，forty 重音在前；pounds fifty 是 .50。",
 					"audio": {
@@ -876,6 +868,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "When does the course start? On the thirteenth of March.",
 					"why": "thirteenth 结尾的 -teenth 拉长，thirtieth 是 -tieth。",
 					"audio": {
@@ -919,6 +915,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "What's the best number to call? Oh two oh, seven nine four six, oh oh one eight.",
 					"why": "电话里的 0 读作 oh；「oh oh」就是 00。",
 					"audio": {
@@ -966,6 +966,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "What time does the bus leave? At quarter to eight in the morning.",
 					"why": "quarter to eight 是八点差一刻，也就是 7:45，不是 8:15。",
 					"audio": {
@@ -1011,6 +1015,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "How big is the hall? We've got sixteen tables, and the hall holds up to sixty people.",
 					"why": "问的是能坐多少人，sixteen 是桌子数。",
 					"audio": {
@@ -1057,6 +1065,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Do I pay everything now? No, just the deposit, which is thirty pounds. The other ninety you pay on the day.",
 					"why": "定金是 thirty，ninety 是余款。",
 					"audio": {
@@ -1103,6 +1115,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "When is my appointment? It's on Tuesday the twenty-first.",
 					"why": "twenty-first 是 21 号，first 那个音很短。",
 					"audio": {
@@ -1148,6 +1164,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "What time does the museum close? It closes at half past five.",
 					"why": "half past five 是五点半。",
 					"audio": {
@@ -1191,6 +1211,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which room are we in? Room four oh nine, on the fourth floor.",
 					"why": "房间号一位一位读，中间的 oh 是 0。",
 					"audio": {
@@ -1236,6 +1260,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "not-heard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "How long is the walk? About eighteen kilometres, so bring plenty of water.",
 					"why": "eighteen 尾巴长，重音在 -teen；eighty 重音在前。",
 					"audio": {
@@ -1260,17 +1288,18 @@ export const QUEST_CH1: QuestChapter = {
 						"form"
 					]
 				}
-			]
+			],
+			"id": "1-2",
+			"ch": 1,
+			"kind": "level",
+			"x": 120,
+			"y": 470,
+			"label": "1-2",
+			"name": "数字和日期",
+			"zh": "听力 · 价格、日期、电话、时间",
+			"branch": "main"
 		},
 		{
-			"id": "1-3",
-			"kind": "level",
-			"x": 195,
-			"y": 420,
-			"label": "1-3",
-			"name": "他改口了",
-			"zh": "听力 · 先说的不算，改口后的才算",
-			"branch": "main",
 			"practice": true,
 			"skill": "listening",
 			"type": "choice",
@@ -1281,11 +1310,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_1_3"
 			],
 			"gear": "dictation",
+			"heartGear": "dictation",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j4",
 				"j5",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": 5,
 			"need": 4,
@@ -1295,6 +1329,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-3-A-1",
@@ -1328,6 +1364,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Can we meet on Monday? Monday's difficult for me. How about Wednesday? Wednesday's fine.",
 					"why": "先提的 Monday 被否掉了，最后定的是 Wednesday。",
 					"audio": {
@@ -1387,6 +1427,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "I'd like to book the large room. Actually, there are only six of us, so the small one will do.",
 					"why": "Actually 后面是改口，听到它就要等最后一句。",
 					"audio": {
@@ -1438,6 +1482,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "not-heard",
 						"B": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The guidebook is usually twelve pounds, but it's on sale this week for nine.",
 					"why": "usually 是平时的价，this week 是本周的价。",
 					"audio": {
@@ -1491,6 +1539,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Should I take the train? The train's quicker, but there's work on the line this weekend, so take the coach.",
 					"why": "but 后面才是建议：坐 coach（长途大巴）。",
 					"audio": {
@@ -1546,6 +1598,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "My number is oh one one seven, four nine six, oh five four two. Sorry, oh five four seven.",
 					"why": "Sorry 之后是更正过的号码。",
 					"audio": {
@@ -1599,6 +1655,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "not-heard",
 						"B": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "We usually start at nine. Oh, but this week it's half past nine, because of the staff meeting.",
 					"why": "usually 是平常，this week 才是这周的时间。",
 					"audio": {
@@ -1652,6 +1712,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "I was going to bring pasta, but Sam's bringing that, so I'll make a salad.",
 					"why": "was going to 是原来的打算，后来改成了 salad。",
 					"audio": {
@@ -1703,6 +1767,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Seats in the front row are thirty pounds, and the back row is twenty. I'll go for the back, then.",
 					"why": "他选了 back row，就是 twenty。",
 					"audio": {
@@ -1760,6 +1828,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "not-heard",
 						"B": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The meeting is on the second floor. Oh, wait, it's moved. It's on the third floor now, room three B.",
 					"why": "it's moved 说明换了地方，now 后面是新地点。",
 					"audio": {
@@ -1811,6 +1883,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "not-heard",
 						"C": "not-heard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Turn left at the bank. No, sorry, turn right at the bank, then go straight on.",
 					"why": "No, sorry 是改口：在银行右转，之后才直走。",
 					"audio": {
@@ -1830,17 +1906,18 @@ export const QUEST_CH1: QuestChapter = {
 						"distractor"
 					]
 				}
-			]
+			],
+			"id": "1-3",
+			"ch": 1,
+			"kind": "level",
+			"x": 195,
+			"y": 415,
+			"label": "1-3",
+			"name": "他改口了",
+			"zh": "听力 · 先说的不算，改口后的才算",
+			"branch": "main"
 		},
 		{
-			"id": "1-4",
-			"kind": "level",
-			"x": 110,
-			"y": 365,
-			"label": "1-4",
-			"name": "通知和时刻表",
-			"zh": "阅读 · 在通知、价目表里找信息",
-			"branch": "main",
 			"practice": false,
 			"skill": "reading",
 			"type": "mixed",
@@ -1851,11 +1928,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_2_1"
 			],
 			"gear": "vocab:5.3",
+			"heartGear": "vocab:5.3",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j3",
 				"j5",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -1865,6 +1947,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-4-A-1",
@@ -1889,6 +1973,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "too-hard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "City Library – opening hours\nDay | Hours\nMonday to Thursday | 9 am – 8 pm\nFriday | 9 am – 5 pm\nSaturday | 10 am – 2 pm\nSunday | Closed",
 					"why": "先找到 Friday 那一行，再看后一个时间。",
 					"audio": null,
@@ -1928,6 +2016,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "too-hard",
 						"C": "too-hard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Bike hire: £4 for the first hour, then £2 for each extra hour. Helmets are free. You pay a £20 deposit, which you get back when you return the bike.",
 					"why": "第一小时 £4，后两小时各 £2，一共 £8；押金会退，不算。",
 					"audio": null,
@@ -1953,6 +2045,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "too-hard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Cooking Club meets every second Thursday in Room 12. Please bring your own apron; all ingredients are provided. Places are limited to ten, so sign up at the front desk.",
 					"why": "bring your own 后面就是答案；食材是提供的。",
 					"audio": null,
@@ -1992,6 +2088,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "too-hard",
 						"B": "too-hard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Lost property: anything left on our buses is kept at the main depot for 30 days. After that, it is given to a local charity.",
 					"why": "After that 指 30 天以后：given to a local charity。",
 					"audio": null,
@@ -2022,6 +2122,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "too-hard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Number 7 bus – weekend timetable\nLeaves Market Square at 08.15, 09.45 and 11.15, then every hour until 18.15.",
 					"why": "按顺序数：08.15 是第一班，09.45 是第二班。",
 					"audio": null,
@@ -2049,6 +2153,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "too-hard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Swimming pool prices\nAdult | £4.80\nChild (5–15) | £2.60\nUnder 5 | Free\nFamily (2 adults + 2 children) | £12.00",
 					"why": "Under 5 那一行写着 Free。",
 					"audio": null,
@@ -2088,6 +2196,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "too-hard",
 						"C": "too-hard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Car park charges: up to 2 hours – free; 2 to 4 hours – £3; over 4 hours – £8.",
 					"why": "3 小时落在 2 到 4 小时这一档。",
 					"audio": null,
@@ -2113,6 +2225,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "too-hard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "NOTICE: The lift is out of order until Friday 14 June. Please use the stairs next to reception. We are sorry for any trouble this causes.",
 					"why": "next to 后面就是位置。",
 					"audio": null,
@@ -2152,6 +2268,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "too-hard",
 						"C": "too-hard"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Book sale this Saturday, 10 am – 3 pm, in the school hall. Paperbacks 50p, hardbacks £1. All the money raised will pay for a new playground.",
 					"why": "money raised will pay for 后面是用途。",
 					"audio": null,
@@ -2184,6 +2304,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "too-hard",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Riverside Café\nWeekdays | 7.30 – 18.00\nSaturday | 8.00 – 16.00\nSunday | 9.00 – 14.00",
 					"why": "找 Sunday 那一行，前一个是开门时间。",
 					"audio": null,
@@ -2191,17 +2315,18 @@ export const QUEST_CH1: QuestChapter = {
 						"short-answer"
 					]
 				}
-			]
+			],
+			"id": "1-4",
+			"ch": 1,
+			"kind": "level",
+			"x": 90,
+			"y": 325,
+			"label": "1-4",
+			"name": "通知和时刻表",
+			"zh": "阅读 · 在通知、价目表里找信息",
+			"branch": "main"
 		},
 		{
-			"id": "1-5",
-			"kind": "level",
-			"x": 120,
-			"y": 300,
-			"label": "1-5",
-			"name": "对、错、没提到",
-			"zh": "阅读 · TRUE / FALSE / NOT GIVEN 入门",
-			"branch": "main",
 			"practice": false,
 			"skill": "reading",
 			"type": "TFNG",
@@ -2212,11 +2337,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_2_2"
 			],
 			"gear": "vocab:5.4",
+			"heartGear": "vocab:5.4",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j9",
 				"j5",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -2226,6 +2356,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-5-A-1",
@@ -2259,6 +2391,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The community garden opened in 2019. Local families can rent a small plot for £25 a year. Water and basic tools are provided free of charge.",
 					"why": "原文说工具免费提供，和「要自己买」相反。",
 					"audio": null,
@@ -2298,6 +2434,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The museum's new dinosaur room attracted over 40,000 visitors in its first month. Most of them were families with young children.",
 					"why": "只说来了 4 万人，没跟别的展比，所以是没提到。",
 					"audio": null,
@@ -2337,6 +2477,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Students who join the language exchange meet a partner twice a week: once to practise English, and once to practise the partner's language.",
 					"why": "一次练英语、一次练对方的语言，就是两种语言。",
 					"audio": null,
@@ -2376,6 +2520,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The town's first cinema was built in 1923. It closed in the 1970s, but the building still stands and is now a supermarket.",
 					"why": "still stands 是「还在」，和「被拆了」相反。",
 					"audio": null,
@@ -2415,6 +2563,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Volunteers at the animal shelter must be at least 16 years old. They work one four-hour shift each week.",
 					"why": "原文只讲年龄和班次，没说给不给钱。",
 					"audio": null,
@@ -2454,6 +2606,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The night market runs every Friday from 6 pm to 11 pm. Around 60 stalls sell street food, clothes and handmade jewellery.",
 					"why": "6 pm 到 11 pm 就是周五晚上。",
 					"audio": null,
@@ -2493,6 +2649,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The night market has moved from the car park to the riverside, where there is more space for stalls.",
 					"why": "空间大了，不等于摊位真的多了。",
 					"audio": null,
@@ -2532,6 +2692,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "All flights to the island were cancelled on Monday because of strong winds. Ferries, however, ran as normal.",
 					"why": "however 引出相反情况：轮渡照常。",
 					"audio": null,
@@ -2571,6 +2735,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The college offers evening classes in Spanish and Italian. A French class will be added next year if enough people are interested.",
 					"why": "法语课是「明年、而且要人够才开」，现在没有。",
 					"audio": null,
@@ -2610,6 +2778,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "A study followed 300 office workers for six months. Those who walked to work said they felt less tired in the afternoon.",
 					"why": "原文讲下午不那么累，没讲晚上睡眠。",
 					"audio": null,
@@ -2617,17 +2789,18 @@ export const QUEST_CH1: QuestChapter = {
 						"tfng"
 					]
 				}
-			]
+			],
+			"id": "1-5",
+			"ch": 1,
+			"kind": "level",
+			"x": 185,
+			"y": 235,
+			"label": "1-5",
+			"name": "对、错、没提到",
+			"zh": "阅读 · TRUE / FALSE / NOT GIVEN 入门",
+			"branch": "main"
 		},
 		{
-			"id": "1-6",
-			"kind": "level",
-			"x": 170,
-			"y": 170,
-			"label": "1-6",
-			"name": "换了说法",
-			"zh": "阅读 · 题目换了说法的判断题",
-			"branch": "main",
 			"practice": false,
 			"skill": "reading",
 			"type": "TFNG",
@@ -2638,11 +2811,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_2_3"
 			],
 			"gear": "synonym-match:city",
+			"heartGear": "synonym-match:city",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j5",
 				"j9",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -2652,6 +2830,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-6-A-1",
@@ -2685,6 +2865,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Most visitors come to the island in summer, when the ferry runs every hour. In winter, the service is cut to two crossings a day.",
 					"why": "colder months = winter，less often = 每天只有两班。",
 					"audio": null,
@@ -2725,6 +2909,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Last year the city library extended its opening hours, because students asked for more space to study in the evening.",
 					"why": "extended its opening hours 换个说法就是开得更晚。",
 					"audio": null,
@@ -2765,6 +2953,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Although the bridge was designed to last a century, engineers found serious cracks only forty years after it opened.",
 					"why": "设计用 100 年，40 年就裂了，就是比预想的早。",
 					"audio": null,
@@ -2805,6 +2997,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The supermarket cut the number of plastic bags it gave out by charging customers 10p for each one.",
 					"why": "cut the number 是减少，不是停掉。",
 					"audio": null,
@@ -2844,6 +3040,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The festival, which began as a small gathering of local musicians, now attracts performers from more than twenty countries.",
 					"why": "只说一开始是本地乐手的小聚会，没说是谁办的。",
 					"audio": null,
@@ -2883,6 +3083,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Few residents attended the meeting about the new road, so the council has decided to hold a second one online.",
 					"why": "few residents attended = attendance was low。",
 					"audio": null,
@@ -2923,6 +3127,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Prices of fresh vegetables rose sharply last winter after heavy rain damaged crops in the south.",
 					"why": "heavy rain = bad weather，rose = increase。",
 					"audio": null,
@@ -2963,6 +3171,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The new train line will cut the journey between the two cities from three hours to ninety minutes.",
 					"why": "3 小时变 90 分钟，正好一半。",
 					"audio": null,
@@ -3003,6 +3215,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The researchers postponed the experiment because some of the equipment had not arrived.",
 					"why": "postponed 是推迟，cancelled 是取消，不是一回事。",
 					"audio": null,
@@ -3042,6 +3258,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Many employees prefer working from home, according to a survey of 2,000 office staff.",
 					"why": "调查的是员工，没提经理。",
 					"audio": null,
@@ -3049,17 +3269,18 @@ export const QUEST_CH1: QuestChapter = {
 						"tfng"
 					]
 				}
-			]
+			],
+			"id": "1-6",
+			"ch": 1,
+			"kind": "level",
+			"x": 135,
+			"y": 145,
+			"label": "1-6",
+			"name": "换了说法",
+			"zh": "阅读 · 题目换了说法的判断题",
+			"branch": "main"
 		},
 		{
-			"id": "1-7",
-			"kind": "level",
-			"x": 285,
-			"y": 340,
-			"label": "1-7",
-			"name": "会认也会拼",
-			"zh": "词汇 · 听一遍，拼出来",
-			"branch": "vocab",
 			"practice": false,
 			"skill": "vocab",
 			"type": "gap",
@@ -3070,11 +3291,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_5_1"
 			],
 			"gear": "dictation",
+			"heartGear": "dictation",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j1",
 				"j6",
 				"j2"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -3084,6 +3310,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-7-A-1",
@@ -3103,6 +3331,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "accommodation. The price includes accommodation and meals. accommodation.",
 					"why": "两个 c、两个 m。",
 					"audio": {
@@ -3139,6 +3371,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "environment. We should protect the environment. environment.",
 					"why": "中间有个不发音的 n：environ-ment。",
 					"audio": {
@@ -3175,6 +3411,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Wednesday. The class is on Wednesday. Wednesday.",
 					"why": "d 不发音，但要写：Wed-nes-day。",
 					"audio": {
@@ -3211,6 +3451,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "necessary. Is it necessary to book in advance? necessary.",
 					"why": "一个 c、两个 s。",
 					"audio": {
@@ -3247,6 +3491,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "restaurant. We had lunch at a small restaurant. restaurant.",
 					"why": "中间是 -au-：restaurant。",
 					"audio": {
@@ -3283,6 +3531,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "government. The government plans to build more homes. government.",
 					"why": "中间的 n 不太发音：govern-ment。",
 					"audio": {
@@ -3319,6 +3571,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "February. The exam is in February. February.",
 					"why": "第一个 r 常被吞掉：Feb-ru-ary。",
 					"audio": {
@@ -3355,6 +3611,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "library. I study at the library after work. library.",
 					"why": "两个 r：li-brar-y。",
 					"audio": {
@@ -3391,6 +3651,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "beginning. The beginning of the film was slow. beginning.",
 					"why": "加 -ing 前双写 n：beginning。",
 					"audio": {
@@ -3427,6 +3691,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "vocab",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "separate. Please keep the two groups separate. separate.",
 					"why": "中间是 a：sep-a-rate。",
 					"audio": {
@@ -3445,17 +3713,18 @@ export const QUEST_CH1: QuestChapter = {
 						"vocab-spell"
 					]
 				}
-			]
+			],
+			"id": "1-7",
+			"ch": 1,
+			"kind": "level",
+			"x": 290,
+			"y": 330,
+			"label": "1-7",
+			"name": "会认也会拼",
+			"zh": "词汇 · 听一遍，拼出来",
+			"branch": "vocab"
 		},
 		{
-			"id": "1-8",
-			"kind": "level",
-			"x": 300,
-			"y": 280,
-			"label": "1-8",
-			"name": "固定搭配",
-			"zh": "词汇 · make / do / take 用哪个",
-			"branch": "vocab",
 			"practice": false,
 			"skill": "vocab",
 			"type": "choice",
@@ -3466,11 +3735,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_5_2"
 			],
 			"gear": "vocab:5.3",
+			"heartGear": "vocab:5.3",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j1",
 				"j2",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -3480,6 +3754,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-8-A-1",
@@ -3513,6 +3789,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "I need to make a decision by Friday.",
 					"why": "make a decision 是固定搭配。",
 					"audio": null,
@@ -3552,6 +3832,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Could you do me a favour?",
 					"why": "do someone a favour，帮个忙。",
 					"audio": null,
@@ -3591,6 +3875,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "She took the exam last week and passed.",
 					"why": "take an exam，参加考试。",
 					"audio": null,
@@ -3630,6 +3918,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Please pay attention to the instructions.",
 					"why": "pay attention to，注意。",
 					"audio": null,
@@ -3669,6 +3961,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "There was heavy rain last night, so the roads are wet.",
 					"why": "大雨是 heavy rain，不说 strong rain。",
 					"audio": null,
@@ -3708,6 +4004,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "It is important to make a good impression at an interview.",
 					"why": "make a good impression，留下好印象。",
 					"audio": null,
@@ -3747,6 +4047,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Please take a seat. The doctor will see you soon.",
 					"why": "take a seat，请坐；sit 后面不直接跟 a seat。",
 					"audio": null,
@@ -3786,6 +4090,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "He is trying to save money for a new laptop.",
 					"why": "攒钱是 save money。",
 					"audio": null,
@@ -3825,6 +4133,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The traffic was heavy, so I was late for work.",
 					"why": "堵车是 heavy traffic。",
 					"audio": null,
@@ -3864,6 +4176,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "You should take notes during the lecture.",
 					"why": "上课记笔记常说 take notes。",
 					"audio": null,
@@ -3871,17 +4187,18 @@ export const QUEST_CH1: QuestChapter = {
 						"vocab-meaning"
 					]
 				}
-			]
+			],
+			"id": "1-8",
+			"ch": 1,
+			"kind": "level",
+			"x": 355,
+			"y": 285,
+			"label": "1-8",
+			"name": "固定搭配",
+			"zh": "词汇 · make / do / take 用哪个",
+			"branch": "vocab"
 		},
 		{
-			"id": "1-9",
-			"kind": "level",
-			"x": 290,
-			"y": 220,
-			"label": "1-9",
-			"name": "近义说法",
-			"zh": "词汇 · 同一个意思的另一种说法",
-			"branch": "vocab",
 			"practice": false,
 			"skill": "vocab",
 			"type": "choice",
@@ -3892,11 +4209,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_5_3"
 			],
 			"gear": "synonym-match:general",
+			"heartGear": "synonym-match:general",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j5",
 				"j1",
 				"j2"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -3906,6 +4228,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-9-A-1",
@@ -3939,6 +4263,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"purchase\"?",
 					"why": "purchase = buy，文章里常用 purchase，题目里换成 buy。",
 					"audio": null,
@@ -3979,6 +4307,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"assist\"?",
 					"why": "assist = help。",
 					"audio": null,
@@ -4019,6 +4351,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"sufficient\"?",
 					"why": "sufficient = enough。",
 					"audio": null,
@@ -4059,6 +4395,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which phrase means the same as \"postpone\"?",
 					"why": "postpone = put off（推迟）；call off 是取消。",
 					"audio": null,
@@ -4099,6 +4439,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"approximately\"?",
 					"why": "approximately = about，大约。",
 					"audio": null,
@@ -4139,6 +4483,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"obtain\"?",
 					"why": "obtain = get。",
 					"audio": null,
@@ -4179,6 +4527,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Prices declined last year. Which word means the same as \"declined\" here?",
 					"why": "说价格时 decline = fall，下降。",
 					"audio": null,
@@ -4219,6 +4571,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"major\" in \"a major problem\"?",
 					"why": "major = main / serious，主要的。",
 					"audio": null,
@@ -4259,6 +4615,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "vocab",
 						"B": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which word means the same as \"attempt\"?",
 					"why": "attempt = try。",
 					"audio": null,
@@ -4299,6 +4659,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "vocab",
 						"C": "vocab"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Which phrase means the same as \"residents\"?",
 					"why": "residents 是住在那儿的人，不是游客。",
 					"audio": null,
@@ -4307,17 +4671,18 @@ export const QUEST_CH1: QuestChapter = {
 						"paraphrase"
 					]
 				}
-			]
+			],
+			"id": "1-9",
+			"ch": 1,
+			"kind": "level",
+			"x": 275,
+			"y": 185,
+			"label": "1-9",
+			"name": "近义说法",
+			"zh": "词汇 · 同一个意思的另一种说法",
+			"branch": "vocab"
 		},
 		{
-			"id": "1-10",
-			"kind": "level",
-			"x": 40,
-			"y": 320,
-			"label": "1-10",
-			"name": "句子主干",
-			"zh": "语法 · 把词块排成句子",
-			"branch": "grammar",
 			"practice": false,
 			"skill": "grammar",
 			"type": "build",
@@ -4328,11 +4693,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_6_1"
 			],
 			"gear": "grammar:6.1",
+			"heartGear": "vocab:5.3",
+			"gearGivesHeart": false,
+			"gearButton": "去练一组（不补心）",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j10",
 				"j3",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -4342,6 +4712,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-10-A-1",
@@ -4363,6 +4735,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "many students study in the library",
 					"why": "主语 many students + 谓语 study，地点放最后。",
 					"audio": null,
@@ -4390,6 +4766,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "my brother works at a bank",
 					"why": "主语是单数 my brother，动词加 s。",
 					"audio": null,
@@ -4419,6 +4799,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "there are two museums in this city",
 					"why": "「某地有某物」用 there are，不用 have。",
 					"audio": null,
@@ -4450,6 +4834,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "the bus leaves at seven every morning",
 					"why": "先主语 the bus，再谓语 leaves，时间放后面。",
 					"audio": null,
@@ -4481,6 +4869,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "she sent me an email yesterday",
 					"why": "send 后面先人后物：sent me an email。",
 					"audio": null,
@@ -4510,6 +4902,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "my flatmate cooks every day",
 					"why": "主语 my flatmate + 谓语 cooks。",
 					"audio": null,
@@ -4537,6 +4933,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "that shop sells fresh fruit",
 					"why": "主谓宾：that shop / sells / fresh fruit。",
 					"audio": null,
@@ -4567,6 +4967,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "there are many trees in the park",
 					"why": "there are + 复数名词。",
 					"audio": null,
@@ -4597,6 +5001,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "we watched a film at the weekend",
 					"why": "过去的事用 watched。",
 					"audio": null,
@@ -4625,6 +5033,10 @@ export const QUEST_CH1: QuestChapter = {
 					"caseInsensitive": true,
 					"cause": "grammar",
 					"causes": null,
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "this course helps students improve their writing",
 					"why": "help 某人 do 某事：helps students improve。",
 					"audio": null,
@@ -4632,17 +5044,18 @@ export const QUEST_CH1: QuestChapter = {
 						"g-core"
 					]
 				}
-			]
+			],
+			"id": "1-10",
+			"ch": 1,
+			"kind": "level",
+			"x": 30,
+			"y": 280,
+			"label": "1-10",
+			"name": "句子主干",
+			"zh": "语法 · 把词块排成句子",
+			"branch": "grammar"
 		},
 		{
-			"id": "1-11",
-			"kind": "level",
-			"x": 40,
-			"y": 250,
-			"label": "1-11",
-			"name": "单数复数和时态",
-			"zh": "语法 · 动词跟着主语和时间变",
-			"branch": "grammar",
 			"practice": false,
 			"skill": "grammar",
 			"type": "choice",
@@ -4653,11 +5066,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_6_2"
 			],
 			"gear": "grammar:6.2",
+			"heartGear": "vocab:5.3",
+			"gearGivesHeart": false,
+			"gearButton": "去练一组（不补心）",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j10",
 				"j3",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -4667,6 +5085,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-11-A-1",
@@ -4700,6 +5120,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Every student has a library card.",
 					"why": "every + 单数名词，动词用单数 has。",
 					"audio": null,
@@ -4739,6 +5163,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The number of cars in the city has grown quickly.",
 					"why": "主语是 the number（数量），单数，用 has。",
 					"audio": null,
@@ -4778,6 +5206,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "I have lived in Beijing since 2020.",
 					"why": "since 2020 一直到现在，用现在完成时。",
 					"audio": null,
@@ -4817,6 +5249,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Last summer we went to Qingdao by train.",
 					"why": "last summer 是过去的时间，用过去时 went。",
 					"audio": null,
@@ -4856,6 +5292,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Information about the course is on the website.",
 					"why": "information 不可数，用 is。",
 					"audio": null,
@@ -4895,6 +5335,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "My parents live in a small town.",
 					"why": "parents 是复数，动词不加 s。",
 					"audio": null,
@@ -4934,6 +5378,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "There were a lot of people at the station yesterday.",
 					"why": "people 是复数，yesterday 是过去，用 were。",
 					"audio": null,
@@ -4974,6 +5422,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "She usually takes the bus to work.",
 					"why": "usually 说习惯，用一般现在时，she 后面加 s。",
 					"audio": null,
@@ -5014,6 +5466,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "By the time we arrived, the film had started.",
 					"why": "电影开始在「我们到」之前，过去的过去用 had started。",
 					"audio": null,
@@ -5053,6 +5509,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Each of the rooms has its own bathroom.",
 					"why": "each of … 主语是 each，单数，用 has。",
 					"audio": null,
@@ -5060,17 +5520,18 @@ export const QUEST_CH1: QuestChapter = {
 						"g-agree"
 					]
 				}
-			]
+			],
+			"id": "1-11",
+			"ch": 1,
+			"kind": "level",
+			"x": 95,
+			"y": 230,
+			"label": "1-11",
+			"name": "单数复数和时态",
+			"zh": "语法 · 动词跟着主语和时间变",
+			"branch": "grammar"
 		},
 		{
-			"id": "1-12",
-			"kind": "level",
-			"x": 45,
-			"y": 180,
-			"label": "1-12",
-			"name": "被动语态",
-			"zh": "语法 · 东西「被」做了",
-			"branch": "grammar",
 			"practice": false,
 			"skill": "grammar",
 			"type": "choice",
@@ -5081,11 +5542,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_6_3"
 			],
 			"gear": "grammar:6.3",
+			"heartGear": "vocab:5.4",
+			"gearGivesHeart": false,
+			"gearButton": "去练一组（不补心）",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j10",
 				"j3",
 				"j7"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 5,
 			"need": 4,
@@ -5095,6 +5561,8 @@ export const QUEST_CH1: QuestChapter = {
 				"B"
 			],
 			"retest": true,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "1-12-A-1",
@@ -5128,6 +5596,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The museum was built in 1923.",
 					"why": "博物馆是「被建」的，过去的事：was + built。",
 					"audio": null,
@@ -5167,6 +5639,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "English is spoken in many countries.",
 					"why": "英语是被人说的：is + spoken。",
 					"audio": null,
@@ -5206,6 +5682,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The results will be announced next week.",
 					"why": "将来的被动：will be + 过去分词。",
 					"audio": null,
@@ -5245,6 +5725,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The windows are cleaned every Friday.",
 					"why": "窗户是被擦的，每周的习惯用 are cleaned。",
 					"audio": null,
@@ -5284,6 +5768,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The bridge is being repaired.\n这句话是什么意思？",
 					"why": "is being repaired = 正在被修，还没修完。",
 					"audio": null,
@@ -5323,6 +5811,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The letter was sent yesterday.",
 					"why": "信是被寄的，yesterday 用 was + sent；send 要变成 sent。",
 					"audio": null,
@@ -5362,6 +5854,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Breakfast is served from 7 to 10 am.",
 					"why": "早餐是被供应的：is served。",
 					"audio": null,
@@ -5401,6 +5897,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "A new road will be built next year.",
 					"why": "路是被修的，明年：will be built。",
 					"audio": null,
@@ -5440,6 +5940,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"C": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "All the tickets have already been sold.\n这句话是什么意思？",
 					"why": "have been sold 是已经卖完了。",
 					"audio": null,
@@ -5479,6 +5983,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "grammar",
 						"B": "grammar"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "This photo was taken by my sister.",
 					"why": "by my sister 说明是被拍的：was + taken（不是 took）。",
 					"audio": null,
@@ -5486,17 +5994,18 @@ export const QUEST_CH1: QuestChapter = {
 						"g-pv-form"
 					]
 				}
-			]
+			],
+			"id": "1-12",
+			"ch": 1,
+			"kind": "level",
+			"x": 35,
+			"y": 185,
+			"label": "1-12",
+			"name": "被动语态",
+			"zh": "语法 · 东西「被」做了",
+			"branch": "grammar"
 		},
 		{
-			"id": "boss",
-			"kind": "boss",
-			"x": 195,
-			"y": 90,
-			"label": "Boss",
-			"name": "换装者",
-			"zh": "Boss · 同一个意思换了身衣服（听力 + 阅读）",
-			"branch": "main",
 			"practice": false,
 			"skill": "mixed",
 			"type": "mixed",
@@ -5509,11 +6018,16 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_2_4"
 			],
 			"gear": "synonym-match:general",
+			"heartGear": "synonym-match:general",
+			"gearGivesHeart": true,
+			"gearButton": "去练一组，补 1 颗心",
+			"heartButton": "补 1 颗心",
 			"shelf": [
 				"j5",
 				"j4",
 				"j9"
 			],
+			"causeGuide": null,
 			"heartCost": 1,
 			"ask": 6,
 			"need": 5,
@@ -5524,6 +6038,8 @@ export const QUEST_CH1: QuestChapter = {
 				"C"
 			],
 			"retest": false,
+			"keepOrder": false,
+			"timed": null,
 			"pool": [
 				{
 					"id": "boss-A-1",
@@ -5557,6 +6073,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "same-word",
 						"C": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Because of the storm, the concert has been put off until next month.",
 					"why": "put off = postponed；put on 只是长得像。",
 					"audio": {
@@ -5608,6 +6128,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The museum offers free entry to visitors under 18 on weekdays.",
 					"why": "under 18 ≈ teenagers，free = do not have to pay，weekdays = Monday to Friday。",
 					"audio": null,
@@ -5647,6 +6171,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "same-word",
 						"C": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Only a handful of students signed up for the trip.",
 					"why": "a handful of = very few；hand 是陷阱。",
 					"audio": {
@@ -5698,6 +6226,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Sales of electric bikes doubled between 2021 and 2023.",
 					"why": "doubled = twice as many。",
 					"audio": null,
@@ -5737,6 +6269,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "same-word",
 						"B": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "I'd rather not take the early train. It's always packed.",
 					"why": "packed 说车厢时是「挤满了」= crowded。",
 					"audio": {
@@ -5788,6 +6324,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The café has replaced its plastic cups with paper ones.",
 					"why": "纸杯也是一次性的，只是换了材料。",
 					"audio": null,
@@ -5827,6 +6367,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "same-word",
 						"C": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The library's opening hours have been extended until ten at night.",
 					"why": "extended until ten at night = 关门更晚。",
 					"audio": {
@@ -5877,6 +6421,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The council plans to reduce the speed limit near schools.",
 					"why": "plans to 是打算，还没做。",
 					"audio": null,
@@ -5916,6 +6464,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "same-word",
 						"C": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Attendance at the evening classes has dropped since the fees went up.",
 					"why": "attendance has dropped = fewer people go。",
 					"audio": {
@@ -5966,6 +6518,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Most of the hotel's guests are business travellers.",
 					"why": "most = the majority，business travellers = travelling for work。",
 					"audio": null,
@@ -6005,6 +6561,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "same-word",
 						"B": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "You'll need to show some form of ID at the entrance.",
 					"why": "ID 是身份证明；form of 是「某种」，不是表格。",
 					"audio": {
@@ -6056,6 +6616,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The bridge was closed for repairs for six weeks last spring.",
 					"why": "只说修了六周，没提花了多少钱。",
 					"audio": null,
@@ -6095,6 +6659,10 @@ export const QUEST_CH1: QuestChapter = {
 						"B": "same-word",
 						"C": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The new sports hall is far bigger than the old one.",
 					"why": "far bigger = much larger；far 在这里不是「远」。",
 					"audio": {
@@ -6146,6 +6714,10 @@ export const QUEST_CH1: QuestChapter = {
 						"FALSE": "same-word",
 						"NOT GIVEN": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Volunteers are not required to have any previous experience.",
 					"why": "not required to have experience = 没经验也行。",
 					"audio": null,
@@ -6185,6 +6757,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "same-word",
 						"C": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "My manager turned down my request for a day off.",
 					"why": "turn down a request = refuse；down 不是降工资。",
 					"audio": {
@@ -6236,6 +6812,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"NOT GIVEN": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The number of international students at the university has fallen slightly.",
 					"why": "slightly 是稍微，sharp 是大幅，程度相反。",
 					"audio": null,
@@ -6275,6 +6855,10 @@ export const QUEST_CH1: QuestChapter = {
 						"A": "same-word",
 						"B": "same-word"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "Please hand in your essays no later than Friday.",
 					"why": "no later than Friday = by Friday。",
 					"audio": {
@@ -6326,6 +6910,10 @@ export const QUEST_CH1: QuestChapter = {
 						"TRUE": "same-word",
 						"FALSE": "not-given"
 					},
+					"pick": null,
+					"bothWrongCause": null,
+					"playOnce": false,
+					"lecture": null,
 					"evidence": "The park is popular with dog owners in the early morning.",
 					"why": "只说早上遛狗的人多，没说几点以后不许进。",
 					"audio": null,
@@ -6333,41 +6921,50 @@ export const QUEST_CH1: QuestChapter = {
 						"tfng"
 					]
 				}
-			]
+			],
+			"id": "boss",
+			"ch": 1,
+			"kind": "boss",
+			"x": 195,
+			"y": 90,
+			"label": "Boss",
+			"name": "换装者",
+			"zh": "Boss · 同一个意思换了身衣服（听力 + 阅读）",
+			"branch": "main"
 		},
 		{
-			"id": "gear",
-			"kind": "gear",
-			"x": 300,
-			"y": 490,
-			"label": "装备站",
-			"name": "装备站",
-			"zh": "去小程序练一组，补 1 颗心",
-			"branch": "station",
 			"practice": false,
 			"skill": null,
 			"type": null,
 			"stations": [],
 			"hashtags": [],
 			"gear": "dictation",
+			"heartGear": null,
+			"gearGivesHeart": false,
+			"gearButton": null,
+			"heartButton": null,
 			"shelf": [],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": null,
 			"need": null,
 			"maxWrong": null,
 			"sets": [],
 			"retest": false,
-			"pool": null
+			"keepOrder": false,
+			"timed": null,
+			"pool": null,
+			"id": "gear",
+			"ch": 1,
+			"kind": "gear",
+			"x": 300,
+			"y": 485,
+			"label": "装备站",
+			"name": "装备站",
+			"zh": "去小程序练一组，补 1 颗心（语法线不补心）",
+			"branch": "station"
 		},
 		{
-			"id": "intel",
-			"kind": "news",
-			"x": 305,
-			"y": 395,
-			"label": "情报站",
-			"name": "情报站",
-			"zh": "看社区里的情报帖（不补心，Boss 备战要看 1 篇）",
-			"branch": "station",
 			"practice": false,
 			"skill": null,
 			"type": null,
@@ -6377,38 +6974,62 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_2_4"
 			],
 			"gear": null,
+			"heartGear": null,
+			"gearGivesHeart": false,
+			"gearButton": null,
+			"heartButton": null,
 			"shelf": [],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": null,
 			"need": null,
 			"maxWrong": null,
 			"sets": [],
 			"retest": false,
-			"pool": null
+			"keepOrder": false,
+			"timed": null,
+			"pool": null,
+			"id": "intel",
+			"ch": 1,
+			"kind": "news",
+			"x": 315,
+			"y": 410,
+			"label": "情报站",
+			"name": "情报站",
+			"zh": "看社区里的情报帖（不补心，Boss 备战要看 1 篇）",
+			"branch": "station"
 		},
 		{
-			"id": "shelf",
-			"kind": "shelf",
-			"x": 200,
-			"y": 250,
-			"label": "锦囊书屋",
-			"name": "锦囊书屋",
-			"zh": "读一本锦囊、做 3 题对 2 题，补 1 颗心",
-			"branch": "station",
 			"practice": false,
 			"skill": null,
 			"type": null,
 			"stations": [],
 			"hashtags": [],
 			"gear": null,
+			"heartGear": null,
+			"gearGivesHeart": false,
+			"gearButton": null,
+			"heartButton": null,
 			"shelf": [],
+			"causeGuide": null,
 			"heartCost": 0,
 			"ask": null,
 			"need": null,
 			"maxWrong": null,
 			"sets": [],
 			"retest": false,
-			"pool": null
+			"keepOrder": false,
+			"timed": null,
+			"pool": null,
+			"id": "shelf",
+			"ch": 1,
+			"kind": "shelf",
+			"x": 240,
+			"y": 265,
+			"label": "锦囊书屋",
+			"name": "锦囊书屋",
+			"zh": "读一本锦囊、做 3 题对 2 题，补 1 颗心",
+			"branch": "station"
 		}
 	],
 	"edges": [
@@ -6497,5 +7118,60 @@ export const QUEST_CH1: QuestChapter = {
 			"shelf",
 			"station"
 		]
-	]
+	],
+	"causeOrder": [
+		"too-hard",
+		"grammar",
+		"vocab",
+		"not-given",
+		"same-word",
+		"not-heard",
+		"spelling"
+	],
+	"rules": {
+		"level": {
+			"ask": 5,
+			"need": 4,
+			"maxWrong": 2,
+			"minHeartsToStart": 2,
+			"minHeartsToStartPractice": 0,
+			"lowHeartsButton": "只剩 1 颗心，先去补一颗"
+		},
+		"retest": {
+			"questions": 3,
+			"passAt": 2,
+			"heartCost": 0
+		},
+		"boss": {
+			"hp": 5,
+			"maxWrong": 2,
+			"total": 6,
+			"prepRequired": 2,
+			"prepOf": 3,
+			"extraPrepAfterLossesInARow": 2,
+			"resetPrepAfterLossesInARow": null,
+			"prep": [
+				{
+					"id": "guide",
+					"zh": "读一本锦囊并过小测（推荐《一字不差的多半不是答案》）"
+				},
+				{
+					"id": "gear",
+					"zh": "去装备练一组（本关装备或任意装备）"
+				},
+				{
+					"id": "intel",
+					"zh": "看 1 篇情报帖（#IELTS_1_4 或 #IELTS_2_4）"
+				}
+			]
+		},
+		"chest": {
+			"sideAt": "1-12",
+			"sideXp": 30,
+			"clearXp": 100,
+			"badge": "ielts-c1"
+		},
+		"multi": null,
+		"timedCopy": null
+	}
 };

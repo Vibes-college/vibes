@@ -5,17 +5,21 @@
 
 import { describe, expect, test } from 'vitest';
 import {
-	addDays, ageOf, behindOf, dayOf, displayAnswer, drawQuestions, examDateOk, heartsNow, isSpellingSlip, judge, lastRefillAt, mainCause, nextRefillAt,
+	addDays, ageOf, behindOf, dayOf, displayAnswer, drawQuestions, examDateOk, grade, heartsNow, isSpellingSlip, judge, lastRefillAt, mainCause, nextRefillAt,
 	bookGear, gearPath, pickSet, setCounts, settleStreak, shelfFor, starsAfter, streakNow, touchStreak, wrongCause,
 } from '@/misc/lojo-quest.js';
 import { QUEST_CH1, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
-import type { QuestQuestion } from '@/misc/lojo-quest-ch1.js';
+import { QUEST_CH2 } from '@/misc/lojo-quest-ch2.js';
+import { QUEST_CH3 } from '@/misc/lojo-quest-ch3.js';
+import { QUEST_CH4 } from '@/misc/lojo-quest-ch4.js';
+import type { QuestQuestion } from '@/misc/lojo-quest-types.js';
 import { QUEST_BOOKS } from '@/misc/lojo-quest-books.js';
 import { lojoVoiceIds } from '@/misc/lojo-voices.js';
 
 const q = (over: Partial<QuestQuestion>): QuestQuestion => ({
 	id: 'x', set: 'A', type: 'gap', skill: null, passage: null, question: '', options: null, chips: null, answer: '', accept: [], limit: null,
-	ignoreSpaces: false, caseInsensitive: true, cause: 'not-heard', causes: null, evidence: '', why: '', audio: null, tags: [], ...over,
+	ignoreSpaces: false, caseInsensitive: true, cause: 'not-heard', causes: null, pick: null, bothWrongCause: null, playOnce: false, lecture: null,
+	evidence: '', why: '', audio: null, tags: [], ...over,
 });
 
 const bj = (s: string) => new Date(`${s}+08:00`);
@@ -70,15 +74,19 @@ describe('闯关 rules', () => {
 		expect(second.slice(0, 3).every(q => !first.some(f => f.id === q.id))).toBe(true);
 	});
 
-	test('chapter data is sound', () => {
-		const ids = new Set(QUEST_CH1.nodes.map(n => n.id));
-		expect(ids.has('start')).toBe(true);
-		for (const [a, b, branch] of QUEST_CH1.edges) {
+	test.each([QUEST_CH1, QUEST_CH2, QUEST_CH3, QUEST_CH4])('chapter $no data is sound', ch => {
+		const ids = new Set(ch.nodes.map(n => n.id));
+		expect(ids.has(ch.startId)).toBe(true);
+		expect(ids.has(ch.bossId)).toBe(true);
+		// 第二章起的 id 不跟第一章撞
+		if (ch.no > 1) for (const id of ids) expect(QUEST_CH1.nodes.some(n => n.id === id)).toBe(false);
+		for (const [a, b, branch] of ch.edges) {
 			expect(ids.has(a) && ids.has(b)).toBe(true);
 			expect(typeof branch).toBe('string');
 		}
 		let total = 0;
-		for (const n of QUEST_CH1.nodes) {
+		for (const n of ch.nodes) {
+			expect(n.ch).toBe(ch.no);
 			if (n.kind !== 'level' && n.kind !== 'boss') continue;
 			total += n.pool!.length;
 			for (const set of n.sets) expect(n.pool!.filter(x => x.set === set).length).toBeGreaterThanOrEqual(n.ask!);
@@ -86,20 +94,58 @@ describe('闯关 rules', () => {
 				// the answer is right by the server's own judging, and has its evidence
 				expect(judge(x, x.answer)).toBe(true);
 				expect(x.evidence.length).toBeGreaterThan(0);
-				if (x.type === 'choice' || x.type === 'TFNG') {
+				if (x.type === 'choice' || x.type === 'TFNG' || x.type === 'YNNG') {
 					expect(x.options!.some(o => o.key === x.answer)).toBe(true);
 					for (const o of x.options!) if (o.key !== x.answer) expect(x.causes![o.key]).toBeTruthy();
+				} else if (x.type === 'multi') {
+					expect(x.answer.split(',')).toHaveLength(x.pick!);
+					expect(x.bothWrongCause).toBeTruthy();
 				} else {
 					expect(x.cause).toBeTruthy();
 				}
-				if (x.chips) expect(judge(x, x.chips.join(' '))).toBe(x.chips.join(' ').toLowerCase() === x.answer.toLowerCase());
+				if (x.chips && x.type === 'build') expect(judge(x, x.chips.join(' '))).toBe(x.chips.join(' ').toLowerCase() === x.answer.toLowerCase());
 				if (x.audio) for (const v of Object.values(x.audio.voices)) expect(lojoVoiceIds).toContain(v);
 			}
 		}
 		expect(total).toBe(138);
+		for (const c of ch.causeOrder) expect(typeof c).toBe('string');
+	});
+
+	test('books', () => {
 		expect(QUEST_BOOKS.length).toBe(10);
 		for (const b of QUEST_BOOKS) expect(b.quiz).toHaveLength(3);
 		for (const n of QUEST_CH1.nodes) for (const r of n.shelf) expect(QUEST_BOOKS.some(b => b.ref === r)).toBe(true);
+	});
+
+	test('选两个: both right, one right is half, none right is wrong', () => {
+		const m = q({ type: 'multi', answer: 'C,E', pick: 2, bothWrongCause: 'paraphrase', options: ['A', 'B', 'C', 'D', 'E'].map(k => ({ key: k, text: k })) });
+		expect(grade(m, 'E,C')).toBe('right');
+		expect(judge(m, 'c, e')).toBe(true);
+		expect(grade(m, 'C,D')).toBe('half');
+		expect(grade(m, 'A,B')).toBe('wrong');
+		expect(grade(m, 'C')).toBe('half');
+		expect(grade(m, 'C,E,A')).toBe('half');
+		expect(wrongCause(m, 'A,C')).toBe('half-right');
+		expect(wrongCause(m, 'A,B')).toBe('paraphrase');
+		expect(displayAnswer(m)).toBe('C. C / E. E');
+		const yn = q({ type: 'YNNG', answer: 'NOT GIVEN', options: [{ key: 'YES', text: 'YES' }, { key: 'NO', text: 'NO' }, { key: 'NOT GIVEN', text: 'NOT GIVEN' }], causes: { YES: 'fact-opinion', NO: 'qualifier' } });
+		expect(judge(yn, 'not given')).toBe(true);
+		expect(wrongCause(yn, 'NO')).toBe('qualifier');
+	});
+
+	test('主错因 ties go by the chapter order', () => {
+		expect(mainCause(['vocab', 'time-out'], QUEST_CH4.causeOrder)).toBe('time-out');
+		expect(mainCause(['vocab', 'grammar'])).toBe('grammar');
+	});
+
+	test('the timed levels of chapter 4', () => {
+		const timed = QUEST_CH4.nodes.filter(n => n.timed != null);
+		expect(timed.map(n => n.id).sort()).toEqual(['4-6', '4-boss']);
+		const boss = timed.find(n => n.kind === 'boss')!.timed!;
+		expect(boss.hitsBoss).toBe(false);
+		expect(boss.maxHeartsPerTry).toBe(2);
+		expect(timed.find(n => n.id === '4-6')!.timed!.timeoutHeartCost).toBe(1);
+		expect(QUEST_CH3.nodes.find(n => n.id === '3-3')!.keepOrder).toBe(true);
 	});
 
 	test('answers are judged after trim, end punctuation, case and spaces', () => {

@@ -20,12 +20,15 @@ import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.j
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { lojoDefaultVoice, lojoVoiceIds, lojoVoices } from '@/misc/lojo-voices.js';
 import { QUEST_CH1, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
-import type { QuestNode, QuestQuestion } from '@/misc/lojo-quest-ch1.js';
+import { QUEST_CH2 } from '@/misc/lojo-quest-ch2.js';
+import { QUEST_CH3 } from '@/misc/lojo-quest-ch3.js';
+import { QUEST_CH4 } from '@/misc/lojo-quest-ch4.js';
+import type { QuestChapter, QuestNode, QuestQuestion, QuestRules } from '@/misc/lojo-quest-types.js';
 import { QUEST_BOOKS, bookForCause } from '@/misc/lojo-quest-books.js';
 import type { QuestBook } from '@/misc/lojo-quest-books.js';
 import {
 	MAX_FREEZES, MAX_HEARTS, NO_HEART_APPS, REPLAY_XP, XP, addDays, ageOf, behindOf, bookGear, dayOf, daysBetween, displayAnswer, drawQuestions, examDateOk, gearPath,
-	heartsNow, judge, mainCause, nextRefillAt, pickSet, setCounts, settleStreak, shelfFor, shuffle, starsAfter, streakNow, touchStreak, wrongCause,
+	grade, heartsNow, mainCause, nextRefillAt, pickSet, setCounts, settleStreak, shelfFor, shuffle, starsAfter, streakNow, touchStreak, wrongCause,
 } from '@/misc/lojo-quest.js';
 import type { QuestNext, QuestTry, QuestWrong } from '@/misc/lojo-tutor-quest.js';
 import {
@@ -39,19 +42,39 @@ type Row = Omit<MiLojoQuest, 'user'>;
 type Log = { kind: string; ref: string; hearts: number; xp: number; data?: Record<string, unknown> };
 type Mode = 'practice' | 'level' | 'retest' | 'boss';
 
+// 雅思四章（11-11 导入）。第二章起起点、Boss、三个站的 id 带章号（2-boss…），第一章照旧（存档里是 boss、start）。
+const CHAPTERS: QuestChapter[] = [QUEST_CH1, QUEST_CH2, QUEST_CH3, QUEST_CH4];
 const CH = QUEST_CH1;
 const N = QUEST_NUMBERS;
-// Chapter number for Mia's knowledge (quest-ch<N>): from the chapter id ("ielts-c1"). Only chapter 1 is loaded now, so
-// every level, the Boss included, is chapter 1; when more chapters come in, fill it from the chapter the node is in.
-const CH_NO = Number(/c(\d+)$/.exec(CH.id)?.[1] ?? 1);
-const nodeOf = (id: string): QuestNode | undefined => CH.nodes.find(n => n.id === id);
+const chapterOf = (no: number): QuestChapter => CHAPTERS.find(c => c.no === no) ?? CH;
+const NODES = new Map<string, QuestNode>(CHAPTERS.flatMap(c => c.nodes.map(n => [n.id, n] as const)));
+const nodeOf = (id: string): QuestNode | undefined => NODES.get(id);
 const questionOf = (node: QuestNode | undefined, qid: string): QuestQuestion | undefined => node?.pool?.find(q => q.id === qid);
 const bookOf = (slug: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.slug === slug);
 const bookByRef = (ref: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.ref === ref);
-// every level of the chapter in map order, the Boss last (for 落后提醒)
-const LEVEL_ORDER = CH.nodes.filter(n => n.kind === 'level').map(n => n.id).concat(CH.nodes.filter(n => n.kind === 'boss').map(n => n.id));
+// 锦囊还没导进来的（j11 起）照 shelfRule 跳过
+const knownRefs = (refs: readonly string[]) => refs.filter(r => bookByRef(r) != null);
+// every level of a chapter in map order, the Boss last (for 落后提醒)
+const levelOrder = (c: QuestChapter) => c.nodes.filter(n => n.kind === 'level').map(n => n.id).concat(c.nodes.filter(n => n.kind === 'boss').map(n => n.id));
+const LEVEL_ORDER = levelOrder(CH);
 const BOARD_MIN_PLAYERS = 5;
-const BADGE = N.chest.chapterClear.badge;
+// Boss 备战三项：第一章存档里是 guide / gear / news，第二章起带章号（c2:guide…）；extra = 连输后要多做的一项还没做
+const PREP_ITEMS = ['guide', 'gear', 'news'] as const;
+type PrepItem = typeof PREP_ITEMS[number] | 'extra';
+const prepKey = (no: number, item: PrepItem) => (no === 1 ? item : `c${no}:${item}`);
+
+// 限时关：服务器比页面多等这么久再判超时（网络慢、手机时钟差一点）
+const TIME_GRACE_MS = 3000;
+
+// 第一章在正式站的旧规矩（ch1-11a）：开关 1 颗心、备战 3 项全做、连输 2 次清零。11e 新规矩只在测试站，等创始人定。
+function legacyCh1(r: QuestRules): QuestRules {
+	return {
+		...r,
+		level: { ...r.level, minHeartsToStart: 1 },
+		boss: { ...r.boss, prepRequired: r.boss.prepOf, extraPrepAfterLossesInARow: null, resetPrepAfterLossesInARow: 2 },
+	};
+}
+
 // 生词本 today below this many cards: a 「去生词本」 gear goes to its fallback (错因对照表.json 规则)
 const WORDBOOK_MIN = N.hearts.earnBack.gear.minItems;
 
@@ -65,15 +88,33 @@ const TRIAL_TTL_S = 6 * 60 * 60;
 const trialKey = (id: string) => `lojoQuestTrial:${id}`;
 type Trial = { levelId: string; questionIds: string[]; answers: MiLojoQuestAttempt['answers']; status: string; mode: Mode; createdAt: string };
 
-// need / maxWrong / total / heart cost of a try. Levels: 5 questions, 4 right passes, 2 wrong fails. Boss: 6, 5 hits
-// (its hp) win, 2 wrong or no hearts lose. Retest: 3 from both sets, 2 right passes, no hearts.
+// need / maxWrong / total / heart cost of a try, from the node's chapter. Levels: 5 questions, 4 right passes, 2 wrong
+// fails. Boss: 6, 5 hits (its hp) win, 2 wrong or no hearts lose. Retest: 3 from both sets, 2 right passes, no hearts.
 function rulesOf(node: QuestNode, mode: Mode): { need: number; maxWrong: number; total: number; heartCost: number } {
+	const R = chapterOf(node.ch).rules;
 	if (mode === 'retest') {
-		const r = N.level.retest;
+		const r = R.retest;
 		return { need: r.passAt, maxWrong: r.questions - r.passAt + 1, total: r.questions, heartCost: r.heartCost };
 	}
-	if (mode === 'boss') return { need: N.boss.hp, maxWrong: N.boss.loseAtWrong, total: N.boss.questionsPerTry, heartCost: node.heartCost };
-	return { need: N.level.passAtCorrect, maxWrong: N.level.failAtWrong, total: N.level.questionsPerTry, heartCost: node.heartCost };
+	if (mode === 'boss') return { need: R.boss.hp, maxWrong: R.boss.maxWrong, total: R.boss.total, heartCost: node.heartCost };
+	return { need: R.level.need, maxWrong: R.level.maxWrong, total: R.level.ask, heartCost: node.heartCost };
+}
+
+// 限时关（第四章 4-6、Boss）：回测不限时
+const timedOf = (node: QuestNode, mode: Mode) => (mode === 'retest' ? null : node.timed);
+const deadlineOf = (node: QuestNode, at: { createdAt: Date }) => at.createdAt.getTime() + (node.timed?.totalSeconds ?? 0) * 1000;
+
+// What the page gets about the clock: when it started and ends (server time), and the words to show.
+function timerOf(node: QuestNode, mode: Mode, at: { createdAt: Date }, now: Date) {
+	const t = timedOf(node, mode);
+	if (t == null) return null;
+	const endsAt = deadlineOf(node, at);
+	return {
+		totalSeconds: t.totalSeconds, warnAtSecondsLeft: t.warnAtSecondsLeft, card: t.card,
+		startedAt: at.createdAt.toISOString(), endsAt: new Date(endsAt).toISOString(), now: now.toISOString(),
+		secondsLeft: Math.max(0, Math.ceil((endsAt - now.getTime()) / 1000)),
+		copy: chapterOf(node.ch).rules.timedCopy,
+	};
 }
 
 // What the page gets for a question: never the answer, accept list, evidence or the recording's script. Chips shuffled.
@@ -89,6 +130,7 @@ function publicQuestion(q: QuestQuestion) {
 	return {
 		id: q.id, type: q.type, skill: q.skill, passage: q.passage, question: q.question,
 		options: q.options, chips, limit: q.limit, audio: q.audio != null,
+		pick: q.pick, playOnce: q.playOnce, lecture: q.lecture,
 	};
 }
 
@@ -98,6 +140,8 @@ export class LojoQuestService {
 	// 闯关定级 is on the test site only for now (11-11): its recording is still the browser reading a script, so the
 	// answers are in what the page gets. On the live site the banner and menu item stay hidden and no paper is served.
 	private placementOn: boolean;
+	// 正式站：只开第一章（第二章起挡在门口卡后面，创始人 11-11 定），第一章用旧规矩
+	private live: boolean;
 
 	constructor(
 		@Inject(DI.config)
@@ -113,7 +157,52 @@ export class LojoQuestService {
 	) {
 		// Mia's follow-ups after "Ask Mia" go by the hearts now, not the ones stored with the try.
 		this.lojoTutorService.questHearts = userId => this.heartsFor(userId);
-		this.placementOn = new URL(this.config.url).hostname !== 'app.vibes.college';
+		this.live = new URL(this.config.url).hostname === 'app.vibes.college';
+		this.placementOn = !this.live;
+	}
+
+	// A chapter's rules on this site
+	private rulesFor(no: number): QuestRules {
+		const r = chapterOf(no).rules;
+		return this.live && no === 1 ? legacyCh1(r) : r;
+	}
+
+	// numbers.json unlock: 第一章总是开着；第二章打赢第一章 Boss（或定级到第二章）开；第三、四章打赢上一章 Boss 开。
+	// 正式站第二章起都不开。
+	private chapterOpen(row: Row, no: number): boolean {
+		if (no === 1) return true;
+		if (this.live) return false;
+		if (no === 2 && (row.placement?.ch2?.length ?? 0) > 0) return true;
+		return row.levels[chapterOf(no - 1).bossId]?.passedAt != null;
+	}
+
+	private bossBeaten(row: Row, no: number): boolean {
+		return row.levels[chapterOf(no).bossId]?.passedAt != null;
+	}
+
+	// Doing a prep item (a guide, a gear set, a timeline post) ticks it for every open chapter whose Boss is not beaten
+	// yet (第一章 always, as before), and does the one more item asked after losses in a row.
+	private tickPrep(row: Row, item: typeof PREP_ITEMS[number]): void {
+		const next = { ...row.prep };
+		for (const c of CHAPTERS) {
+			if (c.no !== 1 && (!this.chapterOpen(row, c.no) || this.bossBeaten(row, c.no))) continue;
+			next[prepKey(c.no, item)] = true;
+			delete next[prepKey(c.no, 'extra')];
+		}
+		row.prep = next;
+	}
+
+	private bossReady(row: Row, no: number): boolean {
+		if (no === 1 && row.placement?.prepWaived) return true;
+		const p = this.prepOf(row, no);
+		const done = [p.guide, p.gear, p.news].filter(x => x).length;
+		return done >= this.rulesFor(no).boss.prepRequired && !p.extra;
+	}
+
+	// The chapter a learner is on now: the first open one whose Boss is not beaten, else the last open one.
+	private currentChapter(row: Row): QuestChapter {
+		const open = CHAPTERS.filter(c => this.chapterOpen(row, c.no));
+		return open.find(c => !this.bossBeaten(row, c.no)) ?? open[open.length - 1] ?? CH;
 	}
 
 	private async heartsFor(userId: string) {
@@ -197,31 +286,43 @@ export class LojoQuestService {
 		return { days: row.streak, changed: t.changed, usedFreezes: t.usedFreezes, gotFreeze: t.gotFreeze };
 	}
 
-	private prepOf(row: Row) {
-		return { guide: !!row.prep.guide, gear: !!row.prep.gear, news: !!row.prep.news };
+	private prepOf(row: Row, no = 1) {
+		const k = (item: PrepItem) => !!row.prep[prepKey(no, item)];
+		return { guide: k('guide'), gear: k('gear'), news: k('news'), extra: k('extra') };
 	}
 
 	// Which nodes are open (numbers.json unlock): a node opens when the from of any line into it is passed (the start
 	// counts as passed); stations never block and are done once their Boss prep item is. The Boss opens with 1-6 passed
 	// and can be started once prep is done.
 	private nodeStates(row: Row): Record<string, 'done' | 'open' | 'locked'> {
-		const passed = (id: string) => id === 'start' || row.levels[id]?.passedAt != null;
 		const states: Record<string, 'done' | 'open' | 'locked'> = {};
-		for (const n of CH.nodes) {
-			if (n.kind === 'start') {
-				states[n.id] = 'done';
-				continue;
+		for (const c of CHAPTERS) {
+			const open = this.chapterOpen(row, c.no);
+			const prep = this.prepOf(row, c.no);
+			const passed = (id: string) => id === c.startId || row.levels[id]?.passedAt != null;
+			for (const n of c.nodes) {
+				if (!open) {
+					states[n.id] = 'locked';
+					continue;
+				}
+				if (n.kind === 'start') {
+					states[n.id] = 'done';
+					continue;
+				}
+				const reached = c.edges.some(([a, b]) => b === n.id && passed(a));
+				const stationDone = (n.kind === 'gear' && prep.gear) || (n.kind === 'news' && prep.news) || (n.kind === 'shelf' && prep.guide);
+				states[n.id] = !reached ? 'locked' : (passed(n.id) && (n.kind === 'level' || n.kind === 'boss')) || stationDone ? 'done' : 'open';
 			}
-			const reached = CH.edges.some(([a, b]) => b === n.id && passed(a));
-			const stationDone = (n.kind === 'gear' && row.prep.gear) || (n.kind === 'news' && row.prep.news) || (n.kind === 'shelf' && row.prep.guide);
-			states[n.id] = !reached ? 'locked' : (passed(n.id) && (n.kind === 'level' || n.kind === 'boss')) || stationDone ? 'done' : 'open';
 		}
 		return states;
 	}
 
 	// The level's 3 books and the recommended first one (numbers.json shelfRule).
+	// A level may name the book for a cause (第四章 4-8: vocab → j31); books not in yet are skipped.
 	private shelfOf(node: QuestNode | undefined, cause: string | null, failStreak: number): { refs: string[]; book: QuestBook } {
-		const refs = shelfFor(node?.shelf ?? [], cause ? bookForCause(cause)?.ref ?? null : null, failStreak);
+		const guide = cause ? node?.causeGuide?.[cause] : undefined;
+		const causeRef = guide != null && bookByRef(guide) != null ? guide : cause ? bookForCause(cause)?.ref ?? null : null;
+		const refs = shelfFor(knownRefs(node?.shelf ?? []), causeRef, failStreak);
 		const book = bookByRef(refs[0] ?? '') ?? bookForCause('same-word') ?? QUEST_BOOKS[0];
 		return { refs, book };
 	}
@@ -242,8 +343,16 @@ export class LojoQuestService {
 			if (r.notice != null) await em.update(MiLojoQuest, { userId }, { notice: null });
 			return r;
 		});
-		const [logs, wordbookLow] = await Promise.all([this.todayLogs(this.db, userId, now), this.wordbookLow(userId, now)]);
-		return this.pack(row, logs, now, wordbookLow);
+		const [logs, wordbookLow, openTimed] = await Promise.all([this.todayLogs(this.db, userId, now), this.wordbookLow(userId, now), this.openTimed(userId)]);
+		return this.pack(row, logs, now, wordbookLow, openTimed);
+	}
+
+	// A timed try still open (the page was reloaded or put away): the page goes back into it, the clock still running.
+	private async openTimed(userId: string): Promise<{ attemptId: string; levelId: string; endsAt: string } | null> {
+		const at = await this.db.getRepository(MiLojoQuestAttempt).findOne({ where: { userId, status: 'open' }, order: { createdAt: 'DESC' } });
+		const node = at ? nodeOf(at.levelId) : undefined;
+		if (at == null || node == null || timedOf(node, at.mode as Mode) == null) return null;
+		return { attemptId: at.id, levelId: at.levelId, endsAt: new Date(deadlineOf(node, at)).toISOString() };
 	}
 
 	// Exam date and the first-time walkthrough. Returns the same as show.
@@ -259,7 +368,54 @@ export class LojoQuestService {
 		return this.show(userId);
 	}
 
-	private pack(row: Row, logs: MiLojoQuestLog[], now: Date, wordbookLow: boolean) {
+	// One chapter for the map: its nodes and states (never the questions), whether it is open, Boss prep and the rules
+	// the page shows.
+	private packChapter(c: QuestChapter, row: Row, states: Record<string, 'done' | 'open' | 'locked'>, today: string) {
+		const R = this.rulesFor(c.no);
+		return {
+			id: c.id, no: c.no, version: c.version, title: c.title, band: c.band,
+			// 页面上不再写「练习难度，不是官方分数」（创始人 11-10 删说明小字）；字段留着，免得改接口
+			disclaimer: '', boss: c.boss,
+			bossId: c.bossId, startId: c.startId,
+			open: this.chapterOpen(row, c.no),
+			beaten: this.bossBeaten(row, c.no),
+			prep: this.prepOf(row, c.no),
+			bossReady: this.bossReady(row, c.no),
+			bossLosses: row.levels[c.bossId]?.failStreak ?? 0,
+			rules: {
+				minHeartsToStart: R.level.minHeartsToStart, minHeartsToStartPractice: R.level.minHeartsToStartPractice, lowHeartsButton: R.level.lowHeartsButton,
+				prepRequired: R.boss.prepRequired, prepOf: R.boss.prepOf, prep: R.boss.prep,
+				extraPrepAfterLossesInARow: R.boss.extraPrepAfterLossesInARow, resetPrepAfterLossesInARow: R.boss.resetPrepAfterLossesInARow,
+				multi: R.multi, timedCopy: R.timedCopy,
+			},
+			branches: c.branches,
+			edges: c.edges,
+			nodes: c.nodes.map(n => {
+				const l: MiLojoQuestLevel | undefined = row.levels[n.id];
+				const isLevel = n.kind === 'level' || n.kind === 'boss';
+				// 7 days untouched fades, 14 turns gray; a passed retest relights
+				// a level lit by the placement test never fades: it was not played
+				const age = l?.passedAt && l.lastAt && !l.placed ? ageOf(dayOf(new Date(l.lastAt)), today) : null;
+				return {
+					id: n.id, ch: n.ch, kind: n.kind, x: n.x, y: n.y, label: n.label, name: n.name, zh: n.zh, hint: n.zh, branch: n.branch,
+					skill: n.skill, type: n.type, practice: n.practice, ask: n.ask, need: n.need, maxWrong: n.maxWrong,
+					hashtags: n.hashtags, tags: n.hashtags, shelf: knownRefs(n.shelf).map(r => Number(r.slice(1))), heartCost: n.heartCost,
+					gear: isLevel || n.kind === 'gear' ? gearPath(n.gear) : null, state: states[n.id],
+					// 「补 1 颗心」去哪（语法关指到词汇线）、本关装备补不补心、两个按钮的字
+					heartGear: isLevel ? gearPath(n.heartGear ?? n.gear) : null, gearGivesHeart: n.gearGivesHeart, gearButton: n.gearButton, heartButton: n.heartButton,
+					keepOrder: n.keepOrder,
+					timed: n.timed ? { totalSeconds: n.timed.totalSeconds, warnAtSecondsLeft: n.timed.warnAtSecondsLeft, card: n.timed.card } : null,
+					best: l?.best ?? null, tries: l?.tries ?? 0, failStreak: l?.failStreak ?? 0,
+					stars: l?.stars ?? (l?.passedAt ? 1 : 0),
+					age,
+					retestable: n.retest && l?.passedAt != null && age != null,
+					placed: !!l?.placed,
+				};
+			}),
+		};
+	}
+
+	private pack(row: Row, logs: MiLojoQuestLog[], now: Date, wordbookLow: boolean, openTimed: { attemptId: string; levelId: string; endsAt: string } | null = null) {
 		const today = dayOf(now);
 		const s = streakNow(row, today);
 		const states = this.nodeStates(row);
@@ -271,9 +427,11 @@ export class LojoQuestService {
 		const checked = new Set(logs.filter(l => l.kind === 'check' && l.data.passed === true).map(l => l.ref));
 		const refilled = { guide: logs.some(l => l.kind === 'refill' && l.ref === 'guide'), gear: logs.some(l => l.kind === 'refill' && l.ref === 'gear') };
 		const prep = this.prepOf(row);
+		const cur = this.currentChapter(row);
+		const order = levelOrder(cur);
 		const daysLeft = row.examDate ? Math.max(0, daysBetween(today, row.examDate)) : null;
 		const passedDays: Record<string, string | undefined> = {};
-		for (const id of LEVEL_ORDER) {
+		for (const id of order) {
 			const at = row.levels[id]?.passedAt;
 			passedDays[id] = at ? dayOf(new Date(at)) : undefined;
 		}
@@ -288,45 +446,25 @@ export class LojoQuestService {
 			xp: row.xp,
 			todayXp: logs.reduce((a, l) => a + l.xp, 0),
 			prep,
-			bossReady: (prep.guide && prep.gear && prep.news) || !!row.placement?.prepWaived,
+			bossReady: this.bossReady(row, 1),
 			prepWaived: !!row.placement?.prepWaived,
 			placement: this.placementState(row, now),
 			bossLosses: row.bossLosses,
 			chestToday: row.chestDay === today,
 			bag: row.bag,
-			badges: row.levels.boss?.passedAt ? [BADGE] : [],
+			badges: CHAPTERS.filter(c => this.bossBeaten(row, c.no)).map(c => c.rules.chest.badge),
+			currentChapter: cur.no,
 			lastFail: fail ? { levelId: fail.levelId, cause: fail.cause, failStreak: fail.failStreak } : null,
 			tutorId: lojoTutorIds()[0] ?? null,
 			examDate: row.examDate,
 			daysLeft,
 			onboarded: row.onboarded,
-			behind: behindOf({ order: LEVEL_ORDER, passed: passedDays, today, daysLeft }),
+			behind: behindOf({ order, passed: passedDays, today, daysLeft }),
 			notice: row.notice,
-			chapter: {
-				id: CH.id, version: CH.version, title: CH.title, band: CH.band,
-				// 页面上不再写「练习难度，不是官方分数」（创始人 11-10 删说明小字）；字段留着，免得改接口
-				disclaimer: '', boss: CH.boss,
-				branches: CH.branches,
-				edges: CH.edges,
-				nodes: CH.nodes.map(n => {
-					const l: MiLojoQuestLevel | undefined = row.levels[n.id];
-					const isLevel = n.kind === 'level' || n.kind === 'boss';
-					// 7 days untouched fades, 14 turns gray; a passed retest relights
-					// a level lit by the placement test never fades: it was not played
-					const age = l?.passedAt && l.lastAt && !l.placed ? ageOf(dayOf(new Date(l.lastAt)), today) : null;
-					return {
-						id: n.id, kind: n.kind, x: n.x, y: n.y, label: n.label, name: n.name, zh: n.zh, hint: n.zh, branch: n.branch,
-						skill: n.skill, type: n.type, practice: n.practice, ask: n.ask, need: n.need, maxWrong: n.maxWrong,
-						hashtags: n.hashtags, tags: n.hashtags, shelf: n.shelf.map(r => Number(r.slice(1))), heartCost: n.heartCost,
-						gear: isLevel || n.kind === 'gear' ? gearPath(n.gear) : null, state: states[n.id],
-						best: l?.best ?? null, tries: l?.tries ?? 0, failStreak: l?.failStreak ?? 0,
-						stars: l?.stars ?? (l?.passedAt ? 1 : 0),
-						age,
-						retestable: n.retest && l?.passedAt != null && age != null,
-						placed: !!l?.placed,
-					};
-				}),
-			},
+			chapter: this.packChapter(CH, row, states, today),
+			// 四章（第二章起，正式站上是没开的铅笔稿）
+			chapters: CHAPTERS.map(c => this.packChapter(c, row, states, today)),
+			openTimed,
 			books: QUEST_BOOKS.map(b => {
 				const g = bookGear(b, failNode?.gear, { wordbookLow, hearts: row.hearts });
 				const gp = g ? gearPath(g) : null;
@@ -345,50 +483,129 @@ export class LojoQuestService {
 		const node = nodeOf(levelId);
 		if (node == null || (node.kind !== 'level' && node.kind !== 'boss') || node.pool == null) throw new ApiError(lojoQuestErrors.noSuchLevel);
 		const pool = node.pool;
+		const R = this.rulesFor(node.ch);
 		return await this.db.transaction(async em => {
 			const row = await this.lock(em, userId, now);
 			const prev = row.levels[levelId] ?? {};
 			const mode: Mode = retest ? 'retest' : node.kind === 'boss' ? 'boss' : node.practice ? 'practice' : 'level';
 			if (this.nodeStates(row)[levelId] === 'locked') throw new ApiError(lojoQuestErrors.levelLocked);
+			// 限时关开着的那一局：重新加载、锁屏回来都接着打，钟不停；时间已经到了就收卷
+			if (!retest && node.timed != null) {
+				const open = await em.findOne(MiLojoQuestAttempt, { where: { userId, levelId, status: 'open' }, order: { createdAt: 'DESC' }, lock: { mode: 'pessimistic_write' } });
+				if (open != null && open.mode === mode) {
+					const resume = this.tryOut(open, node, mode, row, now);
+					if (now.getTime() <= deadlineOf(node, open) + TIME_GRACE_MS) return { ...resume, resumed: true, answered: open.answers.length };
+					const end = await this.expire(em, row, open, node, now);
+					await this.save(em, row, now);
+					return { ...resume, resumed: true, answered: open.answers.length, timeUp: end, hearts: row.hearts };
+				}
+			}
 			if (retest) {
 				const age = prev.passedAt && prev.lastAt ? ageOf(dayOf(new Date(prev.lastAt)), dayOf(now)) : null;
 				if (!node.retest || age == null || prev.placed) throw new ApiError(lojoQuestErrors.notRetestable);
 			}
-			if (mode === 'boss' && !(row.prep.guide && row.prep.gear && row.prep.news) && !row.placement?.prepWaived) throw new ApiError(lojoQuestErrors.bossNotReady);
+			if (mode === 'boss' && !this.bossReady(row, node.ch)) throw new ApiError(lojoQuestErrors.bossNotReady);
 			const rules = rulesOf(node, mode);
-			if (rules.heartCost > 0 && row.hearts <= 0) throw new ApiError(lojoQuestErrors.noHearts);
+			// 开新关至少要几颗心（11e：普通关和 Boss 2 颗，练手关 0；正式站第一章照旧 1 颗）
+			const minHearts = rules.heartCost > 0 ? (mode === 'practice' ? R.level.minHeartsToStartPractice : R.level.minHeartsToStart) : 0;
+			if (minHearts > 0 && row.hearts < minHearts) throw new ApiError(lojoQuestErrors.noHearts);
 			await em.update(MiLojoQuestAttempt, { userId, status: 'open' }, { status: 'quit', endedAt: now });
 			let qs: QuestQuestion[];
 			let set: string | null = null;
 			let setsUsed = prev.setsUsed ?? [];
 			if (mode === 'retest') {
 				qs = drawQuestions(pool, rules.total, prev.lastQs ?? []);
+				// 讲座切成几段的关：按原来的顺序
+				if (node.keepOrder) qs = pool.filter(q => qs.includes(q));
 			} else {
 				const picked = pickSet(pool, node.sets, rules.total, setsUsed, prev.lastQs ?? []);
 				qs = picked.questions;
 				set = picked.set;
 				setsUsed = picked.used;
+				// 讲座（3-3）不打乱：几套都用过以后，换一整套，跟上一局不同的那套
+				if (node.keepOrder && set == null) {
+					const lastSet = pool.find(q => q.id === prev.lastQs?.[0])?.set;
+					set = shuffle(node.sets.filter(x => x !== lastSet))[0] ?? node.sets[0];
+					qs = pool.filter(q => q.set === set).slice(0, rules.total);
+				}
 			}
 			const attempt = { id: this.idService.gen(now.getTime()), userId, levelId, questionIds: qs.map(q => q.id), answers: [], status: 'open', mode, createdAt: now, endedAt: null, askedTutor: false };
 			await em.insert(MiLojoQuestAttempt, attempt);
 			row.levels = { ...row.levels, [levelId]: { ...prev, lastQs: attempt.questionIds, setsUsed } };
 			await this.save(em, row, now);
-			return {
-				attemptId: attempt.id,
-				levelId,
-				mode,
-				kind: node.kind,
-				practice: node.practice,
-				set,
-				need: rules.need,
-				total: qs.length,
-				maxWrong: rules.maxWrong,
-				heartCost: rules.heartCost,
-				hp: mode === 'boss' ? CH.boss.hp : null,
-				hint: node.zh,
-				hearts: row.hearts,
-				questions: qs.map(publicQuestion),
-			};
+			return { ...this.tryOut(attempt, node, mode, row, now), set };
+		});
+	}
+
+	// What the page gets when a try starts or is picked up again.
+	private tryOut(at: Pick<MiLojoQuestAttempt, 'id' | 'levelId' | 'questionIds' | 'createdAt'>, node: QuestNode, mode: Mode, row: Row, now: Date) {
+		const rules = rulesOf(node, mode);
+		const qs = at.questionIds.map(id => questionOf(node, id)).filter((q): q is QuestQuestion => q != null);
+		return {
+			attemptId: at.id,
+			levelId: at.levelId,
+			ch: node.ch,
+			mode,
+			kind: node.kind,
+			practice: node.practice,
+			set: null as string | null,
+			need: rules.need,
+			total: qs.length,
+			maxWrong: rules.maxWrong,
+			heartCost: rules.heartCost,
+			hp: mode === 'boss' ? chapterOf(node.ch).boss.hp : null,
+			hint: node.zh,
+			hearts: row.hearts,
+			multi: chapterOf(node.ch).rules.multi,
+			timer: timerOf(node, mode, at, now),
+			questions: qs.map(publicQuestion),
+		};
+	}
+
+	// 限时关时间到：没答的题按错算（错因 time-out）。普通关合起来扣 timeoutHeartCost 颗心；Boss 没答的不打中 Boss，
+	// 每题扣 1 颗心，一局（连答错的）最多扣 maxHeartsPerTry 颗。The try ends as not passed.
+	private async expire(em: EntityManager, row: Row, at: MiLojoQuestAttempt, node: QuestNode, now: Date) {
+		const t = node.timed!;
+		const mode = at.mode as Mode;
+		const rules = rulesOf(node, mode);
+		const left = at.questionIds.slice(at.answers.length);
+		const wrongBefore = at.answers.filter(a => !a.correct && !a.half).length;
+		at.answers = [...at.answers, ...left.map(qid => ({ qid, given: '', correct: false, cause: 'time-out', timeout: true }))];
+		let lost = 0;
+		if (rules.heartCost > 0 && left.length > 0) {
+			if (mode === 'boss') {
+				const cap = t.maxHeartsPerTry ?? Infinity;
+				lost = Math.max(0, Math.min(left.length * t.heartPerUnanswered, cap - wrongBefore * rules.heartCost));
+			} else {
+				lost = t.timeoutHeartCost;
+			}
+			lost = Math.min(lost, row.hearts);
+			if (lost > 0) {
+				this.setHearts(row, row.hearts - lost, now);
+				await this.log(em, row.userId, now, { kind: 'wrong', ref: at.levelId, hearts: -lost, xp: 0, data: { timeout: true, unanswered: left.length } });
+			}
+		}
+		at.status = 'failed';
+		at.endedAt = now;
+		const end = await this.finish(em, row, at, node, false, now, false, { unanswered: left.length, heartsLost: lost });
+		await em.update(MiLojoQuestAttempt, { id: at.id }, { answers: at.answers, status: at.status, endedAt: at.endedAt });
+		return end;
+	}
+
+	// The page's clock reached 0: the server checks the time itself and hands the try in.
+	public async timeUp(userId: string, attemptId: string) {
+		const now = new Date();
+		return await this.db.transaction(async em => {
+			const row = await this.lock(em, userId, now);
+			const at = await em.findOne(MiLojoQuestAttempt, { where: { id: attemptId, userId }, lock: { mode: 'pessimistic_write' } });
+			const node = at ? nodeOf(at.levelId) : undefined;
+			if (at == null || at.status !== 'open' || node == null || timedOf(node, at.mode as Mode) == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
+			const left = deadlineOf(node, at) - now.getTime();
+			// 页面的钟快了一点：还没到就告诉它还剩几秒
+			if (left > 1500) return { timeUp: false, secondsLeft: Math.ceil(left / 1000), hearts: row.hearts, end: null };
+			const end = await this.expire(em, row, at, node, now);
+			await this.save(em, row, now);
+			return { timeUp: true, secondsLeft: 0, hearts: row.hearts, end };
 		});
 	}
 
@@ -459,19 +676,33 @@ export class LojoQuestService {
 			if (node == null || q == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
 			const mode = at.mode as Mode;
 			const rules = rulesOf(node, mode);
-			const correct = judge(q, given);
-			const cause = correct ? null : wrongCause(q, given);
-			at.answers = [...at.answers, { qid, given: given.slice(0, 200), correct, cause }];
+			// 限时关：时间已经过了，这一题不算，直接收卷
+			if (timedOf(node, mode) != null && now.getTime() > deadlineOf(node, at) + TIME_GRACE_MS) {
+				const end = await this.expire(em, row, at, node, now);
+				await this.save(em, row, now);
+				const right = at.answers.filter(a => a.correct).length;
+				return {
+					correct: false, half: false, timeUp: true, answer: '', why: '', evidence: '', cause: 'time-out', heartLost: false, hearts: row.hearts,
+					progress: { answered: at.answers.length, right, wrong: at.answers.length - right, need: rules.need, maxWrong: rules.maxWrong, total: at.questionIds.length },
+					end,
+				};
+			}
+			const g = grade(q, given);
+			const correct = g === 'right';
+			const half = g === 'half';
+			const cause = correct ? null : wrongCause(q, given, chapterOf(node.ch).rules.multi?.oneRightCause);
+			at.answers = [...at.answers, { qid, given: given.slice(0, 200), correct, cause, ...(half ? { half: true } : {}) }];
 			let heartLost = false;
-			if (!correct && rules.heartCost > 0 && row.hearts > 0) {
+			// 选两个对一半：不扣心，Boss 也不打中
+			if (g === 'wrong' && rules.heartCost > 0 && row.hearts > 0) {
 				this.setHearts(row, row.hearts - rules.heartCost, now);
 				heartLost = true;
 				await this.log(em, userId, now, { kind: 'wrong', ref: at.levelId, hearts: -rules.heartCost, xp: 0, data: { qid, cause } });
 			}
 			const right = at.answers.filter(a => a.correct).length;
-			const wrong = at.answers.length - right;
+			const wrong = at.answers.filter(a => !a.correct && !a.half).length;
 			// the Boss is lost when hearts run out; a level just goes on (0 hearts only stops the next start)
-			const outOfHearts = mode === 'boss' && row.hearts <= 0 && !correct;
+			const outOfHearts = mode === 'boss' && row.hearts <= 0 && g === 'wrong';
 			let ended: null | 'passed' | 'failed' = null;
 			if (right >= rules.need) ended = 'passed';
 			else if (wrong >= rules.maxWrong || outOfHearts || at.answers.length >= at.questionIds.length) ended = 'failed';
@@ -485,22 +716,24 @@ export class LojoQuestService {
 			await em.update(MiLojoQuestAttempt, { id: at.id }, { answers: at.answers, status: at.status, endedAt: at.endedAt });
 			await this.save(em, row, now);
 			return {
-				correct, answer: displayAnswer(q), why: q.why, evidence: q.evidence, cause, heartLost, hearts: row.hearts,
+				correct, half, timeUp: false, answer: displayAnswer(q), why: q.why, evidence: q.evidence, cause, heartLost, hearts: row.hearts,
 				progress: { answered: at.answers.length, right, wrong, need: rules.need, maxWrong: rules.maxWrong, total: at.questionIds.length },
 				end,
 			};
 		});
 	}
 
-	private async finish(em: EntityManager | null, row: Row, at: MiLojoQuestAttempt, node: QuestNode, passed: boolean, now: Date, outOfHearts: boolean) {
+	private async finish(em: EntityManager | null, row: Row, at: MiLojoQuestAttempt, node: QuestNode, passed: boolean, now: Date, outOfHearts: boolean, timeUp: { unanswered: number; heartsLost: number } | null = null) {
 		const today = dayOf(now);
 		const mode = at.mode as Mode;
 		const retest = mode === 'retest';
 		const rules = rulesOf(node, mode);
+		const chapter = chapterOf(node.ch);
+		const R = this.rulesFor(node.ch);
 		const prev: MiLojoQuestLevel = row.levels[at.levelId] ?? {};
 		const right = at.answers.filter(a => a.correct).length;
 		const causes = at.answers.filter(a => !a.correct && a.cause != null).map(a => a.cause!);
-		const main = mainCause(causes);
+		const main = mainCause(causes, chapter.causeOrder);
 		const perfect = passed && right === at.questionIds.length && at.answers.every(a => a.correct);
 		// a level lit by the placement test: its first real pass is a first pass (定级规则 firstRealPassOnLitLevel)
 		const firstPass = passed && !retest && (prev.passedAt == null || !!prev.placed);
@@ -528,40 +761,50 @@ export class LojoQuestService {
 		let badge: string | null = null;
 		let streak = null;
 		let prepReset = false;
+		let prepExtra = false;
 		if (mode === 'boss') {
+			const ch1 = node.ch === 1;
 			if (passed) {
 				xp = firstPass ? XP.bossWin : REPLAY_XP;
-				row.bossLosses = 0;
-				if (row.placement?.prepWaived) row.placement = { ...row.placement, prepWaived: false };
+				if (ch1) row.bossLosses = 0;
+				if (ch1 && row.placement?.prepWaived) row.placement = { ...row.placement, prepWaived: false };
 				if (firstPass) {
-					xp += N.chest.chapterClear.xp;
-					badge = BADGE;
+					xp += R.chest.clearXp;
+					badge = R.chest.badge;
 				}
 			} else {
-				row.bossLosses += 1;
-				// 连输两次，备战清零
-				if (row.bossLosses >= N.boss.resetPrepAfterLossesInARow) {
-					row.prep = {};
+				if (ch1) row.bossLosses += 1;
+				const losses = level.failStreak ?? 0;
+				const reset = R.boss.resetPrepAfterLossesInARow;
+				const extra = R.boss.extraPrepAfterLossesInARow;
+				if (reset != null && ch1 && row.bossLosses >= reset) {
+					// 正式站第一章的旧规矩：连输两次，备战清零（只清这一章的）
+					const p = { ...row.prep };
+					for (const item of PREP_ITEMS) delete p[prepKey(node.ch, item)];
+					row.prep = p;
 					row.bossLosses = 0;
 					prepReset = true;
-					// 定级免备战 only holds until two losses in a row: then prep as usual
-					if (row.placement?.prepWaived) row.placement = { ...row.placement, prepWaived: false };
+				} else if (extra != null && losses > 0 && losses % extra === 0) {
+					// 11e：连输 2 次，多做 1 项备战，做过的不清空
+					row.prep = { ...row.prep, [prepKey(node.ch, 'extra')]: true };
+					prepExtra = true;
 				}
+				// 定级免备战 only holds until two losses in a row: then prep as usual
+				if (ch1 && (prepReset || prepExtra) && row.placement?.prepWaived) row.placement = { ...row.placement, prepWaived: false };
 			}
-			await this.log(em, row.userId, now, { kind: 'boss', ref: passed ? 'won' : 'lost', hearts: 0, xp, data: { attemptId: at.id, prepReset, badge } });
+			await this.log(em, row.userId, now, { kind: 'boss', ref: passed ? 'won' : 'lost', hearts: 0, xp, data: { attemptId: at.id, prepReset, prepExtra, badge } });
 		} else if (passed) {
 			xp = retest ? XP.retestPass : !firstPass ? REPLAY_XP : mode === 'practice' ? XP.practicePass : XP.levelPass + (perfect ? XP.perfectBonus : 0);
 			await this.log(em, row.userId, now, { kind: retest ? 'retest' : 'pass', ref: at.levelId, hearts: 0, xp, data: { attemptId: at.id, first: firstPass, perfect } });
 		}
 		if (passed) {
-			// 支线宝箱: the first pass of 1-12, XP and a freeze card when below the max
-			const side = N.chest.sideQuest;
-			if (firstPass && at.levelId === side.at) {
+			// 支线宝箱: the first pass of N-12, XP and a freeze card when below the max
+			if (firstPass && at.levelId === R.chest.sideAt) {
 				const freeze = row.freezes < MAX_FREEZES;
 				if (freeze) row.freezes += 1;
-				sideChest = { xp: side.xp, freeze };
-				await this.log(em, row.userId, now, { kind: 'chest', ref: `side:${at.levelId}`, hearts: 0, xp: side.xp, data: { freeze } });
-				xp += side.xp;
+				sideChest = { xp: R.chest.sideXp, freeze };
+				await this.log(em, row.userId, now, { kind: 'chest', ref: `side:${at.levelId}`, hearts: 0, xp: R.chest.sideXp, data: { freeze } });
+				xp += R.chest.sideXp;
 			}
 			// 每天第一次过关开宝箱：经验；10% 多一张冻结卡（满了不出），20% 给一本这关书屋里的锦囊预览
 			if (row.chestDay !== today) {
@@ -581,14 +824,23 @@ export class LojoQuestService {
 			streak = await this.streak(em, row, now);
 		}
 		const failStreak = level.failStreak ?? 0;
+		const timed = timedOf(node, mode);
 		return {
-			passed, mode, right, total: at.questionIds.length, need: rules.need, outOfHearts,
+			passed, mode, ch: node.ch, right, total: at.questionIds.length, need: rules.need, outOfHearts,
+			half: at.answers.filter(a => a.half).length,
 			xp, stars: level.stars ?? 0, chest, sideChest, badge, streak, firstPass, failStreak, cause: main,
-			bossLosses: row.bossLosses, prepReset, prep: this.prepOf(row),
+			bossLosses: mode === 'boss' && node.ch !== 1 ? failStreak : row.bossLosses, prepReset, prepExtra,
+			prep: this.prepOf(row, node.ch), bossReady: this.bossReady(row, node.ch),
+			// 限时关：用了多久（结算只写用时，不比上次）、是不是时间到收的卷
+			timer: timed == null ? null : {
+				elapsedSeconds: Math.min(timed.totalSeconds, Math.max(0, Math.round(((at.endedAt ?? now).getTime() - at.createdAt.getTime()) / 1000))),
+				totalSeconds: timed.totalSeconds,
+				timeUp: timeUp != null, unanswered: timeUp?.unanswered ?? 0, heartsLost: timeUp?.heartsLost ?? 0,
+			},
 			review: at.answers.map((a, i) => {
 				const q = questionOf(node, a.qid);
 				return {
-					n: i + 1, qid: a.qid, correct: a.correct, given: q ? displayAnswer(q, a.given) : a.given,
+					n: i + 1, qid: a.qid, correct: a.correct, half: !!a.half, timeout: !!a.timeout, given: q ? displayAnswer(q, a.given) : a.given,
 					answer: q ? displayAnswer(q) : '', why: q?.why ?? '', evidence: q?.evidence ?? '', cause: a.cause,
 				};
 			}),
@@ -658,7 +910,7 @@ export class LojoQuestService {
 		const q = questionOf(node, qid);
 		if (node == null || q == null) throw new ApiError(lojoQuestErrors.noSuchAttempt);
 		const rules = rulesOf(node, t.mode);
-		const correct = judge(q, given);
+		const correct = grade(q, given) === 'right';
 		const cause = correct ? null : wrongCause(q, given);
 		t.answers = [...t.answers, { qid, given: given.slice(0, 200), correct, cause }];
 		const right = t.answers.filter(a => a.correct).length;
@@ -772,7 +1024,8 @@ export class LojoQuestService {
 			const map = PLACEMENT_MAP[station];
 			const lit: string[] = [];
 			const levels = { ...row.levels };
-			for (const id of map.lit) {
+			// 1.6 起第二章前三关也点亮（第二章导入后，测试站）
+			for (const id of [...map.lit, ...map.ch2.filter(x => nodeOf(x) != null)]) {
 				if (levels[id]?.passedAt != null) continue;
 				levels[id] = { ...levels[id], passedAt: now.toISOString(), lastAt: now.toISOString(), stars: 1, placed: true };
 				lit.push(id);
@@ -837,7 +1090,7 @@ export class LojoQuestService {
 			else {
 				await this.log(em, userId, now, { kind: 'check', ref: slug, hearts: 0, xp: XP.guideQuizPass, data: { passed: true, right } });
 				row.xp += XP.guideQuizPass;
-				row.prep = { ...row.prep, guide: true };
+				this.tickPrep(row, 'guide');
 				if (!row.bag.includes(slug)) row.bag = [...row.bag, slug].slice(-3);
 				if (row.hearts >= MAX_HEARTS) reason = 'full';
 				else if (logs.some(l => l.kind === 'refill' && l.ref === 'guide')) reason = 'pathUsed';
@@ -861,7 +1114,7 @@ export class LojoQuestService {
 		return await this.db.transaction(async em => {
 			const row = await this.lock(em, userId, now);
 			if (!row.bag.includes(slug)) row.bag = [...row.bag, slug].slice(-3);
-			row.prep = { ...row.prep, guide: true };
+			this.tickPrep(row, 'guide');
 			await this.log(em, userId, now, { kind: 'take', ref: slug, hearts: 0, xp: 0 });
 			await this.save(em, row, now);
 			return { bag: row.bag, prep: this.prepOf(row) };
@@ -876,7 +1129,7 @@ export class LojoQuestService {
 			// 看情报 +2 XP, once a day
 			const logs = await this.todayLogs(em, userId, now);
 			const xp = logs.some(l => l.kind === 'news' && l.xp > 0) ? 0 : XP.intelRead;
-			row.prep = { ...row.prep, news: true };
+			this.tickPrep(row, 'news');
 			row.xp += xp;
 			await this.log(em, userId, now, { kind: 'news', ref: levelId ?? '', hearts: 0, xp });
 			await this.save(em, row, now);
@@ -907,7 +1160,7 @@ export class LojoQuestService {
 			if (logs.some(l => l.kind === 'set' && l.ref === ref)) return { ...base, reason: 'duplicate' };
 			await this.log(em, userId, now, { kind: 'set', ref, hearts: 0, xp: XP.gearSet, data: { items, durationMs: p.durationMs } });
 			row.xp += XP.gearSet;
-			row.prep = { ...row.prep, gear: true };
+			this.tickPrep(row, 'gear');
 			let reason: string | null = null;
 			let refilled = false;
 			if (NO_HEART_APPS.includes(p.app)) reason = 'noHeartApp';
@@ -999,15 +1252,18 @@ export class LojoQuestService {
 			v: 1,
 			attemptId: at.id,
 			at: (at.endedAt ?? now).toISOString(),
-			chapter: CH.title,
-			chapterNo: CH_NO,
+			chapter: chapterOf(node.ch).title,
+			chapterNo: node.ch,
 			level: { id: node.id, name: node.name || node.label, kind: node.kind === 'boss' ? 'boss' : 'level', skill: node.skill ?? '', type: node.type ?? '' },
 			result: { correct: at.answers.filter(a => a.correct).length, total: at.questionIds.length, needed: rulesOf(node, at.mode as Mode).need, passed: false, failStreak },
 			wrong,
 			cause,
 			hearts: { now: row.hearts, max: MAX_HEARTS, nextRefill: new Date(nextRefill.getTime() + 8 * 3600_000).toISOString().slice(11, 16), refilledToday },
 			streak: { days: s.days, doneToday: s.doneToday, freezeCards: row.freezes },
-			boss: node.kind === 'boss' ? { losses: row.bossLosses, prep: { guide: !!row.prep.guide, gear: !!row.prep.gear, intel: !!row.prep.news } } : null,
+			boss: node.kind === 'boss' ? (() => {
+				const p = this.prepOf(row, node.ch);
+				return { losses: node.ch === 1 ? row.bossLosses : failStreak, prep: { guide: p.guide, gear: p.gear, intel: p.news } };
+			})() : null,
 			next,
 		};
 		const result = at.askedTutor ? 'already' : await this.lojoTutorService.openFromQuest(tutorId, userId, questTry);

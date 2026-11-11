@@ -24,7 +24,8 @@ export type MiLojoQuestPlacement = {
 
 export type MiLojoQuestNotice = { kind: 'freeze'; used: number } | { kind: 'lost'; days: number; best: number };
 
-export type MiLojoQuestAnswer = { qid: string; given: string; correct: boolean; cause: string | null };
+// half: 选两个只对一个（不算对、不算错、不扣心）；timeout: 限时关时间到时没答的题
+export type MiLojoQuestAnswer = { qid: string; given: string; correct: boolean; cause: string | null; half?: boolean; timeout?: boolean };
 
 // 闯关: one row per learner with hearts, streak, freeze cards, XP, Boss prep and level progress. Rules in misc/lojo-quest.ts.
 @Entity('lojo_quest')

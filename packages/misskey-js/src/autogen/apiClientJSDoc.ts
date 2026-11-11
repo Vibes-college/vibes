@@ -4142,6 +4142,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * The clock of a timed try (第四章 4-6 and the Boss) reached 0 on the page. The server checks the time from when the try started; when it is up, the questions not answered count as wrong (time-out) and the try ends. Otherwise it says how many seconds are left.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/time-up', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Answers the next question of a visitor’s try; the same as answer, without hearts. At the end, end shows the result as it will be once the visitor saves.
      * 
      * **Credential required**: *No*

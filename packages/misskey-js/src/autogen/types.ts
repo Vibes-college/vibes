@@ -3396,6 +3396,15 @@ export type paths = {
          */
         post: operations['lojo___quest___take'];
     };
+    '/lojo/quest/time-up': {
+        /**
+         * lojo/quest/time-up
+         * @description The clock of a timed try (第四章 4-6 and the Boss) reached 0 on the page. The server checks the time from when the try started; when it is up, the questions not answered count as wrong (time-out) and the try ends. Otherwise it says how many seconds are left.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___quest___time-up'];
+    };
     '/lojo/quest/trial-answer': {
         /**
          * lojo/quest/trial-answer
@@ -33953,6 +33962,81 @@ export interface operations {
             content: {
                 'application/json': {
                     slug: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___time-up': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    attemptId: string;
                 };
             };
         };

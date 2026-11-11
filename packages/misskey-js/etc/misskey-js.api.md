@@ -2113,6 +2113,8 @@ declare namespace entities {
         LojoQuestStartResponse,
         LojoQuestTakeRequest,
         LojoQuestTakeResponse,
+        LojoQuestTimeUpRequest,
+        LojoQuestTimeUpResponse,
         LojoQuestTrialAnswerRequest,
         LojoQuestTrialAnswerResponse,
         LojoQuestTrialAudioRequest,
@@ -3255,6 +3257,12 @@ type LojoQuestTakeRequest = operations['lojo___quest___take']['requestBody']['co
 
 // @public (undocumented)
 type LojoQuestTakeResponse = operations['lojo___quest___take']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTimeUpRequest = operations['lojo___quest___time-up']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestTimeUpResponse = operations['lojo___quest___time-up']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoQuestTrialAnswerRequest = operations['lojo___quest___trial-answer']['requestBody']['content']['application/json'];

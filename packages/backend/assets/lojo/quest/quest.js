@@ -229,11 +229,34 @@ heartTimer = setInterval(tickHeartClock, 1000);
 const CHECK = '<circle r="7" fill="none" stroke="#E8603F" stroke-width="1.5" transform="rotate(-12)"/><path d="M-3.5 0 l2.5 2.5 l4.5 -5" fill="none" stroke="#E8603F" stroke-width="1.8" stroke-linecap="round"/>';
 const PREP = { guide: ['📕', '锦囊'], gear: ['🎧', '装备'], news: ['📰', '情报'] };
 
-function target() { // 图钉插在哪：第一个开着没过的关；都过了就是 Boss
+/* ---- 四章：服务器给 chapters（四章都在，没开的画成铅笔稿）；老数据只有 chapter 就只画这一章 ---- */
+const CH_H = 600, CH_GAP = 720;
+const CHS = () => (D?.chapters?.length ? D.chapters : D ? [D.chapter] : []);
+const chap = no => CHS().find(c => c.no === no) ?? D.chapter;
+const chOff = no => (CHS().length - no) * CH_GAP; // 第一章在最下面
+const curCh = () => chap(D?.currentChapter ?? 1);
+const nodeCh = n => chap(n?.ch ?? 1);
+const allNodes = () => Object.values(NODE);
+const chNodes = no => allNodes().filter(n => n.ch === no);
+const chWord = c => String(c.title).split(' · ')[0]; // 「第二章」
+const bossOf = c => NODE[c.bossId] ?? c.nodes.find(n => n.kind === 'boss');
+// 这一章 Boss 的备战：第一章用顶层字段（页面会就地更新），第二章起用 chapters 里的
+function bossInfo(c) {
+	const R = c.rules ?? {}, need = R.prepRequired ?? 3, of = R.prepOf ?? 3;
+	const first = c.no === 1;
+	const prep = (first ? D.prep : c.prep) ?? {};
+	const ready = first ? D.bossReady : !!c.bossReady;
+	const done = ['guide', 'gear', 'news'].filter(k => prep[k]).length;
+	return { prep, ready, done, need, of, extra: !!prep.extra, waived: first && !!D.prepWaived, losses: (first ? D.bossLosses : c.bossLosses) ?? 0, rules: R };
+}
+// 备战齐没齐（锦囊、装备、情报做完一件，服务器回 prep；第一章就地算）
+const prepReady = (prep, c = chap(1)) => ['guide', 'gear', 'news'].filter(k => prep[k]).length >= (c.rules?.prepRequired ?? 3) && !prep.extra;
+
+function target() { // 图钉插在哪：当前这章第一个开着没过的关；都过了就是 Boss
 	if (!D) return null;
-	const ns = D.chapter.nodes;
+	const c = curCh(), ns = chNodes(c.no);
 	// 定级定在哪关（1.5 及以上是 Boss）：那关没打过，图钉就插在那，不插旁边没点亮的词汇、语法支线（定级规则 branchesNeverLit）
-	const pa = D.placement?.startAt, pn = pa ? ns.find(n => n.id === (pa === '2-4' ? 'boss' : pa)) : null;
+	const pa = D.placement?.startAt, pn = pa ? (NODE[pa]?.state === 'open' ? NODE[pa] : NODE[pa === '2-4' ? 'boss' : pa]) : null;
 	if (pn && pn.state === 'open') return pn;
 	return ns.find(n => n.kind === 'level' && n.state === 'open') ?? ns.find(n => n.kind === 'boss' && n.state !== 'locked') ?? null;
 }
@@ -243,102 +266,169 @@ function edgePath(a, b, k) {
 	return `M${A.x} ${A.y} Q${mx - dy / l * o} ${my + dx / l * o} ${B.x} ${B.y}`;
 }
 const cleared = n => n && (n.state === 'done' || (n.state === 'open' && n.kind !== 'level' && n.kind !== 'boss'));
-function nodeInner(n, cur) {
+function nodeInner(n, cur, sketch) {
 	const lab = esc(n.label);
-	// 起点画在节点下面一点、字放左边，不压 1-1 的星星（正式站复查 Z3）
-	if (n.kind === 'start') return '<circle cy="12" r="6" fill="#141E52"/><text class="lab" x="-12" y="16" text-anchor="end">起点</text>';
+	// 起点画在节点下面一点、字放左边，不压 1-1 的星星（正式站复查 Z3）；第二章起的起点就是从门里走出来的那个点，不写字
+	if (n.kind === 'start') return '<circle cy="12" r="6" fill="#141E52"/>' + (n.ch === 1 ? '<text class="lab" x="-12" y="16" text-anchor="end">起点</text>' : '');
 	if (n.kind === 'level') { // 手机上地图铺满屏宽（约 0.9 倍）：圆点 ≥28px、关卡号 ≥12px。过了的关，关卡号和星星画在 nodeTags 里（不跟着褪色）
 		const done = n.state === 'done', locked = n.state === 'locked';
 		return `<circle r="${cur ? 18 : 16}" fill="${cur ? '#FCE7DF' : done ? '#FFFDF8' : '#F6F1E7'}" stroke="${cur ? '#E8603F' : '#141E52'}" stroke-width="${cur ? 2.6 : 1.8}" ${locked ? 'stroke-dasharray="3 3"' : ''}/>` +
 			(done ? `<g transform="scale(1.35)">${CHECK}</g>` : `<text y="5" text-anchor="middle" font-size="${n.label.length > 3 ? 12.5 : 14}" fill="${cur ? '#E8603F' : '#8f846f'}">${lab}</text>`) +
-			(n.practice && !done ? `<circle r="${cur ? 23 : 21}" fill="none" stroke="#3E9E7A" stroke-width="1.5" stroke-dasharray="3 4"/>` : '');
+			(n.practice && !done ? `<circle r="${cur ? 23 : 21}" fill="none" stroke="#3E9E7A" stroke-width="1.5" stroke-dasharray="3 4"/>` : '') +
+			(n.timed && !done ? '<g transform="translate(15 -15)"><circle r="7.5" fill="#FFFDF8" stroke="#141E52" stroke-width="1.2"/><text y="3.5" text-anchor="middle" font-size="9">⌛</text></g>' : '');
 	}
 	const tick = n.state === 'done' ? CHECK : '';
 	if (n.kind === 'gear') return `<path d="M-18 14 V-2 h36 V14z" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><path d="M-21 -2 q5 7 10.5 0 q5 7 10.5 0 q5 7 10.5 0 q5 7 10.5 0 v-9 h-42z" fill="#3E9E7A" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/><text x="0" y="11" text-anchor="middle" font-size="11">🎧</text><text class="lab" y="28" text-anchor="middle">${lab}</text><g transform="translate(20 -14)">${tick}</g>`;
 	if (n.kind === 'news') return `<rect x="-18" y="-4" width="36" height="22" rx="2" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><path d="M-22 -4 h44 l-4 -10 h-36z" fill="#2340A3" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/><rect x="-12" y="2" width="10" height="12" fill="#F6F1E7" stroke="#141E52"/><rect x="2" y="2" width="10" height="12" fill="#F6F1E7" stroke="#141E52"/><text class="lab" y="32" text-anchor="middle">${lab}</text><g transform="translate(22 -16)">${tick}</g>`;
 	if (n.kind === 'shelf') return `<rect x="-20" y="-8" width="40" height="28" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><path d="M-25 -6 L0 -22 L25 -6 Z" fill="#E8603F" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/><rect x="-14" y="-2" width="4" height="15" fill="#2340A3"/><rect x="-9" y="1" width="4" height="12" fill="#3E9E7A"/><rect x="-4" y="-1" width="4" height="14" fill="#ECB637"/><rect x="5" y="4" width="10" height="16" fill="#141E52"/><text class="lab" y="34" text-anchor="middle">${lab}</text><g transform="translate(24 -18)">${tick}</g>`;
 	if (n.kind === 'boss') {
-		const ready = D.bossReady && n.state !== 'locked';
-		return `<path d="M-30 22 V-8 Q-30 -30 0 -30 Q30 -30 30 -8 V22Z" fill="#141E52" stroke="#141E52" stroke-width="1.5"/>
-			<path id="bossDoor" d="M-16 22 V-4 Q-16 -16 0 -16 Q16 -16 16 -4 V22Z" fill="${ready ? '#ECB637' : '#2a336a'}" stroke="#ECB637" stroke-width="1.5"/>
-			<text y="-19" text-anchor="middle" font-size="8.5" fill="#ECB637">BOSS</text><text y="8" text-anchor="middle" font-size="9.5" fill="${ready ? '#141E52' : '#FFFDF8'}">${n.state === 'done' ? '已打赢' : esc(n.name || 'Boss')}</text>
-			<g id="prep" transform="translate(0 36)">
+		const arch = ready => `<path d="M-30 22 V-8 Q-30 -30 0 -30 Q30 -30 30 -8 V22Z" fill="#141E52" stroke="#141E52" stroke-width="1.5"/>
+			<path class="bossDoor" d="M-16 22 V-4 Q-16 -16 0 -16 Q16 -16 16 -4 V22Z" fill="${ready ? '#ECB637' : '#2a336a'}" stroke="#ECB637" stroke-width="1.5"/>
+			<text y="-19" text-anchor="middle" font-size="8.5" fill="#ECB637">BOSS</text><text y="8" text-anchor="middle" font-size="9.5" fill="${ready ? '#141E52' : '#FFFDF8'}">${n.state === 'done' ? '已打赢' : esc(n.name || 'Boss')}</text>`;
+		if (sketch) return arch(false);
+		const B = bossInfo(nodeCh(n)), ready = B.ready && n.state !== 'locked';
+		return arch(ready) + `
+			<g class="prep" transform="translate(0 36)">
 				<rect x="-50" y="-10" width="100" height="20" rx="10" fill="#FFFDF8" stroke="#141E52" stroke-width="1.3"/>
 				<text x="-44" y="4" font-size="9" fill="#141E52">备战</text>
-				${['guide', 'gear', 'news'].map((k, i) => { const on = D.prep[k]; return `<g id="pp-${k}" transform="translate(${-8 + i * 22} 0)"><circle r="8" fill="${on ? '#E3F2EA' : '#F6F1E7'}" stroke="${on ? '#3E9E7A' : '#cbbfa8'}" stroke-width="1.4" ${on ? '' : 'stroke-dasharray="2 2"'}/><text y="3.5" text-anchor="middle" font-size="9" opacity="${on ? 1 : 0.35}">${PREP[k][0]}</text></g>`; }).join('')}
+				${['guide', 'gear', 'news'].map((k, i) => { const on = B.prep[k]; return `<g class="pp-${k}" transform="translate(${-8 + i * 22} 0)"><circle r="8" fill="${on ? '#E3F2EA' : '#F6F1E7'}" stroke="${on ? '#3E9E7A' : '#cbbfa8'}" stroke-width="1.4" ${on ? '' : 'stroke-dasharray="2 2"'}/><text y="3.5" text-anchor="middle" font-size="9" opacity="${on ? 1 : 0.35}">${PREP[k][0]}</text></g>`; }).join('')}
 			</g>`;
 	}
 	return '';
 }
+// 底色、地标、铅笔稿、章间的路和门：只在哪章开了、哪章打通了变了的时候重画
+let artKey = null;
+function drawArt(H) {
+	const chs = CHS(), A = window.QuestArt, key = H + '|' + chs.map(c => `${c.no}${c.open ? 'o' : ''}${c.beaten ? 'b' : ''}`).join(',');
+	if (!A || key === artKey) return;
+	artKey = key;
+	const st = no => A.STYLE[no] ?? A.STYLE[1];
+	let bands = '', s = `<rect x="0" y="0" width="390" height="${H}" fill="${st(1).tint}"/>`;
+	chs.forEach(c => {
+		const o = chOff(c.no), S = st(c.no);
+		const title = c.no > 1 ? `<g transform="translate(14 18)"><rect width="112" height="28" rx="6" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><rect width="7" height="28" rx="3" fill="${S.deep}"/><text x="62" y="19" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="13.5" fill="#141E52">${esc(c.title)}</text></g>` : '';
+		if (c.open || chs.length === 1) { s += `<g class="c${c.no}" transform="translate(0 ${o})"><rect width="390" height="${CH_H}" fill="${S.tint}"/><g class="land">${A.land(c.no)}</g>${title}</g>`; return; }
+		// 没开的章：铅笔稿（点不了），上面斜线 +「正在修路」
+		const XY = {}; c.nodes.forEach(n => { XY[n.id] = n; });
+		const ed = c.edges.map(([a, b], i) => {
+			const P = XY[a], Q = XY[b]; if (!P || !Q) return '';
+			const Ay = P.kind === 'start' ? P.y + 12 : P.y, mx = (P.x + Q.x) / 2, my = (Ay + Q.y) / 2, dx = Q.x - P.x, dy = Q.y - Ay, l = Math.hypot(dx, dy) || 1, k = (i % 2 ? 1 : -1) * 14;
+			return `<path d="M${P.x} ${Ay} Q${mx - dy / l * k} ${my + dx / l * k} ${Q.x} ${Q.y}" fill="none" stroke="#cbbfa8" stroke-width="2.6" stroke-dasharray="2 7" stroke-linecap="round"/>`;
+		}).join('');
+		const nd = c.nodes.map(n => `<g class="c${c.no}" transform="translate(${n.x} ${n.y})">${nodeInner({ ...n, state: 'locked', timed: null }, false, true)}</g>`).join('');
+		s += `<g class="pencil" transform="translate(0 ${o})" filter="url(#pencil)" opacity=".42"><rect width="390" height="${CH_H}" fill="${S.tint}"/>${A.land(c.no)}${ed}${nd}${title}</g>`;
+		s += `<g class="pencil" transform="translate(0 ${o})"><rect width="390" height="${CH_H}" fill="url(#hatch)" opacity=".35"/><g transform="translate(195 330)"><rect x="-92" y="-20" width="184" height="40" rx="8" fill="#FFFDF8" stroke="#a99e88" stroke-width="1.4" stroke-dasharray="4 3"/><text y="6" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="15" fill="#6E7088">${esc(c.title)} · 正在修路</text></g></g>`;
+	});
+	// 章与章之间：渐变的门带、穿过门的路（下一章开了就上墨）、门
+	let doors = '';
+	chs.forEach(c => {
+		const nx = chs.find(x => x.no === c.no + 1); if (!nx) return;
+		const y0 = chOff(nx.no) + CH_H, dy = chOff(nx.no) + 660;
+		bands += `<linearGradient id="band${c.no}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${st(nx.no).tint}"/><stop offset="1" stop-color="${st(c.no).tint}"/></linearGradient>`;
+		s += `<rect x="0" y="${y0}" width="390" height="${CH_GAP - CH_H}" fill="url(#band${c.no})"/>`;
+		const from = chOff(c.no) + 60, to = chOff(nx.no) + 582;
+		s += `<path d="M195 ${from} L195 ${to}" fill="none" stroke="#cbbfa8" stroke-width="2.6" stroke-dasharray="2 7" stroke-linecap="round"/>` +
+			(nx.open ? `<path d="M195 ${from} L195 ${to}" fill="none" stroke="#141E52" stroke-width="3" stroke-linecap="round"/>` : '');
+		doors += A.door(c.no, dy, esc(nx.title), c.beaten && !nx.open);
+	});
+	$('#bands').innerHTML = bands;
+	$('#chs').innerHTML = s;
+	$('#doors').innerHTML = doors;
+	$$('#doors .door').forEach(g => {
+		const k = +g.dataset.door;
+		if (chap(k + 1)?.open) A.openDoor(g);
+		g.addEventListener('click', () => { bounce(g); doorTap(k); });
+	});
+	A.parkTram($('#chs'));
+	$$('#chs .lm-guild').forEach(g => { g.onclick = () => { bounce(g); boardSheet(); }; });
+}
+// 点门：下一章开了就不管；打通了上一章、下一章还在修路 → 门口卡；还没打通 → Mia 说一句
+function doorTap(k) {
+	if (!D || inTrial()) return;
+	const c = chap(k), nx = chap(k + 1), bn = bossOf(c)?.name ?? 'Boss';
+	if (nx?.open && nx.no === k + 1) { play('tap', 0.5); mapScrollTo(NODE[nx.startId] ?? bossOf(c)); return; }
+	if (k === 1 && c.beaten) { doorCard1(); return; }
+	play('fail', 0.4);
+	miaSay(k === 1 ? `先打赢第一章 Boss「${esc(bn)}」，这扇门才会动。` : `打赢${esc(chWord(c))} Boss「${esc(bn)}」，这扇门就开。`);
+}
 function drawMap() {
-	NODE = {}; D.chapter.nodes.forEach(n => { NODE[n.id] = n; });
+	const chs = CHS(), H = chs.length * CH_GAP - (CH_GAP - CH_H);
+	NODE = {};
+	chs.forEach(c => { const o = chOff(c.no); c.nodes.forEach(n => { NODE[n.id] = { ...n, ch: n.ch ?? c.no, y: n.y + o, ly: n.y }; }); });
+	const map = $('#map');
+	if (map.getAttribute('viewBox') !== `0 0 390 ${H}`) { map.setAttribute('viewBox', `0 0 390 ${H}`); map.style.aspectRatio = `390 / ${H}`; }
+	drawArt(H);
 	const tg = target();
 	const edges = $('#edges'), nodes = $('#nodes');
-	gsap.killTweensOf('#recEdge');
+	gsap.killTweensOf('.recEdge');
 	edges.innerHTML = ''; nodes.innerHTML = '';
-	D.chapter.edges.forEach(([a, b], i) => {
-		if (!NODE[a] || !NODE[b]) return;
-		const d = edgePath(a, b, i % 2 ? 1 : -1);
-		const s = cleared(NODE[a]) && NODE[b].state === 'done' ? 'done' : (cleared(NODE[a]) && tg && b === tg.id) ? 'rec' : 'todo';
-		const base = document.createElementNS(svgNS, 'path'); base.setAttribute('d', d); base.setAttribute('fill', 'none');
-		base.setAttribute('stroke', s === 'rec' ? '#E8603F' : '#cbbfa8'); base.setAttribute('stroke-width', s === 'rec' ? 3 : 2.6); base.setAttribute('stroke-dasharray', s === 'rec' ? '5 6' : '2 7'); base.setAttribute('stroke-linecap', 'round');
-		if (s === 'rec') base.classList.add('recEdge');
-		edges.appendChild(base);
-		if (s === 'done') {
-			const ink = document.createElementNS(svgNS, 'path'); ink.setAttribute('d', d); ink.setAttribute('class', 'inkE'); ink.setAttribute('fill', 'none'); ink.setAttribute('stroke', '#141E52'); ink.setAttribute('stroke-width', '3'); ink.setAttribute('stroke-linecap', 'round');
-			edges.appendChild(ink);
-			if (firstPaint) { const L = ink.getTotalLength(); ink.style.strokeDasharray = L; ink.style.strokeDashoffset = L; }
-		}
-	});
-	D.chapter.nodes.forEach(n => {
-		const g = document.createElementNS(svgNS, 'g'); g.setAttribute('class', 'nd' + (n.state === 'locked' ? ' locked' : '')); g.id = 'nd-' + n.id; g.dataset.id = n.id;
-		g.setAttribute('transform', `translate(${n.x} ${n.y})`);
-		if (n.kind === 'level') g.insertAdjacentHTML('beforeend', '<circle class="hit" r="25" fill="transparent"/>'); // 点击区域 ≥44×44
-		const inner = document.createElementNS(svgNS, 'g'); inner.setAttribute('class', 'ndi'); inner.innerHTML = nodeInner(n, tg && tg.id === n.id && n.kind === 'level'); g.appendChild(inner);
-		if (n.state === 'locked' && n.kind !== 'boss') { inner.setAttribute('opacity', '.42'); inner.setAttribute('filter', 'url(#gray)'); }
-		if (n.age === 'fade') inner.setAttribute('opacity', '.45');
-		if (n.age === 'gray') { inner.setAttribute('filter', 'url(#gray)'); inner.setAttribute('opacity', '.4'); }
-		if (n.kind === 'level' && n.state === 'done') {
-			const muted = n.age ? ' fill="#6E7088"' : '';
-			g.insertAdjacentHTML('beforeend', `<text class="lab" y="34" text-anchor="middle" font-size="13.5"${muted}>${esc(n.label)}</text>` +
-				(n.stars ? `<text class="lab" y="48" text-anchor="middle" font-size="12" fill="#C99520" letter-spacing="1">${'★'.repeat(Math.min(3, n.stars))}<tspan fill="#d8ccb4">${'★'.repeat(Math.max(0, 3 - n.stars))}</tspan></text>` : ''));
-		}
-		if (n.kind !== 'start') g.addEventListener('click', () => { bounce(inner); nodeTap(n.id); });
-		nodes.appendChild(g);
+	chs.filter(c => c.open || chs.length === 1).forEach(c => {
+		c.edges.forEach(([a, b], i) => {
+			if (!NODE[a] || !NODE[b]) return;
+			const d = edgePath(a, b, i % 2 ? 1 : -1);
+			const s = cleared(NODE[a]) && NODE[b].state === 'done' ? 'done' : (cleared(NODE[a]) && tg && b === tg.id) ? 'rec' : 'todo';
+			const base = document.createElementNS(svgNS, 'path'); base.setAttribute('d', d); base.setAttribute('fill', 'none');
+			base.setAttribute('stroke', s === 'rec' ? '#E8603F' : '#cbbfa8'); base.setAttribute('stroke-width', s === 'rec' ? 3 : 2.6); base.setAttribute('stroke-dasharray', s === 'rec' ? '5 6' : '2 7'); base.setAttribute('stroke-linecap', 'round');
+			if (s === 'rec') base.classList.add('recEdge');
+			edges.appendChild(base);
+			if (s === 'done') {
+				const ink = document.createElementNS(svgNS, 'path'); ink.setAttribute('d', d); ink.setAttribute('class', 'inkE'); ink.setAttribute('fill', 'none'); ink.setAttribute('stroke', '#141E52'); ink.setAttribute('stroke-width', '3'); ink.setAttribute('stroke-linecap', 'round');
+				edges.appendChild(ink);
+				if (firstPaint) { const L = ink.getTotalLength(); ink.style.strokeDasharray = L; ink.style.strokeDashoffset = L; }
+			}
+		});
+		chNodes(c.no).forEach(n => {
+			const g = document.createElementNS(svgNS, 'g'); g.setAttribute('class', `nd c${c.no}` + (n.state === 'locked' ? ' locked' : '')); g.id = 'nd-' + n.id; g.dataset.id = n.id;
+			g.setAttribute('transform', `translate(${n.x} ${n.y})`);
+			if (n.kind === 'level') g.insertAdjacentHTML('beforeend', '<circle class="hit" r="25" fill="transparent"/>'); // 点击区域 ≥44×44
+			const inner = document.createElementNS(svgNS, 'g'); inner.setAttribute('class', 'ndi'); inner.innerHTML = nodeInner(n, tg && tg.id === n.id && n.kind === 'level'); g.appendChild(inner);
+			if (n.state === 'locked' && n.kind !== 'boss') { inner.setAttribute('opacity', '.42'); inner.setAttribute('filter', 'url(#gray)'); }
+			if (n.age === 'fade') inner.setAttribute('opacity', '.45');
+			if (n.age === 'gray') { inner.setAttribute('filter', 'url(#gray)'); inner.setAttribute('opacity', '.4'); }
+			if (n.kind === 'level' && n.state === 'done') {
+				const muted = n.age ? ' fill="#6E7088"' : '';
+				g.insertAdjacentHTML('beforeend', `<text class="lab" y="34" text-anchor="middle" font-size="13.5"${muted}>${esc(n.label)}</text>` +
+					(n.stars ? `<text class="lab" y="48" text-anchor="middle" font-size="12" fill="#C99520" letter-spacing="1">${'★'.repeat(Math.min(3, n.stars))}<tspan fill="#d8ccb4">${'★'.repeat(Math.max(0, 3 - n.stars))}</tspan></text>` : ''));
+			}
+			if (n.kind !== 'start') g.addEventListener('click', () => { bounce(inner); nodeTap(n.id); });
+			nodes.appendChild(g);
+		});
 	});
 	placeNotes();
 	gsap.to('.recEdge', { strokeDashoffset: -22, duration: 1, repeat: -1, ease: 'none' });
 	// 图钉
 	if (tg) { show('#pinPos', 'inline'); $('#pinPos').setAttribute('transform', tg.kind === 'boss' ? `translate(${tg.x - 44} ${tg.y})` : `translate(${tg.x} ${tg.y - 20})`); } else hide('#pinPos');
-	// 手机上地图比一屏高：打开时（和当前关换了以后）停在当前这一关
+	// 地图比一屏高：打开时（和当前关换了以后）停在当前这一关
 	if (tg && tg.id !== mapAt) { mapAt = tg.id; requestAnimationFrame(() => mapScrollTo(tg)); }
+	else if (!tg && mapAt == null) { mapAt = ''; const b = bossOf(curCh()); if (b) requestAnimationFrame(() => mapScrollTo(b)); }
 }
 let mapAt = null;
 function mapScrollTo(n) {
 	const w = $('#mapwrap'), sc = $('#map').getBoundingClientRect().width / 390;
-	if (w.scrollHeight <= w.clientHeight + 1) return;
+	if (!n || w.scrollHeight <= w.clientHeight + 1) return;
 	w.scrollTop = Math.max(0, n.y * sc - w.clientHeight * 0.45);
 }
-// 「7 天没碰」「14 天没回测」这类状态字：在关卡下方、右边、左边里挑一个不压线、不压别的关、不出图的位置
+// 「7 天没碰」「14 天没回测」这类状态字：在关卡下方、右边、左边里挑一个不压线、不压别的关、不出本章的位置
 function placeNotes() {
 	const notes = { fade: ['7 天没碰 · 在褪色', '#B9472C'], gray: ['14 天没回测 · 灰了', '#7a7a7a'] };
 	const rects = [], hit = (A, B) => A[0] < B[2] && A[2] > B[0] && A[1] < B[3] && A[3] > B[1];
+	const shown = allNodes().filter(n => $('#nd-' + n.id) || n.kind === 'start');
 	$$('#edges path').forEach(p => { const L = p.getTotalLength(); for (let d = 0; d <= L; d += 4) { const q = p.getPointAtLength(d); rects.push([q.x - 2, q.y - 2, q.x + 2, q.y + 2]); } });
-	D.chapter.nodes.forEach(m => {
+	shown.forEach(m => {
 		if (m.kind === 'level' || m.kind === 'boss') rects.push([m.x - 22, m.y - 22, m.x + 22, m.y + (m.state === 'done' ? (m.stars ? 52 : 38) : 22)]);
 		else if (m.kind === 'start') rects.push([m.x - 16, m.y - 8, m.x + 16, m.y + 26]);
 		else rects.push([m.x - 34, m.y - 26, m.x + 34, m.y + 38]);
 	});
-	D.chapter.nodes.forEach(n => {
+	shown.forEach(n => {
 		if (!notes[n.age] || n.kind !== 'level') return;
-		const [txt, color] = notes[n.age], fs = 12.5;
-		const g = $('#nd-' + n.id);
+		const [txt, color] = notes[n.age], fs = 12.5, top = n.y - n.ly;
+		const g = $('#nd-' + n.id); if (!g) return;
 		g.insertAdjacentHTML('beforeend', `<text class="note" x="0" y="0" font-size="${fs}" fill="${color}">${txt}</text>`);
 		const t = g.lastElementChild, w = t.getComputedTextLength() + 4;
 		const below = n.state === 'done' ? (n.stars ? 66 : 52) : 38;
 		const cands = [[n.x + 26, n.y + 5, 'start'], [n.x - 26, n.y + 5, 'end'], [n.x, n.y + below, 'middle'], [n.x + 26, n.y + 24, 'start'], [n.x - 26, n.y + 24, 'end'], [n.x + 24, n.y + 44, 'start'], [n.x - 24, n.y + 44, 'end'], [n.x + 26, n.y - 12, 'start'], [n.x - 26, n.y - 12, 'end'], [n.x, n.y - 28, 'middle']];
 		const box = ([x, y, a]) => { const l = a === 'start' ? x : a === 'end' ? x - w : x - w / 2; return [l, y - fs, l + w, y + 3]; };
-		const free = c => { const B = box(c); return B[0] >= 4 && B[2] <= 386 && B[1] >= 4 && B[3] <= 596 && !rects.some(R => hit(R, B)); };
+		const free = c => { const B = box(c); return B[0] >= 4 && B[2] <= 386 && B[1] >= top + 4 && B[3] <= top + CH_H - 4 && !rects.some(R => hit(R, B)); };
 		const c = cands.find(free) ?? cands[2];
 		t.setAttribute('x', c[0] - n.x); t.setAttribute('y', c[1] - n.y); t.setAttribute('text-anchor', c[2]);
 		rects.push(box(c));
@@ -354,16 +444,17 @@ function drawTop() {
 function drawDock() {
 	const tg = target(), go = $('#go');
 	go.classList.remove('boss'); go.disabled = !tg;
-	if (!tg) { $('#todayH').textContent = D.chapter.title; $('#todayS').textContent = '这一章没有能打的关了'; go.textContent = '等第二章'; }
+	if (!tg) { const c = curCh(); $('#todayH').textContent = c.title; $('#todayS').textContent = '这一章没有能打的关了'; go.textContent = `等${chWord(chap(c.no + 1) ?? c)}`; }
 	else if (tg.kind === 'boss') {
-		const n = ['guide', 'gear', 'news'].filter(k => D.prep[k]).length;
+		const B = bossInfo(nodeCh(tg)), miss = ['guide', 'gear', 'news'].filter(k => !B.prep[k]).map(k => PREP[k][1]);
 		$('#todayH').textContent = tg.name || 'Boss';
-		const waived = D.prepWaived && n < 3 && tg.state !== 'done'; // 定级定到 Boss：第一次挑战不用先备战
-		$('#todayS').textContent = tg.state === 'done' ? '打赢过了 · 想再练可以再挑战' : waived ? '第一次挑战不用先备战' : D.bossReady ? '备战 3 / 3 · 门开了' : `备战 ${n} / 3 · 还差${['guide', 'gear', 'news'].filter(k => !D.prep[k]).map(k => PREP[k][1]).join('、')}`;
+		const waived = B.waived && B.done < B.of && tg.state !== 'done'; // 定级定到 Boss：第一次挑战不用先备战
+		$('#todayS').textContent = tg.state === 'done' ? '打赢过了 · 想再练可以再挑战' : waived ? '第一次挑战不用先备战'
+			: B.ready ? `备战 ${Math.min(B.done, B.need)} / ${B.need} · 门开了` : B.extra ? '连输了 · 再备战 1 件门就开' : `备战 ${B.done} / ${B.need} · ${B.need < B.of ? '三件里做' + B.need + '件' : '还差' + miss.join('、')}`;
 		go.textContent = tg.state === 'done' ? '再挑战 Boss' : waived ? '挑战 Boss' : '打 Boss'; go.classList.add('boss');
 	} else {
 		$('#todayH').textContent = `${tg.label} · ${tg.name ?? ''}`;
-		$('#todayS').textContent = tg.practice ? '练手关 · 不扣心' : `${tg.ask} 题 · 对 ${tg.need} 题过`;
+		$('#todayS').textContent = tg.practice ? '练手关 · 不扣心' : tg.timed ? `限时 ${Math.round(tg.timed.totalSeconds / 60)} 分钟 · ${tg.ask} 题 · 对 ${tg.need} 题过` : `${tg.ask} 题 · 对 ${tg.need} 题过`;
 		go.textContent = tg.practice && tg.tries === 0 ? '出发' : '开打';
 	}
 	$('#todayE').textContent = `经验 ${D.xp}` + (D.todayXp ? ` · 今天 +${D.todayXp}` : '');
@@ -390,18 +481,23 @@ function loadRank() {
 	}).catch(() => { RANK.busy = false; });
 }
 function miaLine() {
-	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Mia，你的 AI 英语助教。从这儿一关一关往上走，右上角那座房子就是考场。';
+	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Mia，你的 AI 英语助教。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。';
 	const tg = target(), h = D.hearts;
 	if (h <= 0) return `心打光了。<b>读本锦囊</b>或<b>练一组</b>，各补 1 颗；不补就等${refillLabel()} 回满。`;
 	if (D.lastFail && NODE[D.lastFail.levelId]?.state === 'open') {
 		const rec = D.books.find(b => b.recommended);
 		return `上次 ${esc(NODE[D.lastFail.levelId].label)} 没过。` + (rec ? `书屋里我给你挑了 <b>${rec.no} 号「${esc(rec.spine)}」</b>，读完再打。` : '再打一次会换新题。');
 	}
-	if (tg?.kind === 'boss' && !D.bossReady) return 'Boss 门前要<b>备战三件</b>：书屋带一本锦囊、装备练一组、情报站看一眼。';
-	if (tg?.kind === 'boss' && D.prepWaived && !(D.prep.guide && D.prep.gear && D.prep.news)) return '第一次挑战不用先备战，进去就打。';
-	if (tg?.kind === 'boss') return '备战齐了，门开了。进去就打。';
+	if (tg?.kind === 'boss') {
+		const B = bossInfo(nodeCh(tg));
+		if (B.waived && B.done < B.of) return '第一次挑战不用先备战，进去就打。';
+		if (B.extra) return `连输 ${B.losses} 次了。<b>再做 1 件备战</b>（锦囊、装备、情报都行），门就开。`;
+		if (!B.ready) return B.need < B.of ? `Boss 门前要<b>备战</b>：书屋带一本锦囊、装备练一组、情报站看一眼，三件里做 ${B.need} 件就行。` : 'Boss 门前要<b>备战三件</b>：书屋带一本锦囊、装备练一组、情报站看一眼。';
+		return '备战齐了，门开了。进去就打。';
+	}
 	if (!D.streak.doneToday && D.streak.days > 0) return `火苗 <b>${D.streak.days}</b> 天，今天还没续上。过一关、或补一次心，就算今天练过。`;
-	if (tg?.practice) return '前 3 关是<b>练手关</b>，放心打。';
+	if (tg?.practice) return tg.ch === 1 ? '前 3 关是<b>练手关</b>，放心打。' : '这关是<b>练手关</b>，答错不扣心，放心打。';
+	if (tg?.timed && !tg.tries && D.chapters) return esc(nodeCh(tg).rules?.timedCopy?.miaFirstTimed ?? '这关有沙漏。');
 	return `今天这一步：<b>${esc(tg?.label ?? '')}</b>。心有 <b>${h}</b> 颗。`;
 }
 function render() {
@@ -410,7 +506,7 @@ function render() {
 }
 
 /* 离考场倒数：有日子就倒数 + 还剩几关；没定就请他定 */
-function levelsLeft() { return D.chapter.nodes.filter(n => (n.kind === 'level' || n.kind === 'boss') && n.state !== 'done').length; }
+function levelsLeft() { return chNodes(curCh().no).filter(n => (n.kind === 'level' || n.kind === 'boss') && n.state !== 'done').length; }
 function drawCount() {
 	const c = $('#count');
 	if (inTrial()) {
@@ -449,12 +545,10 @@ function intro() {
 		.add(() => play('scratch', 0.7), 0.2)
 		.from('#pin', { y: -60, opacity: 0, duration: 0.6, ease: 'bounce.out' }, 0.8)
 		.from('#mia', { x: -60, opacity: 0, duration: 0.45, ease: 'back.out(1.6)' }, 0.9)
-		.from('#ch2', { opacity: 0, duration: 0.6 }, 0.6)
 		.from('#count', { y: -10, opacity: 0, duration: 0.35 }, 0.5);
 	if ($$('.inkE').length) tl.to('.inkE', { strokeDashoffset: 0, duration: 0.35, stagger: 0.07, ease: 'power1.inOut' }, 0.15);
 	gsap.to('#pin', { scale: 1.12, transformOrigin: '50% 100%', duration: 0.45, repeat: -1, yoyo: true, ease: 'sine.inOut' });
 	gsap.to('#miaHeart', { scale: 1.18, transformOrigin: '50% 50%', duration: 0.4, repeat: -1, yoyo: true, ease: 'sine.inOut', repeatDelay: 0.6 });
-	gsap.to('#flag', { skewY: 8, transformOrigin: '0 50%', duration: 0.6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
 	gsap.to('#flameSvg', { scaleY: 1.15, transformOrigin: '50% 100%', duration: 0.3, repeat: -1, yoyo: true, ease: 'sine.inOut' });
 	if (!RM) setInterval(() => gsap.fromTo('#miaEyes', { scaleY: 1 }, { scaleY: 0.1, transformOrigin: '50% 26px', duration: 0.08, yoyo: true, repeat: 1 }), 3200);
 }
@@ -467,6 +561,7 @@ function afterIntro() {
 	if (nt?.kind === 'freeze') { showFreezeUse(nt.used); return; }
 	if (nt?.kind === 'lost') { showStreakLost(nt.days, nt.best); return; }
 	if (PREVIEW && previewAfter()) return;
+	if (D.openTimed && !new URLSearchParams(location.search).get('level')) { remindOpenTimed(); return; }
 	handleQuery();
 	if (!pbarOn()) maybeBehind(); // 落后提醒跟定级横条在同一个位置，横条在的时候不弹
 }
@@ -518,8 +613,8 @@ function handleQuery() {
 	if (QUERY.book && bookBySlug(QUERY.book)) { enterShelf('browse', { open: QUERY.book }); return; }
 	if (QUERY.level && NODE[QUERY.level]) {
 		const n = NODE[QUERY.level];
-		if (QUERY.from && QUERY.from !== 'quest') miaSay(`从${esc(FROM_ZH[QUERY.from] ?? '小程序')}回来了。心现在 <b>${D.hearts}</b> 颗${D.prep.gear ? '，备战「装备」打勾了' : ''}。`);
-		if (n.kind === 'boss') bossSheet(); else if (n.kind === 'level') nodeTap(n.id);
+		if (QUERY.from && QUERY.from !== 'quest') miaSay(`从${esc(FROM_ZH[QUERY.from] ?? '小程序')}回来了。心现在 <b>${D.hearts}</b> 颗${bossInfo(nodeCh(n)).prep.gear ? '，备战「装备」打勾了' : ''}。`);
+		if (n.kind === 'boss') bossSheet(n); else if (n.kind === 'level') nodeTap(n.id);
 	}
 }
 /* 去小程序练一组：带上 from=quest 和这关，练完那边会给个「回闯关」 */
@@ -559,26 +654,28 @@ function nodeTap(id) {
 		if (n.state === 'done' && n.retestable) { retestSheet(n); return; }
 		levelSheet(n); return;
 	}
-	if (n.kind === 'boss') { bossSheet(); return; }
+	if (n.kind === 'boss') { bossSheet(n); return; }
 	if (n.kind === 'shelf') { enterShelf('browse', { fromEl: $('#nd-' + id) }); return; }
 	if (n.state === 'locked') { play('fail', 0.4); toast('还没走到这里：先过前面的关'); return; }
 	if (n.kind === 'gear') gearSheet(n);
 	if (n.kind === 'news') newsSheet(n);
 }
 function levelSheet(n) {
-	const out = !n.practice && D.hearts <= 0;
+	const R = nodeCh(n).rules ?? {}, minH = n.practice ? (R.minHeartsToStartPractice ?? 0) : (R.minHeartsToStart ?? 1);
+	const out = !n.practice && D.hearts < Math.max(1, minH);
 	const kind = n.practice ? '练手关' : '';
 	const heartsOnce = !n.practice && !heartsTold();
 	const html = `<h4>${esc(n.label)} ${kind} · ${esc(n.name ?? '')}</h4>
 		<div class="sub">${esc(n.zh ?? '')} · ${n.practice ? `<b style="color:#3E9E7A">练手关</b> · ${n.ask} 题，对 ${n.need} 题过` : `${n.ask} 题，对 ${n.need} 题过`}</div>
 		${n.hint ? `<div class="hint">${md(n.hint)}</div>` : ''}
+		${n.timed ? `<div class="card">⌛ ${esc(n.timed.card || `限时 ${Math.round(n.timed.totalSeconds / 60)} 分钟`)}</div>` : ''}
 		${heartsOnce ? '<div class="card"><b>从这关起答错扣 1 颗心。</b>每天 5 颗，读本锦囊、练一组装备，各补 1 颗。</div>' : ''}
 		<div class="card">${n.state === 'done' ? `过了 ✓ · 最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.tries ? `打过 ${n.tries} 次，最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.practice ? '错了不扣心，每题告诉你为什么。过了，点亮今天的火苗。' : '今天第一次过关，有宝箱。'}</div>
 		${n.gear && !inTrial() && n.tries ? `<div class="card">卡住了可以先去装备「${esc(n.gear.zh)}」练一组。</div>` : ''}
-		${out ? '<button class="sbtn" data-a="refill">心打光了 · 去补心</button>' : `<button class="sbtn" data-a="start">${n.state === 'done' ? '再打一遍' : `开打 ${esc(n.label)}`}</button>`}`;
+		${out ? `<button class="sbtn" data-a="refill">${D.hearts > 0 ? esc(R.lowHeartsButton ?? '心不够了 · 去补心') : '心打光了 · 去补心'}</button>` : `<button class="sbtn" data-a="start">${n.state === 'done' ? '再打一遍' : `开打 ${esc(n.label)}`}</button>`}`;
 	if (heartsOnce) heartsTold(true);
 	openSheet(html, b => {
-		b.querySelector('[data-a="start"]')?.addEventListener('click', () => { closeSheet(true); startLevel(n.id); });
+		b.querySelector('[data-a="start"]')?.addEventListener('click', () => { unlockAudio(); closeSheet(true); startLevel(n.id); });
 		b.querySelector('[data-a="refill"]')?.addEventListener('click', () => { closeSheet(true); showEmpty('map'); });
 	});
 }
@@ -609,16 +706,16 @@ function newsSheet(n) {
 		<div class="card">看看同一关的人在聊什么、踩过什么坑。</div>
 		<div id="newsList"><div class="sub">正在拉最新的帖子…</div></div>
 		<div style="margin-top:6px">${tags.map(t => `<button class="tagBtn" data-tag="${esc(t)}">看全部 #${esc(t)}</button>`).join('')}</div>
-		<div class="sub" style="margin-top:10px" id="newsSt">${D.prep.news ? '备战「情报」已经打勾 ✓' : '正在记下：备战「情报」…'}</div>`, b => {
+		<div class="sub" style="margin-top:10px" id="newsSt">${bossInfo(nodeCh(n)).prep.news ? '备战「情报」已经打勾 ✓' : '正在记下：备战「情报」…'}</div>`, b => {
 		b.querySelectorAll('[data-tag]').forEach(el => { el.onclick = () => { play('whoosh', 0.6); closeSheet(true); go('/tags/' + encodeURIComponent(el.dataset.tag)); }; });
 		newsPreview(tags);
 	});
 	const tg = target();
 	api('lojo/quest/news', { levelId: tg && tg.kind !== 'boss' ? tg.id : (tg?.id ?? null) }).then(r => {
-		const was = D.prep.news; D.prep = r.prep; D.bossReady = r.prep.guide && r.prep.gear && r.prep.news;
+		const was = bossInfo(nodeCh(n)).prep.news; D.prep = r.prep; D.bossReady = prepReady(r.prep);
 		const st = $('#newsSt'); if (st) st.textContent = '备战「情报」已经打勾 ✓';
 		if (r.xp) toast(`看了情报 · 经验 +${r.xp}`, 1600);
-		if (!was) { play('pass', 0.6); refreshQuiet().then(() => gsap.from('#pp-news', { scale: 2.4, transformOrigin: '50% 50%', duration: 0.5, ease: 'back.out(3)' })); }
+		if (!was) { play('pass', 0.6); refreshQuiet().then(() => gsap.from(`#nd-${bossOf(nodeCh(n))?.id} .pp-news`, { scale: 2.4, transformOrigin: '50% 50%', duration: 0.5, ease: 'back.out(3)' })); }
 	}).catch(e => { const st = $('#newsSt'); if (st) st.textContent = '没记上：' + errText(e); });
 }
 // 情报预览：每个话题标签拉最新几条，合并去重（Boss 的帖子同时带两个标签），只放第一段约 80 字，点开进帖子
@@ -648,43 +745,51 @@ function newsPreview(tags) {
 		el.querySelectorAll('[data-note]').forEach(x => { x.onclick = () => { play('whoosh', 0.6); closeSheet(true); go('/notes/' + encodeURIComponent(x.dataset.note)); }; });
 	}).catch(() => { const el = $('#newsList'); if (el) el.innerHTML = '<div class="sub">帖子没拉到，点下面的话题看。</div>'; });
 }
-function prepRows() {
-	const gearN = NODE[Object.keys(NODE).find(k => NODE[k].kind === 'gear')];
+// 备战三件：每章在自己的书屋、装备站、情报站做（做一件会同时给所有开着、没打赢的章打勾，见服务器 tickPrep）
+function prepRows(c) {
+	const I = bossInfo(c), p = I.prep;
 	return `<div class="prepList">
-		<div class="${D.prep.guide ? 'on' : ''}" data-p="guide"><span class="e">📕</span><span><b>锦囊</b><br>去书屋读一本，带上它或做完小验证</span><span class="st">${D.prep.guide ? '✓ 齐了' : '去书屋 ›'}</span></div>
-		<div class="${D.prep.gear ? 'on' : ''}" data-p="gear"><span class="e">🎧</span><span><b>装备</b><br>去小程序练完一组（10 题、2 分钟以上）</span><span class="st">${D.prep.gear ? '✓ 齐了' : '去练 ›'}</span></div>
-		<div class="${D.prep.news ? 'on' : ''}" data-p="news"><span class="e">📰</span><span><b>情报</b><br>去情报站看一眼同一关的人在聊什么</span><span class="st">${D.prep.news ? '✓ 齐了' : '去看 ›'}</span></div>
+		<div class="${p.guide ? 'on' : ''}" data-p="guide"><span class="e">📕</span><span><b>锦囊</b><br>去书屋读一本，带上它或做完小验证</span><span class="st">${p.guide ? '✓ 齐了' : '去书屋 ›'}</span></div>
+		<div class="${p.gear ? 'on' : ''}" data-p="gear"><span class="e">🎧</span><span><b>装备</b><br>去小程序练完一组（10 题、2 分钟以上）</span><span class="st">${p.gear ? '✓ 齐了' : '去练 ›'}</span></div>
+		<div class="${p.news ? 'on' : ''}" data-p="news"><span class="e">📰</span><span><b>情报</b><br>去情报站看一眼同一关的人在聊什么</span><span class="st">${p.news ? '✓ 齐了' : '去看 ›'}</span></div>
 	</div>`;
-	void gearN;
 }
-function bindPrep(b) {
+function bindPrep(b, c) {
+	const ns = chNodes(c.no), find = k => ns.find(n => n.kind === k) ?? allNodes().find(n => n.kind === k);
 	b.querySelectorAll('[data-p]').forEach(el => {
 		el.style.cursor = 'pointer';
 		el.onclick = () => {
 			const k = el.dataset.p; closeSheet(true);
-			if (k === 'guide') enterShelf('browse', { fromEl: $('#nd-' + (Object.values(NODE).find(n => n.kind === 'shelf')?.id ?? 'b1')) });
-			if (k === 'gear') { const g = Object.values(NODE).find(n => n.kind === 'gear'); if (g?.state === 'locked') toast('装备站还没走到'); else { const tg = target(); gearGo(g?.gear?.path ?? '/dictation', tg?.kind === 'level' ? tg.id : null); } }
-			if (k === 'news') { const n = Object.values(NODE).find(x => x.kind === 'news'); if (!n || n.state === 'locked') toast('情报站还没走到'); else newsSheet(n); }
+			if (k === 'guide') enterShelf('browse', { fromEl: $('#nd-' + (find('shelf')?.id ?? 'b1')) });
+			if (k === 'gear') { const g = find('gear'); if (g?.state === 'locked') toast('装备站还没走到'); else { const tg = target(); gearGo(g?.gear?.path ?? '/dictation', tg?.kind === 'level' ? tg.id : null); } }
+			if (k === 'news') { const n = find('news'); if (!n || n.state === 'locked') toast('情报站还没走到'); else newsSheet(n); }
 		};
 	});
 }
-function bossSheet() {
-	const n = Object.values(NODE).find(x => x.kind === 'boss'); if (!n) return;
-	const locked = n.state === 'locked', B = D.chapter.boss;
-	const ready = !locked && D.bossReady;
-	const miss = ['guide', 'gear', 'news'].filter(k => !D.prep[k]).map(k => PREP[k][1]);
+function bossSheet(n) {
+	n = n ?? bossOf(curCh()); if (!n) return;
+	const c = nodeCh(n), I = bossInfo(c), B = c.boss, R = I.rules;
+	const locked = n.state === 'locked';
+	const ready = !locked && I.ready;
+	const miss = ['guide', 'gear', 'news'].filter(k => !I.prep[k]).map(k => PREP[k][1]);
+	const left = Math.max(0, I.need - I.done);
 	const say = locked ? ''
-		: D.prepWaived && miss.length && n.state !== 'done' ? '第一次挑战不用先备战，进去就打。备战三件随时可以补。'
-			: !D.bossReady ? `还差${miss.join('、')}，备齐了门就开。点下面哪一件就去哪。`
-			: D.bossLosses ? `上一局输了。再输一次备战就清零，要不要先去书屋翻翻？` : '三件都齐了。别急，一题一题来。';
-	const html = `<h4>${esc(n.name ?? 'Boss')}</h4><div class="sub">第一章的门${n.zh ? ' · ' + esc(n.zh) : ''}</div>
-		<div class="hint">打掉 <b>${B.hp}</b> 格血就赢，错 <b>${B.maxWrong}</b> 题就输<br>连输 2 次备战清零</div>
+		: I.waived && miss.length && n.state !== 'done' ? '第一次挑战不用先备战，进去就打。备战三件随时可以补。'
+			: I.extra ? '连输了。再备战 1 件（哪件都行），门就开。'
+				: !I.ready ? (I.need >= I.of ? `还差${miss.join('、')}，备齐了门就开。点下面哪一件就去哪。` : `三件里做 ${I.need} 件门就开，还差 ${left} 件。点下面哪一件就去哪。`)
+					: I.losses && R.resetPrepAfterLossesInARow ? '上一局输了。再输一次备战就清零，要不要先去书屋翻翻？'
+						: I.losses ? '上一局输了，门还开着。要不要先去书屋翻翻？' : '备战够了。别急，一题一题来。';
+	const lossRule = R.resetPrepAfterLossesInARow ? `连输 ${R.resetPrepAfterLossesInARow} 次备战清零` : R.extraPrepAfterLossesInARow ? `连输 ${R.extraPrepAfterLossesInARow} 次要再备战 1 件` : '';
+	const timed = n.timed ? `<br>${esc(n.timed.card || `限时 ${Math.round(n.timed.totalSeconds / 60)} 分钟`)}` : '';
+	const minH = R.minHeartsToStart ?? 1;
+	const html = `<h4>${esc(n.name ?? 'Boss')}</h4><div class="sub">${esc(chWord(c))}的门${n.zh ? ' · ' + esc(n.zh) : ''}</div>
+		<div class="hint">打掉 <b>${B.hp}</b> 格血就赢，错 <b>${B.maxWrong}</b> 题就输${lossRule ? '<br>' + lossRule : ''}${timed}</div>
 		${say ? `<div class="card">${say}</div>` : ''}
-		${prepRows()}
-		${ready ? `<div class="stick">${D.hearts > 0 ? '<button class="sbtn navy" data-a="fight">打 Boss</button>' : '<button class="sbtn" data-a="refill">心打光了 · 去补心</button>'}</div>` : ''}`;
+		${prepRows(c)}
+		${ready ? `<div class="stick">${D.hearts >= minH ? '<button class="sbtn navy" data-a="fight">打 Boss</button>' : `<button class="sbtn" data-a="refill">${D.hearts > 0 ? esc(R.lowHeartsButton ?? '心不够了 · 去补心') : '心打光了 · 去补心'}</button>`}</div>` : ''}`;
 	openSheet(html, b => {
-		bindPrep(b);
-		b.querySelector('[data-a="fight"]')?.addEventListener('click', () => { closeSheet(true); startLevel(n.id); });
+		bindPrep(b, c);
+		b.querySelector('[data-a="fight"]')?.addEventListener('click', () => { unlockAudio(); closeSheet(true); startLevel(n.id); });
 		b.querySelector('[data-a="refill"]')?.addEventListener('click', () => { closeSheet(true); showEmpty('map'); });
 	});
 }
@@ -783,7 +888,6 @@ function boardSheet() {
 			(r.me ? '' : '<div class="sub" style="margin-top:8px">这周还没有你的经验，过一关就上榜。</div>');
 	}).catch(e => { const el = $('#boardBody'); if (el) el.textContent = errText(e); });
 }
-$('#lm-guild').onclick = e => { bounce(e.currentTarget); boardSheet(); };
 $('#boardBtn').onclick = () => boardSheet();
 // 点 Mia 头像：召唤了 Agent 就打开它的对话面板（闯关页不显示右下角那个按钮），没召唤就再说一遍当前这句
 $('#miaFace').onclick = () => { play('tap'); bounce($('#miaFace')); let opened = false; try { opened = !!(Q && typeof Q.agent === 'function' && Q.agent()); } catch (e) { opened = false; } if (!opened && D) miaSay(miaLine()); };
@@ -818,13 +922,14 @@ function restoreMap() {
 function backToMap(then) {
 	hide('#quiz'); hide('#boss'); hide('#pqEnd'); gsap.set('#stamp', { scale: 0, opacity: 0 });
 	gsap.to(['#fail', '#bossLose'], { y: '140%', duration: 0.3 });
-	stopAudio(); clearInterval(wordTimer); restoreMap();
+	stopAudio(); clearInterval(wordTimer); timerStop(); restoreMap();
 	return refresh().then(() => { if (then) then(); }, () => {});
 }
 $('#go').onclick = () => {
 	const tg = target(); if (!tg) return;
 	barAway();
-	if (tg.kind === 'boss') { if (!D.bossReady || tg.state === 'locked' || D.hearts <= 0) { play('fail', 0.6); bossSheet(); return; } }
+	unlockAudio();
+	if (tg.kind === 'boss') { const I = bossInfo(nodeCh(tg)); if (!I.ready || tg.state === 'locked' || D.hearts < (I.rules.minHeartsToStart ?? 1)) { play('fail', 0.6); bossSheet(tg); return; } }
 	startLevel(tg.id);
 };
 let starting = false;
@@ -834,9 +939,15 @@ function startLevel(id, opt) {
 	const n = NODE[id];
 	api('lojo/quest/start', { levelId: id, retest: !!opt?.retest }).then(st => {
 		D.hearts = st.hearts;
-		AT = { ...st, node: n, i: 0, marks: [], end: null, practice: st.mode === 'practice' || st.mode === 'retest' };
+		const k = st.resumed ? Math.min(st.answered ?? 0, (st.questions?.length ?? 1) - 1) : 0;
+		AT = { ...st, node: n, i: k, marks: [...Array(k)].map(() => 'done'), end: null, practice: st.mode === 'practice' || st.mode === 'retest' };
 		const visible = $('#quiz').style.display === 'flex' || $('#boss').style.display === 'flex';
-		const open = () => { if (st.mode === 'boss') openBoss(); else openQuiz(); };
+		const open = () => {
+			if (st.mode === 'boss') openBoss(); else openQuiz();
+			if (st.timeUp) { AT.end = st.timeUp; timerShow(st.timer, true); timeUpNow(st.timeUp); return; }
+			if (st.timer) timerBegin(st.timer, !st.resumed);
+			if (st.resumed && !st.timeUp) toast(`接着答第 ${k + 1} 题 · 沙漏一直在走`, 2200);
+		};
 		if (visible) { gsap.to(['#fail', '#bossLose'], { y: '140%', duration: 0.3 }); hide('#pqEnd'); open(); } else zoomInto(n, open);
 	}).catch(e => {
 		if (e?.code === 'NO_HEARTS') { play('fail', 0.6); showEmpty($('#quiz').style.display === 'flex' ? 'fail' : 'out'); return; }
@@ -848,9 +959,11 @@ function startLevel(id, opt) {
 }
 
 /* ================= 题：四种题型 + 听力 ================= */
-const TYPE_ZH = { gap: '填空', choice: '选择', TFNG: '判断', build: '拼句' };
+const TYPE_ZH = { gap: '填空', choice: '选择', TFNG: '判断', YNNG: '判断', build: '拼句', multi: '选两个' };
 const SKILL_ZH = { listening: '听力', reading: '阅读', grammar: '语法', vocab: '词汇', mixed: '综合' };
 const TFNG_OPTS = [{ key: 'TRUE', text: 'TRUE' }, { key: 'FALSE', text: 'FALSE' }, { key: 'NOT GIVEN', text: 'NOT GIVEN' }];
+const YNNG_OPTS = [{ key: 'YES', text: 'YES' }, { key: 'NO', text: 'NO' }, { key: 'NOT GIVEN', text: 'NOT GIVEN' }];
+const isPick = t => t === 'choice' || t === 'TFNG' || t === 'YNNG' || t === 'multi';
 function limitText(l) {
 	if (!l) return '';
 	if (l.words && l.number) return `不超过 ${l.words} 个词，和/或一个数字`;
@@ -862,12 +975,30 @@ const nl = s => esc(s).replace(/\n/g, '<br>');
 function paintQ(pre, q) {
 	const P = s => $('#' + pre + s);
 	P('Pass').textContent = q.passage ?? '';
-	const head = pre === 'b' ? `第 ${AT.i + 1} 题 · 打掉 ${AT.hp ?? D.chapter.boss.hp} 格血就赢` : `第 ${AT.i + 1} / ${AT.total} 题 · 对 ${AT.need} 题过`;
-	const lead = q.type === 'TFNG' ? '这句话跟原文对得上吗？' : q.type === 'build' ? '' : '';
-	P('Stmt').innerHTML = `<small>${head} · ${TYPE_ZH[q.type] ?? ''}</small>${lead ? `<small style="margin-top:2px">${lead}</small>` : ''}${nl(q.question)}`;
+	const head = pre === 'b' ? `第 ${AT.i + 1} 题 · 打掉 ${AT.hp ?? nodeCh(AT.node).boss.hp} 格血就赢` : `第 ${AT.i + 1} / ${AT.total} 题 · 对 ${AT.need} 题过`;
+	const lead = q.type === 'TFNG' ? '这句话跟原文对得上吗？' : q.type === 'YNNG' ? '作者是这么看的吗？' : q.type === 'multi' ? `选 ${q.pick ?? 2} 个` : '';
+	const part = q.lecture ? ` · 第 ${q.lecture.part} / ${q.lecture.of} 段` : '';
+	P('Stmt').innerHTML = `<small>${head} · ${TYPE_ZH[q.type] ?? ''}${part}</small>${lead ? `<small style="margin-top:2px">${lead}</small>` : ''}${nl(q.question)}`;
 	const box = P('Opts');
-	if (q.type === 'choice' || q.type === 'TFNG') {
-		const opts = q.options?.length ? q.options : TFNG_OPTS;
+	if (q.type === 'multi') {
+		// 五选二：点两个再交（再点一下取消）；交的是排好序的 key，用逗号连起来（"C,E"）
+		const opts = q.options ?? [], want = q.pick ?? 2;
+		const long = opts.some(o => String(o.text).length > 14);
+		box.innerHTML = opts.map(o => `<button class="opt${long ? ' long' : ''}" data-k="${esc(o.key)}" aria-pressed="false"><b>${esc(o.key)}.</b> ${esc(o.text)}</button>`).join('') +
+			`<div class="gapRow"><button class="subBtn" disabled>选好 ${want} 个，交答案</button></div>`;
+		const btn = box.querySelector('.subBtn');
+		const picked = () => [...box.querySelectorAll('.opt.picked')];
+		box.querySelectorAll('.opt').forEach(b => {
+			b.onclick = () => {
+				if (b.disabled) return;
+				if (!b.classList.contains('picked') && picked().length >= want) { play('fail', 0.3); toast(`只选 ${want} 个：先点掉一个`); return; }
+				play('tap', 0.6); b.classList.toggle('picked'); b.setAttribute('aria-pressed', b.classList.contains('picked') ? 'true' : 'false');
+				btn.disabled = picked().length !== want;
+			};
+		});
+		btn.onclick = () => { const ks = picked().map(b => b.dataset.k).sort(); if (ks.length === want) submitAnswer(pre, ks.join(','), picked()); };
+	} else if (isPick(q.type)) {
+		const opts = q.options?.length ? q.options : q.type === 'YNNG' ? YNNG_OPTS : TFNG_OPTS;
 		const long = opts.some(o => String(o.text).length > 14);
 		box.innerHTML = opts.map(o => `<button class="opt${long ? ' long' : ''}" data-k="${esc(o.key)}">${q.type === 'choice' ? `<b>${esc(o.key)}.</b> ` : ''}${esc(o.text)}</button>`).join('');
 		box.querySelectorAll('.opt').forEach(b => { b.onclick = () => submitAnswer(pre, b.dataset.k, b); });
@@ -912,9 +1043,14 @@ function paintAudio(pre, q) {
 		if (!AT || AT.questions[AT.i]?.id !== qid) return;
 		if (r?.skip) { skipQ(pre, q, r.skip.next); return; }
 		if (!r?.lines?.length) { fallbackText(box, r?.fallback ?? [], q); return; }
-		box.innerHTML = '<button class="audBtn"><span class="ic">▶</span>播放录音<small>可以多听几遍</small></button>';
+		const once = !!q.playOnce;
+		box.innerHTML = `<button class="audBtn"><span class="ic">▶</span>播放录音<small>${once ? '只放一遍，跟考场一样' : '可以多听几遍'}</small></button>`;
 		const b = box.querySelector('.audBtn');
-		b.onclick = () => playLines(b, r.lines, r.rate ?? 1);
+		b.onclick = () => {
+			if (once && b.dataset.used) return;
+			if (once) b.dataset.used = '1';
+			playLines(b, r.lines, r.rate ?? 1, once);
+		};
 	}).catch(e => {
 		if (!AT || AT.questions[AT.i]?.id !== qid) return;
 		if (isOffline(e)) { box.innerHTML = '<div class="fallback"><div class="fh">断网了，录音放不出来</div>连上以后点这里再试。</div>'; box.querySelector('.fallback').onclick = () => paintAudio(pre, q); return; }
@@ -949,14 +1085,18 @@ function skipQ(pre, q, next) {
 		if (pre === 'b') showBQ(false); else showQ(false);
 	};
 }
-function playLines(btn, lines, rate) {
+function playLines(btn, lines, rate, once) {
 	stopAudio();
 	const run = { stop: false, el: null }; audNow = run;
 	btn.classList.add('on'); btn.querySelector('.ic').textContent = '♪';
 	let k = 0;
 	const next = () => {
 		if (run.stop) return;
-		if (k >= lines.length) { btn.classList.remove('on'); btn.querySelector('.ic').textContent = '↻'; btn.childNodes[1].textContent = '再听一遍'; audNow = null; return; }
+		if (k >= lines.length) {
+			btn.classList.remove('on'); audNow = null;
+			if (once) { btn.classList.add('used'); btn.disabled = true; btn.querySelector('.ic').textContent = '✓'; btn.childNodes[1].textContent = '录音放完了'; return; }
+			btn.querySelector('.ic').textContent = '↻'; btn.childNodes[1].textContent = '再听一遍'; return;
+		}
 		const a = new Audio(lines[k++].url); a.playbackRate = rate; a.preservesPitch = true; run.el = a;
 		a.onended = next; a.onerror = next;
 		a.play().catch(() => { btn.classList.remove('on'); btn.querySelector('.ic').textContent = '▶'; audNow = null; toast('点一下再播放'); });
@@ -973,7 +1113,9 @@ function submitAnswer(pre, value, el) {
 	lockQ(pre, true);
 	api('lojo/quest/answer', { attemptId: AT.attemptId, qid: q.id, answer: value }).then(r => {
 		pending = null; okOnline();
-		AT.marks[AT.i] = r.correct; AT.end = r.end; D.hearts = r.hearts;
+		D.hearts = r.hearts;
+		if (r.timeUp) { AT.end = r.end; timeUpNow(r.end); return; }
+		AT.marks[AT.i] = r.half ? 'half' : r.correct; AT.end = r.end;
 		if (pre === 'b') bossJudged(r, el, q); else quizJudged(r, el, q);
 	}).catch(e => {
 		if (isOffline(e)) { pending = { pre, value, el }; goOffline(); return; }
@@ -982,26 +1124,35 @@ function submitAnswer(pre, value, el) {
 		if (e?.code === 'NO_SUCH_ATTEMPT' || e?.code === 'WRONG_QUESTION') backToMap();
 	}).finally(() => { answering = false; });
 }
-function markEl(el, ok) {
+function markEl(el, ok, half) {
 	if (!el) return;
+	if (Array.isArray(el)) { el.forEach(x => markEl(x, ok, half)); return; }
+	if (half) { el.classList.add('half'); return; }
 	el.classList.add(ok ? 'ok' : 'no');
 	if (!ok) gsap.fromTo(el, { x: 0 }, { x: 8, duration: 0.06, repeat: 5, yoyo: true, ease: 'none', clearProps: 'x' });
 }
+// 选两个：把对的那几个选项标绿（answer 形如 "C. … / E. …"）
+function showRight(pre, q, r) {
+	if (!isPick(q.type)) return;
+	const parts = String(r.answer ?? '').split(' / ');
+	$$('#' + pre + 'Opts .opt').forEach(b => { if (parts.some(a => a === b.dataset.k || a.startsWith(b.dataset.k + '.'))) b.classList.add('ok'); });
+}
+const halfZh = () => nodeCh(AT.node).rules?.multi?.oneRightZh ?? '对一半：不扣心，但不算答对';
 function explain(r, rightWord) {
-	return (r.correct ? `<b>${rightWord}</b>` : `<b>答案是 ${esc(r.answer)}。</b>`) + esc(r.why ?? '') + (r.evidence ? `<div class="evid">${esc(r.evidence)}</div>` : '');
+	return (r.correct ? `<b>${rightWord}</b>` : r.half ? `<b>${esc(halfZh())}。</b>答案是 ${esc(r.answer)}。` : `<b>答案是 ${esc(r.answer)}。</b>`) + esc(r.why ?? '') + (r.evidence ? `<div class="evid">${esc(r.evidence)}</div>` : '');
 }
 function quizJudged(r, el, q) {
-	markEl(el, r.correct);
+	markEl(el, r.correct, r.half);
 	if (r.correct) { play('tap'); tune([660, 880], 'triangle', 0.07, 0.2, 0.08); } else {
-		play('fail');
-		if (q.type === 'choice' || q.type === 'TFNG') $$('#qOpts .opt').find(b => r.answer === b.dataset.k || r.answer.startsWith(b.dataset.k + '.'))?.classList.add('ok');
+		play(r.half ? 'tap' : 'fail', r.half ? 0.6 : 1);
+		showRight('q', q, r);
 	}
 	if (r.heartLost) setTimeout(() => loseHeart('#qHearts', r.hearts), 250);
-	const d = $$('#qDots i')[AT.i]; if (d) { d.className = r.correct ? 'ok' : 'no'; d.textContent = r.correct ? '✓' : '✕'; gsap.from(d, { scale: 1.8, duration: 0.35, ease: 'back.out(3)' }); }
+	const d = $$('#qDots i')[AT.i]; if (d) { d.className = r.correct ? 'ok' : r.half ? 'half' : 'no'; d.textContent = r.correct ? '✓' : r.half ? '½' : '✕'; gsap.from(d, { scale: 1.8, duration: 0.35, ease: 'back.out(3)' }); }
 	gsap.to('#qbar', { width: `${Math.round(r.progress.answered / r.progress.total * 100)}%`, duration: 0.4 });
-	const ex = $('#qEx'); ex.className = 'qex' + (r.correct ? '' : ' bad');
+	const ex = $('#qEx'); ex.className = 'qex' + (r.correct || r.half ? '' : ' bad');
 	$('#qExT').innerHTML = explain(r, '对了。') +
-		(!r.correct && AT.practice ? `<br>${AT.mode === 'retest' ? '回测' : '练手关'}，不扣心。` : '') + (r.heartLost ? `<br>扣 1 颗心，还剩 ${r.hearts} 颗。` : '');
+		(!r.correct && !r.half && AT.practice ? `<br>${AT.mode === 'retest' ? '回测' : '练手关'}，不扣心。` : '') + (r.heartLost ? `<br>扣 1 颗心，还剩 ${r.hearts} 颗。` : '');
 	$('#qNext').textContent = r.end ? '看结果' : '下一题';
 	show(ex, 'block'); gsap.from(ex, { y: 12, opacity: 0, duration: 0.3 });
 	setTimeout(() => ex.scrollIntoView({ block: 'nearest', behavior: RM ? 'auto' : 'smooth' }), 50);
@@ -1022,7 +1173,8 @@ function openQuiz() {
 	showQ(true);
 }
 function showQ(first) {
-	$$('#qDots i').forEach((d, i) => { d.className = AT.marks[i] === true ? 'ok' : AT.marks[i] === false ? 'no' : i === AT.i ? 'cur' : ''; d.textContent = AT.marks[i] === true ? '✓' : AT.marks[i] === false ? '✕' : ''; });
+	const MK = { true: ['ok', '✓'], false: ['no', '✕'], half: ['half', '½'], done: ['', '·'] };
+	$$('#qDots i').forEach((d, i) => { const m = MK[AT.marks[i]]; d.className = m ? m[0] : i === AT.i ? 'cur' : ''; d.textContent = m ? m[1] : ''; });
 	paintQ('q', AT.questions[AT.i]);
 	hide('#qEx');
 	gsap.from(first ? '#quiz > *:not(.qex):not(#pqEnd)' : '#qAud,#qPass,#qStmt,#qOpts', { y: first ? 30 : 16, opacity: 0, stagger: 0.05, duration: 0.3, ease: 'back.out(1.6)' });
@@ -1039,7 +1191,7 @@ $('#qBack').onclick = () => { play('tap'); backToMap(); };
 
 /* 结果里的逐题回顾：错题在前，超过 2 条先折起来 */
 function reviewHtml(end) {
-	const rows = end.review.map(r => `<div class="${r.correct ? '' : 'no'}"><i>${r.correct ? '✓' : '✕'}</i><span>第 ${r.n} 题${r.correct ? `：${esc(r.answer)}` : `：你填 ${esc(r.given || '（空）')}，答案 <b>${esc(r.answer)}</b>`}。${esc(r.why ?? '')}${!r.correct && r.evidence ? `<span class="evid" style="display:block">${esc(r.evidence)}</span>` : ''}</span></div>`);
+	const rows = end.review.map(r => `<div class="${r.correct ? '' : r.half ? 'half' : 'no'}"><i>${r.correct ? '✓' : r.half ? '½' : '✕'}</i><span>第 ${r.n} 题${r.correct ? `：${esc(r.answer)}` : r.timeout ? `：没答（时间到），答案 <b>${esc(r.answer)}</b>` : `：${r.half ? '对一半，' : ''}你填 ${esc(r.given || '（空）')}，答案 <b>${esc(r.answer)}</b>`}。${esc(r.why ?? '')}${!r.correct && r.evidence ? `<span class="evid" style="display:block">${esc(r.evidence)}</span>` : ''}</span></div>`);
 	const wrong = end.review.map((r, i) => (r.correct ? -1 : i)).filter(i => i >= 0);
 	const right = end.review.map((r, i) => (r.correct ? i : -1)).filter(i => i >= 0);
 	const order = [...wrong, ...right];
@@ -1198,7 +1350,7 @@ function practiceEnd(end) {
 
 /* 过关：盖章（整页最上层）→ 宝箱 → 回地图 → 火苗 → 冻结卡 */
 function passFlow(end) {
-	$('#stamp small').textContent = `${AT.node.label} · 经验 +${end.xp}`;
+	$('#stamp small').textContent = `${AT.node.label} · ` + (end.timer ? `用了 ${tmUsed(end.timer).m} 分 ${tmUsed(end.timer).s} 秒` : `经验 +${end.xp}`);
 	gsap.to('#qbar', { width: '100%', duration: 0.5, ease: 'power2.out' });
 	const loot = end.chest || end.sideChest;
 	gsap.timeline({ delay: 0.15 })
@@ -1236,7 +1388,10 @@ function afterPass(end) {
 		gsap.set('#stamp', { scale: 0, opacity: 0 });
 		const g = $(`#nd-${id} .ndi`); if (g) { play('stamp'); gsap.from(g, { scale: 2.2, transformOrigin: '50% 50%', duration: 0.4, ease: 'back.out(3)' }); }
 		if ($$('.inkE').length) gsap.from('.inkE', { opacity: 0, duration: 0.4 });
-		setTimeout(() => flameThenFreeze(end.streak, end.chest?.freeze, () => miaSay(end.firstPass ? `${esc(lab)} 过了！经验 +${end.xp}。下一步，看图钉。` : `又过了一次，经验 +${end.xp}。`)), 700);
+		const TC = nodeCh(NODE[id]).rules?.timedCopy ?? {};
+		const said = end.timer ? `${esc(tplFill(TC.passLevel ?? '{level} 拿下了 · 用了 {m} 分 {s} 秒', { level: lab, ...tmUsed(end.timer) }))}。经验 +${end.xp}。`
+			: end.firstPass ? `${esc(lab)} 过了！经验 +${end.xp}。下一步，看图钉。` : `又过了一次，经验 +${end.xp}。`;
+		setTimeout(() => flameThenFreeze(end.streak, end.chest?.freeze, () => miaSay(said)), 700);
 	});
 }
 function flameThenFreeze(streak, chestFreeze, done) {
@@ -1263,8 +1418,13 @@ function showFreeze(title, sub, done) {
 /* 没过：错在哪 + 一个主按钮（Mia 推荐的锦囊）+ 两个线框 + 两个小链接 */
 function failFlow(end) {
 	const n = AT.node, out = !n.practice && (end.outOfHearts || D.hearts <= 0);
-	$('#failH').textContent = out ? '心打光了，这关没过' : '这关没过';
-	$('#failP').innerHTML = (n.practice ? `对 <b>${end.right}</b> 题，差 ${Math.max(1, end.need - end.right)} 题。再打会换一组题。` : `对 <b>${end.right}</b> 题，要对 ${end.need} 题才过。心还剩 <b>${D.hearts}</b> 颗。`) +
+	const T = end.timer?.timeUp ? end.timer : null, TC = nodeCh(n).rules?.timedCopy ?? {};
+	$('#failH').textContent = T ? (TC.timeUp ?? '时间到 · 收卷了') : out ? '心打光了，这关没过' : '这关没过';
+	if (T) {
+		$('#failP').innerHTML = esc(tplFill(TC.failByTime ?? '对 {right} 题，时间到时还有 {n} 题没答。', { right: end.right, n: T.unanswered })) +
+			(T.heartsLost ? ` 扣 ${T.heartsLost} 颗心。` : '') + heartRow(D.hearts, T.heartsLost ?? 0) +
+			(TC.miaFailByTime ? `<span class="tmMia">Mia：${esc(TC.miaFailByTime)}</span>` : '');
+	} else $('#failP').innerHTML = (n.practice ? `对 <b>${end.right}</b> 题，差 ${Math.max(1, end.need - end.right)} 题。再打会换一组题。` : `对 <b>${end.right}</b> 题，要对 ${end.need} 题才过。心还剩 <b>${D.hearts}</b> 颗。`) +
 		(end.failStreak >= 2 ? `<br>这关连着没过 ${end.failStreak} 次了，先别急着重打。` : '');
 	$('#failReview').innerHTML = reviewHtml(end);
 	const rec = end.recommended;
@@ -1283,7 +1443,8 @@ function failFlow(end) {
 	$('#failShelf').style.display = inTrial() ? 'none' : ''; $('#failGear').parentElement.style.display = inTrial() ? 'none' : '';
 	gsap.to('#fail', { y: '0%', duration: 0.55, ease: 'back.out(1.4)', delay: 0.2 });
 	$('#fail').scrollTop = 0;
-	play('fail', 0.5);
+	play('fail', T ? 0.45 : 0.5);
+	if (T) loseHearts($('#failP'));
 }
 function askMia(btn) {
 	if (!D.tutorId || !AT) return;
@@ -1314,16 +1475,173 @@ $('#failRetry').onclick = () => {
 };
 $('#failMap').onclick = () => { play('tap'); backToMap(); };
 
+/* ================= 限时关：沙漏计时器 A（计时器A-交付说明 11-11 定稿） =================
+   钟以服务器为准：开局时刻在服务器（点开打那一下），页面只负责显示。切出去、锁屏、刷新都不停；回来先按服务器时间重画。
+   走到 0：放「时间到 · 收卷了」，同时问服务器 lojo/quest/time-up 收卷；停 1 秒进结算。 */
+const FEEL = { lateAt: 30, tickFrom: 10, tickVol: [0.14, 0.32], lastThree: 3, pulse: [1.06, 1.14], tiltDeg: 4, edgeMax: 26, holdMs: 1000 };
+const TM = { on: false, total: 0, endsAt: 0, skew: 0, lastSec: null, late: false, up: false, copy: {} };
+function unlockAudio() {
+	if (!soundOn) return;
+	try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { /* 没声音也能玩 */ }
+}
+function thud() {
+	if (!soundOn) return;
+	try {
+		actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+		const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+		o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.25);
+		g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+		o.connect(g).connect(actx.destination); o.start(); o.stop(t + 0.32);
+	} catch (e) { /* 没声音也能玩 */ }
+}
+const tmFmt = s => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const tmLeft = () => Math.max(0, (TM.endsAt - (Date.now() + TM.skew)) / 1000);
+// 把计时器挂到这一关的顶栏：题关在 ✕ 右边（换掉进度条），Boss 在血条下一行靠左
+function timerShow(t, zero) {
+	const slot = $(AT?.mode === 'boss' ? '#bT' : '#qT');
+	['#qT', '#bT'].forEach(x => $(x).classList.remove('on'));
+	const w = $('#tWrap'); slot.appendChild(w); w.style.display = ''; slot.classList.add('on');
+	w.classList.remove('late'); gsap.set('#late30', { opacity: 0 }); gsap.set('#glassInner', { rotate: 0, svgOrigin: '0 0' });
+	TM.copy = t?.copy ?? {}; TM.total = t?.totalSeconds ?? 0; TM.late = false; TM.up = false; TM.lastSec = null;
+	TM.skew = t?.now ? Date.parse(t.now) - Date.now() : 0;
+	TM.endsAt = t?.endsAt ? Date.parse(t.endsAt) : Date.now() + TM.skew + TM.total * 1000;
+	$('#late30').textContent = TM.copy.lastSeconds ?? '还剩 30 秒';
+	$('#edge').style.boxShadow = 'none';
+	if (zero) { TM.endsAt = Date.now() + TM.skew; }
+	timerDraw(true);
+}
+function timerBegin(t, fresh) {
+	timerShow(t);
+	const go = () => { TM.on = true; requestAnimationFrame(timerFrame); };
+	if (!fresh || RM) { go(); return; }
+	// 刚开局：翻一下沙漏（约 0.75 秒，钟已经在服务器那边走了），数字弹一下
+	gsap.timeline().to('#glassInner', { rotate: 180, svgOrigin: '0 0', duration: 0.5, ease: 'back.inOut(1.6)', delay: 0.25 })
+		.call(() => play('scratch', 0.35), null, '<.1').set('#glassInner', { rotate: 0, svgOrigin: '0 0' })
+		.fromTo('#dA', { scale: 1.2 }, { scale: 1, duration: 0.3, ease: 'back.out(3)' });
+	go();
+}
+function timerStop() {
+	TM.on = false;
+	['#qT', '#bT'].forEach(x => $(x)?.classList.remove('on'));
+	const w = $('#tWrap'); if (w) w.style.display = 'none';
+	$('#edge').style.boxShadow = 'none';
+	hide('#up');
+}
+function timerFrame() { if (!TM.on) return; timerDraw(); if (TM.on) requestAnimationFrame(timerFrame); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && TM.on) timerDraw(); });
+function timerDraw(still) {
+	const r = tmLeft(), f = TM.total ? r / TM.total : 0, sec = Math.ceil(r), red = r <= FEEL.lateAt;
+	$('#dA').textContent = tmFmt(r);
+	$('#tA').setAttribute('aria-label', `剩余时间 ${Math.floor(sec / 60)} 分 ${sec % 60} 秒`);
+	const top = $('#sandTop'), bot = $('#sandBot'), sand = red ? '#E8603F' : '#D9B36A';
+	top.setAttribute('y', -12 + 12 * (1 - f)); top.setAttribute('height', 12 * f);
+	bot.setAttribute('y', 14 - 12 * (1 - f)); bot.setAttribute('height', 12 * (1 - f));
+	top.setAttribute('fill', sand); bot.setAttribute('fill', sand);
+	$('#stream').setAttribute('stroke', sand); $('#stream').style.opacity = r > 0 ? 1 : 0;
+	$('#tWrap').classList.toggle('late', red);
+	if (red && r > 0 && !TM.late) {
+		TM.late = true;
+		if (!still) play('lighton', 0.35);
+		gsap.fromTo('#late30', { opacity: 0, y: RM || still ? 0 : -6 }, { opacity: 1, y: 0, duration: RM || still ? 0 : 0.3 });
+	}
+	const k = r <= 0 ? 1 : r <= FEEL.tickFrom ? (FEEL.tickFrom - r) / FEEL.tickFrom : 0;
+	$('#edge').style.boxShadow = k ? `inset 0 0 ${Math.round(FEEL.edgeMax * 2 * k)}px ${Math.round(FEEL.edgeMax * k * 0.5)}px rgba(232,96,63,${(0.32 * k).toFixed(3)})` : 'none';
+	if (sec !== TM.lastSec) { const first = TM.lastSec == null; TM.lastSec = sec; if (!first && !still) timerSecond(sec); }
+	if (TM.on && r <= 0) { TM.on = false; timeUpAsk(); }
+}
+function timerSecond(sec) {
+	if (sec < 1 || sec > FEEL.tickFrom) return;
+	const t = (FEEL.tickFrom - sec) / (FEEL.tickFrom - 1), last = sec <= FEEL.lastThree;
+	play('tick', last ? 0.5 : FEEL.tickVol[0] + (FEEL.tickVol[1] - FEEL.tickVol[0]) * t, last ? [1.3, 1.2, 1.12][sec - 1] : 1);
+	if (RM) return;
+	const s = FEEL.pulse[0] + (FEEL.pulse[1] - FEEL.pulse[0]) * t;
+	gsap.fromTo('#dA', { scale: last ? s + 0.06 : s }, { scale: 1, duration: 0.45, ease: 'power2.out', transformOrigin: '50% 60%' });
+	gsap.fromTo('#glassInner', { rotate: (sec % 2 ? 1 : -1) * FEEL.tiltDeg }, { rotate: 0, duration: 0.5, ease: 'elastic.out(1,.4)', svgOrigin: '0 0' });
+}
+// 页面的钟走到 0：问服务器收卷。服务器说还没到（页面钟快了），就按它给的秒数接着走
+function timeUpAsk() {
+	if (!AT || AT.end || TM.up) return;
+	const at = AT.attemptId;
+	api('lojo/quest/time-up', { attemptId: at }).then(r => {
+		if (!AT || AT.attemptId !== at) return;
+		D.hearts = r.hearts;
+		if (!r.timeUp) { TM.endsAt = Date.now() + TM.skew + (r.secondsLeft ?? 2) * 1000; TM.on = true; requestAnimationFrame(timerFrame); return; }
+		AT.end = r.end; timeUpNow(r.end);
+	}).catch(e => {
+		if (!AT || AT.attemptId !== at) return;
+		// 这一局已经被服务器收了（比如答最后一题的同时到点）：回地图刷新
+		if (e?.code === 'NO_SUCH_ATTEMPT') { backToMap(); return; }
+		if (isOffline(e)) { goOffline(); return; }
+		toast(errText(e)); setTimeout(timeUpAsk, 2000);
+	});
+}
+// 时间到 · 收卷了：咚 + 卡扣 → 横线纸盖住题面 → 盖章 → 停 1 秒 → 结算
+function timeUpNow(end) {
+	if (!AT || TM.up) return;
+	TM.up = true; TM.on = false; stopAudio(); answering = false;
+	lockQ(AT.mode === 'boss' ? 'b' : 'q', true);
+	TM.endsAt = Date.now() + TM.skew; timerDraw(true);
+	const left = end?.timer?.unanswered ?? 0;
+	$('#upStamp').textContent = TM.copy.timeUp ?? '时间到 · 收卷了';
+	$('#upLeft').textContent = left > 0 ? (TM.copy.unanswered ?? '还有 {n} 题没答，按错算。').replace('{n}', left) : '';
+	$('#upLeft').style.display = left > 0 ? '' : 'none';
+	show('#up', 'block');
+	thud(); play('latch', 0.55); setTimeout(() => play('page', 0.5), 220);
+	const tl = gsap.timeline();
+	if (RM) tl.set('#upPaper', { yPercent: 0 }).call(() => play('stamp', 0.6));
+	else {
+		tl.fromTo('#upPaper', { yPercent: -130 }, { yPercent: 0, duration: 0.42, ease: 'power3.out', delay: 0.22 })
+			.fromTo('#upPaper .stampT', { scale: 1.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.22, ease: 'back.out(2)' }, '-=.05')
+			.call(() => play('stamp', 0.6), null, '<')
+			.fromTo('#upPaper', { x: -3 }, { x: 0, duration: 0.25, ease: 'elastic.out(1,.3)' }, '<');
+	}
+	tl.to({}, { duration: (Number(TM.copy.timeUpHoldMs) || FEEL.holdMs) / 1000 }).call(() => {
+		if (!AT || !end) { backToMap(); return; }
+		AT.ended = true;
+		gsap.to('#up', { opacity: 0, duration: 0.25, onComplete: () => { hide('#up'); $('#up').style.opacity = 1; } });
+		if (AT.mode === 'boss') bossLose(end); else endLevel(end);
+	});
+}
+// 结算页的心：要扣的几颗（服务器回的数）一颗一颗划掉
+function heartRow(after, lost) {
+	const max = MAXH();
+	return `<div class="hl" aria-label="心 ${after} 颗">${[...Array(max)].map((_, i) => (i < after ? '<i>♥</i>' : i < after + lost ? '<i class="tolose">♥<span class="slash"></span></i>' : '<i class="lost">♡</i>')).join('')}</div>`;
+}
+function loseHearts(root) {
+	[...root.querySelectorAll('.tolose')].reverse().forEach((h, i) => {
+		const t0 = 0.7 + i * 0.42, done = () => { h.classList.add('lost'); h.firstChild.nodeValue = '♡'; };
+		if (RM) { setTimeout(() => { done(); play('scratch', 0.4); }, t0 * 1000); return; }
+		gsap.timeline({ delay: t0 }).to(h, { scale: 1.3, duration: 0.1, ease: 'power2.out' })
+			.call(() => play('scratch', 0.4))
+			.fromTo(h.querySelector('.slash'), { scaleX: 0, rotate: -28 }, { scaleX: 1, rotate: -28, duration: 0.16, ease: 'power2.in' })
+			.call(done).to(h, { scale: 1, y: 3, rotate: -8, duration: 0.28, ease: 'back.out(3)' });
+	});
+}
+const tmUsed = t => { const e = t?.elapsedSeconds ?? 0; return { m: Math.floor(e / 60), s: e % 60 }; };
+const tplFill = (tpl, o) => String(tpl ?? '').replace(/\{(\w+)\}/g, (_, k) => (o[k] ?? ''));
+// 地图上：有一局限时关还开着（刷新、切走又回来），提醒回去接着答，钟没停
+let openTimedTold = null;
+function remindOpenTimed() {
+	const o = D?.openTimed; if (!o || busy() || openTimedTold === o.attemptId || !NODE[o.levelId]) return;
+	openTimedTold = o.attemptId;
+	const n = NODE[o.levelId], left = Math.max(0, Math.ceil((Date.parse(o.endsAt) - Date.now()) / 1000));
+	openSheet(`<h4>⌛ ${esc(n.label)} 还在计时</h4><div class="sub">${esc(n.name ?? '')}</div>
+		<div class="card">${left > 0 ? `沙漏一直在走，还剩约 <b>${tmFmt(left)}</b>。回去接着答，答过的题还在。` : '时间已经到了，回去看看这一局的结果。'}</div>
+		<button class="sbtn navy" data-a="back">${left > 0 ? '回去接着答' : '看结果'}</button>`, b => {
+		b.querySelector('[data-a="back"]').onclick = () => { unlockAudio(); closeSheet(true); startLevel(n.id); };
+	});
+}
+
 /* ================= Boss ================= */
 const bossEl = $('#boss');
 const WORDS = ['rise', 'go up', 'increase'];
 let wordTimer = null, wi = 0;
 function openBoss() {
 	hide(quiz); show(bossEl); bossEl.scrollTop = 0;
-	const n = AT.node, hp = AT.hp ?? D.chapter.boss.hp;
+	const n = AT.node, hp = AT.hp ?? nodeCh(n).boss.hp;
 	$('#bhp').innerHTML = [...Array(hp)].map(() => '<i></i>').join('');
 	$('#bName').textContent = n.name ?? 'Boss';
-	$('#bRule').textContent = `打掉 ${hp} 格血就赢 · 错 ${AT.maxWrong} 题就输 · 答错扣 1 颗心`;
+	$('#bRule').textContent = `打掉 ${hp} 格血就赢 · 错 ${AT.maxWrong} 题就输 · 答错扣 1 颗心` + (AT.timer ? ` · 限时 ${Math.round(AT.timer.totalSeconds / 60)} 分钟` : '');
 	drawHearts(D.hearts);
 	showBQ(true);
 	gsap.from('#bossFig', { y: -40, scale: 0.6, duration: 0.6, ease: 'bounce.out' });
@@ -1337,14 +1655,16 @@ function showBQ(first) {
 	gsap.from(first ? '#boss .bname,#boss .brule,#bAud,#bPass,#bStmt,#bOpts' : '#bAud,#bPass,#bStmt,#bOpts', { y: 20, opacity: 0, stagger: 0.05, duration: 0.3 });
 }
 function bossJudged(r, el, q) {
-	markEl(el, r.correct);
-	if (r.correct) {
+	markEl(el, r.correct, r.half);
+	if (r.half) {
+		play('tap', 0.6);
+	} else if (r.correct) {
 		play('pass', 0.7);
 		const segs = $$('#bhp i'); segs.forEach((s, i) => { s.className = i >= segs.length - r.progress.right ? 'gone' : ''; });
 		gsap.fromTo('#bossBody', { x: -10 }, { x: 0, duration: 0.4, ease: 'elastic.out(1,.3)' });
 	} else {
 		play('bosshit');
-		if (q.type === 'choice' || q.type === 'TFNG') $$('#bOpts .opt').find(b => r.answer === b.dataset.k || r.answer.startsWith(b.dataset.k + '.'))?.classList.add('ok');
+		showRight('b', q, r);
 		gsap.fromTo('#boss', { x: 0 }, { x: 9, duration: 0.05, repeat: 7, yoyo: true, ease: 'none', clearProps: 'x' });
 		gsap.fromTo('#bossBody', { scale: 1 }, { scale: 1.12, transformOrigin: '75px 140px', duration: 0.15, yoyo: true, repeat: 3 });
 		if (r.heartLost) {
@@ -1353,7 +1673,7 @@ function bossJudged(r, el, q) {
 			setTimeout(() => loseHeart('#bHearts', r.hearts), 150);
 		}
 	}
-	const ex = $('#bEx'); ex.className = 'qex' + (r.correct ? '' : ' bad');
+	const ex = $('#bEx'); ex.className = 'qex' + (r.correct || r.half ? '' : ' bad');
 	$('#bExT').innerHTML = explain(r, '打中了！');
 	$('#bNext').textContent = r.end ? '看结果' : '下一题';
 	show(ex, 'block'); gsap.from(ex, { y: 12, opacity: 0, duration: 0.3 });
@@ -1376,13 +1696,15 @@ function confetti() {
 		gsap.to(c, { x: (Math.random() - 0.5) * a.width * 1.1, y: (Math.random() - 0.2) * a.height * 0.9, rotation: '+=' + (Math.random() * 720 - 360), opacity: 0, duration: 1.4 + Math.random() * 0.9, ease: 'power2.out', onComplete: () => c.remove() });
 	}
 }
-const BADGE_ZH = { 'ielts-c1': '第一章打通' };
+const BADGE_ZH = { 'ielts-c1': '第一章打通', 'ielts-c2': '第二章打通', 'ielts-c3': '第三章打通', 'ielts-c4': '第四章打通' };
 function bossWin(end) {
 	clearInterval(wordTimer);
 	gsap.to('#bossBody', { y: 60, rotation: 25, opacity: 0, transformOrigin: '75px 140px', duration: 0.6, ease: 'power2.in' });
 	play('milestone'); setTimeout(() => tune([523, 659, 784, 1046, 1318], 'triangle', 0.1, 0.4, 0.13), 200);
 	const ov = $('#winOv'); show(ov);
-	$('#winSub').textContent = end.firstPass ? '第一章的门开了。第二章「换挡」正在修路。' : '又赢了一次，手感还在。';
+	const c = chap(end.ch ?? AT.node.ch ?? 1), w = chWord(c), TC = c.rules?.timedCopy ?? {};
+	$('#winSub').textContent = end.timer && TC.bossWin ? tplFill(TC.bossWin, tmUsed(end.timer))
+		: end.firstPass ? `${w}打通了。` : end.timer ? `又赢了一次 · 用了 ${tmUsed(end.timer).m} 分 ${tmUsed(end.timer).s} 秒` : '又赢了一次，手感还在。';
 	$('#winLoot').innerHTML = `<div><span class="big">+${end.xp}</span>经验${end.chest ? '（含今日首胜宝箱）' : ''}</div>` +
 		(end.badge ? `<div><span class="big">🏅</span>徽章「${esc(BADGE_ZH[end.badge] ?? end.badge)}」，收进你的战绩里了</div>` : '') +
 		(end.chest?.freeze ? '<div><span class="big">❄</span>宝箱里有 1 张冻结卡</div>' : '') +
@@ -1395,23 +1717,33 @@ function bossWin(end) {
 			hide(ov); ov.style.opacity = 1; gsap.set('#bossBody', { clearProps: 'all' });
 			backToMap(() => {
 				if (end.streak?.gotFreeze) showFreeze(`连胜 ${end.streak.days} 天！`, '每连胜 7 天送 1 张', null);
-				miaSay('Boss 倒了！第一章打通。第二章「换挡」正在修路，先回头把褪色的关再打一遍，手感不丢。');
+				const nx = CHS().find(x => x.no === c.no + 1);
+				miaSay(!end.firstPass ? 'Boss 又倒了一次。回头把褪色的关再打一遍，手感不丢。'
+					: nx?.open ? `Boss 倒了！${w}打通，${esc(chWord(nx))}的路开了，图钉在那边。`
+						: nx ? `Boss 倒了！${w}打通。${esc(chWord(nx))}「${esc(String(nx.title).split(' · ')[1] ?? '')}」正在修路，先回头把褪色的关再打一遍，手感不丢。`
+							: `Boss 倒了！${w}打通，雅思这条路走完了。`);
 			});
 		} });
 	};
 }
 function bossLose(end) {
-	clearInterval(wordTimer); play('lose');
+	clearInterval(wordTimer); play('lose', end.timer?.timeUp ? 0.45 : 1);
 	const fill = () => {
-		$('#bossLoseH').textContent = end.prepReset ? '连输 2 次 · 备战清零' : end.outOfHearts ? '心打光了，Boss 赢了这一局' : 'Boss 赢了这一局';
-		$('#bossLoseP').innerHTML = `打掉 <b>${end.right}</b> 格血，要 ${end.need} 格才赢。心还剩 <b>${D.hearts}</b> 颗。<br>` +
-			(end.prepReset ? '<b>备战三件清零了</b>：锦囊、装备、情报要重新备齐，门才会再开。' : end.bossLosses >= 1 ? '<b>再输 1 次，备战三件清零</b>，要重新去锦囊、装备、情报备齐。' : '');
+		const c = chap(end.ch ?? AT.node.ch ?? 1), R = c.rules ?? {}, TC = R.timedCopy ?? {}, T = end.timer?.timeUp ? end.timer : null;
+		const resetRule = c.no === 1 || !!R.resetPrepAfterLossesInARow;
+		$('#bossLoseH').textContent = end.prepReset ? '连输 2 次 · 备战清零' : T ? (TC.bossLoseByTime ?? '时间到，Boss 赢了这一局') : end.outOfHearts ? '心打光了，Boss 赢了这一局' : 'Boss 赢了这一局';
+		$('#bossLoseP').innerHTML = `打掉 <b>${end.right}</b> 格血，要 ${end.need} 格才赢。` +
+			(T ? `${T.unanswered ? `时间到时还有 ${T.unanswered} 题没答，不打 Boss，` : ''}${T.heartsLost ? `扣 ${T.heartsLost} 颗心。` : ''}${heartRow(D.hearts, T.heartsLost ?? 0)}` : `心还剩 <b>${D.hearts}</b> 颗。<br>`) +
+			(end.prepReset ? '<b>备战三件清零了</b>：锦囊、装备、情报要重新备齐，门才会再开。'
+				: end.prepExtra ? '<b>连输了 · 再备战 1 件门就开</b>（锦囊、装备、情报哪件都行）。'
+					: resetRule && end.bossLosses >= 1 ? '<b>再输 1 次，备战三件清零</b>，要重新去锦囊、装备、情报备齐。' : '');
 		$('#bossReview').innerHTML = reviewHtml(end);
 		$('#bossMia').style.display = D.tutorId ? '' : 'none';
 		const canRetry = !end.prepReset && D.hearts > 0;
 		$('#bossRetry').textContent = end.prepReset ? '回地图重新备战' : D.hearts > 0 ? '再打一次' : '心打光了 · 去补心';
 		$('#bossRetry').dataset.mode = end.prepReset ? 'map' : canRetry ? 'retry' : 'refill';
 		gsap.to('#bossLose', { y: '0%', duration: 0.5, ease: 'back.out(1.4)' }); $('#bossLose').scrollTop = 0;
+		if (T) loseHearts($('#bossLoseP'));
 	};
 	if (end.prepReset) setTimeout(() => resetPrep(fill), 400); else fill();
 }
@@ -1460,7 +1792,7 @@ function setBag(n, animate) {
 const isDark = c => !/^#(ECB637|CFE6DA|F6F1E7|FFFDF8)$/i.test(c);
 function buildShelf() {
 	const books = D.books;
-	$('#row1Lab').textContent = `${D.chapter.title} · ${books.length} 本`;
+	$('#row1Lab').textContent = `书屋 · ${books.length} 本`;
 	$('#row1').innerHTML = books.map(b => {
 		const h = Math.min(198, 112 + [...b.spine].length * 13);
 		return `<div class="spine" data-slug="${esc(b.slug)}" style="height:${h}px;background:${esc(b.color)};${isDark(b.color) ? '' : 'color:#141E52'}"><span class="halo"></span><span class="shw"><span class="sheen"></span></span><span class="no">${b.no}</span><span class="band" style="bottom:10px"></span>${esc(b.spine)}</div>`;
@@ -1556,7 +1888,7 @@ function openBook(s) {
 	const b = bookBySlug(s.dataset.slug); if (!b) return;
 	shelf.picked = true; shelf.book = b; shelf.spine = s; stopLoops();
 	const BH = bookH();
-	$('#bCh').textContent = D.chapter.title;
+	$('#bCh').textContent = curCh().title;
 	$('#bt').textContent = b.title; $('#bw').textContent = b.summary;
 	const dl = doitLabel(b);
 	$('#ba').innerHTML = `${esc(b.app?.zh ?? '')}${b.when ? '' : ''}` + (dl ? `<button class="doit" data-a="do">${dl}</button>` : '');
@@ -1667,8 +1999,8 @@ $('#takeBtn').onclick = () => {
 	if (b.inBag) { toast('它已经在背包里了'); return; }
 	$('#takeBtn').disabled = true;
 	api('lojo/quest/take', { slug: b.slug }).then(r => {
-		const wasGuide = D.prep.guide;
-		D.bag = r.bag; D.prep = r.prep; D.bossReady = r.prep.guide && r.prep.gear && r.prep.news; b.inBag = true;
+		const wasGuide = bossInfo(curCh()).prep.guide;
+		D.bag = r.bag; D.prep = r.prep; D.bossReady = prepReady(r.prep); b.inBag = true; refreshQuiet();
 		gsap.to('#shelfMia', { opacity: 1, duration: 0.3 });
 		say($('#shelfSay'), '收好了。' + (wasGuide ? '' : '备战「锦囊」打勾 ✓。') + (shelf.levelId ? '回去再打一次？' : ''));
 		bookToBag(() => shelfExit());
@@ -1730,7 +2062,7 @@ function submitCheck() {
 						: '过了！备战「锦囊」✓';
 		const res = $('#chkRes'); res.innerHTML = rows + `<div class="msg">${msg}</div>`; show(res, 'block'); gsap.from(res, { y: 10, opacity: 0, duration: 0.3 });
 		const counted = r.passed && r.reason !== 'duplicate';
-		D.prep = r.prep; D.bossReady = r.prep.guide && r.prep.gear && r.prep.news;
+		D.prep = r.prep; D.bossReady = prepReady(r.prep); if (counted) refreshQuiet();
 		if (counted) { b.checkedToday = true; if (!D.bag.includes(b.slug)) D.bag = [...D.bag, b.slug].slice(-3); b.inBag = true; }
 		if (r.refilled) D.refilledToday.guide = true;
 		const btns = $('#chkBtns');
@@ -2042,7 +2374,9 @@ function resend(p) {
 	const q = AT.questions[AT.i]; answering = true;
 	api('lojo/quest/answer', { attemptId: AT.attemptId, qid: q.id, answer: p.value }).then(r => {
 		okOnline(1);
-		AT.marks[AT.i] = r.correct; AT.end = r.end; D.hearts = r.hearts;
+		D.hearts = r.hearts;
+		if (r.timeUp) { AT.end = r.end; timeUpNow(r.end); return; }
+		AT.marks[AT.i] = r.half ? 'half' : r.correct; AT.end = r.end;
 		if (p.pre === 'b') bossJudged(r, p.el, q); else quizJudged(r, p.el, q);
 	}).catch(e => {
 		if (isOffline(e)) { pending = p; goOffline(); return; }
@@ -2587,17 +2921,14 @@ function plBossPulse() {
 }
 
 /* ---- 第二章门口 卡 1（品牌策略 第二章门口卡 最新版）：打赢 Boss 以后点第二章。没有通知按钮，不写价格、不写会员 ---- */
-$('#ch2').style.cursor = 'pointer';
-$('#ch2').addEventListener('click', () => {
+function doorCard1() {
 	if (!D || inTrial()) return;
-	const boss = D.chapter.nodes.find(n => n.kind === 'boss');
-	if (boss?.state !== 'done') { play('fail', 0.4); toast('打赢第一章 Boss 才开'); return; }
 	openSheet(`<div class="pl"><h2>第一章，打通了。</h2>
 		<p>第二章「换挡」正在修路：从听懂一句，到听懂一段。</p>
 		<p>第一章免费，心不卖。</p>
 		<button class="sbtn navy" data-a="ok">先回第一章逛逛</button>
 		<div class="fine">第一章随时回来重打，不收钱。关卡是练习，不代表雅思分数。</div></div>`, b => { b.querySelector('[data-a="ok"]').onclick = () => closeSheet(); });
-});
+}
 
 /* ================= 开始 ================= */
 if (PREVIEW && SP === 'error') { $('#errP').innerHTML = '网卡了一下，或者我们这边出了点小问题。<br>你的进度、连胜和心都存着，不会丢。'; $('#errCode').textContent = '错误码 NETWORK · 一直这样，就截图发到公会'; show('#errScr'); }

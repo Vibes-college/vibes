@@ -576,6 +576,8 @@ import type {
 	LojoQuestStartResponse,
 	LojoQuestTakeRequest,
 	LojoQuestTakeResponse,
+	LojoQuestTimeUpRequest,
+	LojoQuestTimeUpResponse,
 	LojoQuestTrialAnswerRequest,
 	LojoQuestTrialAnswerResponse,
 	LojoQuestTrialAudioRequest,
@@ -1160,6 +1162,7 @@ export type Endpoints = {
 	'lojo/quest/show': { req: EmptyRequest; res: LojoQuestShowResponse };
 	'lojo/quest/start': { req: LojoQuestStartRequest; res: LojoQuestStartResponse };
 	'lojo/quest/take': { req: LojoQuestTakeRequest; res: LojoQuestTakeResponse };
+	'lojo/quest/time-up': { req: LojoQuestTimeUpRequest; res: LojoQuestTimeUpResponse };
 	'lojo/quest/trial-answer': { req: LojoQuestTrialAnswerRequest; res: LojoQuestTrialAnswerResponse };
 	'lojo/quest/trial-audio': { req: LojoQuestTrialAudioRequest; res: LojoQuestTrialAudioResponse };
 	'lojo/quest/trial-claim': { req: LojoQuestTrialClaimRequest; res: LojoQuestTrialClaimResponse };

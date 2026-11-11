@@ -486,6 +486,7 @@ export * as 'lojo/quest/audio' from './endpoints/lojo/quest/audio.js';
 export * as 'lojo/quest/settings' from './endpoints/lojo/quest/settings.js';
 export * as 'lojo/quest/check' from './endpoints/lojo/quest/check.js';
 export * as 'lojo/quest/take' from './endpoints/lojo/quest/take.js';
+export * as 'lojo/quest/time-up' from './endpoints/lojo/quest/time-up.js';
 export * as 'lojo/quest/news' from './endpoints/lojo/quest/news.js';
 export * as 'lojo/quest/refill' from './endpoints/lojo/quest/refill.js';
 export * as 'lojo/quest/board' from './endpoints/lojo/quest/board.js';

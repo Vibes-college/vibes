@@ -603,3 +603,43 @@ html,body{background:#E9E1D2}
 #plocate .pstamp{font:900 22px var(--serif);color:var(--coral);border:3px solid var(--coral);border-radius:10px;padding:6px 16px;transform:rotate(-5deg);margin-bottom:26px}
 #plocate p{font-size:15px;color:var(--muted);margin:16px 0 0}
 #plocate svg{max-width:100%;height:auto}
+
+/* ===== 第二到四章（11-11）：每章地图的标签描边跟底色一样；没开的章是铅笔草图，点不了 ===== */
+.c2 .lab{stroke:#E9F0E2}.c3 .lab{stroke:#EAE8F3}.c4 .lab{stroke:#F5EEDC}
+.pencil{pointer-events:none}
+
+/* ===== 限时关：沙漏计时器 A（闯关体验设计 计时器A-交付说明 11-11 定稿） ===== */
+:root{--sand:#D9B36A}
+.tslot{position:relative;display:none;flex:none}
+.tslot.on{display:block}
+.qtop .tslot.on + .bar{display:none}
+.tslot.brow{margin:2px 0 4px;align-self:flex-start}
+#tA{display:flex;align-items:center;gap:6px;height:40px;padding:0 14px 0 8px;border-radius:22px;background:var(--paper);border:2px solid var(--navy);box-shadow:0 3px 0 var(--navy);color:var(--navy)}
+#boss #tA{border-color:var(--paper);box-shadow:0 3px 0 rgba(255,253,248,.55)}
+#tA svg{width:24px;height:32px;overflow:visible}
+#tA .digits{display:inline-block;font:900 21px "SF Mono",Menlo,"Roboto Mono",monospace;font-variant-numeric:tabular-nums;min-width:58px}
+#tWrap.late #tA{border-color:var(--coral);box-shadow:0 3px 0 var(--coral)}
+#tWrap.late #tA .digits{color:var(--coral)}
+.late30{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);font-size:12.5px;font-weight:900;color:var(--coral);background:var(--paper);border:1.5px solid var(--coral);border-radius:10px;padding:2px 9px;white-space:nowrap;opacity:0;pointer-events:none;z-index:7}
+.brow .late30{left:calc(100% + 10px);top:50%;transform:translateY(-50%)}
+#edge{position:absolute;inset:0;pointer-events:none;z-index:94;transition:box-shadow .9s linear}
+#up{position:absolute;inset:0;z-index:95;pointer-events:none;display:none}
+#upPaper{position:absolute;left:14px;right:14px;top:20px;bottom:20px;background:var(--paper);border:2px solid var(--navy);border-radius:16px;box-shadow:0 6px 0 var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background-image:repeating-linear-gradient(transparent 0 31px,#efe6d4 31px 32px);color:var(--navy)}
+#upPaper .stampT{font:900 30px var(--serif);color:var(--coral);border:3px solid var(--coral);border-radius:10px;padding:6px 16px;transform:rotate(-6deg);background:rgba(255,253,248,.9);white-space:nowrap}
+#upPaper .left{font-size:15px;font-weight:800;background:rgba(255,253,248,.9);padding:2px 8px;border-radius:6px}
+@media (max-width:374px){#tA{height:36px;gap:5px;padding:0 11px 0 7px}#tA svg{width:21px;height:28px}#tA .digits{font-size:19px;min-width:50px}#upPaper .stampT{font-size:26px}}
+/* 结算页扣心：一颗一颗划掉 */
+.hl{display:flex;gap:6px;justify-content:center;margin:8px 0 2px;font-size:22px;line-height:1}
+.hl i{position:relative;display:inline-block;font-style:normal;color:var(--coral)}
+.hl i.lost{color:#C9C0AE}
+.hl i .slash{position:absolute;left:-2px;right:-2px;top:50%;height:3px;margin-top:-1.5px;border-radius:2px;background:var(--navy);transform:rotate(-28deg) scaleX(0);transform-origin:0 50%}
+.hl i.lost .slash{transform:rotate(-28deg) scaleX(1)}
+.ndTime{font:900 9px var(--round)}
+/* 选两个 / 对一半 */
+.opt.picked{background:#FFF1D6;border-color:var(--mustard)}
+.opt.half{border-color:var(--mustard)!important;background:#FFF6E0!important}
+.qdots i.half{background:var(--mustard);color:var(--paper)}
+.review .half i{color:#B98A1D}
+.audBtn.used{opacity:.55}
+#failP .tmMia, #bossLoseP .tmMia { display: block; margin-top: 8px; font-size: 13px; color: var(--ink2, #555); }
