@@ -46,8 +46,9 @@ import type {
 } from '@/misc/lojo-create.js';
 
 const ENDPOINT = 'https://api.deepseek.com/chat/completions';
-// Plans and copy are worth the stronger model; flash answers when it fails.
-const DEFAULT_MODEL = 'deepseek-v4-pro';
+// deepseek-flash, like the rest of the site (founder 2026-11-11: no pro model; it cost about 4.5 times as much per token).
+// LOJO_CREATE_MODEL can still name another model; flash answers when that one fails.
+const DEFAULT_MODEL = 'deepseek-flash';
 const FALLBACK_MODEL = 'deepseek-flash';
 // Bump when the plans prompt changes, so plans made by the old prompt are not reused.
 const PLANS_VERSION = 4;

@@ -45,10 +45,11 @@ import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledge
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 
 const SCOPE = ['lojo', 'tutor'];
-const HISTORY = 24;
-// The chat in the prompt grows from 24 to 36 messages and then drops the oldest 12 at once, so its start stays the same
-// (and cached) between the jumps instead of moving by one every reply.
-const HISTORY_MAX = 36;
+const HISTORY = 30;
+// The chat in the prompt grows from 30 to 80 messages and then drops the oldest 50 at once, so its start stays the same
+// (and cached) between the jumps instead of moving by one every reply. Mia sends one to three messages per reply, so 80
+// is about 25 exchanges; cached tokens cost 1/50 of new ones, so a longer chat costs little and jumps less often.
+const HISTORY_MAX = 80;
 // A chat session ends after 30 minutes without a message. Within one, the notes in the prompt are the ones read when it
 // began (as Hermes Agent does), so the start of the prompt does not change; new notes are used from the next session.
 const SESSION_SECONDS = 30 * 60;
@@ -250,15 +251,21 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		if (!(await this.spendBudget())) return;
 		// Messages that arrive while this runs count towards the next update.
 		const pending = Number(await this.redisClient.hget(this.stateKey(tutorId, learnerId), 'notesPending') ?? 0);
-		const [memory, history] = await Promise.all([this.memory(learnerId, tutorId), this.history(tutorId, learnerId, HISTORY)]);
-		const input = JSON.stringify({
+		// The same start as Mia's replies (her prompt and this chat), so the cache that her last reply filled answers most of
+		// it; the notes task, the date and the current notes come last.
+		const [card, learner, sessionMemory, history, quest, memory] = await Promise.all([
+			this.card(tutorId), this.usersRepository.findOneBy({ id: learnerId }), this.sessionMemory(tutorId, learnerId),
+			this.sessionHistory(tutorId, learnerId), this.questContext(tutorId, learnerId), this.memory(learnerId, tutorId),
+		]);
+		if (learner == null) return;
+		const task = memoryUpdateSystemPrompt + '\n\n' + JSON.stringify({
 			today: this.nowText(),
 			notes: { profile: memory.profile, facts: memory.facts.map(({ id, text }) => ({ id, text })), summary: memory.summary },
-			conversation: history.map(turn => ({ from: turn.role === 'user' ? 'learner' : 'tutor', text: turn.content })),
 		});
 		const update = await this.lojoEnglishService.chatJson([
-			{ role: 'system', content: memoryUpdateSystemPrompt },
-			{ role: 'user', content: input },
+			{ role: 'system', content: tutorSystemPrompt(card, sessionMemory, { learnerName: this.nameOf(learner), questKnowledge: quest && questKnowledgeSection(quest.knowledge) }) },
+			...history,
+			{ role: 'system', content: task },
 		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`);
 		const next = applyMemoryUpdate(memory, update, new Date(), () => this.idService.gen());
 		await this.registryApiService.set(learnerId, null, SCOPE, tutorId, next);

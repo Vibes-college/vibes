@@ -290,7 +290,7 @@ export function asksToRememberOrForget(text: string): boolean {
 	return /\b(remember|forget|don'?t forget)\s+(this|that|it|me|my|i|about)\b|记住|记一下|记得我|忘掉|忘了这|别记|不要记/i.test(text);
 }
 
-export const memoryUpdateSystemPrompt = `You keep an English tutor's notes about one learner. You get today's date (and part of the day), the current notes and the latest conversation (as JSON). Resolve dates like "December 12" or "next Friday" against today's date. Update the notes and answer in JSON:
+export const memoryUpdateSystemPrompt = `This time do not reply to the learner. Your task now is to update your notes about them from the chat above. Below are today's date (and part of the day) and your current notes (as JSON). Resolve dates like "December 12" or "next Friday" against today's date. Answer in JSON:
 {"profile": {}, "facts": [{"op": "add", "text": "..."}, {"op": "update", "id": "...", "text": "..."}, {"op": "delete", "id": "..."}], "summary": "..."}
 
 - profile: only fields that are new or changed, from: goal (why they learn English), exam (e.g. "IELTS Academic"), examDate (YYYY-MM-DD), targetScore, level (CEFR guess A1-C2), interests (list), weakPoints (list of recurring mistakes), routine (when they like to study or chat), preferences (e.g. likes voice messages, wants Chinese explanations).
