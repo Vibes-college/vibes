@@ -10,14 +10,26 @@ lends it the community login (api) and the community router (go) through window.
 	<iframe v-if="$i" ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
 	<!-- Not signed in: the game needs an account (hearts, stars, progress are saved per person), so a door instead of 「未找到」. -->
 	<div v-else :class="$style.door">
+		<!-- 门面上方露一小截纸上地图（只是装饰，不能点） -->
+		<svg :class="$style.peek" viewBox="0 0 390 150" aria-hidden="true">
+			<path d="M195 150 Q150 125 120 100 Q100 80 150 60 Q200 40 195 15" fill="none" stroke="#141E52" stroke-width="2.4" stroke-dasharray="1 7" stroke-linecap="round"/>
+			<path d="M150 60 Q230 70 300 45" fill="none" stroke="#c9bda4" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round"/>
+			<path d="M0 95 Q100 80 200 98 T390 88" fill="none" stroke="#d6e0e6" stroke-width="10" stroke-linecap="round"/>
+			<g font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle" fill="#141E52">
+				<circle cx="120" cy="100" r="14" fill="#FFFDF8" stroke="#141E52" stroke-width="1.8"/><text x="120" y="104">1-1</text>
+				<circle cx="150" cy="60" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="150" y="64">1-2</text>
+				<circle cx="300" cy="45" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="300" y="49">1-7</text>
+				<path d="M195 4 l-7 7 h4 v8 h6 v-8 h4z" fill="#E8603F"/>
+			</g>
+		</svg>
 		<div :class="$style.card">
 			<div :class="$style.kicker">闯关 · 雅思第一章</div>
 			<h1 :class="$style.title">用闯关的方式，让你沉迷学习</h1>
 			<p :class="$style.text">一张纸上地图，一关一关往前走。卡住了，走进锦囊书屋挑本书；答错了，问 AI 英语助教 Mia。</p>
 			<p :class="$style.text">进度、星星和心都记在你的账号上，所以要先登录。</p>
 			<div :class="$style.actions">
-				<button :class="[$style.btn, $style.primary]" type="button" @click="signup()">注册，开始闯关</button>
-				<button :class="$style.btn" type="button" @click="signin()">已有账号，登录</button>
+				<button :class="[$style.btn, $style.primary]" type="button" :disabled="opening != null" @click="signup()">{{ opening === 'signup' ? '正在打开…' : '注册，开始闯关' }}</button>
+				<button :class="$style.btn" type="button" :disabled="opening != null" @click="signin()">{{ opening === 'signin' ? '正在打开…' : '已有账号，登录' }}</button>
 			</div>
 		</div>
 	</div>
@@ -25,7 +37,7 @@ lends it the community login (api) and the community router (go) through window.
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
@@ -41,14 +53,23 @@ const props = defineProps<{
 const router = useRouter();
 
 // 不登录时的门面：登录、注册都用社区自己的弹窗，登录成功后整页刷新，回到这一页就是游戏
-const XSigninDialog = defineAsyncComponent(() => import('@/components/MkSigninDialog.vue'));
-const XSignupDialog = defineAsyncComponent(() => import('@/components/MkSignupDialog.vue'));
-function signin() {
-	const { dispose } = os.popup(XSigninDialog, { autoSet: true }, { closed: () => dispose() });
+// 弹窗的代码要现下载（正式站第一次约 2.3 秒）：门面一出来就先下着，点的时候按钮显示「正在打开…」，免得连点
+const loadSignin = () => import('@/components/MkSigninDialog.vue');
+const loadSignup = () => import('@/components/MkSignupDialog.vue');
+if ($i == null) { loadSignin(); loadSignup(); }
+const opening = ref<'signin' | 'signup' | null>(null);
+async function openDialog(which: 'signin' | 'signup') {
+	if (opening.value != null) return;
+	opening.value = which;
+	try {
+		const c = (await (which === 'signin' ? loadSignin() : loadSignup())).default;
+		const { dispose } = os.popup(c, { autoSet: true }, { closed: () => dispose() });
+	} finally {
+		opening.value = null;
+	}
 }
-function signup() {
-	const { dispose } = os.popup(XSignupDialog, { autoSet: true }, { closed: () => dispose() });
-}
+const signin = () => openDialog('signin');
+const signup = () => openDialog('signup');
 const frame = ref<HTMLIFrameElement | null>(null);
 
 // 手机底栏在的时候（它会在 body 上写 --MI-minBottomSpacing），闯关页停在底栏和发帖按钮上方；电脑上没有底栏就铺满。
@@ -145,6 +166,7 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 .door {
 	flex: 1;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	padding: 24px 16px;
@@ -152,8 +174,17 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 	overflow: auto;
 }
 
-.card {
+.peek {
+	width: 100%;
 	max-width: 420px;
+	margin-bottom: -18px;
+	opacity: 0.85;
+}
+
+.card {
+	position: relative;
+	max-width: 420px;
+	box-sizing: border-box;
 	width: 100%;
 	padding: 28px 22px;
 	border: 2px solid #3b3127;
@@ -196,6 +227,11 @@ definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));
 	font: inherit;
 	font-weight: bold;
 	cursor: pointer;
+
+	&:disabled {
+		cursor: progress;
+		opacity: 0.75;
+	}
 }
 
 .primary {
