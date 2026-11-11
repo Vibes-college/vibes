@@ -172,6 +172,10 @@ const SCRIPT = `(function () {
 			if (path.indexOf('/quest') !== 0) { try { sessionStorage.setItem('vibes.quest.from', String(Date.now())); } catch (e) { /* private mode */ } }
 			location.href = path;
 		},
+		// Hide / bring back the app's bottom bar (phone). Before the app is up there is no bar to hide.
+		chrome: function (hidden) { return bridge.via != null && bridge.via.chrome != null ? bridge.via.chrome(hidden) : false; },
+		// Open the summoned agent's panel, if any.
+		agent: function () { return bridge.via != null && bridge.via.agent != null ? bridge.via.agent() : false; },
 		// The game calls this once its map is drawn: the app may start downloading now (boot.js).
 		ready: function () {
 			if (window.vibesQuestReady) return;

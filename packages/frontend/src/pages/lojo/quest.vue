@@ -39,13 +39,14 @@ lends it the community login (api) and the community router (go) through window.
 </template>
 
 <script lang="ts" setup>
-import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue';
+import { inject, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
 import { markFromQuest } from '@/lojo/quest-refill.js';
+import { DI } from '@/di.js';
 
 const props = defineProps<{
 	book?: string;
@@ -127,7 +128,14 @@ let resizeObserver: ResizeObserver | null = null;
 // 底栏（排在页面下面，不是 fixed）比那个变量高（实测 133px 对 84px），所以量贴着窗口底边、在下半屏的东西从哪儿开始
 const bottom = ref('0px');
 const root = ref<HTMLElement | null>(null);
+// 手机底栏玩的时候收起（创始人 11-10）：底栏由 ui/universal.vue 管，跟时间线同一套；游戏通过 bridge.chrome() 收起、叫回
+const chrome = inject(DI.mobileTimelineChrome, null);
 const measureBottom = () => {
+	// 底栏收起了：闯关页铺到底，游戏在最下面画小横条
+	if (chrome?.hidden.value === true) {
+		bottom.value = '0px';
+		return;
+	}
 	if (window.document.body.style.getPropertyValue('--MI-minBottomSpacing') === '') {
 		bottom.value = '0px';
 		return;
@@ -176,6 +184,12 @@ type Bridge = {
 	go: (path: string) => void;
 	query: { book?: string; level?: string; from?: string };
 	ready?: () => void;
+	// 收起 / 叫回社区底栏；底栏能收（手机上）才返回 true
+	chrome?: (hidden: boolean) => boolean;
+	// 游戏放上来：底栏收起或回来（包括社区自己叫回，比如转屏）时告诉它
+	onChrome?: (hidden: boolean) => void;
+	// 打开「召唤 Agent」的对话面板；没召唤就返回 false
+	agent?: () => boolean;
 };
 
 const bridge: Bridge = {
@@ -201,7 +215,25 @@ const bridge: Bridge = {
 		(window as unknown as { vibesQuestReady?: boolean }).vibesQuestReady = true;
 		window.dispatchEvent(new Event('vibes:quest-ready'));
 	},
+	chrome(hidden) {
+		if (chrome == null || !chrome.enabled.value || chrome.blocked.value) return false;
+		chrome.hidden.value = hidden;
+		return true;
+	},
+	agent() {
+		const ev = new CustomEvent('vibes:agent-open', { cancelable: true });
+		// lojo/agent/LojoAgent.vue 在的时候会接住（preventDefault）
+		return !window.dispatchEvent(ev);
+	},
 };
+if (chrome != null) {
+	watch(() => chrome.hidden.value === true && chrome.enabled.value, hidden => {
+		for (const b of [bridge, instant?.bridge]) b?.onChrome?.(hidden);
+		measureBottom();
+		// 底栏滑回来要 0.2 秒，滑完再量一次
+		if (!hidden) window.setTimeout(measureBottom, 250);
+	});
+}
 if (instant != null) instant.bridge.via = bridge;
 
 // The bridge goes on this page's own frame: the community keeps visited pages alive, and when it brings one back its

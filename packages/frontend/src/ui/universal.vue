@@ -87,6 +87,8 @@ const XAnnouncements = defineAsyncComponent(() => import('@/ui/_common_/announce
 
 const isRoot = computed(() => mainRouter.currentRoute.value.name === 'index');
 const isGuideList = computed(() => mainRouter.currentRoute.value.path === '/guides');
+// 闯关页：玩的时候收起底栏（创始人 11-10）。收起由游戏叫（pages/lojo/quest.vue 的 bridge.chrome），不跟滚动走
+const isQuest = computed(() => mainRouter.currentRoute.value.path === '/quest');
 
 const DESKTOP_THRESHOLD = 1100;
 const MOBILE_THRESHOLD = 500;
@@ -119,7 +121,7 @@ provideMetadataReceiver((metadataGetter) => {
 provideReactiveMetadata(pageMetadata);
 
 const drawerMenuShowing = ref(false);
-const timelineChromeEnabled = computed(() => !!$i && isMobile.value && (isRoot.value || isGuideList.value) && !pageMetadata.value?.hideMobileFooter);
+const timelineChromeEnabled = computed(() => !!$i && isMobile.value && (isRoot.value || isGuideList.value || isQuest.value) && !pageMetadata.value?.hideMobileFooter);
 const timelineChromeHidden = ref(false);
 const timelineChromeBlocked = computed(() => drawerMenuShowing.value || widgetsShowing.value || os.popups.value.length > 0);
 provide(DI.mobileTimelineChrome, { enabled: timelineChromeEnabled, blocked: timelineChromeBlocked, hidden: timelineChromeHidden });

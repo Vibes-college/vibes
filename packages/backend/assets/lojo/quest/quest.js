@@ -100,7 +100,7 @@ $('#sndBtn').onclick = () => { soundOn = !soundOn; try { localStorage.setItem(SN
 drawSnd();
 
 function toast(t, ms = 1800) { const el = $('#toast'); el.textContent = t; gsap.killTweensOf(el); gsap.fromTo(el, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.25 }); gsap.to(el, { opacity: 0, duration: 0.3, delay: ms / 1000 }); }
-function say(el, html) { el.innerHTML = html; gsap.fromTo(el, { scale: 0.85 }, { scale: 1, transformOrigin: '0 100%', duration: 0.45, ease: 'back.out(2)' }); }
+function say(el, html) { el.classList.remove('open'); el.innerHTML = html; gsap.fromTo(el, { scale: 0.85 }, { scale: 1, transformOrigin: '0 100%', duration: 0.45, ease: 'back.out(2)' }); }
 const miaSay = h => say($('#miaSay'), h);
 function bounce(el) { if (el) gsap.fromTo(el, { scale: 0.8 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1,.35)', transformOrigin: '50% 50%' }); }
 const AR = () => $('#app').getBoundingClientRect();
@@ -264,9 +264,6 @@ function drawMap() {
 	});
 	placeNotes();
 	gsap.to('.recEdge', { strokeDashoffset: -22, duration: 1, repeat: -1, ease: 'none' });
-	// 练习关的图例
-	const prac = D.chapter.nodes.some(n => n.kind === 'level' && n.practice && n.state !== 'done');
-	$('#pracNote').innerHTML = prac ? '<circle cx="6" cy="0" r="6" fill="none" stroke="#3E9E7A" stroke-width="1.3" stroke-dasharray="2 3"/><text x="16" y="3.5" font-size="9.5" font-weight="800" fill="#3E9E7A" font-family="PingFang SC,sans-serif">练手关 · 不扣心</text>' : '';
 	// 图钉
 	if (tg) { show('#pinPos', 'inline'); $('#pinPos').setAttribute('transform', tg.kind === 'boss' ? `translate(${tg.x - 44} ${tg.y})` : `translate(${tg.x} ${tg.y - 20})`); } else hide('#pinPos');
 	// 手机上地图比一屏高：打开时（和当前关换了以后）停在当前这一关
@@ -321,15 +318,35 @@ function drawDock() {
 		go.textContent = tg.state === 'done' ? '再挑战 Boss' : '打 Boss'; go.classList.add('boss');
 	} else {
 		$('#todayH').textContent = `${tg.label} · ${tg.name ?? ''}`;
-		$('#todayS').textContent = tg.practice ? `练手关 · ${tg.ask} 题对 ${tg.need} 题过 · 不扣心` : `${tg.ask} 题对 ${tg.need} 题过 · 答错扣 1 颗心`;
+		$('#todayS').textContent = tg.practice ? '练手关 · 不扣心' : `${tg.ask} 题 · 对 ${tg.need} 题过`;
 		go.textContent = tg.practice && tg.tries === 0 ? '出发' : '开打';
 	}
 	$('#todayE').textContent = `经验 ${D.xp}` + (D.todayXp ? ` · 今天 +${D.todayXp}` : '');
-	$('#fineT').textContent = D.chapter.disclaimer || '练习难度，不是官方分数';
+	// 矮屏放不下一行：去掉「5 题 · 对 4 题过」，关卡名留着
+	const today = $('#todayH').parentElement; today.classList.remove('tight');
+	if (today.scrollWidth > today.clientWidth + 1) today.classList.add('tight');
+	drawRank();
+}
+/* 「🏆 本周 第 3 ›」：公会不满 5 人不显示名次（lojo/quest/board 的 open）。名次往上走就翻一下数字，配 tick */
+let RANK = { rank: null, xp: -1, busy: false };
+function drawRank(anim) {
+	const b = $('#boardBtn');
+	b.innerHTML = RANK.rank ? `🏆 本周 <b id="wkN">第 ${RANK.rank}</b> ›` : '🏆 本周榜 ›';
+	b.setAttribute('aria-label', RANK.rank ? `本周第 ${RANK.rank}，看本周榜` : '本周榜');
+	if (anim && RANK.rank) { play('tick'); gsap.fromTo('#wkN', { y: 9, rotationX: -90, opacity: 0 }, { y: 0, rotationX: 0, opacity: 1, duration: 0.45, ease: 'back.out(2.4)' }); }
+}
+function loadRank() {
+	if (!D || RANK.busy || RANK.xp === D.xp) return;
+	RANK.busy = true; const xp = D.xp;
+	api('lojo/quest/board', {}).then(r => {
+		const was = RANK.rank, now = r?.open && r.me ? r.me.rank : null;
+		RANK = { rank: now, xp, busy: false };
+		drawRank(was != null && now != null && now < was);
+	}).catch(() => { RANK.busy = false; });
 }
 function miaLine() {
 	const tg = target(), h = D.hearts;
-	if (h <= 0) return `心打光了。两条路各补 1 颗：<b>读锦囊做小验证</b>，或<b>去装备练一组</b>；不补就等${refillLabel()} 回满。`;
+	if (h <= 0) return `心打光了。<b>读本锦囊</b>或<b>练一组</b>，各补 1 颗；不补就等${refillLabel()} 回满。`;
 	if (D.lastFail && NODE[D.lastFail.levelId]?.state === 'open') {
 		const rec = D.books.find(b => b.recommended);
 		return `上次 ${esc(NODE[D.lastFail.levelId].label)} 没过。` + (rec ? `书屋里我给你挑了 <b>${rec.no} 号「${esc(rec.spine)}」</b>，读完再打。` : '再打一次会换新题。');
@@ -337,7 +354,7 @@ function miaLine() {
 	if (tg?.kind === 'boss' && !D.bossReady) return 'Boss 门前要<b>备战三件</b>：书屋带一本锦囊、装备练一组、情报站看一眼。';
 	if (tg?.kind === 'boss') return '备战齐了，门开了。进去就打。';
 	if (!D.streak.doneToday && D.streak.days > 0) return `火苗 <b>${D.streak.days}</b> 天，今天还没续上。过一关、或补一次心，就算今天练过。`;
-	if (tg?.practice) return '绿虚线圈的是<b>练手关</b>，答错不扣心，放心打。';
+	if (tg?.practice) return '前 3 关是<b>练手关</b>，放心打。';
 	return `今天这一步：<b>${esc(tg?.label ?? '')}</b>。心有 <b>${h}</b> 颗。`;
 }
 function render() {
@@ -405,7 +422,7 @@ function refresh() {
 	if (loading) return loading;
 	loading = api('lojo/quest/show', {}).then(r => {
 		D = r; clockSkew = Date.parse(r.now) - Date.now();
-		render();
+		render(); loadRank();
 		hide('#errScr');
 		if (firstPaint) {
 			firstPaint = false;
@@ -465,7 +482,7 @@ function killOverlays() {
 	gsap.killTweensOf('#rays');
 }
 function openSheet(html, bind) {
-	killOverlays();
+	killOverlays(); barAway();
 	play('open'); body.innerHTML = html; if (bind) bind(body);
 	sheet.scrollTop = 0;
 	gsap.to(scrim, { opacity: 1, duration: 0.25 }); scrim.style.pointerEvents = 'auto';
@@ -477,6 +494,7 @@ scrim.onclick = () => closeSheet(); sheet.querySelector('[data-close]').onclick 
 
 function nodeTap(id) {
 	const n = NODE[id]; if (!n) return;
+	barAway();
 	if (n.kind === 'level') {
 		if (n.state === 'locked') { play('fail', 0.4); toast('这关还没开：先过前面连着它的一关'); return; }
 		if (n.state === 'done' && n.retestable) { retestSheet(n); return; }
@@ -492,7 +510,7 @@ function levelSheet(n) {
 	const out = !n.practice && D.hearts <= 0;
 	const kind = n.practice ? '练手关' : '';
 	const html = `<h4>${esc(n.label)} ${kind} · ${esc(n.name ?? '')}</h4>
-		<div class="sub">${esc(n.zh ?? '')} · ${n.ask} 题，对 ${n.need} 题过${n.practice ? ' · <b style="color:#3E9E7A">练手 · 不扣心</b>' : ' · 答错扣 1 颗心'}</div>
+		<div class="sub">${esc(n.zh ?? '')} · ${n.practice ? '<b style="color:#3E9E7A">练手关 · 不扣心</b>' : `${n.ask} 题 · 对 ${n.need} 题过`}</div>
 		${n.hint ? `<div class="hint">${md(n.hint)}</div>` : ''}
 		<div class="card">${n.state === 'done' ? `过了 ✓ · 最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.tries ? `打过 ${n.tries} 次，最好对 ${n.best ?? 0} 题。再打会换一组题。` : n.practice ? '练手关答错不扣心，每题打完告诉你为什么。打完这关，今天的火苗就点着了。' : '第一次打。今天第一次过关还有宝箱。'}</div>
 		${n.gear ? `<div class="card">卡住了可以先去装备「${esc(n.gear.zh)}」练一组。</div>` : ''}
@@ -516,8 +534,8 @@ function retestSheet(n) {
 function gearSheet(n) {
 	const g = n.gear;
 	const tg = target();
-	openSheet(`<h4>装备站 · ${esc(g?.zh ?? '')}</h4><div class="sub">社区里的小程序，现在都免费用</div>
-		<div class="card">练完一组（10 题以上、2 分钟以上）补 1 颗心，每天一次。练完也给 Boss 备战「装备」打勾。${g && !g.givesHeart ? '<br><b>这个装备暂时不补心</b>，只算备战。' : ''}</div>
+	openSheet(`<h4>装备站 · ${esc(g?.zh ?? '')}</h4><div class="sub">社区里的小程序</div>
+		<div class="card">练完一组补 1 颗心，每天一次，也算 Boss 备战。${g && !g.givesHeart ? '<br><b>这个装备暂时不补心</b>，只算备战。' : ''}</div>
 		<div class="card">今天装备这条路：${D.refilledToday.gear ? '<b>已经补过 1 颗心</b>' : '还没用'}</div>
 		<button class="sbtn" data-a="go">去「${esc(g?.zh ?? '装备')}」练一组</button>`, b => {
 		b.querySelector('[data-a="go"]').onclick = () => { play('whoosh', 0.6); closeSheet(true); gearGo(g?.path ?? '/dictation', tg?.kind === 'level' ? tg.id : null); };
@@ -526,7 +544,7 @@ function gearSheet(n) {
 function newsSheet(n) {
 	const tags = n.tags ?? [];
 	openSheet(`<h4>情报站</h4><div class="sub">社区时间线里，跟这几关有关的帖子</div>
-		<div class="card">看看同一关的人在聊什么、踩过什么坑。<br><b>情报不补心，只算 Boss 准备。</b></div>
+		<div class="card">看看同一关的人在聊什么、踩过什么坑。</div>
 		<div id="newsList"><div class="sub">正在拉最新的帖子…</div></div>
 		<div style="margin-top:6px">${tags.map(t => `<button class="tagBtn" data-tag="${esc(t)}">看全部 #${esc(t)}</button>`).join('')}</div>
 		<div class="sub" style="margin-top:10px" id="newsSt">${D.prep.news ? '备战「情报」已经打勾 ✓' : '正在记下：备战「情报」…'}</div>`, b => {
@@ -607,6 +625,65 @@ function bossSheet() {
 		b.querySelector('[data-a="refill"]')?.addEventListener('click', () => { closeSheet(true); showEmpty('map'); });
 	});
 }
+/* ================= 社区底栏：开始玩就收起，点最底下的小横条就回来（创始人 11-10） =================
+   收起：拖地图、点关卡、点开打、进书屋、打开卡片。收起后一直收着；回来只有：点 / 往上拨小横条、离开闯关页再回来、
+   转屏或窗口变了（后两种社区自己叫回，通过 Q.onChrome 告诉这里）。答题、书屋、Boss 盖满全屏，小横条也看不见。 */
+const BAR_TIP = 'vibesQuestBarTip';
+let barOff = false;
+function setBarOff(off) {
+	barOff = !!off;
+	$('#app').classList.toggle('barOff', barOff);
+	dockSize();
+}
+function barAway() {
+	if (barOff || !Q || typeof Q.chrome !== 'function') return;
+	let ok = false;
+	try { ok = !!Q.chrome(true); } catch (e) { ok = false; }
+	if (!ok) return;
+	setBarOff(true);
+	const h = $('#barHandle');
+	let first = false;
+	try { first = localStorage.getItem(BAR_TIP) == null; if (first) localStorage.setItem(BAR_TIP, '1'); } catch (e) { first = false; }
+	if (first) {
+		play('tap', 0.5);
+		gsap.timeline({ delay: 0.25 }).fromTo(h, { y: 0 }, { y: -6, duration: 0.14, ease: 'power2.out' }).to(h, { y: 0, duration: 0.3, ease: 'bounce.out' })
+			.to(h, { y: -6, duration: 0.14, ease: 'power2.out' }).to(h, { y: 0, duration: 0.3, ease: 'bounce.out' })
+			.set(h, { clearProps: 'transform' });
+		miaSay('底栏我先收起来了，地图大一点。要用就点最下面那道小横条。');
+	} else gsap.fromTo(h, { opacity: 0 }, { opacity: 1, duration: 0.25, clearProps: 'opacity' });
+}
+function barBack() {
+	if (!barOff) return;
+	play('tap', 0.5);
+	try { if (Q && typeof Q.chrome === 'function') Q.chrome(false); } catch (e) { /* 社区那边没这个 */ }
+	setBarOff(false);
+}
+if (Q) { try { Q.onChrome = hidden => { if (!!hidden !== barOff) setBarOff(hidden); }; } catch (e) { /* 只读就算了 */ } }
+{
+	const h = $('#barHandle'); let y0 = null;
+	h.onclick = () => barBack();
+	h.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+	h.addEventListener('touchmove', e => { if (y0 != null && y0 - e.touches[0].clientY > 12) { y0 = null; barBack(); } }, { passive: true });
+	// 拖地图（手指或鼠标真的拖了，不算程序自己滚到当前关）
+	const w = $('#mapwrap'); let p0 = null;
+	w.addEventListener('touchmove', () => barAway(), { passive: true });
+	w.addEventListener('wheel', () => barAway(), { passive: true });
+	w.addEventListener('pointerdown', e => { p0 = [e.clientX, e.clientY]; });
+	w.addEventListener('pointermove', e => { if (p0 && Math.hypot(e.clientX - p0[0], e.clientY - p0[1]) > 8) { p0 = null; barAway(); } });
+	w.addEventListener('pointerup', () => { p0 = null; });
+}
+/* 地图下边跟着 dock 的实际高度走：dock 往下贴了，多出来的高度给地图 */
+function dockSize() {
+	const d = $('.dock'); if (!d) return;
+	// 矮屏（看得见的高度 < 600）Mia 只留 1 行：量外面整页的高度，不量 iframe 自己
+	let vh = window.innerHeight; try { vh = (window.parent || window).innerHeight || vh; } catch (e) { /* cross-origin */ }
+	$('#app').classList.toggle('short', vh < 600);
+	$('#app').style.setProperty('--dockH', `${d.offsetHeight + 20}px`);
+}
+if (typeof ResizeObserver === 'function') new ResizeObserver(dockSize).observe($('.dock'));
+window.addEventListener('resize', dockSize);
+dockSize();
+
 function boardSheet() {
 	openSheet('<h4>公会 · 本周榜</h4><div class="sub">本周的经验，周一 0:00（北京时间）起算</div><div id="boardBody" class="empty-board">正在翻榜…</div>');
 	api('lojo/quest/board', {}).then(r => {
@@ -620,7 +697,10 @@ function boardSheet() {
 }
 $('#lm-guild').onclick = e => { bounce(e.currentTarget); boardSheet(); };
 $('#boardBtn').onclick = () => boardSheet();
-$('#miaFace').onclick = () => { play('tap'); bounce($('#miaFace')); if (D) miaSay(miaLine()); };
+// 点 Mia 头像：召唤了 Agent 就打开它的对话面板（闯关页不显示右下角那个按钮），没召唤就再说一遍当前这句
+$('#miaFace').onclick = () => { play('tap'); bounce($('#miaFace')); let opened = false; try { opened = !!(Q && typeof Q.agent === 'function' && Q.agent()); } catch (e) { opened = false; } if (!opened && D) miaSay(miaLine()); };
+// 气泡最多 2 行（矮屏 1 行），点开看全文，再点收回
+$('#miaSay').onclick = () => { const b = $('#miaSay'); if (b.classList.contains('open') || b.scrollHeight > b.clientHeight + 1) { play('tap', 0.4); b.classList.toggle('open'); } };
 $('#streakChip').onclick = () => { if (!D) return; play('tap'); toast(D.streak.doneToday ? `连胜 ${D.streak.days} 天，今天练过了` : `连胜 ${D.streak.days} 天 · 过一关或补一次心就续上`, 2200); };
 $('#frzChip').onclick = () => { if (!D) return; play('tap'); toast(`冻结卡 ${D.streak.freezes} / 2 · 漏一天自动用一张，连胜不断`, 2400); };
 $('#refillChip').onclick = e => { e.stopPropagation(); play('tap'); showEmpty('map'); };
@@ -655,6 +735,7 @@ function backToMap(then) {
 }
 $('#go').onclick = () => {
 	const tg = target(); if (!tg) return;
+	barAway();
 	if (tg.kind === 'boss') { if (!D.bossReady || tg.state === 'locked' || D.hearts <= 0) { play('fail', 0.6); bossSheet(); return; } }
 	startLevel(tg.id);
 };
@@ -1179,6 +1260,7 @@ function shelfLit(mode) {
 function recSlug() { return shelf.rec ?? D.books.find(b => b.recommended)?.slug ?? null; }
 function enterShelf(mode, opt = {}) {
 	if (!D) return;
+	barAway();
 	play('whoosh'); stopLoops(); closeSheet(true);
 	shelf = { mode, rec: opt.rec ?? null, levelId: opt.levelId ?? null, picked: false, book: null, spine: null, from: opt.from ?? null };
 	buildShelf();
@@ -1428,9 +1510,8 @@ function submitCheck() {
 		const msg = !r.passed ? `对 ${r.right} / 3，差一点（要对 2 题）。再读一遍，或者换一本。`
 			: r.reason === 'duplicate' ? '这本今天已经验证过了，不重复算。换一本试试。'
 				: r.refilled ? `对 ${r.right} / 3，过了！<b>补 1 颗心</b>，备战「锦囊」打勾，书进了背包。`
-					: r.reason === 'full' ? `对 ${r.right} / 3，过了。心是满的（最多 5 颗），这次不补；备战「锦囊」打勾了。`
-						: r.reason === 'pathUsed' ? `对 ${r.right} / 3，过了。今天锦囊这条路已经补过 1 颗心，明天再来；备战「锦囊」打勾了。`
-							: `对 ${r.right} / 3，过了。备战「锦囊」打勾了。`;
+					: r.reason === 'pathUsed' ? '过了！今天这条路补过心了，备战「锦囊」✓'
+						: '过了！备战「锦囊」✓';
 		const res = $('#chkRes'); res.innerHTML = rows + `<div class="msg">${msg}</div>`; show(res, 'block'); gsap.from(res, { y: 10, opacity: 0, duration: 0.3 });
 		const counted = r.passed && r.reason !== 'duplicate';
 		D.prep = r.prep; D.bossReady = r.prep.guide && r.prep.gear && r.prep.news;
@@ -1509,7 +1590,7 @@ $('#refillGear').onclick = () => {
 	if (D.hearts >= MAXH()) { toast('心是满的，最多 5 颗', 1400); return; }
 	play('whoosh', 0.6); gearGo(refillGear().path, D.lastFail?.levelId ?? null);
 };
-$('#waitBtn').onclick = () => { play('tap'); toast(`${refillLabel()} 自动回满，不用守着`, 1800); };
+$('#waitBtn').onclick = () => { play('tap'); toast(`${refillLabel()} 回满`, 1800); };
 $('#emptyBack').onclick = () => {
 	play('tap'); clearInterval(wakeTimer);
 	gsap.to('#empty', { opacity: 0, duration: 0.3, onComplete: () => {

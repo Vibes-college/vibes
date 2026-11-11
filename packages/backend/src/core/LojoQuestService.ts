@@ -272,7 +272,9 @@ export class LojoQuestService {
 			behind: behindOf({ order: LEVEL_ORDER, passed: passedDays, today, daysLeft }),
 			notice: row.notice,
 			chapter: {
-				id: CH.id, version: CH.version, title: CH.title, band: CH.band, disclaimer: CH.disclaimer, boss: CH.boss,
+				id: CH.id, version: CH.version, title: CH.title, band: CH.band,
+				// 页面上不再写「练习难度，不是官方分数」（创始人 11-10 删说明小字）；字段留着，免得改接口
+				disclaimer: '', boss: CH.boss,
 				branches: CH.branches,
 				edges: CH.edges,
 				nodes: CH.nodes.map(n => {

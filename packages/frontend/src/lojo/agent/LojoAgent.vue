@@ -14,7 +14,7 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 <template>
 <div :class="$style.root">
 	<button
-		v-show="!panelOpen"
+		v-show="!panelOpen && !onQuest"
 		ref="fabEl"
 		class="_button"
 		:class="[$style.fab, { [$style.arrive]: arriving, [$style.inCorner]: barHidden }]"
@@ -26,7 +26,7 @@ result goes back into Paseo's own input box. Nothing is sent to the agent from h
 	>
 		<img :src="mascotUrl" :class="$style.mascot" alt="" aria-hidden="true" draggable="false"/>
 	</button>
-	<div v-if="bubble && !panelOpen" :class="[$style.bubble, { [$style.inCorner]: barHidden }]" role="status">{{ bubble }}</div>
+	<div v-if="bubble && !panelOpen && !onQuest" :class="[$style.bubble, { [$style.inCorner]: barHidden }]" role="status">{{ bubble }}</div>
 
 	<section
 		v-show="panelOpen"
@@ -92,11 +92,19 @@ import type { AgentTool } from './LojoAgentSheet.vue';
 import MkButton from '@/components/MkButton.vue';
 import * as os from '@/os.js';
 import { DI } from '@/di.js';
+import { mainRouter } from '@/router.js';
 
 // On a phone, scrolling the timeline hides the bottom bar; the button then sits in the corner where the floating post
 // button used to be (ui/universal.vue does not show that one while the agent is summoned).
 const timelineChrome = inject(DI.mobileTimelineChrome, null);
 const barHidden = computed(() => timelineChrome?.hidden.value === true);
+// 闯关页自己有 Mia 头像，两个同时在会像两个人（创始人 11-10）：这里不显示按钮，点闯关里的头像打开同一个面板
+const onQuest = computed(() => mainRouter.currentRoute.value.path === '/quest');
+
+function onOpenRequest(ev: Event) {
+	ev.preventDefault();
+	openPanel();
+}
 
 const fabEl = useTemplateRef('fabEl');
 const frameEl = useTemplateRef('frameEl');
@@ -288,6 +296,7 @@ function keepPairing() {
 }
 
 onMounted(() => {
+	window.addEventListener('vibes:agent-open', onOpenRequest);
 	window.addEventListener('message', onMessage);
 	window.document.addEventListener('visibilitychange', onVisibilityChange);
 	window.visualViewport?.addEventListener('resize', fitViewport);
@@ -308,6 +317,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	if (keepPairingTimer != null) window.clearTimeout(keepPairingTimer);
 	window.removeEventListener('message', onMessage);
+	window.removeEventListener('vibes:agent-open', onOpenRequest);
 	window.document.removeEventListener('visibilitychange', onVisibilityChange);
 	window.visualViewport?.removeEventListener('resize', fitViewport);
 	window.visualViewport?.removeEventListener('scroll', fitViewport);

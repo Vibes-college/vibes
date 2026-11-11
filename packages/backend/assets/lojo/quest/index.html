@@ -17,7 +17,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <!-- 顶栏：Logo · 连胜火苗 · 冻结卡 · 心 · 声音 -->
   <div class="top">
-    <div class="logo">v<i>i</i>bes</div>
+    <div class="logo">v<i>ı</i>bes</div>
     <div class="sp"></div>
     <button class="chip flame" id="streakChip" title="连胜">
       <svg id="flameSvg" width="16" height="18" viewBox="0 0 16 18"><path d="M8 1c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z" fill="#E8603F" stroke="#141E52" stroke-width="1.3"/></svg>
@@ -64,7 +64,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <path d="M0 14 L12 -3 L24 14 Z" fill="#CFE6DA" stroke="#141E52" stroke-width="1.5" stroke-linejoin="round"/>
         <text class="lab" x="0" y="30" text-anchor="middle">公会 · 本周榜</text>
       </g>
-      <g id="pracNote" transform="translate(14 560)"></g>
       <g id="pinPos"><g id="pin">
         <path d="M0 -26 c-6 -10 -20 -6 -16 6 c2 6 10 11 16 16 c6 -5 14 -10 16 -16 c4 -12 -10 -16 -16 -6z" fill="#E8603F" stroke="#141E52" stroke-width="1.8" stroke-linejoin="round"/>
         <ellipse cx="0" cy="2" rx="8" ry="2.5" fill="#141E52" opacity=".18"/>
@@ -82,9 +81,12 @@ SPDX-License-Identifier: AGPL-3.0-only
       </svg>
       <div class="bubble" id="miaSay"></div>
     </div>
-    <div class="today"><h3 id="todayH"></h3><span id="todayS"></span><em id="todayE"></em></div>
+    <div class="today"><h3 id="todayH"></h3><span id="todayS"></span></div>
+    <!-- 经验在左，本周名次在右，就在开打正上方（创始人 11-10） -->
+    <div class="meta"><em id="todayE"></em><span class="fr"><button class="lb hide" id="statesBtn">画面目录</button><button class="wk" id="boardBtn" aria-label="本周榜">🏆 本周榜 ›</button></span></div>
     <button class="go" id="go">出发</button>
-    <div class="fine"><span id="fineT">练习难度，不是官方分数</span><span class="fr"><button class="lb hide" id="statesBtn">画面目录</button><button class="lb" id="boardBtn">本周</button></span></div>
+    <!-- 社区底栏收起后留的小横条：点一下或往上拨，底栏回来 -->
+    <button class="handle" id="barHandle" aria-label="叫出底栏"><i></i></button>
   </div>
 
   <div class="scrim" id="scrim"></div>
@@ -103,7 +105,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div class="stmt" id="qStmt"></div>
     <div class="opts" id="qOpts"></div>
     <div class="qex" id="qEx"><div id="qExT"></div><button class="btn2" id="qNext">下一题</button></div>
-    <div class="qfoot">练习难度，不是官方分数</div>
     <div id="pqEnd"><div class="ovcard">
       <div class="pqStamp" id="pqStamp">过<small></small></div>
       <h4 id="pqEndH"></h4><div class="sub" id="pqEndS"></div>
@@ -143,7 +144,6 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div class="stmt" id="bStmt"></div>
     <div class="opts" id="bOpts"></div>
     <div class="qex" id="bEx"><div id="bExT"></div><button class="btn2" id="bNext">下一题</button></div>
-    <div class="qfoot">练习难度，不是官方分数</div>
   </div>
 
   <div class="pop" id="bossLose">
@@ -180,7 +180,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     </div>
     <div id="book">
       <div class="page">
-        <div class="pbar"><span class="plogo">v<i>i</i>bes</span><span class="pall">锦囊</span></div>
+        <div class="pbar"><span class="plogo">v<i>ı</i>bes</span><span class="pall">锦囊</span></div>
         <div class="pcrumb"><u>攻略</u> › 锦囊 · <span id="bCh"></span></div>
         <h3 id="bt"></h3>
         <p class="sum" id="bw"></p>
