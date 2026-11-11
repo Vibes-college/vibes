@@ -44,11 +44,13 @@ import { deepMerge } from '@/utility/merge.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { availableBasicTimelines, hasWithReplies, isAvailableBasicTimeline, isBasicTimeline, basicTimelineIconClass } from '@/timelines.js';
 import { prefer } from '@/preferences.js';
+import { useRouter } from '@/router.js';
 
 // Vibes: the fixed post form is off by default; downloading the whole post form on every first open cost ~40 KB.
 const MkPostForm = defineAsyncComponent(() => import('@/components/MkPostForm.vue'));
 
 const tlComponent = useTemplateRef('tlComponent');
+const router = useRouter();
 
 type TimelinePageSrc = BasicTimelineType | `list:${string}`;
 
@@ -194,8 +196,8 @@ function saveTlFilter(key: keyof typeof store.s.tl.filter, newValue: boolean) {
 }
 
 function switchTlIfNeeded() {
-	// Vibes: 社交 is no longer in the top bar. If someone saved it, move them to 全站.
-	if (src.value === 'social' && isAvailableBasicTimeline('local')) {
+	// Vibes: 社交 and pinned lists are no longer in the top bar. If someone saved one of them, move them to 全站.
+	if ((src.value === 'social' || src.value.startsWith('list:')) && isAvailableBasicTimeline('local')) {
 		src.value = 'local';
 		return;
 	}
@@ -271,25 +273,26 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 	return items;
 });
 
-// Vibes: the top bar keeps only two tabs, with words: 关注 (home) and 全站 (local).
-// Federation is off, so social is just home plus local and would only repeat them.
-// Lists and antennas are still under ☰ → 更多 (/my/lists, /my/antennas). Channels are hidden for now; they will come back as per-scene boards.
-// Only the tab list changes here; the social and channel code paths stay, to keep merges with Misskey upstream small.
+// Vibes: the top bar keeps three tabs, with words (founder, 11-11): 关注 (home), 全站 (local), and 频道, which opens
+// the channel list (/channels) so people can find and follow interest boards (成人英语、雅思、AI、健身…).
+// Federation is off, so social is just home plus local and would only repeat them. Pinned lists, the list and antenna
+// pickers are off the top bar too; lists and antennas are still under ☰ → 更多 (/my/lists, /my/antennas), search is
+// in the ☰ menu. Only the tab list changes here; the social, list and antenna code paths stay, to keep merges with
+// Misskey upstream small.
 const VIBES_TL_TABS: Partial<Record<BasicTimelineType, string>> = { home: '关注', local: '全站' };
-const vibesTabs = () => availableBasicTimelines().filter(tl => tl in VIBES_TL_TABS).map(tl => ({
+const vibesTabs = () => [...availableBasicTimelines().filter(tl => tl in VIBES_TL_TABS).map(tl => ({
 	key: tl,
 	title: VIBES_TL_TABS[tl],
 	icon: basicTimelineIconClass(tl),
-}));
+})), {
+	icon: 'ti ti-device-tv',
+	title: '频道',
+	onClick: () => router.push('/channels'),
+}] as Tab[];
 
-const headerTabs = computed(() => [...(prefer.r.pinnedUserLists.value.map(l => ({
-	key: 'list:' + l.id,
-	title: l.name,
-	icon: 'ti ti-star',
-	iconOnly: true,
-}))), ...vibesTabs()] as Tab[]);
+const headerTabs = computed(() => vibesTabs());
 
-const headerTabsWhenNotLogin = computed(() => [...vibesTabs()] as Tab[]);
+const headerTabsWhenNotLogin = computed(() => vibesTabs());
 
 definePage(() => ({
 	title: i18n.ts.timeline,
