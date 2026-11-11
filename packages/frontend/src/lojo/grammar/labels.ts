@@ -16,9 +16,9 @@ const zh = {
 	meta: (sections: number, minutes: number | null) => (minutes != null ? `${sections} 小节 · 约 ${minutes} 分钟` : `${sections} 小节`),
 	level: '练习难度，不是官方分数',
 	toGate: '去闯关',
-	toMap: '线路图',
+	toMap: '闯关',
 	missing: '没有这一站的讲解。',
-	backToMap: '回线路图',
+	backToMap: '回闯关',
 
 	toc: '小节',
 	legendTitle: '例句里的标记',

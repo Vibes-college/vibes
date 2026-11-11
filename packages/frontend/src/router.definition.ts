@@ -10,6 +10,7 @@ import { $i, iAmModerator } from '@/i.js';
 import MkLoading from '@/pages/_loading_.vue';
 import MkError from '@/pages/_error_.vue';
 import PageTimeline from '@/pages/timeline.vue';
+import { questUrlForStation } from '@/lojo/quest-links.js';
 
 export const page = (loader: AsyncComponentLoader) => defineAsyncComponent({
 	loader: loader,
@@ -115,14 +116,20 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/grammar.vue')),
 	loginRequired: true,
 }, {
+	// 路线图下线（11-10）：/map 跳到闯关。旧的站号链接（/map#2.1）对得上某一关就打开那一关，对不上就到地图。
+	// AP 的 /map/<course>、/maps、/gate/… 不动。
+	path: '/map',
+	hash: 'station',
+	redirect: props => questUrlForStation(props.get('station')),
+}, {
+	// 雅思线路图的另一个地址，同上
+	path: '/map/ielts',
+	hash: 'station',
+	redirect: props => questUrlForStation(props.get('station')),
+}, {
 	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
 	name: 'lojo',
 	path: '/map/:course',
-	component: page(() => import('@/pages/lojo/route.vue')),
-}, {
-	// The default course's route map (线路图), e.g. /map#1.6.
-	name: 'lojo',
-	path: '/map',
 	component: page(() => import('@/pages/lojo/route.vue')),
 }, {
 	// One gate (闯关) on a route map with gates: /gate/ielts/1.3. The paper, its recording and the mark.

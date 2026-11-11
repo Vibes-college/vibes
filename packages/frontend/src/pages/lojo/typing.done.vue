@@ -79,7 +79,7 @@ const emit = defineEmits<{
 const COURSE = 'ielts';
 const LISTENING = 1;
 const PLACEMENT = `/gate/${COURSE}/placement-${LISTENING}`;
-const MAP = `/map/${COURSE}`;
+const MAP = '/quest'; // 路线图下线（11-10）
 
 const router = useRouter();
 const uid = `typing-done-${useId()}`;

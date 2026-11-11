@@ -121,7 +121,7 @@ import { GRAMMAR_COURSE, bandText, findStop, gatePath, grammarContent, lessonPat
 import { grammarLabels as L, grammarLang } from '@/lojo/grammar/labels.js';
 import { stopSaying } from '@/lojo/grammar/audio.js';
 import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
-import { coursePath } from '@/lojo/route/my-maps.js';
+import { questUrlForStation } from '@/lojo/quest-links.js';
 import { prefer } from '@/preferences.js';
 import { definePage } from '@/page.js';
 import { useRouter } from '@/router.js';
@@ -139,7 +139,8 @@ const band = computed(() => (stop.value != null ? bandText(stop.value.band) : ''
 const near = computed(() => neighbours(content, props.stop));
 const gateTo = computed(() => gatePath(props.stop));
 // the route map, at this stop
-const mapPath = computed(() => coursePath(GRAMMAR_COURSE) + (stop.value != null ? `#${encodeURIComponent(stop.value.id)}` : ''));
+// 路线图下线（11-10）：回闯关，对得上的关直接打开
+const mapPath = computed(() => questUrlForStation(stop.value?.id));
 const speech = computed(() => englishStatus.value.speech);
 
 // table cells without Chinese are English (relative words and their examples)

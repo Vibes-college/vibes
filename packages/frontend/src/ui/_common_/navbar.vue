@@ -19,10 +19,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 		</div>
 		<div :class="$style.middle">
-			<MkA v-tooltip.noDelay.right="lojoLabels.map" :class="$style.item" :activeClass="$style.active" :aria-label="lojoLabels.map" to="/map">
-				<i :class="$style.itemIcon" class="ti ti-road ti-fw"></i><span :class="$style.itemText">{{ lojoLabels.map }}</span>
-			</MkA>
-			<MkA v-if="$i != null" v-tooltip.noDelay.right="'闯关'" :class="$style.item" :activeClass="$style.active" aria-label="闯关" to="/quest">
+			<!-- 闯关顶替路线图（创始人 11-10）；/map 跳到 /quest，见 router.definition.ts -->
+			<MkA v-tooltip.noDelay.right="'闯关'" :class="$style.item" :activeClass="$style.active" aria-label="闯关" to="/quest">
 				<i :class="$style.itemIcon" class="ti ti-flag-3 ti-fw"></i><span :class="$style.itemText">闯关</span>
 			</MkA>
 			<MkA v-tooltip.noDelay.right="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" to="/" exact>
@@ -127,7 +125,6 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
-import { lojoLabels } from '@/lojo/labels.js';
 import { englishLabels } from '@/lojo/english/labels.js';
 import { createLabels } from '@/lojo/create/labels.js';
 import { creatorView, loadCreateState } from '@/lojo/create/state.js';

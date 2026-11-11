@@ -18,7 +18,7 @@ const zh = {
 	lineName: (n: number) => `${n} 号线 · 词汇`,
 	pageTitle: (id: string, topic: string) => `${id} ${topic} · 词汇`,
 	notFound: (id: string) => `词汇线上没有 ${id} 这一站。`,
-	toMap: '雅思线路图',
+	toMap: '回闯关',
 	sub: (en: string, band: string) => `${en} · ${band} · 练习难度，不是官方分数`,
 	statWords: (words: number, groups: number) => `${words} 个词 · ${groups} 组`,
 	statLearned: (k: number) => `学过 ${k}`,

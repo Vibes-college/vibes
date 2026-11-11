@@ -7,6 +7,7 @@
 // lojo/route/courses/ielts/vocab.js) as typed stops. Anything malformed is left out; the unit test checks the file.
 import { VOCAB } from '@/lojo/route/courses/ielts/vocab.js';
 import { LINES } from '@/lojo/route/courses/ielts/content.js';
+import { questUrlForStation } from '@/lojo/quest-links.js';
 
 // A word as the course file has it, British spelling first. alt: other spellings that count (American).
 export type VocabWord = {
@@ -118,7 +119,8 @@ export function findStop(id: string): VocabStop | null {
 
 // The stop's gate, and the stop on the route map.
 export const gatePath = (id: string): string => `/gate/ielts/${encodeURIComponent(id)}`;
-export const mapPath = (id: string): string => `/map/ielts#${encodeURIComponent(id)}`;
+// 路线图下线（11-10）：回闯关，对得上的关直接打开
+export const mapPath = (id: string): string => questUrlForStation(id);
 
 // "这一站的词也用在": each listening or reading stop by its line's name and band (听力 4.5), from the route map's
 // content. A stop the map doesn't have is shown by its id.

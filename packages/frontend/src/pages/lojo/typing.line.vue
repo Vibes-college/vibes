@@ -94,7 +94,7 @@ between phone and computer targets. -->
 
 	<footer :class="$style.foot">
 		<p :class="{ [$style.warnText]: saveFailed }">{{ saveFailed ? L.saveFailed : L.savedNote }}</p>
-		<MkA to="/map/ielts" :class="$style.mapLink"><i class="ti ti-map-2" aria-hidden="true"></i> {{ L.toMap }}</MkA>
+		<MkA to="/quest" :class="$style.mapLink"><i class="ti ti-map-2" aria-hidden="true"></i> {{ L.toMap }}</MkA>
 	</footer>
 </div>
 </template>

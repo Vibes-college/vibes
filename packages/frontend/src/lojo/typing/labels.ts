@@ -24,7 +24,7 @@ const zh = {
 	progressFailed: '进度没读出来，先按没练过显示。练完一站会再试着存。',
 	saveFailed: '刚才的成绩还没存上，练完下一站会一起存。',
 	savedNote: '进度存在你的账号里，换设备也在。',
-	toMap: '雅思线路图',
+	toMap: '回闯关',
 
 	// time
 	limit: (seconds: number) => {
@@ -283,9 +283,9 @@ const zh = {
 	placementBody: '第一次去，先做约 10 分钟的定级测试。做完直接放到适合你的站，前面的站都会点亮。',
 	placement: '做定级测试',
 	backListening: '回听力线',
-	placedBody: '你已经在听力线上了：回线路图，从你那一站接着走。',
+	placedBody: '你已经在听力线上了：回闯关接着打。',
 	placeAgain: '再做一次定级测试',
-	toListeningMap: '回线路图',
+	toListeningMap: '回闯关',
 	alsoLabel: '也可以：',
 	alsoBody: '这条线上打错的词和数字，拿去听写练习里再练几遍。',
 	toDictation: '去听写',

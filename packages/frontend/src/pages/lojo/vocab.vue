@@ -15,7 +15,7 @@ workspace; what was learned and missed: the account registry (lojo/vocab/progres
 	<div ref="bodyEl" :class="$style.body">
 		<div v-if="stop == null" :class="$style.notice" role="alert">
 			<p>{{ L.notFound(props.stop) }}</p>
-			<MkA to="/map/ielts" class="_link">{{ L.toMap }}</MkA>
+			<MkA to="/quest" class="_link">{{ L.toMap }}</MkA>
 		</div>
 
 		<template v-else-if="round">
