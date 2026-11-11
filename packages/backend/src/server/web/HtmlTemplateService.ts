@@ -224,6 +224,7 @@ export class HtmlTemplateService {
 			frontendEmbedBootloaderJs: this.frontendEmbedBootloaderJs,
 			frontendEmbedBootloaderCss: this.frontendEmbedBootloaderCss,
 			questFrame: (await this.questAssets.get())?.frameUrl ?? null,
+			questPreload: (await this.questAssets.get())?.preload ?? [],
 		};
 	}
 

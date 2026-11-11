@@ -58,7 +58,7 @@ export function Layout(props: PropsWithChildren<CommonProps<{
 
 					{/* Vibes: /quest shows the game (or its door) before the app starts; does nothing on other pages. Before the app's
 					stylesheet, which a script after it would wait for (2.3 s on a slow line, 2026-11-10). */}
-					{props.questFrame != null ? <script>{questInstantScript(props.questFrame)}</script> : null}
+					{props.questFrame != null ? <script>{questInstantScript(props.questFrame, props.questPreload)}</script> : null}
 
 					{(props.frontendViteFiles?.css ?? []).map((href) => (
 						<link rel="stylesheet" href={`/vite/${href}`} />

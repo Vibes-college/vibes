@@ -54,6 +54,7 @@ export type CommonData = MinimumCommonData & {
 	frontendEmbedBootloaderCss: string | null;
 	// Vibes: the 闯关 game frame with its content version, for the script that opens /quest at once (LojoQuestInstant.ts).
 	questFrame: string | null;
+	questPreload?: string[];
 	metaJson?: string;
 	clientCtxJson?: string;
 };

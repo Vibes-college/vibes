@@ -27,6 +27,8 @@ export type QuestAssets = {
 	frameUrl: string;
 	// file (relative to the quest folder) → content hash; a request with that ?v= may be kept for good
 	hashes: Map<string, string>;
+	// The game's stylesheet and scripts at their versioned addresses: asked for together with the frame, one trip earlier.
+	preload: string[];
 };
 
 const hash = (data: string | Buffer) => createHash('sha256').update(data).digest('hex').slice(0, 12);
@@ -64,7 +66,8 @@ export class LojoQuestAssets {
 			}
 			const indexHash = hash(indexHtml);
 			hashes.set('index.html', indexHash);
-			const value = { indexHtml, frameUrl: `/lojo-assets/quest/index.html?v=${indexHash}`, hashes };
+			const preload = LINKED.map(f => `/lojo-assets/quest/${f}?v=${hashes.get(f)}`);
+			const value = { indexHtml, frameUrl: `/lojo-assets/quest/index.html?v=${indexHash}`, hashes, preload };
 			this.cached = { stamp, value };
 			return value;
 		} catch {
@@ -101,6 +104,7 @@ const DOOR_HTML = `<svg class="peek" viewBox="0 0 390 150" aria-hidden="true"><p
 // Plain ES2017 (it runs before anything else, also on older phones). FRAME is replaced with the frame's address.
 const SCRIPT = `(function () {
 	var frameUrl = FRAME;
+	var preload = PRELOAD;
 	// Also for 闯关 opened later from inside the app (quest.vue): the versioned address can be kept on the phone.
 	window.vibesQuestFrame = frameUrl;
 	if (location.pathname !== '/quest') return;
@@ -196,6 +200,15 @@ const SCRIPT = `(function () {
 			try { window.dispatchEvent(new Event('vibes:quest-ready')); } catch (e) { /* very old browser: boot.js times out */ }
 		},
 	};
+	// The frame's own page names these only once it has arrived: start them now (they are kept for good, so the frame
+	// takes them from the phone). Saves one trip, about 0.2 s from the mainland (社区运维, 11-11).
+	for (var pi = 0; pi < preload.length; pi++) {
+		var link = document.createElement('link');
+		link.rel = 'preload';
+		link.as = preload[pi].indexOf('.css?') > 0 ? 'style' : 'script';
+		link.href = preload[pi];
+		document.head.appendChild(link);
+	}
 	var frame = document.createElement('iframe');
 	frame.id = 'vibesQuestInstant';
 	frame.title = '闯关';
@@ -207,11 +220,12 @@ const SCRIPT = `(function () {
 	window.vibesQuestInstant = { frame: frame, bridge: bridge, search: location.search, taken: false };
 })();`;
 
-export function questInstantScript(frameUrl: string): string {
+export function questInstantScript(frameUrl: string, preload: string[] = []): string {
 	// '<\/' so nothing inside can end the <script> it sits in.
 	const js = (v: string) => JSON.stringify(v).replace(/<\//g, '<\\/');
 	return SCRIPT
 		.replace('FRAME', () => js(frameUrl))
+		.replace('PRELOAD', () => JSON.stringify(preload).replace(/<\//g, '<\\/'))
 		.replace('STYLE', () => js(DOOR_STYLE.trim()))
 		.replace('DOOR', () => js(DOOR_HTML));
 }
