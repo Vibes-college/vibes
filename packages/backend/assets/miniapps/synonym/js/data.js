@@ -1,11 +1,11 @@
 /* 同义替换消消乐 · 词表 v0.1
    词对、中文、用法小注全部由 Vibes College 自己整理和撰写（2026-11-10），不取自任何人的词书或帖子。
    同义关系用 WordNet 3.0（Princeton University，WordNet 许可：允许自由使用、复制、修改和分发，需保留版权声明）逐对核对，
-   跑法：node tools/dump-pairs.mjs | python3 tools/check-wordnet.py（2026-11-10 跑过：37 对 wn、51 对 usage，全部一致）。
+   跑法：node tools/dump-pairs.mjs | python3 tools/check-wordnet.py（2026-11-10 跑过：37 对 wn、51 对 usage，全部一致；2026-11-11 加 academic 后重跑：6 个话题 108 对，46 对 wn、62 对 usage，全部一致）。
    src = 'wn'：WordNet 里两词在同一义项，或是形容词近义链接；'usage'：WordNet 没直接收这对（短语、搭配、义项分得更细），
    是我们按常见用法整理的，tip 里写了区别。陷阱里 rise/raise、historic/historical、bored/boring 在 WordNet 有交叉义项，
-   是「意思近、用法不同」的用法陷阱，Mia 的解释讲的是用法。
-   话题按闯关第一章（4.0–5.0 打底章，生活场景）排，路线图 2026-11-10 建议。
+   nearly/about、economic/economical 同理，是「意思近、用法不同」的用法陷阱，Mia 的解释讲的是用法。
+   话题按闯关第一章（4.0–5.0 打底章，生活场景）排，路线图 2026-11-10 建议；academic（学术话题）是 2026-11-11 给第三章「拆招」（6.0–6.5）加的。
    字段：a / b = 两张卡；zh = 共同的中文意思；tip = 一句区别或搭配；g = 意思链（接龙用，同一 g 的词对会接着出）；
    traps：长得像、容易当成同义的一对，配上就扣心，Mia 说为什么不对。 */
 
@@ -79,9 +79,9 @@ export const TOPICS = [
 			{ a: 'commute', b: 'travel to work', zh: '通勤', tip: 'commute 也能当名词：a long commute。', g: 'travel', src: 'usage' },
 			{ a: 'cancel', b: 'call off', zh: '取消', tip: 'call off 口语，常说活动、比赛被取消。', g: 'stop', src: 'wn' },
 			{ a: 'cut', b: 'reduce', zh: '削减', tip: 'cut 后面常跟 back：cut back on bus services。', g: 'less', src: 'wn' },
-			{ a: 'replace', b: 'change', zh: '替换', tip: 'replace A with B；change A for B。', g: 'change', src: 'usage' },
+			{ a: 'replace', b: 'substitute', zh: '替换', tip: 'replace A with B = substitute B for A，新旧顺序正好反过来。', g: 'change', src: 'wn' },
 			{ a: 'council', b: 'local government', zh: '市政部门', tip: 'the city council 听力里常和 local authority 互换。', g: 'gov', src: 'usage' },
-			{ a: 'vehicle', b: 'car', zh: '车辆', tip: 'vehicle 范围大，包括公交、卡车。', g: 'transport', src: 'usage' },
+			{ a: 'public transport', b: 'public transit', zh: '公共交通', tip: '英式说 public transport，美式说 public transit。', g: 'transport', src: 'usage' },
 			{ a: 'fare', b: 'ticket price', zh: '车费', tip: 'fare 专指坐车、坐船的钱；fee 是别的费用。', g: 'money', src: 'usage' },
 			{ a: 'route', b: 'way', zh: '路线', tip: 'bus route = 公交线路。', g: 'transport', src: 'usage' },
 			{ a: 'crowded', b: 'busy', zh: '拥挤的', tip: 'busy 说街道、车站「人多」，不只是「忙」。', g: 'busy', src: 'usage' },
@@ -103,7 +103,7 @@ export const TOPICS = [
 		pairs: [
 			{ a: 'employees', b: 'staff', zh: '员工', tip: 'staff 是集体名词，不加 s：ten members of staff。', g: 'people', src: 'usage' },
 			{ a: 'colleague', b: 'co-worker', zh: '同事', tip: 'colleague 更常用，也更正式。', g: 'people', src: 'wn' },
-			{ a: 'supervisor', b: 'manager', zh: '主管', tip: 'supervisor 管日常的活，manager 管一个部门。', g: 'people', src: 'usage' },
+			{ a: 'applicant', b: 'candidate', zh: '求职者、申请人', tip: 'job applicants = candidates for the job；招聘广告高频。', g: 'people', src: 'usage' },
 			{ a: 'tutor', b: 'teacher', zh: '老师', tip: '大学里的 tutor 带小班讨论。', g: 'teach', src: 'usage' },
 			{ a: 'course', b: 'class', zh: '课程', tip: 'course 是一整门课，class 常指一节课。', g: 'teach', src: 'wn' },
 			{ a: 'lecture', b: 'talk', zh: '讲座', tip: 'give a talk = give a lecture（talk 更随意）。', g: 'teach', src: 'wn' },
@@ -111,13 +111,13 @@ export const TOPICS = [
 			{ a: 'enrol', b: 'sign up', zh: '报名', tip: 'enrol on a course（英）/ enroll in（美）。', g: 'join', src: 'usage' },
 			{ a: 'compulsory', b: 'required', zh: '必须的', tip: 'compulsory 也指「必修」；反义 optional。', g: 'must', src: 'wn' },
 			{ a: 'previous', b: 'earlier', zh: '之前的', tip: 'previous experience = 以往经验，招聘广告高频。', g: 'before', src: 'wn' },
-			{ a: 'voluntary', b: 'unpaid', zh: '无偿的', tip: 'voluntary work 没工资；也有「自愿的」意思。', g: 'pay', src: 'wn' },
+			{ a: 'voluntary work', b: 'unpaid work', zh: '义务工作', tip: '单说 voluntary 是「自愿的」，跟 work 连用才等于没工资的活。', g: 'pay', src: 'usage' },
 			{ a: 'salary', b: 'pay', zh: '工资', tip: 'salary 多指月薪年薪；wage 多指按小时、按周。', g: 'pay', src: 'wn' },
-			{ a: 'qualification', b: 'certificate', zh: '资格证书', tip: 'qualification 范围更大，学历也算。', g: 'cv', src: 'usage' },
+			{ a: 'qualified', b: 'certified', zh: '有资格证的', tip: 'a qualified teacher = a certified teacher；qualification 范围更大，学历也算。', g: 'cv', src: 'wn' },
 			{ a: 'skills', b: 'abilities', zh: '能力', tip: 'skills 偏练出来的本事，abilities 偏天生能做到。', g: 'cv', src: 'usage' },
 			{ a: 'deadline', b: 'due date', zh: '截止日期', tip: 'The essay is due on Friday = 周五截止。', g: 'time', src: 'usage' },
 			{ a: 'assignment', b: 'coursework', zh: '作业', tip: '大学里的 assignment 多是论文、报告。', g: 'time', src: 'usage' },
-			{ a: 'workplace', b: 'office', zh: '工作场所', tip: 'workplace 不一定是办公室，工厂、商店也算。', g: 'place', src: 'usage' },
+			{ a: 'workplace', b: 'place of work', zh: '工作场所', tip: 'workplace 不一定是办公室，工厂、商店也算；所以不能直接换成 office。', g: 'place', src: 'usage' },
 		],
 		traps: [
 			{ a: 'employer', b: 'employee', why: 'employer 是「雇主」，employee 是「雇员」。正好相反。' },
@@ -140,7 +140,7 @@ export const TOPICS = [
 			{ a: 'open', b: 'available', zh: '开放的、可用的', tip: '场所开门说 open；座位、名额有空说 available。', g: 'enter', src: 'wn' },
 			{ a: 'reserve', b: 'book', zh: '预订', tip: 'book a table = reserve a table。', g: 'plan', src: 'wn' },
 			{ a: 'refreshments', b: 'snacks and drinks', zh: '茶点', tip: '活动通知里常写 Refreshments will be provided。', g: 'food', src: 'usage' },
-			{ a: 'venue', b: 'place', zh: '场地', tip: 'venue 专指办活动、比赛的地方。', g: 'plan', src: 'usage' },
+			{ a: 'venue', b: 'location', zh: '活动地点', tip: 'The venue has changed = The location has changed；venue 专指办活动、比赛的地方。', g: 'plan', src: 'usage' },
 			{ a: 'guided tour', b: 'tour with a guide', zh: '导览', tip: '听力里常问几点开始 guided tour。', g: 'see', src: 'usage' },
 			{ a: 'outdoor', b: 'open-air', zh: '露天的', tip: 'an open-air concert = an outdoor concert。', g: 'place', src: 'wn' },
 			{ a: 'souvenir', b: 'keepsake', zh: '纪念品', tip: 'souvenir shop = 纪念品店。', g: 'food', src: 'wn' },
@@ -151,6 +151,37 @@ export const TOPICS = [
 			{ a: 'dessert', b: 'desert', why: 'dessert 是「甜点」，desert 是「沙漠」。多一个 s 差很远。' },
 			{ a: 'historic', b: 'historical', why: 'historic 是「有历史意义的」，historical 是「历史上的、跟历史有关的」。' },
 			{ a: 'bored', b: 'boring', why: 'bored 是人「觉得无聊」，boring 是东西「让人无聊」。' },
+		],
+	},
+	{
+		id: 'academic', zh: '学术话题', en: 'Academic Swaps',
+		mia: '学术类文章里，<b>research suggests</b> 会写成 <b>studies indicate</b>，<b>a drawback</b> 会写成 <b>a disadvantage</b>。读懂论文腔，先认这一批。',
+		pairs: [
+			{ a: 'suggest', b: 'indicate', zh: '表明', tip: 'The data suggest… = The data indicate…；都比 prove 语气弱。', g: 'show', src: 'wn' },
+			{ a: 'demonstrate', b: 'show', zh: '证明、显示', tip: 'demonstrate 也指「当面演示」：demonstrate how it works。', g: 'show', src: 'wn' },
+			{ a: 'reveal', b: 'bring to light', zh: '揭示', tip: 'The study revealed… 后面常是之前没人知道的结果。', g: 'show', src: 'usage' },
+			{ a: 'approximately', b: 'roughly', zh: '大约', tip: '数字前都能用；roughly 口语一点，approximately 更书面。', g: 'about', src: 'wn' },
+			{ a: 'a decline', b: 'a reduction', zh: '减少', tip: 'a decline in numbers 是自己往下走；a reduction 常是被人减少的。', g: 'change', src: 'usage' },
+			{ a: 'considerable', b: 'substantial', zh: '相当大的', tip: '都能配 amount / number / increase，作文里换着用。', g: 'change', src: 'wn' },
+			{ a: 'research', b: 'study', zh: '研究', tip: 'research 不可数，不说 a research；一项研究说 a study。', g: 'research', src: 'usage' },
+			{ a: 'investigate', b: 'look into', zh: '调查', tip: 'look into 口语；investigate 常配 cause / effect。', g: 'research', src: 'wn' },
+			{ a: 'analyse', b: 'examine', zh: '分析、仔细查看', tip: 'analyse 是英式拼法，美式写 analyze。', g: 'research', src: 'wn' },
+			{ a: 'evidence', b: 'proof', zh: '证据', tip: 'evidence 不可数，只是「支持」；proof 是「证实了」，语气更重。', g: 'research', src: 'usage' },
+			{ a: 'researchers', b: 'scientists', zh: '研究人员', tip: '题目说 scientists，原文常写 researchers / experts / a team at…', g: 'people', src: 'usage' },
+			{ a: 'claim', b: 'argue', zh: '主张', tip: 'claim 带一点「未必对」的意思，判断题爱拿它挖坑。', g: 'people', src: 'usage' },
+			{ a: 'result in', b: 'lead to', zh: '导致', tip: '前因后果：A results in B = A leads to B。别和 result from 弄反。', g: 'cause', src: 'usage' },
+			{ a: 'consequence', b: 'result', zh: '后果', tip: 'consequence 多指不好的后果；result 中性。', g: 'cause', src: 'wn' },
+			{ a: 'consequently', b: 'as a result', zh: '因此', tip: '都放句首加逗号；不是连词，前面不能只用逗号连句子。', g: 'cause', src: 'usage' },
+			{ a: 'benefit', b: 'advantage', zh: '好处', tip: 'the benefits of… 也能换成 the upside of…', g: 'pro', src: 'usage' },
+			{ a: 'drawback', b: 'disadvantage', zh: '缺点', tip: '大作文写利弊常用：One major drawback is…', g: 'pro', src: 'usage' },
+			{ a: 'furthermore', b: 'in addition', zh: '此外', tip: '加一层意思用，后面接新论点。', g: 'link', src: 'usage' },
+			{ a: 'subsequently', b: 'later', zh: '后来', tip: '流程、历史类文章里讲先后顺序常用。', g: 'link', src: 'wn' },
+			{ a: 'primarily', b: 'mainly', zh: '主要地', tip: 'be primarily used for… = be mainly used for…', g: 'link', src: 'wn' },
+		],
+		traps: [
+			{ a: 'nearly', b: 'about', why: 'nearly 是「差一点就到」，只比这个数少；about 可多可少。判断题里不能当一回事。' },
+			{ a: 'imply', b: 'infer', why: 'imply 是作者「暗示」，infer 是读者「推断出」。一个说，一个猜。' },
+			{ a: 'economic', b: 'economical', why: 'economic 是「经济上的」，economical 是「省钱的」。差一个 -al 意思不同。' },
 		],
 	},
 ];

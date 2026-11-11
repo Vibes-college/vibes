@@ -129,12 +129,20 @@ function drawScreen() {
 	return shuffle(cards);
 }
 
-// 字号自己缩到放得下：单词不在中间断开，短语只在空格处换行，最多两行
+// 字号自己缩到放得下：单词不在中间乱断，短语只在空格处换行，最多两行。
+// 长单词（approximately、subsequently）缩到 13 号还放不下，就按音节加连字符断成两行（hyphens:auto），再不行缩到 9 号。
+// 量宽度用 Range（文字真实占的宽），span 自己的 scrollWidth 在 block + max-width 下量不准。
 function fit(el) {
-	const sp = el.firstElementChild; let f = 18;
-	sp.style.fontSize = f + 'px';
-	const tooBig = () => sp.scrollWidth > el.clientWidth - 12 || sp.offsetHeight > el.clientHeight - 8 || (!sp.textContent.includes(' ') && sp.offsetHeight > f * 1.3);
-	while (f > 11 && tooBig()) { f -= 0.5; sp.style.fontSize = f + 'px'; }
+	const sp = el.firstElementChild; const one = !sp.textContent.includes(' ');
+	const rg = document.createRange(); rg.selectNodeContents(sp);
+	const set = f => { sp.style.fontSize = f + 'px'; };
+	const tooBig = (lines) => rg.getBoundingClientRect().width > el.clientWidth - 10 || sp.offsetHeight > el.clientHeight - 8 || (lines === 1 && sp.offsetHeight > parseFloat(sp.style.fontSize) * 1.3);
+	sp.style.hyphens = sp.style.webkitHyphens = 'manual';
+	let f = 18; set(f);
+	while (f > (one ? 13 : 11) && tooBig(one ? 1 : 2)) set(f -= 0.5);
+	if (!tooBig(one ? 1 : 2)) return;
+	if (one) { sp.style.hyphens = sp.style.webkitHyphens = 'auto'; f = 15; set(f); }
+	while (f > 9 && tooBig(2)) set(f -= 0.5);
 }
 function renderScreen(drop = true) {
 	const cards = drawScreen();
@@ -148,6 +156,7 @@ function renderScreen(drop = true) {
 		['pointerup', 'pointerleave', 'pointercancel'].forEach(e => el.addEventListener(e, () => el.classList.remove('down')));
 		el.addEventListener('click', () => tapCard(el));
 		board.appendChild(el); fit(el);
+		if (document.fonts?.status !== 'loaded') document.fonts.ready.then(() => fit(el));
 		if (drop && !RM) el.animate([{ transform: `translateY(-60px) rotate(${Math.random() * 20 - 10}deg)`, opacity: 0 }, { opacity: 1, offset: 0.4 }, { transform: `rotate(${el.style.getPropertyValue('--r')})`, opacity: 1 }], { duration: 350, delay: i * 30, easing: 'cubic-bezier(.34,1.5,.64,1)', fill: 'backwards' });
 	});
 }
