@@ -13,6 +13,7 @@ import type { MiLocalUser, MiUser } from '@/models/User.js';
 import type { MiAccessToken } from '@/models/AccessToken.js';
 import type Logger from '@/logger.js';
 import type { MiMeta, UserIpsRepository } from '@/models/_.js';
+import type { DataSource } from 'typeorm';
 import { createTemp } from '@/misc/create-temp.js';
 import { bindThis } from '@/decorators.js';
 import { RoleService } from '@/core/RoleService.js';
@@ -81,6 +82,8 @@ export class ApiCallService implements OnApplicationShutdown {
 	private logger: Logger;
 	private userIpHistories: Map<MiUser['id'], Set<string>>;
 	private userIpHistoriesClearIntervalId: NodeJS.Timeout;
+	// Vibes: last Beijing day already written to lojo_daily_open per user, so each user costs one insert a day.
+	private dailyOpenSeen: Map<MiUser['id'], string> = new Map();
 
 	constructor(
 		@Inject(DI.meta)
@@ -91,6 +94,9 @@ export class ApiCallService implements OnApplicationShutdown {
 
 		@Inject(DI.userIpsRepository)
 		private userIpsRepository: UserIpsRepository,
+
+		@Inject(DI.db)
+		private db: DataSource,
 
 		private authenticateService: AuthenticateService,
 		private rateLimiterService: RateLimiterService,
@@ -221,6 +227,7 @@ export class ApiCallService implements OnApplicationShutdown {
 
 			if (user) {
 				this.logIp(request, user);
+				this.logDailyOpen(user);
 			}
 
 			return call;
@@ -291,6 +298,7 @@ export class ApiCallService implements OnApplicationShutdown {
 
 				if (user) {
 					this.logIp(request, user);
+					this.logDailyOpen(user);
 				}
 
 				return call;
@@ -322,6 +330,19 @@ export class ApiCallService implements OnApplicationShutdown {
 			// 文字列を返す場合は、JSON.stringify通さないとJSONと認識されない
 			reply.send(typeof x === 'string' ? JSON.stringify(x) : x);
 		}
+	}
+
+	// Vibes: one row (userId, Beijing date) the first time a signed-in user calls the API on a given day.
+	// Nothing else is stored (no IP, device or page). Failures are ignored and never affect the request.
+	@bindThis
+	private logDailyOpen(user: MiLocalUser) {
+		const day = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+		if (this.dailyOpenSeen.get(user.id) === day) return;
+		this.dailyOpenSeen.set(user.id, day);
+		if (this.dailyOpenSeen.size > 100000) this.dailyOpenSeen.clear();
+		this.db.query('INSERT INTO "lojo_daily_open" ("userId", "day") VALUES ($1, $2) ON CONFLICT DO NOTHING', [user.id, day]).catch(() => {
+			this.dailyOpenSeen.delete(user.id);
+		});
 	}
 
 	@bindThis
