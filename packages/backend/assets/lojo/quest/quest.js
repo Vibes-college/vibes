@@ -1084,9 +1084,20 @@ function askMia(btn) {
 	if (!D.tutorId || !AT) return;
 	play('tap'); btn.disabled = true;
 	const to = `/chat/user/${D.tutorId}`;
+	let away = false;
 	api('lojo/quest/ask-tutor', { attemptId: AT.attemptId }).then(r => {
 		if (r?.result === 'limit') toast('Mia 今天找你找得够多了，你直接跟她说就行', 2000);
-	}).catch(() => {}).finally(() => { btn.disabled = false; go(to); });
+		// Mia 暂时不在（模型账户没钱或钥匙失效）：不跳私信，直接翻到推荐的锦囊。这次作答还能等她回来再问（兜底规格 F2）
+		away = r?.result === 'away';
+	}).catch(() => {}).finally(() => {
+		btn.disabled = false;
+		if (!away) { go(to); return; }
+		const rec = AT?.end?.recommended?.slug, levelId = AT?.node?.id;
+		backToMap(() => {
+			enterShelf('stuck', { rec, levelId });
+			toast(rec && !D.refilledToday.guide ? 'Mia 这会儿不在，先帮你翻到这本，读完过小测还能补 1 颗心 📖' : 'Mia 这会儿不在，先看看这本 📖', 3200);
+		});
+	});
 }
 $('#failMia').onclick = e => askMia(e.currentTarget);
 $('#failShelf').onclick = () => { play('tap'); gsap.to('#fail', { y: '140%', duration: 0.3 }); enterShelf('stuck', { rec: AT?.end?.recommended?.slug, levelId: AT?.node?.id, fromEl: $('#failShelf') }); };

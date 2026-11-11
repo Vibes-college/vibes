@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from 'vitest';
 import { defaultTutorCard, emptyMemory, normalizeTutorReply, tutorSystemPrompt } from '@/misc/lojo-tutor.js';
-import { normalizeQuestKnowledge, normalizeQuestTry, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestKnowledge, normalizeQuestTry, questAwayMessage, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
 
 // Sample data (示例), shaped like 闯关上线/Mia接入.md section 2.
 const sampleTry = {
@@ -71,5 +71,20 @@ describe('Vibes AI tutor in the quest map', () => {
 		expect(questNextLine(t, 'evil', 'https://lan.example')).toBeNull();
 		expect(questNextLine(t, undefined, 'https://lan.example')).toBeNull();
 		expect(normalizeTutorReply({ messages: ['a'] }).next).toBeUndefined();
+	});
+
+	test('away message: cause, first technique sentence, next step by the hearts rules, no answers', () => {
+		const k = normalizeQuestKnowledge(knowledge)!;
+		const t = normalizeQuestTry(sampleTry)!;
+		const full = questAwayMessage(k, t);
+		expect(full.messages).toHaveLength(1);
+		expect(full.messages[0]).toMatch(/^Mia 这会儿不在线/);
+		expect(full.messages[0]).not.toMatch(/FALSE|402|余额|出错/);
+		expect(full.next).toBe('retry');
+		const low = { ...t, hearts: { ...t.hearts, now: 1 } };
+		expect(questAwayMessage(k, low).next).toBe('guide:j5');
+		const used = { ...low, hearts: { ...low.hearts, refilledToday: { guide: true, gear: true } } };
+		expect(questAwayMessage(k, used).messages[0]).toContain('20:00 回满');
+		expect(questAwayMessage(null, low).messages[0].split('\n')).toHaveLength(2);
 	});
 });

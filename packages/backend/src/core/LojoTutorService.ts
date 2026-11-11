@@ -37,7 +37,7 @@ import {
 	tutorSystemPrompt,
 } from '@/misc/lojo-tutor.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
-import { normalizeQuestKnowledge, normalizeQuestTry, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestKnowledge, normalizeQuestTry, questAwayMessage, questNextLine, questPromptSection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 
 const SCOPE = ['lojo', 'tutor'];
@@ -48,7 +48,16 @@ const DAY = 24 * 60 * MINUTE;
 const QUEST_TTL_SECONDS = 2 * 60 * 60;
 const QUEST_DAILY = 10;
 
-export type QuestAskResult = 'sent' | 'already' | 'limit' | 'off';
+export type QuestAskResult = 'sent' | 'already' | 'limit' | 'off' | 'away';
+
+// While the model account has no balance or a bad key (HTTP 402 / 401), the tutor is "away": no model calls, fixed
+// messages instead, and the learners who wrote meanwhile get a real answer once it is back. 冲刺1111/Mia/兜底规格.md.
+const DOWN_KEY = 'lojoTutor:down';
+const DOWN_TTL_SECONDS = 30 * 60;
+const PENDING_KEY = 'lojoTutor:pending';
+const AWAY_NOTE_TTL_SECONDS = 6 * 60 * 60;
+const CATCH_UP_PER_ROUND = 30;
+const modelDownReason = (err: unknown): string | null => /^HTTP (401|402)\b/.exec(err instanceof Error ? err.message : '')?.[1] ?? null;
 
 type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
@@ -94,10 +103,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	onModuleInit() {
 		if (this.tutors.length === 0) return;
 		this.redisForSub.on('message', this.onRedisMessage);
-		if (this.proactive) {
-			this.tick = setInterval(() => this.proactiveTick().catch(err => this.logger.warn(`proactive round failed: ${err}`)), 15 * MINUTE);
-			this.tick.unref();
-		}
+		// Every 15 minutes: check whether the model is back, answer who wrote while it was away, then write first.
+		this.tick = setInterval(() => this.proactiveTick().catch(err => this.logger.warn(`proactive round failed: ${err}`)), 15 * MINUTE);
+		this.tick.unref();
 	}
 
 	@bindThis
@@ -139,6 +147,10 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
+			if (await this.isDown()) {
+				await this.sayAway(tutor, learner);
+				return;
+			}
 			const day = new Date().toISOString().slice(0, 10);
 			const replies = await this.count(`lojoTutor:replies:${tutorId}:${learnerId}:${day}`);
 			if (replies > this.learnerDailyReplies) {
@@ -159,7 +171,14 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
 			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
 			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: quest && questTry && questPromptSection(quest.knowledge, questTry, true) });
-			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
+			let answer: TutorReply;
+			try {
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
+			} catch (err) {
+				if (!(await this.markDownOn(err))) throw err;
+				await this.sayAway(tutor, learner);
+				return;
+			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, questTry ?? undefined), answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
@@ -208,6 +227,17 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	// Every 15 minutes: write first to learners who have not heard from the tutor today (rules in proactiveDecision).
 	private async proactiveTick(): Promise<void> {
 		if (await this.redisClient.set('lojoTutor:tick', '1', 'EX', 10 * 60, 'NX') !== 'OK') return;
+		if (await this.isDown()) {
+			// Asking for the balance is free; no learner is written to until it says the account can take calls.
+			if (await this.lojoEnglishService.modelAvailable() !== true) {
+				await this.redisClient.expire(DOWN_KEY, DOWN_TTL_SECONDS);
+				return;
+			}
+			await this.redisClient.del(DOWN_KEY);
+			this.logger.info('tutor model back');
+		}
+		await this.catchUp();
+		if (!this.proactive) return;
 		const tutorId = this.tutors[0];
 		const query = this.usersRepository.createQueryBuilder('user')
 			.where('user.host IS NULL')
@@ -227,6 +257,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			try {
 				if (await this.writeFirst(tutorId, learner.id)) sent++;
 			} catch (err) {
+				if (await this.markDownOn(err)) break;
 				this.logger.warn(`first message to ${learner.id} failed: ${err}`);
 			}
 		}
@@ -281,6 +312,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		if (questTry == null) return 'off';
 		// No quest knowledge on the tutor account means no quest mode (the production tutor has none yet).
 		if ((await this.questKnowledge(tutorId)) == null) return 'off';
+		// Away: the quest page opens the recommended guide itself; this try and today's asks are not used up.
+		if (await this.isDown()) return 'away';
 		if (await this.redisClient.set(`lojoTutor:questOnce:${tutorId}:${questTry.attemptId}`, '1', 'EX', 3 * 24 * 60 * 60, 'NX') !== 'OK') return 'already';
 		const asked = await this.count(`lojoTutor:questAsks:${tutorId}:${learnerId}:${localDay(new Date(), this.tz)}`);
 		if (asked > QUEST_DAILY) return 'limit';
@@ -305,18 +338,77 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
 			]);
 			if (quest == null) return;
+			if (await this.isDown()) {
+				await this.sayAwayForQuest(tutor, learner, quest.knowledge, quest.questTry);
+				return;
+			}
 			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: questPromptSection(quest.knowledge, quest.questTry) });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
 			const cue = '(The learner just failed this level and tapped "Ask Mia". Write first now, in quest mode as described above.)';
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
 				? [...history.slice(0, -1), { role: 'user', content: `${history.at(-1)!.content}\n${cue}` }]
 				: [...history, { role: 'user', content: cue }];
-			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply));
+			let answer: TutorReply;
+			try {
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply));
+			} catch (err) {
+				// The first learner to run into it still gets where to go next, built from this try without the model.
+				if (!(await this.markDownOn(err))) throw err;
+				await this.sayAwayForQuest(tutor, learner, quest.knowledge, quest.questTry);
+				return;
+			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, quest.questTry), answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
 		}
+	}
+
+	private async isDown(): Promise<boolean> {
+		return (await this.redisClient.exists(DOWN_KEY).catch(() => 0)) === 1;
+	}
+
+	// True when the error means the model account cannot take calls (no balance, bad key); the first one is logged once.
+	// Timeouts and 5xx are passing trouble and do not count.
+	private async markDownOn(err: unknown): Promise<boolean> {
+		const reason = modelDownReason(err);
+		if (reason == null) return false;
+		if (await this.redisClient.set(DOWN_KEY, reason, 'EX', DOWN_TTL_SECONDS, 'NX') === 'OK') this.logger.warn(`tutor model unavailable: ${reason}`);
+		return true;
+	}
+
+	// A DM while away: one fixed line per learner in six hours, and a real answer once the model is back (catchUp).
+	private async sayAway(tutor: MiUser, learner: MiUser): Promise<void> {
+		await this.redisClient.sadd(PENDING_KEY, `${tutor.id}:${learner.id}`);
+		if (await this.redisClient.set(`lojoTutor:awayNote:${tutor.id}:${learner.id}`, '1', 'EX', AWAY_NOTE_TTL_SECONDS, 'NX') !== 'OK') return;
+		const map = `${this.config.url.replace(/\/$/, '')}/quest`;
+		await this.send(tutor, learner, [`${TUTOR_AWAY_PREFIX}，你的消息她回来会先看 🙏 想先练的话，👉 闯关地图 ${map}`], false, undefined);
+	}
+
+	private async sayAwayForQuest(tutor: MiUser, learner: MiUser, knowledge: QuestKnowledge, questTry: QuestTry): Promise<void> {
+		const away = questAwayMessage(knowledge, questTry);
+		await this.send(tutor, learner, await this.withNextLink(tutor.id, { ...away, voice: false }, questTry), false, undefined);
+	}
+
+	// Once the model is back: answer up to 30 learners who wrote while it was away and are still waiting.
+	private async catchUp(): Promise<void> {
+		const waiting = await this.redisClient.srandmember(PENDING_KEY, CATCH_UP_PER_ROUND);
+		if (waiting.length === 0) return;
+		let answered = 0;
+		for (const pair of waiting) {
+			const [tutorId, learnerId] = pair.split(':');
+			await this.redisClient.srem(PENDING_KEY, pair);
+			if (!this.tutors.includes(tutorId) || learnerId == null) continue;
+			try {
+				if ((await this.history(tutorId, learnerId, 6)).at(-1)?.role !== 'user') continue;
+				await this.reply(tutorId, learnerId);
+				if (await this.isDown()) break;
+				answered++;
+			} catch (err) {
+				this.logger.warn(`catch-up reply to ${learnerId} failed: ${err}`);
+			}
+		}
+		if (answered > 0) this.logger.info(`answered ${answered} learner(s) who wrote while the tutor was away`);
 	}
 
 	// The try from "Ask Mia" in the last two hours, with the quest knowledge; null outside quest mode.
@@ -416,6 +508,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const turns: { role: ChatTurn['role']; texts: string[] }[] = [];
 		for (const message of messages.reverse()) {
 			// The 👉 line under a quest answer is added by the app, not written by her: left out, so she does not copy it.
+			// The fixed "away" messages are not hers either, and left out so she does not copy them once she is back.
+			if (message.fromUserId === tutorId && message.text?.startsWith(TUTOR_AWAY_PREFIX)) continue;
 			const text = (message.text ?? (message.fileId ? '(sent a file)' : '')).split('\n').filter(line => !line.startsWith('👉 ')).join('\n').trim();
 			if (text === '') continue;
 			const role = message.fromUserId === tutorId ? 'assistant' : 'user';

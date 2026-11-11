@@ -36,7 +36,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps) => {
 			const tutorId = ps.tutorId ?? lojoTutorIds()[0] ?? null;
 			if (tutorId == null) return { status: 'off' as const, tutorId };
-			return { status: await this.lojoTutorService.openFromQuest(tutorId, ps.userId, ps.questTry), tutorId };
+			const status = await this.lojoTutorService.openFromQuest(tutorId, ps.userId, ps.questTry);
+			// "away" (model account unavailable) shows as off here, so this admin tool's schema stays as it is.
+			return { status: status === 'away' ? 'off' as const : status, tutorId };
 		});
 	}
 }

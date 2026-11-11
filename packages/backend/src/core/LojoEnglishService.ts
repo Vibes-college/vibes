@@ -227,6 +227,25 @@ export class LojoEnglishService implements OnApplicationShutdown {
 		}
 	}
 
+	// Whether the model account can take calls again (free to ask): false on no balance or a bad key, null when unknown.
+	public async modelAvailable(): Promise<boolean | null> {
+		if (this.apiKey === '') return false;
+		try {
+			const res = await this.httpRequestService.send('https://api.deepseek.com/user/balance', {
+				method: 'GET',
+				headers: { 'Authorization': `Bearer ${this.apiKey}`, Accept: 'application/json' },
+				timeout: 15 * 1000,
+				isLocalAddressAllowed: true,
+			}, { throwErrorWhenResponseNotOk: false });
+			if (res.status === 401 || res.status === 402) return false;
+			if (!res.ok) return null;
+			const json = await res.json() as { is_available?: boolean };
+			return json.is_available === true;
+		} catch {
+			return null;
+		}
+	}
+
 	private request(system: string, input: string, temperature: number, maxTokens: number): Promise<unknown> {
 		return this.requestMessages([
 			{ role: 'system', content: system },
