@@ -143,14 +143,18 @@ export function normalizeQuestTry(raw: unknown): QuestTry | null {
 // The quest part of the tutor's system prompt: the rules, the techniques for the causes in this try, where she may
 // send them (ids and labels only: she never writes a URL), and the try itself without URLs.
 // followUp: she already wrote first about this try and is now answering what the learner said next.
-export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
+// The chapter's knowledge: the same for the whole quest-mode chat, so it goes in the cached part of the prompt.
+export function questKnowledgeSection(knowledge: QuestKnowledge): string {
+	return knowledge.rules;
+}
+
+// This try, its causes and where she can send them: changes as hearts come back, so it goes in the last message.
+export function questTrySection(knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
 	const tags = [...new Set([questTry.cause, ...questTry.wrong.map(w => w.cause)].filter((t): t is string => t != null && t !== ''))];
 	const causes = tags.map(tag => knowledge.causes[tag]).map((c, i) => (c ? `- ${tags[i]}: ${c.zh}. Technique: ${c.technique}` : null)).filter(Boolean);
 	const { next, ...rest } = questTry;
 	const tryFacts = { ...rest, next: next.map(({ url: _url, ...n }) => n) };
 	return [
-		knowledge.rules,
-		'',
 		...(causes.length > 0 ? ['Causes in this try:', ...causes as string[], ''] : []),
 		'You can send them to (set "next" to one id, or leave it out):',
 		...(next.length > 0 ? next.map(n => `- ${n.id}: ${n.label}${n.recommended ? ' (recommended)' : ''}`) : ['- (nothing listed: leave "next" out)']),
@@ -163,6 +167,10 @@ export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry
 			'Hearts and 补心 above are as of now; if they changed since you wrote first, go by these.',
 		] : []),
 	].join('\n');
+}
+
+export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
+	return [questKnowledgeSection(knowledge), '', questTrySection(knowledge, questTry, followUp)].join('\n');
 }
 
 // "👉 <label> <full URL>" for the step the tutor chose; null when she chose nothing listed.

@@ -14,6 +14,8 @@ import {
 	normalizeTutorReply,
 	proactiveDecision,
 	tutorSystemPrompt,
+	tutorContextMessage,
+	asksToRememberOrForget,
 } from '@/misc/lojo-tutor.js';
 import type { ProactiveState } from '@/misc/lojo-tutor.js';
 
@@ -70,12 +72,19 @@ describe('Vibes AI tutor', () => {
 		const card = normalizeTutorCard({ name: '  ', personality: 'Calm and precise.' });
 		expect(card.name).toBe(defaultTutorCard.name);
 		expect(card.personality).toBe('Calm and precise.');
-		const prompt = tutorSystemPrompt(card, { ...emptyMemory(), facts: [{ id: 'f1', text: 'Exam on 12 December.', updatedAt: '' }] }, {
-			learnerName: 'Lin', now: '2026-10-25 Sunday 15:00 (Beijing time)', opener: { reason: 'a friendly daily check-in', recentPosts: ['Vibes 编辑部: Quick fix: "We discussed the plan"'] },
-		});
+		const prompt = tutorSystemPrompt(card, { ...emptyMemory(), facts: [{ id: 'f1', text: 'Exam on 12 December.', updatedAt: '' }] }, { learnerName: 'Lin' });
 		expect(prompt).toContain('Never claim to be human');
 		expect(prompt).toContain('- Exam on 12 December.');
-		expect(prompt).toContain('Recent post: Vibes 编辑部');
 		expect(prompt).toContain('"messages"');
+		// What changes from call to call goes after the chat, so the start of the prompt stays cached.
+		expect(prompt).not.toContain('Sunday');
+		const context = tutorContextMessage({
+			now: '2026-10-25 Sunday afternoon (Beijing time)', opener: { reason: 'a friendly daily check-in', recentPosts: ['Vibes 编辑部: Quick fix: "We discussed the plan"'] },
+		});
+		expect(context).toContain('Sunday afternoon');
+		expect(context).toContain('Recent post: Vibes 编辑部');
+		expect(asksToRememberOrForget('Please remember that I study after work.')).toBe(true);
+		expect(asksToRememberOrForget('帮我记住考试日期')).toBe(true);
+		expect(asksToRememberOrForget('I can never remember phrasal verbs.')).toBe(false);
 	});
 });

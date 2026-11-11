@@ -27,21 +27,32 @@ import {
 	defaultTutorCard,
 	emptyMemory,
 	localDay,
+	localHour,
 	lojoTutorIds,
 	memoryUpdateSystemPrompt,
 	normalizeMemory,
 	normalizeMemoryUpdate,
 	normalizeTutorCard,
 	normalizeTutorReply,
+	NOTES_EVERY,
+	asksToRememberOrForget,
 	proactiveDecision,
+	tutorContextMessage,
 	tutorSystemPrompt,
 } from '@/misc/lojo-tutor.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
-import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questNextLine, questPromptSection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 
 const SCOPE = ['lojo', 'tutor'];
 const HISTORY = 24;
+// The chat in the prompt grows from 24 to 36 messages and then drops the oldest 12 at once, so its start stays the same
+// (and cached) between the jumps instead of moving by one every reply.
+const HISTORY_MAX = 36;
+// A chat session ends after 30 minutes without a message. Within one, the notes in the prompt are the ones read when it
+// began (as Hermes Agent does), so the start of the prompt does not change; new notes are used from the next session.
+const SESSION_SECONDS = 30 * 60;
+const NOTES_DUE_KEY = 'lojoTutor:notesDue';
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 // After "Ask Mia" on a failed level, her replies carry that try for two hours; a learner can ask at most 10 times a day.
@@ -59,7 +70,7 @@ const AWAY_NOTE_TTL_SECONDS = 6 * 60 * 60;
 const CATCH_UP_PER_ROUND = 30;
 const modelDownReason = (err: unknown): string | null => /^HTTP (401|402)\b/.exec(err instanceof Error ? err.message : '')?.[1] ?? null;
 
-type ChatTurn = { role: 'user' | 'assistant'; content: string };
+type ChatTurn = { role: 'user' | 'assistant' | 'system'; content: string };
 
 // The AI tutor in direct messages: replies with memory, sometimes as a voice message, and writes first at most once a day.
 // Phase 1 of docs/research/ai-dm-companion.md. Tutor accounts are listed in LOJO_TUTOR_IDS.
@@ -122,13 +133,18 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		if (typeof obj.channel !== 'string' || !obj.channel.startsWith('chatUserStream:')) return;
 		const [tutorId, learnerId] = obj.channel.slice('chatUserStream:'.length).split('-');
 		if (!this.tutors.includes(tutorId) || obj.message?.type !== 'message' || obj.message.body?.fromUserId !== learnerId) return;
-		this.onLearnerMessage(tutorId, learnerId).catch(err => this.logger.warn(`learner message handling failed: ${err}`));
+		this.onLearnerMessage(tutorId, learnerId, String(obj.message.body?.id ?? '')).catch(err => this.logger.warn(`learner message handling failed: ${err}`));
 	}
 
 	// Wait until the learner stops typing for a moment, like a person would, then answer everything at once.
-	private async onLearnerMessage(tutorId: string, learnerId: string): Promise<void> {
+	private async onLearnerMessage(tutorId: string, learnerId: string, messageId: string): Promise<void> {
 		const key = `${tutorId}:${learnerId}`;
 		await this.redisClient.hset(this.stateKey(tutorId, learnerId), { lastLearnerAt: Date.now(), unanswered: 0 });
+		// Every web process hears the message; it is counted once towards the next notes update.
+		if (messageId !== '' && await this.redisClient.set(`lojoTutor:seen:${messageId}`, '1', 'EX', 10 * 60, 'NX') === 'OK') {
+			await this.redisClient.hincrby(this.stateKey(tutorId, learnerId), 'notesPending', 1);
+			await this.redisClient.zadd(NOTES_DUE_KEY, Date.now(), key);
+		}
 		clearTimeout(this.pendingReplies.get(key));
 		this.pendingReplies.set(key, setTimeout(() => {
 			this.pendingReplies.delete(key);
@@ -161,7 +177,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				return;
 			}
 			const [card, memory, history, gates, quest] = await Promise.all([
-				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
+				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
 			]);
 			// Already answered (another attempt got there first).
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
@@ -170,17 +186,19 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// without the 👉 link again: a link only goes out for a step not linked yet for this try (AI tutor, 2026-11-10:
 			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
 			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: quest && questTry && questPromptSection(quest.knowledge, questTry, true) });
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
+			const context = tutorContextMessage({ now: this.nowText(), gates, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
 			let answer: TutorReply;
 			try {
-				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`));
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history, { role: 'system', content: context }], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`));
 			} catch (err) {
 				if (!(await this.markDownOn(err))) throw err;
 				await this.sayAway(tutor, learner);
 				return;
 			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, questTry ?? undefined), answer.voice, card.extensions.vibes?.voice);
-			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
+			const lastLearner = history.findLast(turn => turn.role === 'user')?.content ?? '';
+			this.maybeUpdateMemory(tutorId, learnerId, asksToRememberOrForget(lastLearner)).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
 		}
@@ -206,11 +224,33 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		await this.redisClient.hset(this.stateKey(tutor.id, learner.id), { lastTutorAt: Date.now() });
 	}
 
-	// After a reply, refresh the learner notes from the latest exchange (at most once a minute per learner).
+	// The notes are rewritten when the learner has written 6 messages since the last time, or asked to remember or forget
+	// something, or failed a quest level (force); a chat that stopped for 30 minutes is caught by notesAfterPause.
+	private async maybeUpdateMemory(tutorId: string, learnerId: string, force: boolean): Promise<void> {
+		const pending = Number(await this.redisClient.hget(this.stateKey(tutorId, learnerId), 'notesPending') ?? 0);
+		if (force || pending >= NOTES_EVERY) await this.updateMemory(tutorId, learnerId);
+	}
+
+	// Chats that stopped 30 minutes ago with messages not yet in the notes (every 15 minutes, with the proactive round).
+	private async notesAfterPause(): Promise<void> {
+		const due = await this.redisClient.zrangebyscore(NOTES_DUE_KEY, 0, Date.now() - SESSION_SECONDS * 1000, 'LIMIT', 0, 50);
+		for (const pair of due) {
+			await this.redisClient.zrem(NOTES_DUE_KEY, pair);
+			const [tutorId, learnerId] = pair.split(':');
+			if (!this.tutors.includes(tutorId) || learnerId == null) continue;
+			if (Number(await this.redisClient.hget(this.stateKey(tutorId, learnerId), 'notesPending') ?? 0) === 0) continue;
+			await this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
+		}
+	}
+
+	// Refresh the learner notes from the latest messages (at most once a minute per learner). The model is the English
+	// helper's (deepseek-flash unless LOJO_ENGLISH_MODEL says otherwise).
 	private async updateMemory(tutorId: string, learnerId: string): Promise<void> {
 		if (await this.redisClient.set(`lojoTutor:notesLock:${tutorId}:${learnerId}`, '1', 'EX', 60, 'NX') !== 'OK') return;
 		if (!(await this.spendBudget())) return;
-		const [memory, history] = await Promise.all([this.memory(learnerId, tutorId), this.history(tutorId, learnerId, 12)]);
+		// Messages that arrive while this runs count towards the next update.
+		const pending = Number(await this.redisClient.hget(this.stateKey(tutorId, learnerId), 'notesPending') ?? 0);
+		const [memory, history] = await Promise.all([this.memory(learnerId, tutorId), this.history(tutorId, learnerId, HISTORY)]);
 		const input = JSON.stringify({
 			today: this.nowText(),
 			notes: { profile: memory.profile, facts: memory.facts.map(({ id, text }) => ({ id, text })), summary: memory.summary },
@@ -222,6 +262,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`);
 		const next = applyMemoryUpdate(memory, update, new Date(), () => this.idService.gen());
 		await this.registryApiService.set(learnerId, null, SCOPE, tutorId, next);
+		await this.redisClient.hincrby(this.stateKey(tutorId, learnerId), 'notesPending', -pending);
 	}
 
 	// Every 15 minutes: write first to learners who have not heard from the tutor today (rules in proactiveDecision).
@@ -237,6 +278,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			this.logger.info('tutor model back');
 		}
 		await this.catchUp();
+		await this.notesAfterPause();
 		if (!this.proactive) return;
 		const tutorId = this.tutors[0];
 		const query = this.usersRepository.createQueryBuilder('user')
@@ -275,12 +317,12 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
 			const [card, memory, history, recentPosts, gates] = await Promise.all([
-				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.recentPosts(), this.gates(learnerId),
+				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.recentPosts(), this.gates(learnerId),
 			]);
 			// If the learner's last message is still unanswered, answer it instead of opening a new topic.
 			const unanswered = history.at(-1)?.role === 'user';
-			const system = tutorSystemPrompt(card, memory, {
-				learnerName: this.nameOf(learner),
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner) });
+			const context = tutorContextMessage({
 				now: this.nowText(),
 				opener: unanswered ? undefined : { reason: this.openerReason(memory, history), recentPosts },
 				gates,
@@ -289,14 +331,15 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// or she repeats it; an empty chat starts from a neutral cue too.
 			const cue = history.length === 0 ? '(The learner has not written yet.)' : '(The learner has not replied yet. Write first now, as described above.)';
 			const turns: ChatTurn[] = unanswered ? history : [...history, { role: 'user', content: cue }];
-			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.9, 600, normalizeTutorReply, `tutor.first learner=${learnerId}`));
+			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns, { role: 'system', content: context }], 0.9, 600, normalizeTutorReply, `tutor.first learner=${learnerId}`));
 			await this.send(tutor, learner, unanswered ? answer.messages : answer.messages.slice(0, 2), answer.voice, card.extensions.vibes?.voice);
 			if (!unanswered) {
 				const key = this.stateKey(tutorId, learnerId);
 				await this.redisClient.hset(key, { lastProactiveAt: Date.now() });
 				await this.redisClient.hincrby(key, 'unanswered', 1);
+			} else {
+				this.maybeUpdateMemory(tutorId, learnerId, false).catch(err => this.logger.warn(`notes update failed: ${err}`));
 			}
-			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 			return true;
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
@@ -335,14 +378,15 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
 			const [card, memory, history, gates, quest] = await Promise.all([
-				this.card(tutorId), this.memory(learnerId, tutorId), this.history(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
+				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
 			]);
 			if (quest == null) return;
 			if (await this.isDown()) {
 				await this.sayAwayForQuest(tutor, learner, quest.knowledge, quest.questTry);
 				return;
 			}
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: questPromptSection(quest.knowledge, quest.questTry) });
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), questKnowledge: questKnowledgeSection(quest.knowledge) });
+			const context = tutorContextMessage({ now: this.nowText(), gates, quest: questTrySection(quest.knowledge, quest.questTry) });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
 			const cue = '(The learner just failed this level and tapped "Ask Mia". Write first now, in quest mode as described above.)';
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
@@ -350,7 +394,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				: [...history, { role: 'user', content: cue }];
 			let answer: TutorReply;
 			try {
-				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply, `tutor.quest learner=${learnerId}`));
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns, { role: 'system', content: context }], 0.7, 900, normalizeTutorReply, `tutor.quest learner=${learnerId}`));
 			} catch (err) {
 				// The first learner to run into it still gets where to go next, built from this try without the model.
 				if (!(await this.markDownOn(err))) throw err;
@@ -358,7 +402,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				return;
 			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, quest.questTry), answer.voice, card.extensions.vibes?.voice);
-			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
+			// A failed level is worth writing down now.
+			this.maybeUpdateMemory(tutorId, learnerId, true).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
 		}
@@ -507,12 +552,51 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		return item ? normalizeMemory(item.value) : emptyMemory();
 	}
 
+	private sessionKey(tutorId: string, learnerId: string): string {
+		return `lojoTutor:session:${tutorId}:${learnerId}`;
+	}
+
+	// The notes as they were when this chat session began (see SESSION_SECONDS); each use keeps the session open.
+	private async sessionMemory(tutorId: string, learnerId: string): Promise<TutorMemory> {
+		const key = this.sessionKey(tutorId, learnerId);
+		const saved = await this.redisClient.hget(key, 'memory').catch(() => null);
+		if (saved != null) {
+			try {
+				await this.redisClient.expire(key, SESSION_SECONDS);
+				return normalizeMemory(JSON.parse(saved));
+			} catch {
+				// A corrupt snapshot is read again below.
+			}
+		}
+		const memory = await this.memory(learnerId, tutorId);
+		await this.redisClient.multi().hset(key, 'memory', JSON.stringify(memory)).expire(key, SESSION_SECONDS).exec().catch(() => null);
+		return memory;
+	}
+
+	// The chat for the prompt, from a first message that stays put until there are more than 36 messages from it; then
+	// it moves on so that the newest 24 are kept.
+	private async sessionHistory(tutorId: string, learnerId: string): Promise<ChatTurn[]> {
+		const key = this.sessionKey(tutorId, learnerId);
+		const messages = (await this.chatService.userTimeline(tutorId, learnerId, HISTORY_MAX)).reverse();
+		const from = await this.redisClient.hget(key, 'historyFrom').catch(() => null);
+		let start = from != null ? messages.findIndex(m => m.id === from) : -1;
+		if (start === -1) {
+			start = Math.max(0, messages.length - HISTORY);
+			if (messages[start] != null) await this.redisClient.multi().hset(key, 'historyFrom', messages[start].id).expire(key, SESSION_SECONDS).exec().catch(() => null);
+		}
+		return this.toTurns(tutorId, messages.slice(start));
+	}
+
 	// Oldest first, consecutive messages merged. The tutor's turns are written in the JSON shape it answers with:
 	// plain-text turns in the history made DeepSeek's JSON mode return empty answers now and then.
 	private async history(tutorId: string, learnerId: string, limit = HISTORY): Promise<ChatTurn[]> {
 		const messages: MiChatMessage[] = await this.chatService.userTimeline(tutorId, learnerId, limit);
-		const turns: { role: ChatTurn['role']; texts: string[] }[] = [];
-		for (const message of messages.reverse()) {
+		return this.toTurns(tutorId, messages.reverse());
+	}
+
+	private toTurns(tutorId: string, messages: MiChatMessage[]): ChatTurn[] {
+		const turns: { role: 'user' | 'assistant'; texts: string[] }[] = [];
+		for (const message of messages) {
 			// The 👉 line under a quest answer is added by the app, not written by her: left out, so she does not copy it.
 			// The fixed "away" messages are not hers either, and left out so she does not copy them once she is back.
 			if (message.fromUserId === tutorId && message.text?.startsWith(TUTOR_AWAY_PREFIX)) continue;
@@ -581,9 +665,12 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		return user.name ?? user.username;
 	}
 
+	// To the day and part of the day: Mia needs no more, and a time to the minute would change the prompt every call.
 	private nowText(): string {
 		const now = new Date();
-		const time = new Intl.DateTimeFormat('en-GB', { timeZone: this.tz, weekday: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now);
-		return `${localDay(now, this.tz)} ${time} (${this.tz === 'Asia/Shanghai' ? 'Beijing time' : this.tz})`;
+		const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: this.tz, weekday: 'long' }).format(now);
+		const hour = localHour(now, this.tz);
+		const part = hour < 5 ? 'late at night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : hour < 23 ? 'evening' : 'late at night';
+		return `${localDay(now, this.tz)} ${weekday} ${part} (${this.tz === 'Asia/Shanghai' ? 'Beijing time' : this.tz})`;
 	}
 }

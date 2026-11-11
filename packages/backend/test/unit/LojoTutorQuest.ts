@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from 'vitest';
 import { defaultTutorCard, emptyMemory, normalizeTutorReply, tutorSystemPrompt } from '@/misc/lojo-tutor.js';
-import { normalizeQuestKnowledge, normalizeQuestTry, pickQuestKnowledge, questChapterNo, questAwayMessage, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestKnowledge, normalizeQuestTry, pickQuestKnowledge, questChapterNo, questAwayMessage, questKnowledgeSection, questNextLine, questPromptSection, questTrySection } from '@/misc/lojo-tutor-quest.js';
 
 // Sample data (示例), shaped like 闯关上线/Mia接入.md section 2.
 const sampleTry = {
@@ -53,9 +53,12 @@ describe('Vibes AI tutor in the quest map', () => {
 		expect(section).toContain('- guide:j5: 锦囊 5 · 一字不差的多半不是答案 (recommended)');
 		expect(section).toContain('"picked":"TRUE"');
 		expect(section).not.toContain('/guides/j5');
-		const prompt = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin', now: 'now', quest: section });
+		const prompt = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin', questKnowledge: questKnowledgeSection(normalizeQuestKnowledge(knowledge)!) });
 		expect(prompt).toContain('"next"');
-		const plain = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin', now: 'now' });
+		expect(prompt).toContain('QUEST MODE. Test rules.');
+		expect(prompt).not.toContain('"picked":"TRUE"');
+		expect(questTrySection(normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!)).toContain('"picked":"TRUE"');
+		const plain = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin' });
 		expect(plain).not.toContain('QUEST MODE');
 		expect(plain).not.toContain('"next"');
 		expect(section).not.toContain('Do not repeat the hearts');

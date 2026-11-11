@@ -216,17 +216,26 @@ function describeMemory(memory: TutorMemory): string {
 	return lines.length > 0 ? lines.join('\n') : 'Nothing yet: this is the start of your chats.';
 }
 
-export type TutorPromptContext = {
+// The prompt is split for DeepSeek's prefix cache (only an identical start of the request is billed at the cache price,
+// about 1/50 of a miss): tutorSystemPrompt holds what stays the same for a whole chat session (persona, rules, the
+// chapter's quest knowledge, the notes as they were when the session began), the chat history only grows after it, and
+// everything that changes goes in tutorContextMessage, sent last. Mia记忆技术拆解.md §4.3.
+export type TutorStableContext = {
 	learnerName: string;
-	now: string; // e.g. "2026-10-25 Sunday 15:20 (Beijing time)"
+	// the chapter's knowledge in quest mode (questKnowledgeSection), the same for the two hours after "Ask Mia"
+	questKnowledge?: string | null;
+};
+
+export type TutorPromptContext = {
+	now: string; // to the day and part of day, e.g. "2026-10-25 Sunday afternoon (Beijing time)"
 	opener?: { reason: string; recentPosts: string[] };
 	// where they are on the route maps with gates (IELTS listening 1.3 …), from LojoGateService.profileText
 	gates?: string | null;
-	// quest mode after a failed level, from questPromptSection (lojo-tutor-quest.ts)
+	// quest mode after a failed level: this try (questTrySection, lojo-tutor-quest.ts)
 	quest?: string | null;
 };
 
-export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: TutorPromptContext): string {
+export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: TutorStableContext): string {
 	return [
 		`You are ${card.name}, the English tutor on Vibes, a social app where Chinese young adults learn English through content they enjoy.`,
 		card.description,
@@ -244,30 +253,44 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 		'- Do not promise scores, admission or results. No romance or flirting. No medical, legal or financial advice.',
 		'- If the learner seems to be in crisis or mentions hurting themselves, reply with care, encourage them to talk to someone they trust, and suggest calling emergency services (120 or 110 in mainland China).',
 		'- Set "voice" to true when one of your messages is a short English sentence worth hearing (under 200 characters) or the learner asks to hear something; that message is read aloud.',
+		'- The last system message after the chat says what day it is and anything new (route map gates, a level they just failed, whether you are writing first). Go by it.',
+		card.post_history_instructions,
 		'',
-		`What you know about ${ctx.learnerName}:`,
+		ctx.questKnowledge ? 'Answer in JSON: {"messages": ["..."], "voice": false, "next": "<one id from the list, or leave it out>"}' : 'Answer in JSON: {"messages": ["..."], "voice": false}',
+		...(ctx.questKnowledge ? ['', ctx.questKnowledge] : []),
+		'',
+		`What you know about ${ctx.learnerName} (your notes from earlier chats; anything they said in this chat is newer):`,
 		describeMemory(memory),
+	].filter(line => line !== undefined).join('\n');
+}
+
+// Sent as the last message, after the chat history: the parts of the prompt that change from one reply to the next.
+export function tutorContextMessage(ctx: TutorPromptContext): string {
+	return [
+		`Now: ${ctx.now}.`,
 		...(ctx.gates ? [
 			'',
 			'Their gates on the Vibes route map (short tests at one band level; a practice level, not an official score):',
 			ctx.gates,
 			'If they passed a gate in the last few days, a short well done is nice. If a recent gate went badly, you may offer a little practice on what they missed, once, without nagging. Never quote the test\'s answers.',
 		] : []),
-		'',
-		`Now: ${ctx.now}.`,
 		...(ctx.opener ? [
 			'',
 			`You are writing first to start a conversation (${ctx.opener.reason}). Send one or two short messages that mention something specific: their goal, where you left off, a gate they just took on the route map, or one of these recent posts on Vibes. Never repeat something you already said in this chat. End with an easy question.`,
 			...ctx.opener.recentPosts.map(post => `Recent post: ${post}`),
 		] : []),
 		...(ctx.quest ? ['', ctx.quest] : []),
-		card.post_history_instructions,
-		'',
-		ctx.quest ? 'Answer in JSON: {"messages": ["..."], "voice": false, "next": "<one id from the list, or leave it out>"}' : 'Answer in JSON: {"messages": ["..."], "voice": false}',
-	].filter(line => line !== undefined).join('\n');
+	].join('\n');
 }
 
-export const memoryUpdateSystemPrompt = `You keep an English tutor's notes about one learner. You get today's date, the current notes and the latest conversation (as JSON). Resolve dates like "December 12" or "next Friday" against today's date. Update the notes and answer in JSON:
+// When the notes are rewritten: after 6 learner messages, after a pause (handled by the caller), or right away when the
+// learner asks Mia to remember or forget something.
+export const NOTES_EVERY = 6;
+export function asksToRememberOrForget(text: string): boolean {
+	return /\b(remember|forget|don'?t forget)\s+(this|that|it|me|my|i|about)\b|记住|记一下|记得我|忘掉|忘了这|别记|不要记/i.test(text);
+}
+
+export const memoryUpdateSystemPrompt = `You keep an English tutor's notes about one learner. You get today's date (and part of the day), the current notes and the latest conversation (as JSON). Resolve dates like "December 12" or "next Friday" against today's date. Update the notes and answer in JSON:
 {"profile": {}, "facts": [{"op": "add", "text": "..."}, {"op": "update", "id": "...", "text": "..."}, {"op": "delete", "id": "..."}], "summary": "..."}
 
 - profile: only fields that are new or changed, from: goal (why they learn English), exam (e.g. "IELTS Academic"), examDate (YYYY-MM-DD), targetScore, level (CEFR guess A1-C2), interests (list), weakPoints (list of recurring mistakes), routine (when they like to study or chat), preferences (e.g. likes voice messages, wants Chinese explanations).
