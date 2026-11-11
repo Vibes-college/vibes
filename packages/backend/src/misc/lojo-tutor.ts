@@ -278,7 +278,7 @@ export function tutorContextMessage(ctx: TutorPromptContext): string {
 			'',
 			PROGRESS_CARD_INTRO,
 			ctx.progress,
-			'If they passed a level or gate in the last few days, a short well done is nice. If a recent one went badly, you may offer a little practice on what they missed, once, without nagging. Never quote test answers.',
+			'If they passed a level or gate in the last few days, a short well done is nice, once. If a recent one went badly, you may offer a little practice on what they missed, once in this chat, without nagging. Never quote test answers.',
 		] : ctx.gates ? [
 			'',
 			'Their gates on the Vibes route map (short tests at one band level; a practice level, not an official score):',

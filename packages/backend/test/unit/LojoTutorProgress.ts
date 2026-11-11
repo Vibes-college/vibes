@@ -42,6 +42,7 @@ describe('progress card', () => {
 	test('goes in the last message, not the gates text', () => {
 		const msg = tutorContextMessage({ now: '2026-11-11 Wednesday morning (Beijing time)', progress: card, gates: 'old gates', recall: 'Older messages …' });
 		expect(msg).toContain('never say you cannot see it');
+		expect(msg).toContain('never push a part they have not started');
 		expect(msg).toContain(card);
 		expect(msg).not.toContain('old gates');
 		expect(msg).toContain('Older messages …');

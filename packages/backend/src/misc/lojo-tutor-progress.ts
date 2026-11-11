@@ -73,7 +73,7 @@ function section(title: string, lines: string[]): string {
 }
 
 // Shown before the card in the last message; the system prompt (and its cache) stays as it is.
-export const PROGRESS_CARD_INTRO = 'Their progress on Vibes, read from the app just now (more reliable than the chat or your notes; if they ask where they are, answer from this, in your own words, and never say you cannot see it):';
+export const PROGRESS_CARD_INTRO = 'Their progress on Vibes, read from the app just now (more reliable than the chat or your notes). If they ask where they are, answer from this, in your own words, and never say you cannot see it. Otherwise do not bring it up yourself, and never push a part they have not started:';
 
 /* ---------- chat search ---------- */
 
