@@ -62,48 +62,34 @@ async function main() {
 
 		// 6. チャンク内で使用されているアイコンのUnicodeの配列を生成
 		const unicodeValues = Array.from(iconsToPack).map((icon) => parseInt(rgMap.get(icon)!, 16));
-		unicodeRangeValues.set(key, unicodeValues);
+		unicodeRangeValues.set(key, unicodeValues.sort((a, b) => a - b));
 	}
+
+	const allUnicodeValues = [...new Set(Array.from(rgMap.values()).map(u => parseInt(u, 16)))];
 
 	// 7. Tabler Iconフォントをサブセット化
 	const subsettedFonts = await generateSubsettedFont(fontPath + 'tabler-icons.ttf', unicodeRangeValues);
 
 	// 8. サブセット化したフォント・CSSを書き出し
 	await Promise.allSettled(Array.from(subsettedFonts.entries()).map(async ([key, buffer]) => {
+		// Vibes 2026-11-10: the full font (831 KB) is only a fallback for icons the scan missed. Without a unicode-range,
+		// Safari downloads it on every first open even though the subset below covers every icon on screen; Chrome doesn't.
+		// Limiting it to the icons NOT in the subset makes every browser fetch it only when such an icon is really shown.
+		const subsetSet = new Set(unicodeRangeValues.get(key)!);
+		const fallbackRange = toUnicodeRange(allUnicodeValues.filter(v => !subsetSet.has(v)));
 		const cssRules = [`@font-face {
 	font-family: "tabler-icons";
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url("./tabler-icons.woff2") format("woff2");
+	src: url("./tabler-icons.woff2") format("woff2");${fallbackRange ? `\n\tunicode-range: ${fallbackRange};` : ''}
 }`];
 
 		// サブセット化したフォントの中身がある（＝unicodeRangeValuesの配列が空ではない）場合のみ、サブセットしたものに関する情報を追記
 		if (unicodeRangeValues.get(key)!.length > 0) {
 			await fsp.writeFile(`./built/tabler-icons-${key}.woff2`, buffer);
 
-			const unicodeRangeString = (() => {
-				const values = unicodeRangeValues.get(key)!.sort((a, b) => a - b);
-				const ranges = [];
-
-				for (let i = 0; i < values.length; i++) {
-					const start = values[i];
-					let end = values[i];
-					while (values[i + 1] === end + 1) {
-						end = values[i + 1];
-						i++;
-					}
-					if (start === end) {
-						ranges.push(`U+${start.toString(16)}`);
-					} else if (start + 1 === end) {
-						ranges.push(`U+${start.toString(16)}`, `U+${end.toString(16)}`);
-					} else {
-						ranges.push(`U+${start.toString(16)}-${end.toString(16)}`);
-					}
-				}
-
-				return ranges.join(', ');
-			})();
+			const unicodeRangeString = toUnicodeRange(unicodeRangeValues.get(key)!);
 
 			cssRules.push(`@font-face {
 	font-family: "tabler-icons";
@@ -132,6 +118,27 @@ async function main() {
 
 	const end = performance.now();
 	console.log(`Done in ${Math.round((end - start) * 100) / 100}ms`);
+}
+
+function toUnicodeRange(input: number[]): string {
+	const values = [...input].sort((a, b) => a - b);
+	const ranges: string[] = [];
+	for (let i = 0; i < values.length; i++) {
+		const start = values[i];
+		let end = values[i];
+		while (values[i + 1] === end + 1) {
+			end = values[i + 1];
+			i++;
+		}
+		if (start === end) {
+			ranges.push(`U+${start.toString(16)}`);
+		} else if (start + 1 === end) {
+			ranges.push(`U+${start.toString(16)}`, `U+${end.toString(16)}`);
+		} else {
+			ranges.push(`U+${start.toString(16)}-${end.toString(16)}`);
+		}
+	}
+	return ranges.join(', ');
 }
 
 main().catch((err) => {
