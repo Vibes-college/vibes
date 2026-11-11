@@ -42,16 +42,29 @@ function whenIdle(run: () => void): void {
 	}
 }
 
+// 2026-11-10: on 闯关 (/quest) there is no list, so the 10 s fallback fired while the game was still loading, and on a
+// phone ~130 files took the line from the map (41 s to the map in a measured run). There, wait for the game to say its map
+// is drawn (quest.vue / LojoQuestInstant.ts send 'vibes:quest-ready') plus 3 s, or 30 s at most.
+function firstScreenShown(): { shown: Promise<unknown>; fallbackMs: number } {
+	if (!window.location.pathname.startsWith('/quest')) return { shown: firstContentShown, fallbackMs: 10000 };
+	const shown = new Promise<void>(resolve => {
+		if ((window as unknown as { vibesQuestReady?: boolean }).vibesQuestReady) resolve();
+		else window.addEventListener('vibes:quest-ready', () => resolve(), { once: true });
+	}).then(() => new Promise(resolve => window.setTimeout(resolve, 3000)));
+	return { shown, fallbackMs: 30000 };
+}
+
 export function prefetchCommonPages(signedIn: boolean): void {
+	const { shown, fallbackMs } = firstScreenShown();
 	// The post form, emoji picker, menus and dialogs are small and the first tap needs them, so they go first: as soon as
 	// the first list is on screen (or after 10 s).
-	Promise.race([firstContentShown, new Promise(resolve => window.setTimeout(resolve, 10000))]).then(() => whenIdle(() => preloadLaterUi(signedIn)));
+	Promise.race([shown, new Promise(resolve => window.setTimeout(resolve, fallbackMs))]).then(() => whenIdle(() => preloadLaterUi(signedIn)));
 
 	// 2026-11-09: started right after the app appeared, these ~85 files took the line from the first page's notes and
 	// pictures on a slow phone network. Now they wait until the first list has arrived and 2 more seconds have passed for
 	// its posts, avatars and pictures to show (or 10 s at most).
-	const listShown = firstContentShown.then(() => new Promise(resolve => window.setTimeout(resolve, 2000)));
-	Promise.race([listShown, new Promise(resolve => window.setTimeout(resolve, 10000))]).then(() => whenIdle(() => {
+	const listShown = shown.then(() => new Promise(resolve => window.setTimeout(resolve, 2000)));
+	Promise.race([listShown, new Promise(resolve => window.setTimeout(resolve, fallbackMs))]).then(() => whenIdle(() => {
 		for (const load of signedIn ? signedInPages : visitorPages) {
 			// A failed prefetch only means the page downloads on its first tap, as before.
 			load().catch(() => {});

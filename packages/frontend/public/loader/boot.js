@@ -108,7 +108,21 @@
 	const bootFiles = localStorage.getItem('account') == null && typeof GUEST_BOOT_FILES !== 'undefined' && Array.isArray(GUEST_BOOT_FILES) && GUEST_BOOT_FILES.length > 0
 		? GUEST_BOOT_FILES
 		: typeof BOOT_FILES !== 'undefined' && Array.isArray(BOOT_FILES) ? BOOT_FILES : [];
-	if (CLIENT_ENTRY) {
+	// Vibes: on /quest a signed-in player gets the game straight away (backend LojoQuestInstant.ts); the app's scripts wait
+	// until its map is drawn (or 5 s), so on a slow line they don't hold up the map (2026-11-10: minutes on a phone).
+	let questFirst = false;
+	try {
+		questFirst = typeof QUEST_FRAME === 'string' && location.pathname === '/quest' && JSON.parse(localStorage.getItem('account') ?? 'null')?.token != null;
+	} catch {
+		questFirst = false;
+	}
+	const questReady = new Promise(resolve => {
+		if (!questFirst || window.vibesQuestReady) return resolve();
+		window.addEventListener('vibes:quest-ready', () => resolve(), { once: true });
+		window.setTimeout(resolve, 5000);
+	});
+
+	if (CLIENT_ENTRY) questReady.then(() => {
 		for (const file of bootFiles) {
 			const link = document.createElement('link');
 			if (file.startsWith('scripts/')) {
@@ -125,7 +139,7 @@
 			}
 			document.head.appendChild(link);
 		}
-	}
+	});
 
 	//#region Early requests
 	// Vibes: on the home page, ask for the first notes now, while the scripts above are still downloading; the app takes
@@ -167,10 +181,10 @@
 
 	// タイミングによっては、この時点でDOMの構築が済んでいる場合とそうでない場合とがある
 	if (document.readyState !== 'loading') {
-		importAppScript();
+		questReady.then(importAppScript);
 	} else {
 		window.addEventListener('DOMContentLoaded', () => {
-			importAppScript();
+			questReady.then(importAppScript);
 		});
 	}
 	//#endregion

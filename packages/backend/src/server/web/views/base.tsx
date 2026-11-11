@@ -5,6 +5,7 @@
 
 import { comment, defaultDescription } from '@/server/web/views/_.js';
 import { Splash } from '@/server/web/views/_splash.js';
+import { questInstantScript } from '@/server/web/LojoQuestInstant.js';
 import type { CommonProps } from '@/server/web/views/_.js';
 import type { PropsWithChildren, Children } from '@kitajs/html';
 
@@ -55,6 +56,10 @@ export function Layout(props: PropsWithChildren<CommonProps<{
 
 					{props.frontendViteFiles == null ? <script type="module" src="/vite/@vite/client"></script> : null}
 
+					{/* Vibes: /quest shows the game (or its door) before the app starts; does nothing on other pages. Before the app's
+					stylesheet, which a script after it would wait for (2.3 s on a slow line, 2026-11-10). */}
+					{props.questFrame != null ? <script>{questInstantScript(props.questFrame)}</script> : null}
+
 					{(props.frontendViteFiles?.css ?? []).map((href) => (
 						<link rel="stylesheet" href={`/vite/${href}`} />
 					))}
@@ -84,6 +89,7 @@ export function Layout(props: PropsWithChildren<CommonProps<{
 						const LANGS = {JSON.stringify(props.langs)};
 						const BOOT_FILES = {JSON.stringify(props.frontendViteFiles?.bootFiles ?? [])};
 						const GUEST_BOOT_FILES = {JSON.stringify(props.frontendViteFiles?.guestBootFiles ?? [])};
+						const QUEST_FRAME = {JSON.stringify(props.questFrame ?? null)};
 					</script>
 
 					{safeMetaJson != null ? <script type="application/json" id="misskey_meta" data-generated-at={now}>{safeMetaJson}</script> : null}

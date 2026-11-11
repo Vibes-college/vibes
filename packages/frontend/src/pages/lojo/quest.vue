@@ -7,7 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 lends it the community login (api) and the community router (go) through window.__vibesQuest. -->
 <template>
 <div ref="root" :class="$style.root" :style="{ '--quest-bottom': bottom }">
-	<iframe v-if="$i" ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
+	<!-- 页面一打开就已经在跑的那个闯关框（服务器那边 LojoQuestInstant.ts）：不再新开一个，把它摆到这里来 -->
+	<div v-if="$i && instant != null" ref="slot" :class="$style.frame" data-vibes-quest-hole></div>
+	<iframe v-else-if="$i" ref="frame" :class="$style.frame" :src="src" title="闯关" allow="autoplay"></iframe>
 	<!-- Not signed in: the game needs an account (hearts, stars, progress are saved per person), so a door instead of 「未找到」. -->
 	<div v-else :class="$style.door">
 		<!-- 门面上方露一小截纸上地图（只是装饰，不能点） -->
@@ -37,7 +39,7 @@ lends it the community login (api) and the community router (go) through window.
 </template>
 
 <script lang="ts" setup>
-import { onActivated, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue';
 import { definePage } from '@/page.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
@@ -58,6 +60,7 @@ const loadSignin = () => import('@/components/MkSigninDialog.vue');
 const loadSignup = () => import('@/components/MkSignupDialog.vue');
 if ($i == null) { loadSignin(); loadSignup(); }
 const opening = ref<'signin' | 'signup' | null>(null);
+
 async function openDialog(which: 'signin' | 'signup') {
 	if (opening.value != null) return;
 	opening.value = which;
@@ -68,9 +71,57 @@ async function openDialog(which: 'signin' | 'signup') {
 		opening.value = null;
 	}
 }
+
 const signin = () => openDialog('signin');
 const signup = () => openDialog('signup');
 const frame = ref<HTMLIFrameElement | null>(null);
+
+// 提速（2026-11-10）：直接打开 /quest 时，网页一到就先把闯关框（没登录是门面）摆上了，社区的代码等地图画好才开始下。
+// 这一页是那次打开的第一个闯关页（地址的 ?book= ?level= 一样）就接手那个框：摆到自己的位置上，api 和 go 换成社区的。
+type InstantBridge = Bridge & { via: Bridge | null; ready?: () => void };
+type Instant = { frame: HTMLIFrameElement; bridge: InstantBridge; search: string; taken: boolean };
+const w = window as unknown as { vibesQuestInstant?: Instant; vibesQuestDoor?: { el: HTMLElement; pending: 'signin' | 'signup' | null }; vibesQuestFrame?: string };
+const instant: Instant | null = (() => {
+	const it = w.vibesQuestInstant;
+	if (it == null || it.taken || !it.frame.isConnected || window.location.pathname !== '/quest') return null;
+	const q = new URLSearchParams(it.search);
+	if ((q.get('book') ?? undefined) !== props.book || (q.get('level') ?? undefined) !== props.level) return null;
+	it.taken = true;
+	return it;
+})();
+const slot = ref<HTMLElement | null>(null);
+let shown = true;
+// 那个框不在社区的页面里面（挪进来会重新加载），而社区整个界面（连同弹窗、提示）是一层。框放在这一层下面，
+// 从这一页到最外层，一路的背景变透明、点击穿过去（data-vibes-quest-hole），像在页面上开了个窗；
+// 同一层里别的东西（侧栏、底栏、弹窗）照常盖在上面、照常能点。
+const HOLE = 'data-vibes-quest-hole';
+const HOLE_STYLE = `[${HOLE}]{background:transparent!important;pointer-events:none!important}[${HOLE}]>:not([${HOLE}]){pointer-events:auto}`;
+const punch = (on: boolean) => {
+	if (on && window.document.getElementById('vibesQuestHoleStyle') == null) {
+		const style = window.document.createElement('style');
+		style.id = 'vibesQuestHoleStyle';
+		style.textContent = HOLE_STYLE;
+		window.document.head.appendChild(style);
+	}
+	for (let el = slot.value?.parentElement; el != null && el !== window.document.documentElement; el = el.parentElement) {
+		if (on) el.setAttribute(HOLE, '');
+		else el.removeAttribute(HOLE);
+	}
+};
+const place = () => {
+	if (instant == null || slot.value == null) return;
+	const r = slot.value.getBoundingClientRect();
+	const st = instant.frame.style;
+	st.left = `${r.left}px`;
+	st.top = `${r.top}px`;
+	st.width = `${r.width}px`;
+	st.height = `${r.height}px`;
+	st.zIndex = '-1';
+	st.visibility = shown && r.width > 0 ? 'visible' : 'hidden';
+	if (shown) punch(true);
+};
+let placeTimer: number | null = null;
+let resizeObserver: ResizeObserver | null = null;
 
 // 手机底栏在的时候（它会在 body 上写 --MI-minBottomSpacing），闯关页停在底栏和发帖按钮上方；电脑上没有底栏就铺满。
 // 底栏（排在页面下面，不是 fixed）比那个变量高（实测 133px 对 84px），所以量贴着窗口底边、在下半屏的东西从哪儿开始
@@ -91,6 +142,22 @@ const measureBottom = () => {
 	bottom.value = top < h ? `${Math.ceil(h - top)}px` : 'var(--MI-minBottomSpacing)';
 };
 onMounted(() => {
+	if (instant != null && slot.value != null) {
+		place();
+		resizeObserver = new ResizeObserver(place);
+		resizeObserver.observe(slot.value);
+		window.addEventListener('scroll', place, true);
+		// 侧栏、底栏是慢慢画出来的，位置会变：前几秒勤量，之后每秒看一眼
+		placeTimer = window.setInterval(place, 1000);
+		for (const ms of [50, 200, 500, 1000, 2000]) window.setTimeout(place, ms);
+	}
+	// 没登录：页面一打开就摆上的门面换成这一页的；那时已经点了登录 / 注册，就接着打开
+	const door = w.vibesQuestDoor;
+	if (door != null) {
+		door.el.remove();
+		delete w.vibesQuestDoor;
+		if ($i == null && door.pending != null) openDialog(door.pending);
+	}
 	measureBottom();
 	// 底栏和发帖按钮可能晚一点才画出来
 	window.setTimeout(measureBottom, 500);
@@ -101,12 +168,14 @@ onBeforeUnmount(() => window.removeEventListener('resize', measureBottom));
 const here = new URLSearchParams(window.location.search);
 const from = here.get('from') ?? undefined;
 const screen = here.get('s');
-const src = '/lojo-assets/quest/index.html?v=3' + (screen != null ? '&s=' + encodeURIComponent(screen) : '');
+// 地址带闯关文件的内容版本（服务器给），手机上能长期缓存；老网页里没有就用旧的写法
+const src = (w.vibesQuestFrame ?? '/lojo-assets/quest/index.html?v=3') + (screen != null ? '&s=' + encodeURIComponent(screen) : '');
 
 type Bridge = {
 	api: (endpoint: string, params?: Record<string, unknown>) => Promise<unknown>;
 	go: (path: string) => void;
 	query: { book?: string; level?: string; from?: string };
+	ready?: () => void;
 };
 
 const bridge: Bridge = {
@@ -126,7 +195,14 @@ const bridge: Bridge = {
 		router.pushByPath(path);
 	},
 	query: { book: props.book, level: props.level, from },
+	// 地图第一次画好（社区预取别的页面要等它，见 lojo/prefetch.ts）
+	ready() {
+		if ((window as unknown as { vibesQuestReady?: boolean }).vibesQuestReady) return;
+		(window as unknown as { vibesQuestReady?: boolean }).vibesQuestReady = true;
+		window.dispatchEvent(new Event('vibes:quest-ready'));
+	},
 };
+if (instant != null) instant.bridge.via = bridge;
 
 // The bridge goes on this page's own frame: the community keeps visited pages alive, and when it brings one back its
 // frame reloads; on window it might by then be another 闯关 page's bridge (the plain map, without ?book=), and the
@@ -137,11 +213,29 @@ onMounted(() => {
 });
 onActivated(() => {
 	(window as unknown as { __vibesQuest?: Bridge }).__vibesQuest = bridge;
+	shown = true;
+	place();
+});
+onDeactivated(() => {
+	// 去了社区别的页面：框留着（回来不用重新加载），先藏起来
+	shown = false;
+	if (instant != null) {
+		instant.frame.style.visibility = 'hidden';
+		punch(false);
+	}
 });
 
 onBeforeUnmount(() => {
-	const w = window as unknown as { __vibesQuest?: Bridge };
-	if (w.__vibesQuest === bridge) delete w.__vibesQuest;
+	if (instant != null) {
+		resizeObserver?.disconnect();
+		window.removeEventListener('scroll', place, true);
+		if (placeTimer != null) window.clearInterval(placeTimer);
+		punch(false);
+		instant.frame.remove();
+		delete w.vibesQuestInstant;
+	}
+	const win = window as unknown as { __vibesQuest?: Bridge };
+	if (win.__vibesQuest === bridge) delete win.__vibesQuest;
 });
 
 definePage(() => ({ title: '闯关', icon: 'ti ti-flag-3' }));

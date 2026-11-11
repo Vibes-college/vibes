@@ -81,8 +81,10 @@ let soundOn = true;
 try { soundOn = localStorage.getItem(SND_KEY) !== '0'; } catch (e) { soundOn = true; }
 const S = {};
 let actx = null;
-SOUNDS.forEach(n => { S[n] = new Audio('./sounds/' + n + '.mp3'); S[n].preload = 'auto'; });
-function play(n, v = 1) { if (!soundOn || !S[n]) return; const a = S[n].cloneNode(); a.volume = v; a.play().catch(() => {}); }
+// 提速（2026-11-10）：27 个音效不再一打开就全下（手机上会跟地图抢网）。地图画好 3 秒后再在后台慢慢下，第一次用到的现下
+const sound = n => { if (!S[n] && SOUNDS.includes(n)) { S[n] = new Audio('./sounds/' + n + '.mp3'); S[n].preload = 'auto'; } return S[n]; };
+function preloadSounds() { SOUNDS.forEach((n, i) => setTimeout(() => sound(n), i * 150)); }
+function play(n, v = 1) { if (!soundOn || !sound(n)) return; const a = S[n].cloneNode(); a.volume = v; a.play().catch(() => {}); }
 function tune(notes, type = 'triangle', gap = 0.09, len = 0.28, vol = 0.16) {
 	if (!soundOn) return;
 	try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
@@ -407,6 +409,9 @@ function refresh() {
 		hide('#errScr');
 		if (firstPaint) {
 			firstPaint = false;
+			// 告诉社区页面：地图画好了，社区自己的代码现在可以开始下（社区那边 boot.js / LojoQuestInstant.ts）
+			try { if (Q && typeof Q.ready === 'function') Q.ready(); } catch (e) { /* 社区那边没这个也照常 */ }
+			setTimeout(preloadSounds, 3000);
 			hideLoader();
 			intro();
 			setTimeout(afterIntro, 900);
@@ -1959,6 +1964,7 @@ else { showLoader(); refreshQuiet(); }
    __vibesQuest = {
      api(endpoint, params) → Promise<结果>；失败时 reject({ code, message })，code 是服务器的错误码（如 NO_HEARTS）
      go(path)              → 在社区里跳转（站内路径，如 /dictation、/guides/xxx、/chat/user/<id>、/tags/xxx）
+     ready()               → 可选：地图第一次画好时调一次（社区等它再加载自己的代码）
      query: { book?, level?, from?, s? } → 打开时直接翻到哪本锦囊 / 哪一关；from 是从哪个小程序练完回来（dictation、typing…）；
                              s 是预览画面名，只在非正式站生效，用假数据、不连服务器（画面目录里有全部名字）
    }

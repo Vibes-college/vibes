@@ -16,6 +16,7 @@ import type { Manifest } from 'vite';
 import type { Config } from '@/config.js';
 import type { MiMeta } from '@/models/Meta.js';
 import type { CommonData, ViteFiles } from './views/_.js';
+import { LojoQuestAssets } from './LojoQuestInstant.js';
 
 // Vibes: the icon stylesheet, which the entry loads (and waits for) before anything else runs (frontend src/_boot_.ts).
 // Fetched with the boot files, it no longer costs a round trip of its own after the scripts (2026-11-09: 0.6 s on a
@@ -35,6 +36,8 @@ export class HtmlTemplateService {
 	public frontendEmbedBootloaderCss: string | null = null;
 	// Vibes: the UI languages that were actually built (see frontend-builder/ui-langs.ts); all of them in development.
 	private builtLangs: string[] = [...languages];
+	// Vibes: the 闯关 game's files and their content versions (shared with ClientServerService, which serves them).
+	public readonly questAssets: LojoQuestAssets;
 
 	constructor(
 		@Inject(DI.config)
@@ -47,6 +50,7 @@ export class HtmlTemplateService {
 	) {
 		this.frontendViteBuilt = resolve(this.config.rootDir, 'built/_frontend_vite_');
 		this.frontendEmbedViteBuilt = resolve(this.config.rootDir, 'built/_frontend_embed_vite_');
+		this.questAssets = new LojoQuestAssets(resolve(this.config.rootDir, 'packages/backend/assets'), process.env.NODE_ENV !== 'production');
 	}
 
 	// 初期ロードで読み込むべきファイルのパスを収集する。
@@ -219,6 +223,7 @@ export class HtmlTemplateService {
 			frontendEmbedViteFiles: this.frontendEmbedViteFiles,
 			frontendEmbedBootloaderJs: this.frontendEmbedBootloaderJs,
 			frontendEmbedBootloaderCss: this.frontendEmbedBootloaderCss,
+			questFrame: (await this.questAssets.get())?.frameUrl ?? null,
 		};
 	}
 

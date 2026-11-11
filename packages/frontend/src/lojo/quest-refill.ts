@@ -18,6 +18,7 @@ export type QuestSetApp = 'dictation' | 'typing' | 'vocab' | 'grammar' | 'wordbo
 
 export type RefillResult = { counted: boolean; refilled: boolean; reason: string | null; hearts: number; items: number };
 
+// Also written by the 闯关 frame's early bridge, before the app is up (backend server/web/LojoQuestInstant.ts).
 const FROM_KEY = 'vibes.quest.from';
 const FROM_FOR_MS = 2 * 60 * 60 * 1000;
 

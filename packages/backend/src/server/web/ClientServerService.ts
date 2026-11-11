@@ -46,6 +46,7 @@ import { UrlPreviewService } from './UrlPreviewService.js';
 import { ClientLoggerService } from './ClientLoggerService.js';
 import { HtmlTemplateService } from './HtmlTemplateService.js';
 import { createLojoPlaceSearch, LojoPlaceSearchError } from './LojoPlaceSearch.js';
+import { LojoQuestAssets } from './LojoQuestInstant.js';
 
 import { BasePage } from './views/base.js';
 import { UserPage } from './views/user.js';
@@ -256,6 +257,26 @@ export class ClientServerService {
 		//#endregion
 
 		//#region static assets
+
+		// Vibes: the 闯关 game's page, with its files' content versions filled in (LojoQuestInstant.ts). Its files may be kept
+		// for a year when asked for with their current version; the page itself too, when asked for with its own.
+		const questAssets = this.htmlTemplateService.questAssets;
+		fastify.get<{ Querystring: { v?: string } }>('/lojo-assets/quest/index.html', async (request, reply) => {
+			const assets = await questAssets.get();
+			if (assets == null) { reply.code(404); return { error: 'NOT_FOUND' }; }
+			reply.header('Content-Type', 'text/html; charset=utf-8');
+			reply.header('Cache-Control', LojoQuestAssets.cacheControl(assets, 'index.html', request.query.v) ?? 'no-cache');
+			return assets.indexHtml;
+		});
+		fastify.addHook('onSend', async (request, reply, payload) => {
+			if (!request.url.startsWith('/lojo-assets/quest/') || reply.statusCode !== 200) return payload;
+			const [path, search = ''] = request.url.slice('/lojo-assets/quest/'.length).split('?');
+			if (path === 'index.html') return payload;
+			const v = new URLSearchParams(search).get('v') ?? undefined;
+			const cacheControl = LojoQuestAssets.cacheControl(await questAssets.get(), decodeURIComponent(path), v);
+			if (cacheControl != null) reply.header('Cache-Control', cacheControl);
+			return payload;
+		});
 
 		fastify.register(fastifyStatic, {
 			root: resolve(this.staticAssets, 'lojo'),
