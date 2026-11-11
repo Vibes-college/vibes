@@ -2,7 +2,7 @@
    一局 2 分 30 秒、3 颗心。一屏 16 张卡 = 7 对同义 + 1 对陷阱（长得像、意思不同）。
    点两张同义的（或按住一张拖到另一张）→ 一笔墨线连上，墨点收走，下方写中文和区别；点下方这张卡能看详情（例句、发音、差在哪）。
    配错不扣心（只断连击）；配到陷阱扣 1 颗心，Mia 说为什么。
-   3 秒内接着连算连击，分数 ×连击数（最多 ×5）；连到 5 回 1 颗心。消完一屏 +10 秒，补一屏新的，
+   3 秒内接着连算连击，分数 ×连击数（最多 ×5）；连到 5 回 1 颗心（每局一次）。消完一屏 +10 秒，补一屏新的，
    新一屏第一对接着刚才的意思往下走（意思链）。看详情时计时停住。
    「今日一屏」：按日期定好的一屏，同一天谁打都是这一屏，清完就结束，比用时（只记在这台手机上）。
    打完报给社区：练一组补 1 颗心（≥10 对、≥2 分钟，服务器判）。只在挂进社区（同一个网址、登录了）时报。 */
@@ -310,8 +310,10 @@ function match(a, b) {
 	setLearn(`<div><span class="pair" lang="en">${p.a}<em>＝</em>${p.b}</span><span class="zh">${p.zh}</span></div><div class="tip">${p.tip}</div>`, k);
 	showCombo(G.combo);
 	if (G.combo === 5) {
-		if (G.hearts < HEARTS) { G.hearts++; drawHearts(); play('heartup', 0.7); miaSay('满了！<b>回 1 颗心</b>'); }
-		else miaSay('×5 满了！心本来就是满的。');
+		// 连到 ×5 回 1 颗心，每局只给一次；心满时不补，也不算用掉（「路线图」11-11 确认）
+		if (G.hearts < HEARTS && !G.comboHeartUsed) { G.comboHeartUsed = true; G.hearts++; drawHearts(); play('heartup', 0.7); miaSay('满了！<b>回 1 颗心</b>（每局一次）'); }
+		else if (G.hearts >= HEARTS) miaSay('×5 满了！心本来就是满的。');
+		else miaSay('×5 满了！这局的心已经回过了。');
 	} else if (G.combo === 3) miaSay('<b>手感来了</b>，接着连。');
 	drawHud(true);
 	if (G.left === 1) $$('#board .card').forEach(c => { if (!c._done && c._c.pid !== 'trap') c.classList.add('last'); });
