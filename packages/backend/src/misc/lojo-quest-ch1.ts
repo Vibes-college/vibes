@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 闯关第一章：地图、关卡、题库（138 题，全部原创）和规则数字。版本 ch1-2026-11-10f。
+// 闯关第一章：地图、关卡、题库（138 题，全部原创）和规则数字。版本 ch1-2026-11-11a。
 // 由 apps/community/scripts/quest-chapter.mjs 从路线图的「关卡数据」（chapter-1.json、questions/*.json、numbers.json）生成，不要手改。
 // 答案、accept、evidence、录音稿只在服务器上：页面拿到的题目不带这些，作答由 lojo/quest/answer 判。
 // 坐标是 390 宽画布里的位置（原型 v2）。难度是「练习难度」，不是官方分数。
@@ -92,7 +92,7 @@ export type QuestChapter = {
 
 // numbers.json 原样（规则数字一律以这里为准）
 export const QUEST_NUMBERS = {
-	"version": "ch1-2026-11-10f",
+	"version": "ch1-2026-11-11a",
 	"timezone": "Asia/Shanghai",
 	"hearts": {
 		"max": 5,
@@ -150,7 +150,7 @@ export const QUEST_NUMBERS = {
 			},
 			{
 				"id": "gear",
-				"zh": "去装备练一组（vocab:5.4 或任意装备）"
+				"zh": "去装备练一组（本关装备或任意装备）"
 			},
 			{
 				"id": "intel",
@@ -196,8 +196,7 @@ export const QUEST_NUMBERS = {
 		"doubleXp": {
 			"trigger": "新的一章开张",
 			"hours": 24,
-			"appliesTo": "本章所有 XP，宝箱也算",
-			"status": "第一版不做，第二章上线时一起做（11-10 路线图定）"
+			"appliesTo": "本章所有 XP，宝箱也算"
 		}
 	},
 	"chest": {
@@ -263,7 +262,7 @@ export const QUEST_NUMBERS = {
 
 export const QUEST_CH1: QuestChapter = {
 	"id": "ielts-c1",
-	"version": "ch1-2026-11-10f",
+	"version": "ch1-2026-11-11a",
 	"title": "第一章 · 打底",
 	"band": "练习难度 4.0–5.0",
 	"disclaimer": "练习难度，不是官方分数",
@@ -2638,7 +2637,7 @@ export const QUEST_CH1: QuestChapter = {
 			"hashtags": [
 				"IELTS_2_3"
 			],
-			"gear": "vocab:5.4",
+			"gear": "synonym-match:city",
 			"shelf": [
 				"j5",
 				"j9",
@@ -3892,7 +3891,7 @@ export const QUEST_CH1: QuestChapter = {
 			"hashtags": [
 				"IELTS_5_3"
 			],
-			"gear": "vocab:5.4",
+			"gear": "synonym-match:general",
 			"shelf": [
 				"j5",
 				"j1",
@@ -5509,7 +5508,7 @@ export const QUEST_CH1: QuestChapter = {
 				"IELTS_1_4",
 				"IELTS_2_4"
 			],
-			"gear": "vocab:5.4",
+			"gear": "synonym-match:general",
 			"shelf": [
 				"j5",
 				"j4",
