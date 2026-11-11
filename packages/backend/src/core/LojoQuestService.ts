@@ -8,6 +8,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DataSource, EntityManager, In, LessThan } from 'typeorm';
 import { DI } from '@/di-symbols.js';
+import type { Config } from '@/config.js';
 import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestLog } from '@/models/LojoQuest.js';
 import type { MiLojoQuestLevel, MiLojoQuestPlacement } from '@/models/LojoQuest.js';
 import { MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
@@ -94,7 +95,13 @@ function publicQuestion(q: QuestQuestion) {
 // 闯关: hearts, streak, levels, 补心 and the Boss for a learner. Rules in misc/lojo-quest.ts, chapter in misc/lojo-quest-ch1.ts.
 @Injectable()
 export class LojoQuestService {
+	// 闯关定级 is on the test site only for now (11-11): its recording is still the browser reading a script, so the
+	// answers are in what the page gets. On the live site the banner and menu item stay hidden and no paper is served.
+	private placementOn: boolean;
+
 	constructor(
+		@Inject(DI.config)
+		private config: Config,
 		@Inject(DI.db)
 		private db: DataSource,
 		@Inject(DI.redis)
@@ -106,6 +113,7 @@ export class LojoQuestService {
 	) {
 		// Mia's follow-ups after "Ask Mia" go by the hearts now, not the ones stored with the try.
 		this.lojoTutorService.questHearts = userId => this.heartsFor(userId);
+		this.placementOn = new URL(this.config.url).hostname !== 'app.vibes.college';
 	}
 
 	private async heartsFor(userId: string) {
@@ -703,8 +711,9 @@ export class LojoQuestService {
 		const realPass = (id: string) => row.levels[id]?.passedAt != null && !row.levels[id]?.placed;
 		return {
 			version: PLACEMENT_VERSION,
-			banner: row.onboarded && !p.dismissedAt && !p.placedAt && !realPass('1-2'),
-			canTest: nextAt == null || nextAt <= now,
+			on: this.placementOn,
+			banner: this.placementOn && row.onboarded && !p.dismissedAt && !p.placedAt && !realPass('1-2'),
+			canTest: this.placementOn && (nextAt == null || nextAt <= now),
 			lastAt: p.placedAt ?? null,
 			nextAt: nextAt?.toISOString() ?? null,
 			station: p.station ?? null,
@@ -721,6 +730,7 @@ export class LojoQuestService {
 
 	// The test paper: the first part, or straight the second part when the first was handed in on a test quit later.
 	public async placementPaper(userId: string) {
+		if (!this.placementOn) throw new ApiError(lojoQuestErrors.placementTooSoon);
 		const now = new Date();
 		const row = await this.db.transaction(async em => this.lock(em, userId, now));
 		const st = this.placementState(row, now);

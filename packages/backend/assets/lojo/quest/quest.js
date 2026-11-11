@@ -2277,6 +2277,7 @@ const bjMD = iso => { const d = new Date(Date.parse(iso) + 8 * 3600e3); return `
 const pbarOn = () => !!D?.placement?.banner && !inTrial() && !PREVIEW && $('#ptest').style.display !== 'flex';
 function drawPbar() {
 	$('#pbar').style.display = pbarOn() ? 'flex' : 'none';
+	$('#mPlace').style.display = D?.placement?.on === false ? 'none' : ''; // 正式站先不开定级（服务器说了算）
 	plLayout();
 }
 function plLayout() {
