@@ -32,6 +32,32 @@ export function normalizeQuestKnowledge(raw: unknown): QuestKnowledge | null {
 	return { version: str(r.version, 60), rules, causes };
 }
 
+// Which chapter a try is in: chapterNo (filled by the quest service from the chapter the level belongs to), else a
+// "3-4" style level id, else chapter 1. The Boss is "boss" in every chapter, so it needs chapterNo.
+export function questChapterNo(questTry: Pick<QuestTry, 'chapterNo' | 'level'>): number {
+	if (questTry.chapterNo != null && questTry.chapterNo >= 1) return questTry.chapterNo;
+	const m = /^(\d+)-/.exec(questTry.level.id);
+	return m ? Math.max(1, Number(m[1])) : 1;
+}
+
+// Registry keys to try, in order: chapter N (N >= 2) reads quest-chN and falls back to quest; chapter 1 reads quest.
+export function questKnowledgeKeys(chapterNo: number): string[] {
+	return chapterNo >= 2 ? [`quest-ch${chapterNo}`, 'quest'] : ['quest'];
+}
+
+export type QuestKnowledgePick = { chapterNo: number; key: string; knowledge: QuestKnowledge; fellBackFrom: string | null };
+
+// The first key whose value is usable knowledge (missing, or normalized to null, counts as unreadable).
+export async function pickQuestKnowledge(questTry: Pick<QuestTry, 'chapterNo' | 'level'>, read: (key: string) => Promise<unknown>): Promise<QuestKnowledgePick | null> {
+	const chapterNo = questChapterNo(questTry);
+	const keys = questKnowledgeKeys(chapterNo);
+	for (const key of keys) {
+		const knowledge = normalizeQuestKnowledge(await read(key));
+		if (knowledge != null) return { chapterNo, key, knowledge, fellBackFrom: key === keys[0] ? null : keys[0] };
+	}
+	return null;
+}
+
 export type QuestNext = { id: string; label: string; url: string; recommended?: boolean; readToday?: boolean; givesHeart?: boolean };
 
 export type QuestWrong = { n: number; question: string; evidence: string; picked: string; answer: string; cause: string; why?: string };
@@ -42,6 +68,8 @@ export type QuestTry = {
 	attemptId: string;
 	at: string;
 	chapter: string;
+	// chapter number of the level (the Boss's id is "boss" in every chapter); picks quest-ch<N> knowledge
+	chapterNo?: number;
 	level: { id: string; name: string; kind: string; skill: string; type: string };
 	result: { correct: number; total: number; needed: number; passed: boolean; failStreak: number };
 	wrong: QuestWrong[];
@@ -89,6 +117,7 @@ export function normalizeQuestTry(raw: unknown): QuestTry | null {
 		attemptId,
 		at: str(r.at, 40),
 		chapter: str(r.chapter, 60),
+		...(num(r.chapterNo) != null && Number.isInteger(r.chapterNo) && (r.chapterNo as number) >= 1 ? { chapterNo: r.chapterNo as number } : {}),
 		level: { id: str(level.id, 20), name: str(level.name, 60), kind: str(level.kind, 20), skill: str(level.skill, 20), type: str(level.type, 30) },
 		result: {
 			correct: num(result.correct) ?? 0,

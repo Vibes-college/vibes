@@ -37,7 +37,7 @@ import {
 	tutorSystemPrompt,
 } from '@/misc/lojo-tutor.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
-import { normalizeQuestKnowledge, normalizeQuestTry, questAwayMessage, questNextLine, questPromptSection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questNextLine, questPromptSection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 
 const SCOPE = ['lojo', 'tutor'];
@@ -311,7 +311,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const questTry = normalizeQuestTry(rawTry);
 		if (questTry == null) return 'off';
 		// No quest knowledge on the tutor account means no quest mode (the production tutor has none yet).
-		if ((await this.questKnowledge(tutorId)) == null) return 'off';
+		if ((await this.questKnowledge(tutorId, questTry)) == null) return 'off';
 		// Away: the quest page opens the recommended guide itself; this try and today's asks are not used up.
 		if (await this.isDown()) return 'away';
 		if (await this.redisClient.set(`lojoTutor:questOnce:${tutorId}:${questTry.attemptId}`, '1', 'EX', 3 * 24 * 60 * 60, 'NX') !== 'OK') return 'already';
@@ -417,7 +417,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			const raw = await this.redisClient.get(this.questKey(tutorId, learnerId));
 			if (raw == null) return null;
 			const questTry = normalizeQuestTry(JSON.parse(raw));
-			const knowledge = questTry && await this.questKnowledge(tutorId);
+			const knowledge = questTry && await this.questKnowledge(tutorId, questTry, true);
 			return questTry && knowledge ? { knowledge, questTry } : null;
 		} catch (err) {
 			this.logger.warn(`quest context failed: ${err}`);
@@ -425,9 +425,15 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		}
 	}
 
-	private async questKnowledge(tutorId: string): Promise<QuestKnowledge | null> {
-		const item = await this.registryApiService.getItem(tutorId, null, SCOPE, 'quest');
-		return item ? normalizeQuestKnowledge(item.value) : null;
+	// Knowledge for the try's chapter: quest-ch<N>, else quest (按章读知识-需求.md). With log, one line says which
+	// draft Mia read (info), or a warn when chapter N's own draft is missing or invalid.
+	private async questKnowledge(tutorId: string, questTry: QuestTry, log = false): Promise<QuestKnowledge | null> {
+		const pick = await pickQuestKnowledge(questTry, async key => (await this.registryApiService.getItem(tutorId, null, SCOPE, key))?.value);
+		if (log && pick != null) {
+			if (pick.fellBackFrom != null) this.logger.warn(`${pick.fellBackFrom} missing or invalid, using ${pick.key} (${pick.knowledge.version})`);
+			else this.logger.info(`quest knowledge: ch${pick.chapterNo} → ${pick.key} (${pick.knowledge.version})`);
+		}
+		return pick?.knowledge ?? null;
 	}
 
 	// The app writes the link for the step she chose, so it always opens; a step not on the list is dropped, and so is a

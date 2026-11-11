@@ -36,6 +36,9 @@ type Mode = 'practice' | 'level' | 'retest' | 'boss';
 
 const CH = QUEST_CH1;
 const N = QUEST_NUMBERS;
+// Chapter number for Mia's knowledge (quest-ch<N>): from the chapter id ("ielts-c1"). Only chapter 1 is loaded now, so
+// every level, the Boss included, is chapter 1; when more chapters come in, fill it from the chapter the node is in.
+const CH_NO = Number(/c(\d+)$/.exec(CH.id)?.[1] ?? 1);
 const nodeOf = (id: string): QuestNode | undefined => CH.nodes.find(n => n.id === id);
 const questionOf = (node: QuestNode | undefined, qid: string): QuestQuestion | undefined => node?.pool?.find(q => q.id === qid);
 const bookOf = (slug: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.slug === slug);
@@ -870,6 +873,7 @@ export class LojoQuestService {
 			attemptId: at.id,
 			at: (at.endedAt ?? now).toISOString(),
 			chapter: CH.title,
+			chapterNo: CH_NO,
 			level: { id: node.id, name: node.name || node.label, kind: node.kind === 'boss' ? 'boss' : 'level', skill: node.skill ?? '', type: node.type ?? '' },
 			result: { correct: at.answers.filter(a => a.correct).length, total: at.questionIds.length, needed: rulesOf(node, at.mode as Mode).need, passed: false, failStreak },
 			wrong,

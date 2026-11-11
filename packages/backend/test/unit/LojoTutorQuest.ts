@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from 'vitest';
 import { defaultTutorCard, emptyMemory, normalizeTutorReply, tutorSystemPrompt } from '@/misc/lojo-tutor.js';
-import { normalizeQuestKnowledge, normalizeQuestTry, questAwayMessage, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestKnowledge, normalizeQuestTry, pickQuestKnowledge, questChapterNo, questAwayMessage, questNextLine, questPromptSection } from '@/misc/lojo-tutor-quest.js';
 
 // Sample data (示例), shaped like 闯关上线/Mia接入.md section 2.
 const sampleTry = {
@@ -90,5 +90,44 @@ describe('Vibes AI tutor in the quest map', () => {
 		const used = { ...low, hearts: { ...low.hearts, refilledToday: { guide: true, gear: true } } };
 		expect(questAwayMessage(k, used).messages[0]).toContain('20:00 回满');
 		expect(questAwayMessage(null, low).messages[0].split('\n')).toHaveLength(2);
+	});
+
+	describe('reads the knowledge of the try\'s chapter (按章读知识-需求.md)', () => {
+		const ch1 = { ...knowledge, version: 'ch1-2-test' };
+		const ch3 = { ...knowledge, version: 'ch3-test' };
+		const tryAt = (id: string, chapterNo?: number) => normalizeQuestTry({ ...sampleTry, level: { ...sampleTry.level, id }, ...(chapterNo != null ? { chapterNo } : {}) })!;
+		const store = (items: Record<string, unknown>) => async (key: string) => items[key];
+		const pick = async (t: ReturnType<typeof tryAt>, items: Record<string, unknown>) => (await pickQuestKnowledge(t, store(items)));
+
+		test('chapterNo 3 with quest-ch3 reads quest-ch3', async () => {
+			expect(await pick(tryAt('3-4', 3), { quest: ch1, 'quest-ch3': ch3 })).toMatchObject({ key: 'quest-ch3', fellBackFrom: null, knowledge: { version: 'ch3-test' } });
+		});
+		test('chapterNo 3 without quest-ch3 falls back to quest', async () => {
+			expect(await pick(tryAt('3-4', 3), { quest: ch1 })).toMatchObject({ key: 'quest', fellBackFrom: 'quest-ch3' });
+		});
+		test('chapterNo 3 with empty rules in quest-ch3 falls back to quest', async () => {
+			expect(await pick(tryAt('3-4', 3), { quest: ch1, 'quest-ch3': { ...ch3, rules: '' } })).toMatchObject({ key: 'quest', fellBackFrom: 'quest-ch3' });
+		});
+		test('the Boss of chapter 3 reads quest-ch3 by chapterNo', async () => {
+			expect(await pick(tryAt('boss', 3), { quest: ch1, 'quest-ch3': ch3 })).toMatchObject({ key: 'quest-ch3' });
+		});
+		test('without chapterNo, a 3-4 level id means chapter 3', async () => {
+			expect(questChapterNo(tryAt('3-4'))).toBe(3);
+			expect(await pick(tryAt('3-4'), { quest: ch1, 'quest-ch3': ch3 })).toMatchObject({ key: 'quest-ch3' });
+		});
+		test('without chapterNo, the Boss reads quest', async () => {
+			expect(await pick(tryAt('boss'), { quest: ch1, 'quest-ch3': ch3 })).toMatchObject({ key: 'quest', fellBackFrom: null });
+		});
+		test('chapter 2 reads quest (there is no quest-ch2)', async () => {
+			expect(await pick(tryAt('2-1', 2), { quest: ch1, 'quest-ch3': ch3 })).toMatchObject({ key: 'quest', fellBackFrom: 'quest-ch2' });
+		});
+		test('chapter 1 without quest has no knowledge (off)', async () => {
+			expect(await pick(tryAt('1-4', 1), { 'quest-ch3': ch3 })).toBeNull();
+		});
+		test('chapterNo that is not a whole number is dropped', () => {
+			expect(normalizeQuestTry({ ...sampleTry, chapterNo: '3' })!.chapterNo).toBeUndefined();
+			expect(normalizeQuestTry({ ...sampleTry, chapterNo: 2.5 })!.chapterNo).toBeUndefined();
+			expect(normalizeQuestTry({ ...sampleTry, chapterNo: 3 })!.chapterNo).toBe(3);
+		});
 	});
 });
