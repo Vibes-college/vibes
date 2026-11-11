@@ -57,7 +57,7 @@ export const store = markRaw(new Pizzax('base', {
 	tl: {
 		where: 'deviceAccount',
 		default: {
-			src: 'home' as 'home' | 'local' | 'social' | 'global' | `list:${string}`,
+			src: 'local' as 'home' | 'local' | 'social' | 'global' | `list:${string}`, // Vibes: new users open 全站 (local), not 关注, so a newcomer who follows few people does not see an empty page
 			userList: null as Misskey.entities.UserList | null,
 			filter: {
 				withReplies: true,

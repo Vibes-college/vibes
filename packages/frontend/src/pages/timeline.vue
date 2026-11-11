@@ -194,6 +194,11 @@ function saveTlFilter(key: keyof typeof store.s.tl.filter, newValue: boolean) {
 }
 
 function switchTlIfNeeded() {
+	// Vibes: 社交 is no longer in the top bar. If someone saved it, move them to 全站.
+	if (src.value === 'social' && isAvailableBasicTimeline('local')) {
+		src.value = 'local';
+		return;
+	}
 	if (isBasicTimeline(src.value) && !isAvailableBasicTimeline(src.value)) {
 		src.value = availableBasicTimelines()[0];
 	}
@@ -266,39 +271,25 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 	return items;
 });
 
+// Vibes: the top bar keeps only two tabs, with words: 关注 (home) and 全站 (local).
+// Federation is off, so social is just home plus local and would only repeat them.
+// Lists and antennas are still under ☰ → 更多 (/my/lists, /my/antennas). Channels are hidden for now; they will come back as per-scene boards.
+// Only the tab list changes here; the social and channel code paths stay, to keep merges with Misskey upstream small.
+const VIBES_TL_TABS: Partial<Record<BasicTimelineType, string>> = { home: '关注', local: '全站' };
+const vibesTabs = () => availableBasicTimelines().filter(tl => tl in VIBES_TL_TABS).map(tl => ({
+	key: tl,
+	title: VIBES_TL_TABS[tl],
+	icon: basicTimelineIconClass(tl),
+}));
+
 const headerTabs = computed(() => [...(prefer.r.pinnedUserLists.value.map(l => ({
 	key: 'list:' + l.id,
 	title: l.name,
 	icon: 'ti ti-star',
 	iconOnly: true,
-}))), ...availableBasicTimelines().map(tl => ({
-	key: tl,
-	title: i18n.ts._timelines[tl],
-	icon: basicTimelineIconClass(tl),
-	iconOnly: true,
-})), {
-	icon: 'ti ti-list',
-	title: i18n.ts.lists,
-	iconOnly: true,
-	onClick: chooseList,
-}, {
-	icon: 'ti ti-antenna',
-	title: i18n.ts.antennas,
-	iconOnly: true,
-	onClick: chooseAntenna,
-}, {
-	icon: 'ti ti-device-tv',
-	title: i18n.ts.channel,
-	iconOnly: true,
-	onClick: chooseChannel,
-}] as Tab[]);
+}))), ...vibesTabs()] as Tab[]);
 
-const headerTabsWhenNotLogin = computed(() => [...availableBasicTimelines().map(tl => ({
-	key: tl,
-	title: i18n.ts._timelines[tl],
-	icon: basicTimelineIconClass(tl),
-	iconOnly: true,
-}))] as Tab[]);
+const headerTabsWhenNotLogin = computed(() => [...vibesTabs()] as Tab[]);
 
 definePage(() => ({
 	title: i18n.ts.timeline,
