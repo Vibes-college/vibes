@@ -31,6 +31,7 @@ import {
 	grade, heartsNow, mainCause, nextRefillAt, pickSet, setCounts, settleStreak, shelfFor, shuffle, starsAfter, streakNow, touchStreak, wrongCause,
 } from '@/misc/lojo-quest.js';
 import type { QuestNext, QuestTry, QuestWrong } from '@/misc/lojo-tutor-quest.js';
+import type { QuestMistakes, QuestProgressFacts } from '@/misc/lojo-tutor-progress.js';
 import {
 	PLACEMENT_COOLDOWN_DAYS, PLACEMENT_MAP, PLACEMENT_PARTS, PLACEMENT_VERSION, PLACEMENT_XP, gradePart, pathAfterFirst, publicPart, stationOf,
 } from '@/misc/lojo-quest-placement.js';
@@ -55,6 +56,10 @@ const bookByRef = (ref: string): QuestBook | undefined => QUEST_BOOKS.find(b => 
 // 锦囊还没导进来的（j11 起）照 shelfRule 跳过
 const knownRefs = (refs: readonly string[]) => refs.filter(r => bookByRef(r) != null);
 // every level of a chapter in map order, the Boss last (for 落后提醒)
+const questLevelName = (id: string): string => {
+	const n = nodeOf(id);
+	return n ? [n.kind === 'boss' ? `Boss ${n.label}` : n.label, n.name, n.zh ? `(${n.zh})` : null].filter(x => x).join(' ') : id;
+};
 const levelOrder = (c: QuestChapter) => c.nodes.filter(n => n.kind === 'level').map(n => n.id).concat(c.nodes.filter(n => n.kind === 'boss').map(n => n.id));
 const LEVEL_ORDER = levelOrder(CH);
 const BOARD_MIN_PLAYERS = 5;
@@ -157,6 +162,9 @@ export class LojoQuestService {
 	) {
 		// Mia's follow-ups after "Ask Mia" go by the hearts now, not the ones stored with the try.
 		this.lojoTutorService.questHearts = userId => this.heartsFor(userId);
+		// Mia's progress card and her "what went wrong on that level" lookup read the map from here, without the model.
+		this.lojoTutorService.questProgress = userId => this.progressFacts(userId);
+		this.lojoTutorService.questMistakes = (userId, levelId) => this.levelMistakes(userId, levelId);
 		this.live = new URL(this.config.url).hostname === 'app.vibes.college';
 		this.placementOn = !this.live;
 	}
@@ -333,6 +341,55 @@ export class LojoQuestService {
 			if ((l.failStreak ?? 0) > 0 && l.lastAt && (best == null || l.lastAt > best.at)) best = { levelId, at: l.lastAt, cause: l.lastCause ?? null, failStreak: l.failStreak ?? 0 };
 		}
 		return best;
+	}
+
+	// Where a learner is on the map, for Mia's progress card (misc/lojo-tutor-progress.ts). null: never opened the map.
+	public async progressFacts(userId: string): Promise<QuestProgressFacts | null> {
+		const row = await this.db.getRepository(MiLojoQuest).findOneBy({ userId });
+		if (row == null) return null;
+		const now = new Date();
+		const cur = this.currentChapter(row);
+		const states = this.nodeStates(row);
+		const order = levelOrder(cur);
+		const next = order.find(id => states[id] === 'open' && row.levels[id]?.passedAt == null) ?? null;
+		const fail = this.lastFail(row);
+		const touched = Object.values(row.levels).map(l => l.lastAt ?? l.passedAt ?? '').filter(x => x !== '').sort().at(-1);
+		return {
+			chapter: { no: cur.no, title: cur.title },
+			passed: order.filter(id => row.levels[id]?.passedAt != null).length,
+			total: order.length,
+			bossBeaten: this.bossBeaten(row, cur.no),
+			next: next ? questLevelName(next) : null,
+			hearts: heartsNow(row.hearts, row.heartsAt, now),
+			maxHearts: MAX_HEARTS,
+			streakDays: streakNow(row, dayOf(now)).days,
+			lastFail: fail ? { level: questLevelName(fail.levelId), cause: fail.cause, inARow: fail.failStreak, at: row.levels[fail.levelId]?.lastAt ?? null } : null,
+			updatedAt: touched ?? row.heartsAt.toISOString(),
+		};
+	}
+
+	// The wrong answers of a learner's last three finished tries on a level (or on the last level they failed): the
+	// question and why it was wrong, never the right answer.
+	public async levelMistakes(userId: string, levelId: string | null): Promise<QuestMistakes | null> {
+		let id = levelId;
+		if (id == null) {
+			const row = await this.db.getRepository(MiLojoQuest).findOneBy({ userId });
+			id = row ? this.lastFail(row)?.levelId ?? null : null;
+		}
+		const node = id ? nodeOf(id) : undefined;
+		if (id == null || node == null) return null;
+		const tries = await this.db.getRepository(MiLojoQuestAttempt).find({ where: { userId, levelId: id, status: In(['passed', 'failed']) }, order: { createdAt: 'DESC' }, take: 3 });
+		return {
+			level: questLevelName(id),
+			tries: tries.map(t => ({
+				at: (t.endedAt ?? t.createdAt).toISOString(),
+				passed: t.status === 'passed',
+				wrong: t.answers.filter(a => !a.correct && !a.half).slice(0, 5).map(a => ({
+					question: (questionOf(node, a.qid)?.question ?? a.qid).replace(/\s+/g, ' ').slice(0, 120),
+					cause: a.timeout ? 'time-out' : a.cause,
+				})),
+			})),
+		};
 	}
 
 	public async show(userId: string) {

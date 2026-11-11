@@ -3477,6 +3477,15 @@ export type paths = {
          */
         post: operations['lojo___tutor___ids'];
     };
+    '/lojo/tutor/pilot-tool': {
+        /**
+         * lojo/tutor/pilot-tool
+         * @description Mastra pilot (test site only): Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook and the mistakes of a quest level.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+         */
+        post: operations['lojo___tutor___pilot-tool'];
+    };
     '/lojo/tutor/poke': {
         /**
          * lojo/tutor/poke
@@ -34649,6 +34658,80 @@ export interface operations {
                 };
                 content: {
                     'application/json': string[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___tutor___pilot-tool': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    tool: 'prompt' | 'progress' | 'searchChat' | 'wordbook' | 'levelMistakes';
+                    /** Format: misskey:id */
+                    learnerId: string;
+                    /** Format: misskey:id */
+                    tutorId?: string | null;
+                    query?: string;
+                    levelId?: string | null;
+                    /** @default 5 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
                 };
             };
             /** @description Client error */

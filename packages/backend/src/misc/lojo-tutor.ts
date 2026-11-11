@@ -7,6 +7,8 @@
 // The notes follow mem0's open-source memory design (read the latest exchange, then add, update or delete what is
 // known), https://github.com/mem0ai/mem0 (Apache-2.0), rewritten around a learner's goals and progress.
 
+import { PROGRESS_CARD_INTRO } from '@/misc/lojo-tutor-progress.js';
+
 export class LojoTutorInvalidResponse extends Error {}
 
 // Tutor accounts, by user id (LOJO_TUTOR_IDS="id1,id2"). They may message any learner first (founder, 2026-10-25),
@@ -233,6 +235,10 @@ export type TutorPromptContext = {
 	gates?: string | null;
 	// quest mode after a failed level: this try (questTrySection, lojo-tutor-quest.ts)
 	quest?: string | null;
+	// the progress card (quest map, route map gates, wordbook; misc/lojo-tutor-progress.ts); takes the place of gates
+	progress?: string | null;
+	// older messages found by keyword (recallText)
+	recall?: string | null;
 };
 
 export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: TutorStableContext): string {
@@ -268,7 +274,12 @@ export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: Tut
 export function tutorContextMessage(ctx: TutorPromptContext): string {
 	return [
 		`Now: ${ctx.now}.`,
-		...(ctx.gates ? [
+		...(ctx.progress ? [
+			'',
+			PROGRESS_CARD_INTRO,
+			ctx.progress,
+			'If they passed a level or gate in the last few days, a short well done is nice. If a recent one went badly, you may offer a little practice on what they missed, once, without nagging. Never quote test answers.',
+		] : ctx.gates ? [
 			'',
 			'Their gates on the Vibes route map (short tests at one band level; a practice level, not an official score):',
 			ctx.gates,
@@ -279,6 +290,7 @@ export function tutorContextMessage(ctx: TutorPromptContext): string {
 			`You are writing first to start a conversation (${ctx.opener.reason}). Send one or two short messages that mention something specific: their goal, where you left off, a gate they just took on the route map, or one of these recent posts on Vibes. Never repeat something you already said in this chat. End with an easy question.`,
 			...ctx.opener.recentPosts.map(post => `Recent post: ${post}`),
 		] : []),
+		...(ctx.recall ? ['', ctx.recall] : []),
 		...(ctx.quest ? ['', ctx.quest] : []),
 	].join('\n');
 }

@@ -2128,6 +2128,8 @@ declare namespace entities {
         LojoStateUpdateRequest,
         LojoStateUpdateResponse,
         LojoTutorIdsResponse,
+        LojoTutorPilotToolRequest,
+        LojoTutorPilotToolResponse,
         LojoTutorPokeRequest,
         LojoTutorPokeResponse,
         LojoTutorQuestPokeRequest,
@@ -3302,6 +3304,12 @@ type LojoStateUpdateResponse = operations['lojo___state___update']['responses'][
 
 // @public (undocumented)
 type LojoTutorIdsResponse = operations['lojo___tutor___ids']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPilotToolRequest = operations['lojo___tutor___pilot-tool']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPilotToolResponse = operations['lojo___tutor___pilot-tool']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['content']['application/json'];

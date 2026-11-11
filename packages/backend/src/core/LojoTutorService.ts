@@ -6,6 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import * as Redis from 'ioredis';
+import { DataSource } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import type { MiDriveFile, NotesRepository, UsersRepository } from '@/models/_.js';
@@ -19,6 +20,8 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { LojoEnglishService } from '@/core/LojoEnglishService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { LojoGateService } from '@/core/LojoGateService.js';
+import { LojoWordService } from '@/core/LojoWordService.js';
+import type { MiLocalUser } from '@/models/User.js';
 import type Logger from '@/logger.js';
 import type { Config } from '@/config.js';
 import { looksEnglish } from '@/misc/lojo-english.js';
@@ -43,6 +46,8 @@ import {
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
 import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
+import { hitScore, progressCardText, RECALL_MIN_SCORE, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
+import type { ChatHit, QuestMistakes, QuestProgressFacts, WordbookFacts } from '@/misc/lojo-tutor-progress.js';
 
 const SCOPE = ['lojo', 'tutor'];
 const HISTORY = 30;
@@ -96,6 +101,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private redisClient: Redis.Redis,
 		@Inject(DI.redisForSub)
 		private redisForSub: Redis.Redis,
+		@Inject(DI.db)
+		private db: DataSource,
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 		@Inject(DI.notesRepository)
@@ -108,6 +115,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private lojoEnglishService: LojoEnglishService,
 		private lojoSpeechService: LojoSpeechService,
 		private lojoGateService: LojoGateService,
+		private lojoWordService: LojoWordService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-tutor');
 	}
@@ -177,18 +185,19 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				}
 				return;
 			}
-			const [card, memory, history, gates, quest] = await Promise.all([
-				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
+			const [card, memory, history, progress, quest] = await Promise.all([
+				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId),
 			]);
 			// Already answered (another attempt got there first).
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
+			const recall = await this.recall(tutorId, learnerId, history);
 			if (!(await this.spendBudget())) return;
 			// In the two hours after "Ask Mia" she answers follow-ups with the try at hand, but with the hearts as of now and
 			// without the 👉 link again: a link only goes out for a step not linked yet for this try (AI tutor, 2026-11-10:
 			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
 			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
 			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage({ now: this.nowText(), gates, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
+			const context = tutorContextMessage({ now: this.nowText(), progress, recall, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
 			let answer: TutorReply;
 			try {
 				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history, { role: 'system', content: context }], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`));
@@ -323,8 +332,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [card, memory, history, recentPosts, gates] = await Promise.all([
-				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.recentPosts(), this.gates(learnerId),
+			const [card, memory, history, recentPosts, progress] = await Promise.all([
+				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.recentPosts(), this.progressCard(learnerId),
 			]);
 			// If the learner's last message is still unanswered, answer it instead of opening a new topic.
 			const unanswered = history.at(-1)?.role === 'user';
@@ -332,7 +341,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			const context = tutorContextMessage({
 				now: this.nowText(),
 				opener: unanswered ? undefined : { reason: this.openerReason(memory, history), recentPosts },
-				gates,
+				progress,
 			});
 			// The model answers the last turn. After the tutor's own messages that has to be a cue, not her last reply,
 			// or she repeats it; an empty chat starts from a neutral cue too.
@@ -384,8 +393,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [card, memory, history, gates, quest] = await Promise.all([
-				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.gates(learnerId), this.questContext(tutorId, learnerId),
+			const [card, memory, history, progress, quest] = await Promise.all([
+				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId),
 			]);
 			if (quest == null) return;
 			if (await this.isDown()) {
@@ -393,7 +402,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				return;
 			}
 			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), questKnowledge: questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage({ now: this.nowText(), gates, quest: questTrySection(quest.knowledge, quest.questTry) });
+			const context = tutorContextMessage({ now: this.nowText(), progress, quest: questTrySection(quest.knowledge, quest.questTry) });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
 			const cue = '(The learner just failed this level and tapped "Ask Mia". Write first now, in quest mode as described above.)';
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
@@ -524,6 +533,84 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			this.logger.warn(`gate record failed: ${err}`);
 			return null;
 		});
+	}
+
+	// Set by LojoQuestService (it depends on this service).
+	public questProgress: ((learnerId: string) => Promise<QuestProgressFacts | null>) | null = null;
+	public questMistakes: ((learnerId: string, levelId: string | null) => Promise<QuestMistakes | null>) | null = null;
+
+	// The progress card (misc/lojo-tutor-progress.ts): quest map, route map gates and wordbook, read from the database on
+	// every reply, without the model. A part that fails to load is shown as not started.
+	public async progressCard(learnerId: string): Promise<string> {
+		const soft = <T>(what: string, p: Promise<T> | null): Promise<T | null> => (p ?? Promise.resolve(null)).catch(err => {
+			this.logger.warn(`progress card: ${what} failed: ${err}`);
+			return null;
+		});
+		const [quest, gates, wordbook] = await Promise.all([
+			soft('quest', this.questProgress?.(learnerId) ?? null), this.gates(learnerId), soft('wordbook', this.wordbookFacts(learnerId)),
+		]);
+		return progressCardText({ quest, gates, wordbook });
+	}
+
+	// Counted as the wordbook page counts them (recognize + spell due now), in Beijing time.
+	public async wordbookFacts(learnerId: string): Promise<WordbookFacts> {
+		const t = await this.lojoWordService.today({ id: learnerId } as MiLocalUser, -480);
+		if (t.total === 0) return { words: 0, dueToday: 0, reviewedToday: 0, updatedAt: null };
+		const [last] = await this.db.query<{ at: Date | null }[]>(
+			'SELECT GREATEST((SELECT MAX("reviewedAt") FROM "lojo_word_review" WHERE "userId" = $1), (SELECT MAX("createdAt") FROM "lojo_word" WHERE "userId" = $1)) AS at',
+			[learnerId],
+		);
+		return { words: t.total, dueToday: t.recognizeDue + t.spellDue, reviewedToday: t.reviewedToday, updatedAt: last?.at ? new Date(last.at).toISOString() : null };
+	}
+
+	// Older messages between this learner and the tutor that match the words of query: English words through Postgres
+	// full-text search (to_tsvector 'simple'), Chinese as two-character substrings (Postgres splits no Chinese words
+	// without an extension). Only messages older than beforeId when given. Best first, then newest.
+	public async searchChat(tutorId: string, learnerId: string, query: string, opts: { beforeId?: string | null; limit?: number; minScore?: number } = {}): Promise<ChatHit[]> {
+		const terms = searchTerms(query);
+		if (terms.en.length === 0 && terms.zh.length === 0) return [];
+		const params: unknown[] = [tutorId, learnerId];
+		const conds: string[] = [];
+		if (terms.en.length > 0) {
+			params.push(terms.en.map(w => w.replace(/[^a-z-]/g, '')).filter(w => w !== '').join(' | '));
+			conds.push(`to_tsvector('simple', m."text") @@ to_tsquery('simple', $${params.length})`);
+		}
+		for (const z of terms.zh) {
+			params.push(`%${z}%`);
+			conds.push(`m."text" LIKE $${params.length}`);
+		}
+		let before = '';
+		if (opts.beforeId) {
+			params.push(opts.beforeId);
+			before = `AND m."id" < $${params.length}`;
+		}
+		const rows: { id: string; fromUserId: string; text: string }[] = await this.db.query(
+			`SELECT m."id", m."fromUserId", m."text" FROM "chat_message" m
+			WHERE ((m."fromUserId" = $1 AND m."toUserId" = $2) OR (m."fromUserId" = $2 AND m."toUserId" = $1))
+			AND m."text" IS NOT NULL ${before} AND (${conds.join(' OR ')})
+			ORDER BY m."id" DESC LIMIT 200`,
+			params,
+		);
+		return rows
+			.filter(r => !(r.fromUserId === tutorId && r.text.startsWith(TUTOR_AWAY_PREFIX)))
+			.map(r => ({ id: r.id, at: this.idService.parse(r.id).date.toISOString(), who: (r.fromUserId === tutorId ? 'tutor' : 'learner') as ChatHit['who'], text: r.text, score: hitScore(r.text, terms) }))
+			.filter(h => h.score >= (opts.minScore ?? 1))
+			.sort((a, b) => b.score - a.score || (a.id < b.id ? 1 : -1))
+			.slice(0, opts.limit ?? 5);
+	}
+
+	// Keyword recall for a reply: the learner's last turn, searched in the messages older than the chat in the prompt.
+	private async recall(tutorId: string, learnerId: string, history: ChatTurn[]): Promise<string | null> {
+		try {
+			const from = await this.redisClient.hget(this.sessionKey(tutorId, learnerId), 'historyFrom');
+			if (from == null) return null;
+			const last = history.findLast(turn => turn.role === 'user')?.content ?? '';
+			const hits = await this.searchChat(tutorId, learnerId, last, { beforeId: from, limit: 3, minScore: RECALL_MIN_SCORE });
+			return recallText(hits);
+		} catch (err) {
+			this.logger.warn(`chat recall failed: ${err}`);
+			return null;
+		}
 	}
 
 	private openerReason(memory: TutorMemory, history: ChatTurn[]): string {
@@ -666,6 +753,15 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	private stateKey(tutorId: string, learnerId: string): string {
 		return `lojoTutor:state:${tutorId}:${learnerId}`;
+	}
+
+	// For the Mastra pilot (endpoint lojo/tutor/pilot-tool): Mia's fixed system prompt word for word, without her notes
+	// (the pilot keeps its own working memory), and the "Now:" line of the last message.
+	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string }> {
+		const [card, learner] = await Promise.all([this.card(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId })]);
+		const full = tutorSystemPrompt(card, emptyMemory(), { learnerName: this.nameOf(learner) });
+		const cut = full.lastIndexOf('\nWhat you know about ');
+		return { system: cut === -1 ? full : full.slice(0, cut).trimEnd(), now: this.nowText() };
 	}
 
 	private nameOf(user: MiUser): string {
