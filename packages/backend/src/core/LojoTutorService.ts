@@ -154,9 +154,13 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			// Already answered (another attempt got there first).
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
 			if (!(await this.spendBudget())) return;
-			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: quest && questPromptSection(quest.knowledge, quest.questTry) });
+			// In the two hours after "Ask Mia" she answers follow-ups with the try at hand, but with the hearts as of now and
+			// without the 👉 link again: a link only goes out for a step not linked yet for this try (AI tutor, 2026-11-10:
+			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
+			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
+			const system = tutorSystemPrompt(card, memory, { learnerName: this.nameOf(learner), now: this.nowText(), gates, quest: quest && questTry && questPromptSection(quest.knowledge, questTry, true) });
 			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history], 0.8, 900, normalizeTutorReply));
-			await this.send(tutor, learner, this.withNextLink(answer, quest?.questTry), answer.voice, card.extensions.vibes?.voice);
+			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, questTry ?? undefined), answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
@@ -308,7 +312,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				? [...history.slice(0, -1), { role: 'user', content: `${history.at(-1)!.content}\n${cue}` }]
 				: [...history, { role: 'user', content: cue }];
 			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns], 0.7, 900, normalizeTutorReply));
-			await this.send(tutor, learner, this.withNextLink(answer, quest.questTry), answer.voice, card.extensions.vibes?.voice);
+			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, quest.questTry), answer.voice, card.extensions.vibes?.voice);
 			this.updateMemory(tutorId, learnerId).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
@@ -334,11 +338,30 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		return item ? normalizeQuestKnowledge(item.value) : null;
 	}
 
-	// The app writes the link for the step she chose, so it always opens; a step not on the list is dropped.
-	private withNextLink(answer: TutorReply, questTry: QuestTry | undefined): string[] {
+	// The app writes the link for the step she chose, so it always opens; a step not on the list is dropped, and so is a
+	// step already linked for this try (once per step per try).
+	private async withNextLink(tutorId: string, answer: TutorReply, questTry: QuestTry | undefined): Promise<string[]> {
 		const line = questTry ? questNextLine(questTry, answer.next, this.config.url) : null;
-		if (line == null) return answer.messages;
+		if (line == null || questTry == null) return answer.messages;
+		const key = `lojoTutor:questLinks:${tutorId}:${questTry.attemptId}`;
+		const fresh = await this.redisClient.sadd(key, answer.next!);
+		await this.redisClient.expire(key, QUEST_TTL_SECONDS);
+		if (fresh === 0) return answer.messages;
 		return [...answer.messages.slice(0, -1), `${answer.messages.at(-1)}\n${line}`];
+	}
+
+	// The quest service tells the tutor a learner's hearts now (set by LojoQuestService; it depends on this service).
+	public questHearts: ((learnerId: string) => Promise<{ now: number; refilledToday: { guide: boolean; gear: boolean } }>) | null = null;
+
+	private async withFreshHearts(learnerId: string, questTry: QuestTry): Promise<QuestTry> {
+		if (this.questHearts == null) return questTry;
+		try {
+			const h = await this.questHearts(learnerId);
+			return { ...questTry, hearts: { ...questTry.hearts, now: h.now, refilledToday: h.refilledToday } };
+		} catch (err) {
+			this.logger.warn(`quest hearts failed: ${err}`);
+			return questTry;
+		}
 	}
 
 	private questKey(tutorId: string, learnerId: string): string {
@@ -392,7 +415,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const messages: MiChatMessage[] = await this.chatService.userTimeline(tutorId, learnerId, limit);
 		const turns: { role: ChatTurn['role']; texts: string[] }[] = [];
 		for (const message of messages.reverse()) {
-			const text = message.text ?? (message.fileId ? '(sent a file)' : '');
+			// The 👉 line under a quest answer is added by the app, not written by her: left out, so she does not copy it.
+			const text = (message.text ?? (message.fileId ? '(sent a file)' : '')).split('\n').filter(line => !line.startsWith('👉 ')).join('\n').trim();
 			if (text === '') continue;
 			const role = message.fromUserId === tutorId ? 'assistant' : 'user';
 			if (turns.at(-1)?.role === role) turns.at(-1)!.texts.push(text);

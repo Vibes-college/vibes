@@ -85,6 +85,18 @@ export class LojoQuestService {
 		private lojoSpeechService: LojoSpeechService,
 		private driveFileEntityService: DriveFileEntityService,
 	) {
+		// Mia's follow-ups after "Ask Mia" go by the hearts now, not the ones stored with the try.
+		this.lojoTutorService.questHearts = userId => this.heartsFor(userId);
+	}
+
+	private async heartsFor(userId: string) {
+		const now = new Date();
+		const row = await this.db.getRepository(MiLojoQuest).findOneBy({ userId });
+		const logs = await this.todayLogs(this.db, userId, now);
+		return {
+			now: row == null ? MAX_HEARTS : heartsNow(row.hearts, row.heartsAt, now),
+			refilledToday: { guide: logs.some(l => l.kind === 'refill' && l.ref === 'guide'), gear: logs.some(l => l.kind === 'refill' && l.ref === 'gear') },
+		};
 	}
 
 	private newRow(userId: string, now: Date): Row {

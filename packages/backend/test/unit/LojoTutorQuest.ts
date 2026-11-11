@@ -58,6 +58,9 @@ describe('Vibes AI tutor in the quest map', () => {
 		const plain = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { learnerName: 'Lin', now: 'now' });
 		expect(plain).not.toContain('QUEST MODE');
 		expect(plain).not.toContain('"next"');
+		expect(section).not.toContain('Do not repeat the hearts');
+		const followUp = questPromptSection(normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!, true);
+		expect(followUp).toContain('Do not repeat the hearts');
 	});
 
 	test('the app writes the link for the chosen step; unknown steps are dropped', () => {

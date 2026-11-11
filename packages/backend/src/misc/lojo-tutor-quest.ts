@@ -113,7 +113,8 @@ export function normalizeQuestTry(raw: unknown): QuestTry | null {
 
 // The quest part of the tutor's system prompt: the rules, the techniques for the causes in this try, where she may
 // send them (ids and labels only: she never writes a URL), and the try itself without URLs.
-export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry): string {
+// followUp: she already wrote first about this try and is now answering what the learner said next.
+export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
 	const tags = [...new Set([questTry.cause, ...questTry.wrong.map(w => w.cause)].filter((t): t is string => t != null && t !== ''))];
 	const causes = tags.map(tag => knowledge.causes[tag]).map((c, i) => (c ? `- ${tags[i]}: ${c.zh}. Technique: ${c.technique}` : null)).filter(Boolean);
 	const { next, ...rest } = questTry;
@@ -126,6 +127,12 @@ export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry
 		...(next.length > 0 ? next.map(n => `- ${n.id}: ${n.label}${n.recommended ? ' (recommended)' : ''}`) : ['- (nothing listed: leave "next" out)']),
 		'',
 		`This try: ${JSON.stringify(tryFacts)}`,
+		...(followUp ? [
+			'',
+			'You already wrote first about this try (see the chat above). Now answer what they just said, like a person in a chat.',
+			'Do not repeat the hearts, the cause summary or the next step you already gave. Only when they ask what to do next, how to get hearts back, or where to practise, say it again and set "next"; otherwise leave "next" out.',
+			'Hearts and 补心 above are as of now; if they changed since you wrote first, go by these.',
+		] : []),
 	].join('\n');
 }
 
