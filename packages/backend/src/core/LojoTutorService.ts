@@ -69,6 +69,9 @@ export type QuestAskResult = 'sent' | 'already' | 'limit' | 'off' | 'away';
 
 // While the model account has no balance or a bad key (HTTP 402 / 401), the tutor is "away": no model calls, fixed
 // messages instead, and the learners who wrote meanwhile get a real answer once it is back. 冲刺1111/Mia/兜底规格.md.
+// Mia on Mastra (prototypes/mia-mastra): who gets her. "all", or user ids separated by commas; empty or missing = nobody.
+// Read on every reply, so switching is one redis command and needs no restart (see apps/community/deploy/mia-mastra.sh).
+const MASTRA_KEY = 'lojoTutor:mastra';
 const DOWN_KEY = 'lojoTutor:down';
 const DOWN_TTL_SECONDS = 30 * 60;
 const PENDING_KEY = 'lojoTutor:pending';
@@ -89,6 +92,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	// Model calls per UTC day for all tutors together, and replies per learner per day.
 	private readonly dailyLimit = Number(process.env.LOJO_TUTOR_DAILY_LIMIT) || 3000;
 	private readonly learnerDailyReplies = Number(process.env.LOJO_TUTOR_LEARNER_DAILY_REPLIES) || 60;
+	private readonly mastraUrl = (process.env.LOJO_TUTOR_MASTRA_URL ?? '').replace(/\/$/, '');
+	private readonly mastraSecret = process.env.LOJO_TUTOR_MASTRA_SECRET ?? '';
 	private readonly skipUsernames = (process.env.LOJO_TUTOR_SKIP_USERNAMES ?? 'vibes_editors').split(',').map(x => x.trim()).filter(x => x !== '');
 	private pendingReplies = new Map<string, NodeJS.Timeout>();
 	private tick: NodeJS.Timeout | null = null;
@@ -185,6 +190,14 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				}
 				return;
 			}
+			// Learners switched over to Mia on Mastra get her; if she fails, the usual Mia below answers instead.
+			if (await this.onMastra(learnerId)) {
+				const done = await this.replyWithMastra(tutor, learner).catch(err => {
+					this.logger.warn(`Mia on Mastra failed, the usual Mia answers: ${err}`);
+					return false;
+				});
+				if (done) return;
+			}
 			const [card, memory, history, progress, quest] = await Promise.all([
 				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId),
 			]);
@@ -212,6 +225,60 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
 		}
+	}
+
+	private async onMastra(learnerId: string): Promise<boolean> {
+		if (this.mastraUrl === '' || this.mastraSecret.length < 16) return false;
+		const who = (await this.redisClient.get(MASTRA_KEY).catch(() => null))?.trim() ?? '';
+		return who === 'all' || who.split(',').map(x => x.trim()).includes(learnerId);
+	}
+
+	// Mia on Mastra keeps her own memory of this chat, so she is sent only what she has not seen: the messages after the
+	// last learner message she answered, minus the ones she sent herself; a daily check-in or a quest answer from the
+	// usual path is passed along as hers. The first time, only the learner's messages since the tutor last wrote (her
+	// notes were moved over, and older chat is found with her search tool). Notes (updateMemory) are not rewritten for
+	// these learners: Mastra keeps its own. Throws when she could not answer, so the usual Mia answers instead.
+	private async replyWithMastra(tutor: MiUser, learner: MiUser): Promise<boolean> {
+		const key = `lojoTutor:mastraSeen:${tutor.id}:${learner.id}`;
+		const seen = await this.redisClient.get(key);
+		const seenId = seen?.split('|')[0] ?? null;
+		const seenSent = Number(seen?.split('|')[1] ?? 0);
+		const messages = (await this.chatService.userTimeline(tutor.id, learner.id, HISTORY)).reverse();
+		const lastLearner = messages.findLast(m => m.fromUserId === learner.id);
+		if (lastLearner == null || messages[messages.length - 1].fromUserId === tutor.id) return true; // already answered
+		let fresh: MiChatMessage[];
+		const at = seenId != null ? messages.findIndex(m => m.id === seenId) : -1;
+		if (at !== -1) {
+			let skip = seenSent;
+			fresh = messages.slice(at + 1).filter(m => !(m.fromUserId === tutor.id && skip-- > 0));
+		} else {
+			fresh = messages.slice(messages.findLastIndex(m => m.fromUserId === tutor.id) + 1);
+		}
+		const turns = this.toTurns(tutor.id, fresh);
+		const quest = await this.questContext(tutor.id, learner.id);
+		const questTry = quest && await this.withFreshHearts(learner.id, quest.questTry);
+		const card = await this.card(tutor.id);
+		if (!(await this.spendBudget())) return true;
+		const started = Date.now();
+		const res = await this.whileTyping(learner.id, tutor.id, async () => {
+			const r = await fetch(`${this.mastraUrl}/chat`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					secret: this.mastraSecret, learnerId: learner.id, turns, now: this.nowText(), name: this.nameOf(learner),
+					extra: quest && questTry ? questTrySection(quest.knowledge, questTry, true).replace(/\s*\n\s*/g, ' ') : undefined,
+				}),
+				signal: AbortSignal.timeout(90 * 1000),
+			});
+			if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
+			return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown };
+		});
+		const answer = normalizeTutorReply(res);
+		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
+		const out = await this.withNextLink(tutor.id, answer, questTry ?? undefined);
+		await this.redisClient.set(key, `${lastLearner.id}|${out.length}`, 'EX', 90 * 24 * 60 * 60);
+		await this.send(tutor, learner, out, answer.voice, card.extensions.vibes?.voice);
+		return true;
 	}
 
 	// Short typing pauses between messages, and the first short English message as a voice message when asked for.
@@ -256,6 +323,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	// Refresh the learner notes from the latest messages (at most once a minute per learner). The model is the English
 	// helper's (deepseek-flash unless LOJO_ENGLISH_MODEL says otherwise).
 	private async updateMemory(tutorId: string, learnerId: string): Promise<void> {
+		// Mia on Mastra keeps her own notes for the learners switched over.
+		if (await this.onMastra(learnerId)) return;
 		if (await this.redisClient.set(`lojoTutor:notesLock:${tutorId}:${learnerId}`, '1', 'EX', 60, 'NX') !== 'OK') return;
 		if (!(await this.spendBudget())) return;
 		// Messages that arrive while this runs count towards the next update.

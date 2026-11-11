@@ -4241,9 +4241,9 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Mastra pilot (test site only): Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook and the mistakes of a quest level.
+     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook and the mistakes of a quest level. Needs the shared secret, or an admin.
      * 
-     * **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+     * **Credential required**: *No*
      */
     request<E extends 'lojo/tutor/pilot-tool', P extends Endpoints[E]['req']>(
       endpoint: E,

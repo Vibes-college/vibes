@@ -3480,9 +3480,9 @@ export type paths = {
     '/lojo/tutor/pilot-tool': {
         /**
          * lojo/tutor/pilot-tool
-         * @description Mastra pilot (test site only): Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook and the mistakes of a quest level.
+         * @description Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook and the mistakes of a quest level. Needs the shared secret, or an admin.
          *
-         *     **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+         *     **Credential required**: *No*
          */
         post: operations['lojo___tutor___pilot-tool'];
     };
@@ -34713,6 +34713,7 @@ export interface operations {
                 'application/json': {
                     /** @enum {string} */
                     tool: 'prompt' | 'progress' | 'searchChat' | 'wordbook' | 'levelMistakes';
+                    secret?: string | null;
                     /** Format: misskey:id */
                     learnerId: string;
                     /** Format: misskey:id */
