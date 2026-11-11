@@ -23,7 +23,7 @@ export const SET_MIN_MS = N.hearts.earnBack.gear.minSeconds * 1000;
 export const MAX_FREEZES = N.streak.freeze.max;
 export const FREEZE_EVERY = N.streak.freeze.earnEveryDays;
 // apps that report a finished set. grammar is listed so its sets are recorded, but it gives no heart in v1
-export const SET_APPS = ['dictation', 'typing', 'vocab', 'grammar', 'wordbook', 'photo-words'] as const;
+export const SET_APPS = ['dictation', 'typing', 'vocab', 'grammar', 'wordbook', 'photo-words', 'synonym-match'] as const;
 export type SetApp = typeof SET_APPS[number];
 export const NO_HEART_APPS: readonly string[] = ['grammar'];
 

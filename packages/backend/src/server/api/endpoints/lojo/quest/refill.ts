@@ -16,7 +16,7 @@ export const meta = {
 } as const;
 export const paramDef = {
 	type: 'object',
-	properties: { app: { type: 'string', enum: ['dictation', 'typing', 'vocab', 'grammar', 'wordbook', 'photo-words'] }, setKey: { type: 'string', minLength: 1, maxLength: 200 }, items: { type: 'integer', minimum: 0, maximum: 10000 }, durationMs: { type: 'integer', minimum: 0, maximum: 86400000 }, startedAt: { type: 'number' } },
+	properties: { app: { type: 'string', enum: ['dictation', 'typing', 'vocab', 'grammar', 'wordbook', 'photo-words', 'synonym-match'] }, setKey: { type: 'string', minLength: 1, maxLength: 200 }, items: { type: 'integer', minimum: 0, maximum: 10000 }, durationMs: { type: 'integer', minimum: 0, maximum: 86400000 }, startedAt: { type: 'number' } },
 	required: ['app', 'setKey', 'items', 'durationMs', 'startedAt'],
 } as const;
 

@@ -1,0 +1,20 @@
+同义替换消消乐 · 音效出处（全部 CC0 1.0，可商用，不用署名；这里照样写明出处）
+All files: Kenney (www.kenney.nl), CC0 1.0 http://creativecommons.org/publicdomain/zero/1.0/
+Copied from the 闯关 page's sound folder (apps/community/source/packages/backend/assets/lojo/quest/sounds/),
+where .ogg was converted to .mp3 and volume adjusted. The pack license texts are in this folder.
+
+file            pack                                                       original file
+tap.mp3         Interface Sounds  https://kenney.nl/assets/interface-sounds  click_001.ogg
+stamp.mp3       Interface Sounds                                             drop_002.ogg
+fail.mp3        Interface Sounds                                             error_004.ogg
+heartbreak.mp3  Interface Sounds                                             glass_002.ogg
+whoosh.mp3      Interface Sounds                                             maximize_003.ogg
+warn.mp3        Interface Sounds                                             question_002.ogg
+tick.mp3        Interface Sounds                                             tick_002.ogg
+heartup.mp3     Digital Audio     https://kenney.nl/assets/digital-audio     powerUp2.ogg
+chest.mp3       Music Jingles     https://kenney.nl/assets/music-jingles     Pizzicato/jingles_PIZZI03.ogg
+milestone.mp3   Music Jingles                                                Steel/jingles_STEEL08.ogg
+lose.mp3        Music Jingles                                                8-Bit/jingles_NES09.ogg
+bookflip.mp3    RPG Audio         https://kenney.nl/assets/rpg-audio         bookFlip2.ogg
+
+Combo notes are synthesized in the browser (Web Audio), no file.

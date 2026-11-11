@@ -33212,7 +33212,7 @@ export interface operations {
             content: {
                 'application/json': {
                     /** @enum {string} */
-                    app: 'dictation' | 'typing' | 'vocab' | 'grammar' | 'wordbook' | 'photo-words';
+                    app: 'dictation' | 'typing' | 'vocab' | 'grammar' | 'wordbook' | 'photo-words' | 'synonym-match';
                     setKey: string;
                     items: number;
                     durationMs: number;
