@@ -10,16 +10,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
 		<div class="_gaps_m">
-			<div v-if="instance.disableRegistration || instance.federation !== 'all'" class="_gaps_s">
-				<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
-				<MkInfo v-if="instance.federation === 'specified'" warn>{{ i18n.ts.federationSpecified }}</MkInfo>
-				<MkInfo v-else-if="instance.federation === 'none'" warn>{{ i18n.ts.federationDisabled }}</MkInfo>
-			</div>
+			<!-- Vibes（新手前三分钟，2026-11-11）：去掉「此服务器已禁用联邦功能」「请好好阅读」和 Misskey 的「基本注意事项」链接，
+			换成我们自己的《公会守则》；「同意」整行能点，不再二次确认。字见 冲刺1111/新手前三分钟/文案.md B 节 -->
+			<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
 
-			<div style="text-align: center;">
-				<div>{{ i18n.ts.pleaseConfirmBelowBeforeSignup }}</div>
-				<div style="font-weight: bold; margin-top: 0.5em;">{{ i18n.ts.beSureToReadThisAsItIsImportant }}</div>
-			</div>
+			<div style="text-align: center;">开打之前，看一眼公会守则。</div>
 
 			<MkFolder v-if="availableServerRules" :defaultOpen="true">
 				<template #label>{{ i18n.ts.serverRules }}</template>
@@ -29,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<li v-for="item in instance.serverRules" :class="$style.rule"><div :class="$style.ruleText" v-html="item"></div></li>
 				</ol>
 
-				<MkSwitch :modelValue="agreeServerRules" style="margin-top: 16px;" @update:modelValue="updateAgreeServerRules">{{ i18n.ts.agree }}</MkSwitch>
+				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeServerRules }]" @click="agreeServerRules = !agreeServerRules"><i :class="agreeServerRules ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
 			</MkFolder>
 
 			<MkFolder v-if="availableTos || availablePrivacyPolicy" :defaultOpen="true">
@@ -40,23 +35,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="availablePrivacyPolicy"><a :href="instance.privacyPolicyUrl ?? undefined" class="_link" target="_blank">{{ i18n.ts.privacyPolicy }} <i class="ti ti-external-link"></i></a></div>
 				</div>
 
-				<MkSwitch :modelValue="agreeTosAndPrivacyPolicy" style="margin-top: 16px;" @update:modelValue="updateAgreeTosAndPrivacyPolicy">{{ i18n.ts.agree }}</MkSwitch>
+				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeTosAndPrivacyPolicy }]" @click="agreeTosAndPrivacyPolicy = !agreeTosAndPrivacyPolicy"><i :class="agreeTosAndPrivacyPolicy ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
 			</MkFolder>
 
 			<MkFolder :defaultOpen="true">
-				<template #label>{{ i18n.ts.basicNotesBeforeCreateAccount }}</template>
+				<template #label>公会守则</template>
 				<template #suffix><i v-if="agreeNote" class="ti ti-check" style="color: var(--MI_THEME-success)"></i></template>
 
-				<a href="https://misskey-hub.net/docs/for-users/onboarding/warning/" class="_link" target="_blank">{{ i18n.ts.basicNotesBeforeCreateAccount }} <i class="ti ti-external-link"></i></a>
+				<ol class="_gaps_s" :class="$style.guild">
+					<li v-for="r in GUILD_RULES" :key="r.head"><b>{{ r.head }}</b>{{ r.body }}</li>
+				</ol>
 
-				<MkSwitch :modelValue="agreeNote" style="margin-top: 16px;" data-testid="signup-rules-notes-agree" @update:modelValue="updateAgreeNote">{{ i18n.ts.agree }}</MkSwitch>
+				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeNote }]" data-testid="signup-rules-notes-agree" @click="agreeNote = !agreeNote"><i :class="agreeNote ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
 			</MkFolder>
 
-			<div v-if="!agreed" style="text-align: center;">{{ i18n.ts.pleaseAgreeAllToContinue }}</div>
-
 			<div class="_buttonsCenter">
-				<MkButton inline rounded @click="emit('cancel')">{{ i18n.ts.cancel }}</MkButton>
-				<MkButton inline primary rounded gradate :disabled="!agreed" data-testid="signup-rules-continue" @click="emit('done')">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
+				<MkButton inline rounded @click="emit('cancel')">算了</MkButton>
+				<MkButton inline primary rounded gradate :disabled="!agreed" data-testid="signup-rules-continue" @click="emit('done')">下一步 <i class="ti ti-arrow-right"></i></MkButton>
 			</div>
 		</div>
 	</div>
@@ -69,9 +64,8 @@ import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
-import MkSwitch from '@/components/MkSwitch.vue';
 import MkInfo from '@/components/MkInfo.vue';
-import * as os from '@/os.js';
+import { GUILD_RULES } from '@/lojo/guild-rules.js';
 
 const availableServerRules = instance.serverRules.length > 0;
 const availableTos = instance.tosUrl != null && instance.tosUrl !== '';
@@ -101,50 +95,6 @@ const tosPrivacyPolicyLabel = computed(() => {
 		return '';
 	}
 });
-
-async function updateAgreeServerRules(v: boolean) {
-	if (v) {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: i18n.ts.doYouAgree,
-			text: i18n.tsx.iHaveReadXCarefullyAndAgree({ x: i18n.ts.serverRules }),
-		});
-		if (confirm.canceled) return;
-		agreeServerRules.value = true;
-	} else {
-		agreeServerRules.value = false;
-	}
-}
-
-async function updateAgreeTosAndPrivacyPolicy(v: boolean) {
-	if (v) {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: i18n.ts.doYouAgree,
-			text: i18n.tsx.iHaveReadXCarefullyAndAgree({
-				x: tosPrivacyPolicyLabel.value,
-			}),
-		});
-		if (confirm.canceled) return;
-		agreeTosAndPrivacyPolicy.value = true;
-	} else {
-		agreeTosAndPrivacyPolicy.value = false;
-	}
-}
-
-async function updateAgreeNote(v: boolean) {
-	if (v) {
-		const confirm = await os.confirm({
-			type: 'question',
-			title: i18n.ts.doYouAgree,
-			text: i18n.tsx.iHaveReadXCarefullyAndAgree({ x: i18n.ts.basicNotesBeforeCreateAccount }),
-		});
-		if (confirm.canceled) return;
-		agreeNote.value = true;
-	} else {
-		agreeNote.value = false;
-	}
-}
 </script>
 
 <style lang="scss" module>
@@ -154,6 +104,33 @@ async function updateAgreeNote(v: boolean) {
 	font-size: 26px;
 	background-color: var(--MI_THEME-accentedBg);
 	color: var(--MI_THEME-accent);
+}
+
+.guild {
+	margin: 0;
+	padding-left: 1.4em;
+	line-height: 1.7;
+}
+
+.agree {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	margin-top: 16px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: var(--MI_THEME-buttonBg);
+	font-weight: bold;
+	text-align: left;
+
+	> i {
+		font-size: 1.3em;
+	}
+
+	&.on {
+		color: var(--MI_THEME-accent);
+	}
 }
 
 .rules {

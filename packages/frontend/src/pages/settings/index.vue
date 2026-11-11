@@ -41,6 +41,7 @@ import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import { i18n } from '@/i18n.js';
 import { agentLabels } from '@/lojo/agent/labels.js';
 import { createLabels } from '@/lojo/create/labels.js';
+import { GUILD_RULES_PATH } from '@/lojo/guild-rules.js';
 import MkInfo from '@/components/MkInfo.vue';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
 import { $i } from '@/i.js';
@@ -174,6 +175,17 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: i18n.ts.other,
 		to: '/settings/other',
 		active: currentPage.value?.route.name === 'other',
+	}],
+}, {
+	title: '关于',
+	items: [{
+		icon: 'ti ti-shield-check',
+		text: '公会守则',
+		to: GUILD_RULES_PATH,
+	}, {
+		icon: 'ti ti-code',
+		text: '基于 Misskey · 源代码',
+		to: '/about-misskey',
 	}],
 }, {
 	items: [{

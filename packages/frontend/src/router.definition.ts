@@ -357,6 +357,10 @@ export const ROUTE_DEF = [{
 	path: '/announcements/:announcementId',
 	component: page(() => import('@/pages/announcement.vue')),
 }, {
+	// 《公会守则》（新手前三分钟，2026-11-11）：注册弹窗和存档表单链到这里，没登录也能看
+	path: '/guild-rules',
+	component: page(() => import('@/pages/lojo/guild-rules.vue')),
+}, {
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
 	hash: 'initialTab',

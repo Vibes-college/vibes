@@ -4,7 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <!-- The card at boot that asks to add Vibes to the home screen, or, in Vibes opened from there, to turn on notifications.
-It takes the place of upstream's donation popup and source-code popup, and keeps the source-code line (AGPL §13). -->
+It takes the place of upstream's donation popup and source-code popup. The source-code line (AGPL §13) lives in Settings → 关于,
+the visitor header and the /install page, so the card stays short. -->
 <template>
 <section class="_panel _shadow" :class="$style.root" :aria-labelledby="titleId">
 	<div :class="$style.head">
@@ -26,9 +27,6 @@ It takes the place of upstream's donation popup and source-code popup, and keeps
 			<MkButton rounded small @click="close()">{{ installLabels.gotIt }}</MkButton>
 		</template>
 	</div>
-	<p :class="$style.source">
-		{{ installLabels.sourceBefore }}<MkA to="/about-misskey" class="_link">{{ installLabels.sourceLink }}</MkA>{{ installLabels.sourceAfter }}
-	</p>
 	<button class="_button" :class="$style.close" :aria-label="installLabels.close" @click="close()"><i class="ti ti-x"></i></button>
 </section>
 </template>
@@ -54,7 +52,7 @@ const emit = defineEmits<{
 const titleId = useId();
 const zIndex = os.claimZIndex('low');
 
-// Closing it in any way counts as having seen the source-code line, as closing upstream's popup did.
+// Closing it in any way also retires upstream's source-code popup; the line stays in Settings → 关于.
 //   prompt: what the install card leaves in vibesInstallPrompt; by default when it showed, so it comes back in a week
 function close(prompt = new Date().toISOString()) {
 	miLocalStorage.setItem('modifiedVersionMustProminentlyOfferInAgplV3Section13Read', 'true');
@@ -136,12 +134,6 @@ async function addNow() {
 	&:focus-visible {
 		outline: 2px solid var(--MI_THEME-focus);
 	}
-}
-
-.source {
-	margin: 10px 0 0;
-	font-size: 0.75em;
-	line-height: 1.5;
 }
 
 .close {
