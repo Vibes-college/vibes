@@ -1598,6 +1598,7 @@ function timeUpNow(end) {
 	tl.to({}, { duration: (Number(TM.copy.timeUpHoldMs) || FEEL.holdMs) / 1000 }).call(() => {
 		if (!AT || !end) { backToMap(); return; }
 		AT.ended = true;
+		gsap.to('#edge', { opacity: 0, duration: 0.4, onComplete: () => { $('#edge').style.boxShadow = 'none'; $('#edge').style.opacity = ''; } });
 		gsap.to('#up', { opacity: 0, duration: 0.25, onComplete: () => { hide('#up'); $('#up').style.opacity = 1; } });
 		if (AT.mode === 'boss') bossLose(end); else endLevel(end);
 	});

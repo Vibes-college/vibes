@@ -643,3 +643,7 @@ html,body{background:#E9E1D2}
 .review .half i{color:#B98A1D}
 .audBtn.used{opacity:.55}
 #failP .tmMia, #bossLoseP .tmMia { display: block; margin-top: 8px; font-size: 13px; color: var(--ink2, #555); }
+/* 题关顶栏：「还剩 30 秒」放在沙漏右边同一行（放下面会压住关卡标签那行） */
+.qtop #tWrap{display:flex;align-items:center;gap:8px}
+.qtop .late30{position:static;transform:none}
+@media (max-width:370px){.qtop .late30{font-size:11.5px;padding:2px 7px}}
