@@ -56,7 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, provide, computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { defineAsyncComponent, provide, computed, ref, watch, onMounted, onBeforeUnmount, useTemplateRef } from 'vue';
 import { instanceName } from '@@/js/config.js';
 import { isLink } from '@@/js/is-link.js';
 import XCommon from './_common_/common.vue';
@@ -136,12 +136,26 @@ function onKeydown(event: KeyboardEvent) {
 	if (event.key === 'Tab' && timelineChromeEnabled.value) timelineChromeHidden.value = false;
 }
 
+// Vibes: the bottom bar's real height, as --vibes-navH on <html>, for the pages that keep room for it
+// (PageWithHeader.vue). The fixed guess there (66.5px + the home indicator) was short on the founder's iPhone
+// (2026-11-11), and the bar covered the chat's send row. Hidden bars (height 0) leave the last value.
+const navFooter = useTemplateRef('navFooter');
+const navObserver = new ResizeObserver(entries => {
+	const h = entries[0]?.borderBoxSize?.[0]?.blockSize ?? entries[0]?.contentRect.height ?? 0;
+	if (h > 0) window.document.documentElement.style.setProperty('--vibes-navH', `${Math.ceil(h)}px`);
+});
+watch(() => (navFooter.value as { $el?: unknown } | null)?.$el, (el, old) => {
+	if (old instanceof Element) navObserver.unobserve(old);
+	if (el instanceof Element) navObserver.observe(el);
+}, { immediate: true, flush: 'post' });
+
 onMounted(() => {
 	watchKeyboard();
 	window.addEventListener('resize', onResize);
 	window.addEventListener('keydown', onKeydown);
 });
 onBeforeUnmount(() => {
+	navObserver.disconnect();
 	window.removeEventListener('resize', onResize);
 	window.removeEventListener('keydown', onKeydown);
 });

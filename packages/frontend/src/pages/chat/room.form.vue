@@ -362,9 +362,10 @@ onBeforeUnmount(() => {
 	field-sizing: content;
 }
 
+// Vibes: not sticky (founder's iPhone, 2026-11-11: after the keyboard closed, the send row was gone until she
+// scrolled). The form already sits in the page's sticky footer; a second sticky inside it, in a box with overflow: clip,
+// was placed below the box by iOS Safari after the keyboard changed the page height, and clipped away.
 .footer {
-	position: sticky;
-	bottom: 0;
 	background: var(--MI_THEME-panel);
 }
 

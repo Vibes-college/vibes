@@ -27,6 +27,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<template #footer>
 			<slot name="footer"></slot>
+			<!-- Vibes: the bottom bar folded into a line, as on the quest map (pages/lojo/quest.vue): tap it or swipe it up. -->
+			<button
+				v-if="collapsedMode && chromeHidden && !keyboardOpen"
+				type="button"
+				class="_button"
+				:class="$style.navHandle"
+				aria-label="叫出底栏"
+				@click="barShown = true"
+				@touchstart.passive="onHandleTouchStart"
+				@touchmove.passive="onHandleTouchMove"
+			><i></i></button>
 			<div v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" :class="$style.footerTabs">
 				<MkTabs v-model:tab="tab" :tabs="props.tabs" :centered="true" :tabHighlightUpper="true"/>
 			</div>
@@ -39,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, onActivated, onDeactivated, useTemplateRef, watch } from 'vue';
+import { computed, inject, onActivated, onDeactivated, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { scrollInContainer } from '@@/js/scroll.js';
 import type { PageHeaderProps } from './MkPageHeader.vue';
 import { useScrollPositionKeeper } from '@/composables/use-scroll-position-keeper.js';
@@ -49,24 +60,28 @@ import { prefer } from '@/preferences.js';
 import MkTabs from '@/components/MkTabs.vue';
 import { DI } from '@/di.js';
 import { createScrollChromeTracker } from '@/utility/scroll-chrome.js';
+import { keyboardOpen } from '@/lojo/keyboard.js';
 
 const props = withDefaults(defineProps<PageHeaderProps & {
 	reversed?: boolean;
 	swipable?: boolean;
 	autoHideNavigation?: boolean;
+	// Vibes: with autoHideNavigation, the bottom bar stays folded into a line until asked for (the chat, founder 11-11).
+	collapsedNavigation?: boolean;
 }>(), {
 	reversed: false,
 	swipable: true,
 	autoHideNavigation: false,
+	collapsedNavigation: false,
 });
 
 const pageHeaderProps = computed(() => {
-	const { reversed, tab, swipable, autoHideNavigation, ...rest } = props;
+	const { reversed, tab, swipable, autoHideNavigation, collapsedNavigation, ...rest } = props;
 	return rest;
 });
 
 const pageHeaderPropsWithoutTabs = computed(() => {
-	const { reversed, tabs, swipable, autoHideNavigation, ...rest } = props;
+	const { reversed, tabs, swipable, autoHideNavigation, collapsedNavigation, ...rest } = props;
 	return rest;
 });
 
@@ -93,15 +108,56 @@ function scrolled(el: HTMLElement | null | undefined): number | undefined {
 	return props.reversed ? -el.scrollTop : el.scrollTop;
 }
 
+// Vibes: the folded bar (collapsedNavigation). Folded is where it rests: on this page the bar comes out only when the
+// line is tapped or swiped up, and folds again when the reader scrolls the messages or starts typing. The app shell
+// (ui/universal.vue) puts the bar back out on a route change, a resize or a popup; while this page is the one on
+// screen, that is folded again at once (sync, so the bar never shows for a frame).
+const collapsedMode = computed(() => props.collapsedNavigation && chromeEnabled.value);
+const barShown = ref(false);
+const onScreen = ref(false);
+let armedAt = 0;
+let handleY: number | null = null;
+watch([collapsedMode, onScreen, barShown, () => chrome?.hidden.value], () => {
+	if (!collapsedMode.value || !onScreen.value || chrome == null) return;
+	const hidden = !barShown.value;
+	if (chrome.hidden.value !== hidden) chrome.hidden.value = hidden;
+}, { flush: 'sync', immediate: true });
+watch(keyboardOpen, open => {
+	if (open) barShown.value = false;
+});
+
+function onHandleTouchStart(event: TouchEvent) {
+	handleY = event.touches[0]?.clientY ?? null;
+}
+
+function onHandleTouchMove(event: TouchEvent) {
+	const y = event.touches[0]?.clientY;
+	if (handleY != null && y != null && handleY - y > 12) {
+		handleY = null;
+		barShown.value = true;
+	}
+}
+
+// Leaving: the next page gets the bar out (pages that fold it themselves, like the quest map, say so on their own).
+function leaveCollapsed() {
+	onScreen.value = false;
+	if (props.collapsedNavigation && chrome != null) chrome.hidden.value = false;
+}
+
+onMounted(() => { onScreen.value = true; });
+onUnmounted(leaveCollapsed);
+
 function resetChrome() {
 	tracker.reset(scrolled(rootEl.value));
 	scrollArmed = false;
+	if (collapsedMode.value) return;
 	if (chrome && chromeEnabled.value) chrome.hidden.value = false;
 }
 
 function armScroll() {
 	if (!scrollArmed) tracker.reset(scrolled(rootEl.value));
 	scrollArmed = true;
+	armedAt = scrolled(rootEl.value) ?? 0;
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -113,6 +169,11 @@ function onScroll(event: Event) {
 	const el = rootEl.value;
 	if (!el || event.target !== el || !chromeEnabled.value || !chrome) return;
 	const top = scrolled(el)!;
+	if (collapsedMode.value) {
+		// Scrolling the messages by hand folds the bar again.
+		if (scrollArmed && barShown.value && Math.abs(top - armedAt) > 24) barShown.value = false;
+		return;
+	}
 	if (top <= 12 || chrome.blocked.value) {
 		resetChrome();
 		return;
@@ -128,8 +189,15 @@ watch([chromeEnabled, tab, () => chrome?.blocked.value], resetChrome);
 watch(() => chrome?.hidden.value, hidden => {
 	if (!hidden) resetChrome();
 });
-onActivated(resetChrome);
-onDeactivated(resetChrome);
+onActivated(() => {
+	onScreen.value = true;
+	barShown.value = false;
+	resetChrome();
+});
+onDeactivated(() => {
+	resetChrome();
+	leaveCollapsed();
+});
 
 router.useListener('same', () => {
 	scrollToTop();
@@ -151,7 +219,8 @@ defineExpose({
 
 .mobileTimeline {
 	// Match the native mobile footer (42px button + 24px padding + border).
-	--MI-stickyBottom: calc(66.5px + env(safe-area-inset-bottom, 0px));
+	// Vibes: the bar's measured height (ui/universal.vue), the old guess until it is known.
+	--MI-stickyBottom: var(--vibes-navH, calc(66.5px + env(safe-area-inset-bottom, 0px)));
 
 	.body {
 		padding-bottom: var(--MI-minBottomSpacingMobile);
@@ -167,6 +236,32 @@ defineExpose({
 .barOnly.navigationHidden {
 	--MI-stickyBottom: 0px;
 	--vibes-chatBottomPad: env(safe-area-inset-bottom, 0px);
+}
+
+// The line the folded bar leaves (collapsedNavigation), the same as on the quest map; it keeps clear of the home
+// indicator itself, so the chat footer does not.
+.barOnly.navigationHidden:has(.navHandle) {
+	--vibes-chatBottomPad: 0px;
+}
+
+.navHandle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 120px;
+	height: 26px;
+	margin: 0 auto;
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+	box-sizing: content-box;
+	touch-action: none;
+
+	> i {
+		display: block;
+		width: 44px;
+		height: 5px;
+		border-radius: 3px;
+		background: #B9B1A1;
+	}
 }
 
 // Keyboard up (lojo/keyboard.ts): the bottom bar is gone, so nothing is kept clear for it.

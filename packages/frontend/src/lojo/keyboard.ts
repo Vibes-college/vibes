@@ -37,6 +37,9 @@ export function watchKeyboard(): void {
 	started = true;
 	const html = window.document.documentElement;
 	let frame = 0;
+	const schedule = () => {
+		if (frame === 0) frame = window.requestAnimationFrame(apply);
+	};
 
 	const apply = () => {
 		frame = 0;
@@ -46,18 +49,19 @@ export function watchKeyboard(): void {
 			html.style.setProperty('--vibes-vvh', `${Math.round(vv.height)}px`);
 			html.style.setProperty('--vibes-vvtop', `${Math.max(0, Math.round(vv.offsetTop))}px`);
 		}
+		// iOS sometimes leaves the page slid up after the keyboard goes away, and slides it back a moment later than the
+		// keyboard's own resize: the app box never scrolls the window, so with no keyboard it goes back to the top.
+		if (!open && window.scrollY !== 0) window.scrollTo(0, 0);
 		if (open === keyboardOpen.value) return;
 		keyboardOpen.value = open;
 		html.classList.toggle('vibes-kb-open', open);
 		if (!open) {
 			html.style.removeProperty('--vibes-vvh');
 			html.style.removeProperty('--vibes-vvtop');
-			// iOS sometimes leaves the page slid up after the keyboard goes away.
-			if (window.scrollY !== 0) window.scrollTo(0, 0);
+			// Look again once the keyboard has finished sliding away.
+			window.setTimeout(schedule, 350);
+			window.setTimeout(schedule, 800);
 		}
-	};
-	const schedule = () => {
-		if (frame === 0) frame = window.requestAnimationFrame(apply);
 	};
 
 	vv.addEventListener('resize', schedule);
