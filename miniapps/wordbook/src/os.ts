@@ -31,7 +31,39 @@ export function popupMenu(items: (MenuItem | null)[], anchor?: HTMLElement | Eve
 	setTimeout(() => document.addEventListener('pointerdown', outside, true));
 	return { dispose: close };
 }
-// 确认框：先用浏览器自带的（删词前问一句），返回社区 os.confirm 一样的 { canceled }。
-export async function confirm(opts: { type?: string; title?: string; text?: string }): Promise<{ canceled: boolean }> {
-	return { canceled: !window.confirm([opts.title, opts.text].filter(Boolean).join('\n')) };
+// 确认框（删词前问一句）：页面里弹一个小框，「确定」「取消」，Esc 或点外面算取消；返回和社区 os.confirm 一样的 { canceled }。
+export function confirm(opts: { type?: string; title?: string; text?: string }): Promise<{ canceled: boolean }> {
+	return new Promise(resolve => {
+		const back = document.createElement('div');
+		back.className = 'mini-dialog-back';
+		const box = document.createElement('div');
+		box.className = 'mini-dialog';
+		box.setAttribute('role', 'alertdialog');
+		box.setAttribute('aria-modal', 'true');
+		if (opts.title) { const h = document.createElement('h2'); h.textContent = opts.title; box.append(h); }
+		if (opts.text) { const p = document.createElement('p'); p.textContent = opts.text; box.append(p); }
+		const row = document.createElement('div');
+		row.className = 'mini-dialog-buttons';
+		const cancel = document.createElement('button');
+		cancel.type = 'button'; cancel.className = 'mk-btn'; cancel.textContent = '取消';
+		const ok = document.createElement('button');
+		ok.type = 'button'; ok.className = 'mk-btn primary'; ok.textContent = '确定';
+		row.append(cancel, ok);
+		box.append(row);
+		back.append(box);
+		const before = document.activeElement as HTMLElement | null;
+		const done = (canceled: boolean) => {
+			document.removeEventListener('keydown', onKey, true);
+			back.remove();
+			before?.focus?.();
+			resolve({ canceled });
+		};
+		const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); done(true); } };
+		cancel.addEventListener('click', () => done(true));
+		ok.addEventListener('click', () => done(false));
+		back.addEventListener('click', e => { if (e.target === back) done(true); });
+		document.addEventListener('keydown', onKey, true);
+		document.body.append(back);
+		ok.focus();
+	});
 }

@@ -115,3 +115,10 @@ a { color: var(--MI_THEME-link); }
 .mini-signin { max-width: 420px; margin: 0 auto; padding: 96px 24px; text-align: center; }
 .mini-signin h1 { font-size: 20px; color: var(--MI_THEME-fgHighlighted); }
 .mini-signin p { margin: 12px 0 28px; }
+
+/* 确认框（os.confirm） */
+.mini-dialog-back { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, 0.35); }
+.mini-dialog { width: min(340px, 100%); padding: 20px; border-radius: 12px; background: var(--MI_THEME-panel); color: var(--MI_THEME-fg); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); }
+.mini-dialog h2 { margin: 0 0 8px; font-size: 16px; color: var(--MI_THEME-fgHighlighted); }
+.mini-dialog p { margin: 0 0 16px; line-height: 1.6; }
+.mini-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
