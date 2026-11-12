@@ -4263,6 +4263,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * The AI tutor accounts and the line shown under their name in chats (empty: no line).
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/tutor/public', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Have the AI tutor write first about a failed quest try, as after "Ask Mia" (for trying quest mode out with a sample try).
      * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:meta*

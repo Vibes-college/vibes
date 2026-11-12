@@ -9,7 +9,7 @@ import * as Redis from 'ioredis';
 import { DataSource } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
-import type { MiDriveFile, NotesRepository, UsersRepository } from '@/models/_.js';
+import type { MiDriveFile, NotesRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import type { MiUser } from '@/models/User.js';
 import type { MiChatMessage } from '@/models/ChatMessage.js';
 import { ChatService } from '@/core/ChatService.js';
@@ -42,6 +42,7 @@ import {
 	proactiveDecision,
 	tutorContextMessage,
 	tutorSystemPrompt,
+	tutorPublic,
 } from '@/misc/lojo-tutor.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
 import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
@@ -110,6 +111,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private db: DataSource,
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
+		@Inject(DI.userProfilesRepository)
+		private userProfilesRepository: UserProfilesRepository,
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
 		private chatService: ChatService,
@@ -127,10 +130,21 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	onModuleInit() {
 		if (this.tutors.length === 0) return;
+		this.applyPublicProfile().catch(err => this.logger.warn(`could not write the tutor's bio: ${err}`));
 		this.redisForSub.on('message', this.onRedisMessage);
 		// Every 15 minutes: check whether the model is back, answer who wrote while it was away, then write first.
 		this.tick = setInterval(() => this.proactiveTick().catch(err => this.logger.warn(`proactive round failed: ${err}`)), 15 * MINUTE);
 		this.tick.unref();
+	}
+
+	// The bio on the tutor's profile comes from tutorPublic (misc/lojo-tutor.ts), so it is changed in one place.
+	private async applyPublicProfile(): Promise<void> {
+		for (const userId of this.tutors) {
+			const profile = await this.userProfilesRepository.findOneBy({ userId });
+			if (profile == null || profile.description === tutorPublic.bio) continue;
+			await this.userProfilesRepository.update({ userId }, { description: tutorPublic.bio });
+			this.logger.info(`tutor bio updated user=${userId}`);
+		}
 	}
 
 	@bindThis

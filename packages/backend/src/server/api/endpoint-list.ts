@@ -471,6 +471,7 @@ export * as 'lojo/boot-report' from './endpoints/lojo/boot-report.js';
 export * as 'lojo/admin/boot-report' from './endpoints/lojo/admin/boot-report.js';
 export * as 'lojo/conn-report' from './endpoints/lojo/conn-report.js';
 export * as 'lojo/tutor/ids' from './endpoints/lojo/tutor/ids.js';
+export * as 'lojo/tutor/public' from './endpoints/lojo/tutor/public.js';
 export * as 'lojo/tutor/poke' from './endpoints/lojo/tutor/poke.js';
 export * as 'lojo/tutor/pilot-tool' from './endpoints/lojo/tutor/pilot-tool.js';
 export * as 'lojo/tutor/quest-poke' from './endpoints/lojo/tutor/quest-poke.js';

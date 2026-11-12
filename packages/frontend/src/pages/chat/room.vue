@@ -138,9 +138,11 @@ const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-// Vibes: AI tutor accounts get "AI 学习导师" under their name (chatLabels.aiTutor).
+// Vibes: AI tutor accounts get a line under their name. What it says is set in one place on the server
+// (tutorPublic.title in packages/backend/src/misc/lojo-tutor.ts); empty means no line, only the name.
 const tutorIds = ref<string[]>([]);
-(misskeyApi as unknown as (endpoint: string) => Promise<string[]>)('lojo/tutor/ids').then(ids => { tutorIds.value = ids; }, () => {});
+const tutorTitle = ref('');
+misskeyApi('lojo/tutor/public').then(res => { tutorIds.value = res.ids; tutorTitle.value = res.title; }, () => {});
 const room = ref<Misskey.entities.ChatRoom | null>(null);
 const connection = ref<Misskey.IChannelConnection<Misskey.Channels['chatUser']> | Misskey.IChannelConnection<Misskey.Channels['chatRoom']> | null>(null);
 const showIndicator = ref(false);
@@ -486,7 +488,7 @@ definePage(computed(() => {
 				userName: user.value,
 				title: user.value.name ?? user.value.username,
 				avatar: user.value,
-				...(tutorIds.value.includes(user.value.id) ? { subtitle: chatLabels.aiTutor } : {}),
+				...(tutorTitle.value !== '' && tutorIds.value.includes(user.value.id) ? { subtitle: tutorTitle.value } : {}),
 			};
 		} else if (room.value) {
 			return {

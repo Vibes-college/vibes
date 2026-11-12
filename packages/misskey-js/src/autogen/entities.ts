@@ -598,6 +598,7 @@ export type LojoTutorPilotToolRequest = operations['lojo___tutor___pilot-tool'][
 export type LojoTutorPilotToolResponse = operations['lojo___tutor___pilot-tool']['responses']['200']['content']['application/json'];
 export type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['content']['application/json'];
 export type LojoTutorPokeResponse = operations['lojo___tutor___poke']['responses']['200']['content']['application/json'];
+export type LojoTutorPublicResponse = operations['lojo___tutor___public']['responses']['200']['content']['application/json'];
 export type LojoTutorQuestPokeRequest = operations['lojo___tutor___quest-poke']['requestBody']['content']['application/json'];
 export type LojoTutorQuestPokeResponse = operations['lojo___tutor___quest-poke']['responses']['200']['content']['application/json'];
 export type LojoWordsAddRequest = operations['lojo___words___add']['requestBody']['content']['application/json'];

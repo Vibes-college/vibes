@@ -595,6 +595,7 @@ import type {
 	LojoTutorPilotToolResponse,
 	LojoTutorPokeRequest,
 	LojoTutorPokeResponse,
+	LojoTutorPublicResponse,
 	LojoTutorQuestPokeRequest,
 	LojoTutorQuestPokeResponse,
 	LojoWordsAddRequest,
@@ -1175,6 +1176,7 @@ export type Endpoints = {
 	'lojo/tutor/ids': { req: EmptyRequest; res: LojoTutorIdsResponse };
 	'lojo/tutor/pilot-tool': { req: LojoTutorPilotToolRequest; res: LojoTutorPilotToolResponse };
 	'lojo/tutor/poke': { req: LojoTutorPokeRequest; res: LojoTutorPokeResponse };
+	'lojo/tutor/public': { req: EmptyRequest; res: LojoTutorPublicResponse };
 	'lojo/tutor/quest-poke': { req: LojoTutorQuestPokeRequest; res: LojoTutorQuestPokeResponse };
 	'lojo/words/add': { req: LojoWordsAddRequest; res: LojoWordsAddResponse };
 	'lojo/words/import': { req: LojoWordsImportRequest; res: LojoWordsImportResponse };

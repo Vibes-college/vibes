@@ -3495,6 +3495,15 @@ export type paths = {
          */
         post: operations['lojo___tutor___poke'];
     };
+    '/lojo/tutor/public': {
+        /**
+         * lojo/tutor/public
+         * @description The AI tutor accounts and the line shown under their name in chats (empty: no line).
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___tutor___public'];
+    };
     '/lojo/tutor/quest-poke': {
         /**
          * lojo/tutor/quest-poke
@@ -34802,6 +34811,67 @@ export interface operations {
                 content: {
                     'application/json': {
                         sent: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___tutor___public: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        ids: string[];
+                        title: string;
                     };
                 };
             };

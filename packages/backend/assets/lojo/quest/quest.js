@@ -481,7 +481,7 @@ function loadRank() {
 	}).catch(() => { RANK.busy = false; });
 }
 function miaLine() {
-	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Mia，你的 AI 学习导师。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。';
+	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Mia。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。';
 	const tg = target(), h = D.hearts;
 	if (h <= 0) return `心打光了。<b>读本锦囊</b>或<b>练一组</b>，各补 1 颗；不补就等${refillLabel()} 回满。`;
 	if (D.lastFail && NODE[D.lastFail.levelId]?.state === 'open') {
@@ -2154,7 +2154,7 @@ $('#emptyBack').onclick = () => {
 /* ================= 第一次进来：3 步引导 ================= */
 function rel(el) { const a = AR(), r = el.getBoundingClientRect(); return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height }; }
 const COACH = [
-	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，你的 AI 学习导师。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
+	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，陪你闯关。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
 	{ el: () => [$('#streakChip'), $('#heartChip')], pad: 5, t: '<b>火苗</b>是连胜，每天打一关就续上；漏一天会断。<b>心</b>每天 5 颗，正式关答错扣 1 颗。' },
 	{ el: () => $('#count'), pad: 6, t: '最后一件：<b>哪天考雅思？</b>定了日子，这行就开始倒数；走慢了，地图上会提醒你。', exam: true },
 ];

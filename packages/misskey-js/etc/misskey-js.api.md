@@ -2132,6 +2132,7 @@ declare namespace entities {
         LojoTutorPilotToolResponse,
         LojoTutorPokeRequest,
         LojoTutorPokeResponse,
+        LojoTutorPublicResponse,
         LojoTutorQuestPokeRequest,
         LojoTutorQuestPokeResponse,
         LojoWordsAddRequest,
@@ -3316,6 +3317,9 @@ type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['co
 
 // @public (undocumented)
 type LojoTutorPokeResponse = operations['lojo___tutor___poke']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPublicResponse = operations['lojo___tutor___public']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorQuestPokeRequest = operations['lojo___tutor___quest-poke']['requestBody']['content']['application/json'];
