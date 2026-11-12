@@ -14,6 +14,9 @@ export type PageMetadata = {
 	icon?: string | null;
 	avatar?: Misskey.entities.User | null;
 	userName?: Misskey.entities.User | null;
+	// Vibes: after the user name in the header, e.g. the AI's title (「Vibi · 学搭子」) and a small badge (「AI」).
+	nameSuffix?: string;
+	badge?: string;
 	needWideArea?: boolean;
 	hideMobileFooter?: boolean;
 	hideSidebar?: boolean;

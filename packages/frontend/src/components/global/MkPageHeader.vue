@@ -19,7 +19,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i v-else-if="pageMetadata.icon" :class="[$style.titleIcon, pageMetadata.icon]"></i>
 
 				<div class="_nowrap" :class="$style.title">
-					<MkUserName v-if="pageMetadata.userName" :user="pageMetadata.userName" :nowrap="true"/>
+					<div v-if="pageMetadata.userName" :class="$style.nameRow">
+						<MkUserName :user="pageMetadata.userName" :nowrap="true"/>
+						<span v-if="pageMetadata.nameSuffix" :class="$style.nameSuffix">· {{ pageMetadata.nameSuffix }}</span>
+						<span v-if="pageMetadata.badge" :class="$style.badge">{{ pageMetadata.badge }}</span>
+					</div>
 					<div v-else-if="pageMetadata.title" class="_nowrap">{{ pageMetadata.title }}</div>
 					<div v-if="pageMetadata.subtitle" :class="$style.subtitle">
 						{{ pageMetadata.subtitle }}
@@ -295,6 +299,36 @@ onUnmounted(() => {
 .title {
 	min-width: 0;
 	line-height: 1.1;
+}
+
+.nameRow {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+
+	> :first-child {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+.nameSuffix {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+.badge {
+	flex-shrink: 0;
+	padding: 1px 5px;
+	border-radius: 5px;
+	border: solid 1px currentColor;
+	font-size: 0.65em;
+	font-weight: bold;
+	line-height: 1.3;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
 }
 
 .subtitle {

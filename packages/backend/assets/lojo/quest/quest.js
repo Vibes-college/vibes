@@ -481,7 +481,7 @@ function loadRank() {
 	}).catch(() => { RANK.busy = false; });
 }
 function miaLine() {
-	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Mia。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。';
+	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Vibi。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。';
 	const tg = target(), h = D.hearts;
 	if (h <= 0) return `心打光了。<b>读本锦囊</b>或<b>练一组</b>，各补 1 颗；不补就等${refillLabel()} 回满。`;
 	if (D.lastFail && NODE[D.lastFail.levelId]?.state === 'open') {
@@ -1423,13 +1423,13 @@ function failFlow(end) {
 	if (T) {
 		$('#failP').innerHTML = esc(tplFill(TC.failByTime ?? '对 {right} 题，时间到时还有 {n} 题没答。', { right: end.right, n: T.unanswered })) +
 			(T.heartsLost ? ` 扣 ${T.heartsLost} 颗心。` : '') + heartRow(D.hearts, T.heartsLost ?? 0) +
-			(TC.miaFailByTime ? `<span class="tmMia">Mia：${esc(TC.miaFailByTime)}</span>` : '');
+			(TC.miaFailByTime ? `<span class="tmMia">Vibi：${esc(TC.miaFailByTime)}</span>` : '');
 	} else $('#failP').innerHTML = (n.practice ? `对 <b>${end.right}</b> 题，差 ${Math.max(1, end.need - end.right)} 题。再打会换一组题。` : `对 <b>${end.right}</b> 题，要对 ${end.need} 题才过。心还剩 <b>${D.hearts}</b> 颗。`) +
 		(end.failStreak >= 2 ? `<br>这关连着没过 ${end.failStreak} 次了，先别急着重打。` : '');
 	$('#failReview').innerHTML = reviewHtml(end);
 	const rec = end.recommended;
 	$('#failMia').style.display = D.tutorId ? '' : 'none';
-	$('#failShelf').innerHTML = rec ? `去书屋<small>Mia 推荐 ${rec.no} 号「${esc(rec.spine)}」</small>` : '去书屋<small>挑一本锦囊读完再打</small>';
+	$('#failShelf').innerHTML = rec ? `去书屋<small>Vibi 推荐 ${rec.no} 号「${esc(rec.spine)}」</small>` : '去书屋<small>挑一本锦囊读完再打</small>';
 	$('#failShelf').classList.add('rec');
 	const g = n.gear;
 	const sub = n.practice ? `${esc(g?.zh ?? '听写')} · 练一组手感更稳`
@@ -1452,7 +1452,7 @@ function askMia(btn) {
 	const to = `/chat/user/${D.tutorId}`;
 	let away = false;
 	api('lojo/quest/ask-tutor', { attemptId: AT.attemptId }).then(r => {
-		if (r?.result === 'limit') toast('Mia 今天找你找得够多了，你直接跟她说就行', 2000);
+		if (r?.result === 'limit') toast('Vibi 今天找你找得够多了，你直接跟她说就行', 2000);
 		// Mia 暂时不在（模型账户没钱或钥匙失效）：不跳私信，直接翻到推荐的锦囊。这次作答还能等她回来再问（兜底规格 F2）
 		away = r?.result === 'away';
 	}).catch(() => {}).finally(() => {
@@ -1461,7 +1461,7 @@ function askMia(btn) {
 		const rec = AT?.end?.recommended?.slug, levelId = AT?.node?.id;
 		backToMap(() => {
 			enterShelf('stuck', { rec, levelId });
-			toast(rec && !D.refilledToday.guide ? 'Mia 这会儿不在，先帮你翻到这本，读完过小测还能补 1 颗心 📖' : 'Mia 这会儿不在，先看看这本 📖', 3200);
+			toast(rec && !D.refilledToday.guide ? 'Vibi 这会儿不在，先帮你翻到这本，读完过小测还能补 1 颗心 📖' : 'Vibi 这会儿不在，先看看这本 📖', 3200);
 		});
 	});
 }
@@ -1868,7 +1868,7 @@ function tagSpines(rec) {
 	D.books.forEach(b => {
 		const s = $(`#row1 .spine[data-slug="${CSS.escape(b.slug)}"]`); if (!s) return; const r = s.getBoundingClientRect();
 		if (b.slug === rec) {
-			const tag = document.createElement('div'); tag.className = 'recTag'; tag.textContent = 'Mia 推荐'; $('#shelf').appendChild(tag);
+			const tag = document.createElement('div'); tag.className = 'recTag'; tag.textContent = 'Vibi 推荐'; $('#shelf').appendChild(tag);
 			gsap.set(tag, { left: Math.max(4, Math.min(sr.width - tag.offsetWidth - 4, r.left - sr.left + r.width / 2 - tag.offsetWidth / 2)), top: r.top - sr.top - 34 });
 			gsap.from(tag, { scale: 0, duration: 0.4, ease: 'back.out(3)' }); loops.push(gsap.to(tag, { y: -5, duration: 0.45, repeat: -1, yoyo: true, ease: 'sine.inOut' }));
 		} else if (b.checkedToday || b.inBag) {
@@ -1882,7 +1882,7 @@ const bookH = () => Math.min(540, AR().height - BOOK_TOP - 96);
 $('#row1').addEventListener('click', e => { const s = e.target.closest('.spine'); if (s && !shelf.picked) openBook(s); });
 function doitLabel(b) {
 	if (!b.app) return null;
-	if (b.app.path == null) return D.tutorId ? `找 Mia 练 · ${esc(b.app.zh)}` : null;
+	if (b.app.path == null) return D.tutorId ? `找 Vibi 练 · ${esc(b.app.zh)}` : null;
 	return /^https?:/.test(b.app.path) ? `打开「${esc(b.app.zh)}」↗` : `去「${esc(b.app.zh)}」`;
 }
 function openBook(s) {
@@ -2154,7 +2154,7 @@ $('#emptyBack').onclick = () => {
 /* ================= 第一次进来：3 步引导 ================= */
 function rel(el) { const a = AR(), r = el.getBoundingClientRect(); return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height }; }
 const COACH = [
-	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Mia</b>，陪你闯关。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
+	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Vibi</b>，陪你闯关。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
 	{ el: () => [$('#streakChip'), $('#heartChip')], pad: 5, t: '<b>火苗</b>是连胜，每天打一关就续上；漏一天会断。<b>心</b>每天 5 颗，正式关答错扣 1 颗。' },
 	{ el: () => $('#count'), pad: 6, t: '最后一件：<b>哪天考雅思？</b>定了日子，这行就开始倒数；走慢了，地图上会提醒你。', exam: true },
 ];
@@ -2399,7 +2399,7 @@ const STATES = [
 	['listen', '听力', '按顺序播几段录音'],
 	['retest', '回测', '3 题 · 不扣心 · 对 2 题重新点亮'],
 	['pass', '过关', '盖章 → 宝箱 → 火苗'],
-	['fail', '没过', 'Mia 推荐的锦囊 · 装备 · 错题折叠'],
+	['fail', '没过', 'Vibi 推荐的锦囊 · 装备 · 错题折叠'],
 	['pfail', '练手关没过', '不扣心 · 装备小字不提补心'],
 	['boss', 'Boss 门前', '备战三件齐了'],
 	['bosswin', '打赢 Boss', '徽章 + 彩纸'],

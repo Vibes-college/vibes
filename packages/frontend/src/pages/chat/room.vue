@@ -95,6 +95,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, useTemplateRef, computed, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { getScrollContainer } from '@@/js/scroll.js';
+import { lang } from '@@/js/config.js';
 import XMessage from './XMessage.vue';
 import XForm from './room.form.vue';
 import XSearch from './room.search.vue';
@@ -138,11 +139,13 @@ const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-// Vibes: AI tutor accounts get a line under their name. What it says is set in one place on the server
-// (tutorPublic.title in packages/backend/src/misc/lojo-tutor.ts); empty means no line, only the name.
+// Vibes: AI tutor accounts get their title after the name and an 「AI」 badge. The title is set in one place on the
+// server (tutorPublic.title in packages/backend/src/misc/lojo-tutor.ts); empty means only the name and the badge.
 const tutorIds = ref<string[]>([]);
 const tutorTitle = ref('');
 misskeyApi('lojo/tutor/public').then(res => { tutorIds.value = res.ids; tutorTitle.value = res.title; }, () => {});
+// The AI's title only in the Chinese UI; in other languages just the name (founder, 2026-11-11: English shows only "Vibi").
+const showTutorTitle = lang.startsWith('zh');
 const room = ref<Misskey.entities.ChatRoom | null>(null);
 const connection = ref<Misskey.IChannelConnection<Misskey.Channels['chatUser']> | Misskey.IChannelConnection<Misskey.Channels['chatRoom']> | null>(null);
 const showIndicator = ref(false);
@@ -488,7 +491,11 @@ definePage(computed(() => {
 				userName: user.value,
 				title: user.value.name ?? user.value.username,
 				avatar: user.value,
-				...(tutorTitle.value !== '' && tutorIds.value.includes(user.value.id) ? { subtitle: tutorTitle.value } : {}),
+				// Vibes: the AI tutor gets 「· 学搭子」 (Chinese UI only) and a small 「AI」 badge, so nobody mistakes it for a person.
+				...(tutorIds.value.includes(user.value.id) ? {
+					badge: 'AI',
+					...(showTutorTitle && tutorTitle.value !== '' ? { nameSuffix: tutorTitle.value } : {}),
+				} : {}),
 			};
 		} else if (room.value) {
 			return {

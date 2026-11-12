@@ -497,10 +497,10 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"color": "#3E9E7A",
 		"app": {
 			"id": "mia",
-			"zh": "Mia",
+			"zh": "Vibi",
 			"path": null
 		},
-		"verify": "第一章还没有口语关。先在 Mia 那里练；口语关开了以后，这本锦囊会挂上去。",
+		"verify": "第一章还没有口语关。先在 Vibi 那里练；口语关开了以后，这本锦囊会挂上去。",
 		"verifyUrl": null,
 		"verifyLevels": [],
 		"gear": null,
@@ -532,7 +532,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 			},
 			{
 				"id": "ielts-c1-k8-q3",
-				"q": "找 Mia 练口语，怎么开口最有用？",
+				"q": "找 Vibi 练口语，怎么开口最有用？",
 				"o": [
 					"「只告诉我哪里错了，我自己先改」",
 					"「帮我把这段改成地道的说法」"

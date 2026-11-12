@@ -182,10 +182,16 @@ export function questNextLine(questTry: QuestTry, nextId: string | undefined, ba
 	return `👉 ${step.label} ${url}`;
 }
 
-// When the model cannot be reached (no balance or a bad key), "Ask Mia" still gets one fixed message built from this try
+// When the model cannot be reached (no balance or a bad key), "Ask Vibi" still gets one fixed message built from this try
 // and the quest knowledge: the cause, its one-line Chinese tip (tipZh), and the next step by the hearts rules she
 // follows. No answers, no error words. Spec: 冲刺1111/Mia/兜底规格.md F2 (AI tutor, 2026-11-11).
-export const TUTOR_AWAY_PREFIX = 'Mia 这会儿不在线';
+export const TUTOR_AWAY_PREFIX = 'Vibi 这会儿不在线';
+// Away messages sent before the rename to Vibi (2026-11-12) still start with this; they are left out of her context too.
+const LEGACY_AWAY_PREFIXES = ['Mia 这会儿不在线'];
+export function isTutorAwayText(text: string | null | undefined): boolean {
+	if (text == null) return false;
+	return text.startsWith(TUTOR_AWAY_PREFIX) || LEGACY_AWAY_PREFIXES.some(prefix => text.startsWith(prefix));
+}
 
 export function questAwayMessage(knowledge: QuestKnowledge | null, questTry: QuestTry): { messages: string[]; next?: string } {
 	const cause = questTry.cause != null ? knowledge?.causes[questTry.cause] : undefined;

@@ -45,7 +45,7 @@ import {
 	tutorPublic,
 } from '@/misc/lojo-tutor.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
-import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, isTutorAwayText, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 import { hitScore, progressCardText, RECALL_MIN_SCORE, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
 import type { ChatHit, QuestMistakes, QuestProgressFacts, WordbookFacts } from '@/misc/lojo-tutor-progress.js';
@@ -62,7 +62,7 @@ const SESSION_SECONDS = 30 * 60;
 const NOTES_DUE_KEY = 'lojoTutor:notesDue';
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
-// After "Ask Mia" on a failed level, her replies carry that try for two hours; a learner can ask at most 10 times a day.
+// After "Ask Vibi" on a failed level, her replies carry that try for two hours; a learner can ask at most 10 times a day.
 const QUEST_TTL_SECONDS = 2 * 60 * 60;
 const QUEST_DAILY = 10;
 
@@ -138,8 +138,14 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	// The bio on the tutor's profile comes from tutorPublic (misc/lojo-tutor.ts), so it is changed in one place.
+	// The display name too (the @tutor_mia username stays).
 	private async applyPublicProfile(): Promise<void> {
 		for (const userId of this.tutors) {
+			const user = await this.usersRepository.findOneBy({ id: userId });
+			if (user != null && user.name !== tutorPublic.name) {
+				await this.usersRepository.update({ id: userId }, { name: tutorPublic.name });
+				this.logger.info(`tutor name updated user=${userId}`);
+			}
 			const profile = await this.userProfilesRepository.findOneBy({ userId });
 			if (profile == null || profile.description === tutorPublic.bio) continue;
 			await this.userProfilesRepository.update({ userId }, { description: tutorPublic.bio });
@@ -219,7 +225,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
 			const recall = await this.recall(tutorId, learnerId, history);
 			if (!(await this.spendBudget())) return;
-			// In the two hours after "Ask Mia" she answers follow-ups with the try at hand, but with the hearts as of now and
+			// In the two hours after "Ask Vibi" she answers follow-ups with the try at hand, but with the hearts as of now and
 			// without the 👉 link again: a link only goes out for a step not linked yet for this try (AI tutor, 2026-11-10:
 			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
 			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
@@ -446,7 +452,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		}
 	}
 
-	// "Ask Mia" on a failed level (endpoint lojo/quest/ask-tutor, after it checked the try is the learner's own, submitted
+	// "Ask Vibi" on a failed level (endpoint lojo/quest/ask-tutor, after it checked the try is the learner's own, submitted
 	// and failed). Not a proactive message: no quiet hours, and it does not use up today's first message.
 	// Returns at once; she shows "typing" and writes within seconds.
 	public async openFromQuest(tutorId: string, learnerId: string, rawTry: unknown): Promise<QuestAskResult> {
@@ -488,7 +494,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			const system = tutorSystemPrompt(card, memory, { questKnowledge: questKnowledgeSection(quest.knowledge) });
 			const context = tutorContextMessage({ now: this.nowText(), learnerName: this.nameOf(learner), progress, quest: questTrySection(quest.knowledge, quest.questTry) });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
-			const cue = '(The learner just failed this level and tapped "Ask Mia". Write first now, in quest mode as described above.)';
+			const cue = '(The learner just failed this level and tapped "Ask Vibi". Write first now, in quest mode as described above.)';
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
 				? [...history.slice(0, -1), { role: 'user', content: `${history.at(-1)!.content}\n${cue}` }]
 				: [...history, { role: 'user', content: cue }];
@@ -556,7 +562,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		if (answered > 0) this.logger.info(`answered ${answered} learner(s) who wrote while the tutor was away`);
 	}
 
-	// The try from "Ask Mia" in the last two hours, with the quest knowledge; null outside quest mode.
+	// The try from "Ask Vibi" in the last two hours, with the quest knowledge; null outside quest mode.
 	private async questContext(tutorId: string, learnerId: string): Promise<{ knowledge: QuestKnowledge; questTry: QuestTry } | null> {
 		try {
 			const raw = await this.redisClient.get(this.questKey(tutorId, learnerId));
@@ -676,7 +682,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			params,
 		);
 		return rows
-			.filter(r => !(r.fromUserId === tutorId && r.text.startsWith(TUTOR_AWAY_PREFIX)))
+			.filter(r => !(r.fromUserId === tutorId && isTutorAwayText(r.text)))
 			.map(r => ({ id: r.id, at: this.idService.parse(r.id).date.toISOString(), who: (r.fromUserId === tutorId ? 'tutor' : 'learner') as ChatHit['who'], text: r.text, score: hitScore(r.text, terms) }))
 			.filter(h => h.score >= (opts.minScore ?? 1))
 			.sort((a, b) => b.score - a.score || (a.id < b.id ? 1 : -1))
@@ -777,7 +783,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		for (const message of messages) {
 			// The 👉 line under a quest answer is added by the app, not written by her: left out, so she does not copy it.
 			// The fixed "away" messages are not hers either, and left out so she does not copy them once she is back.
-			if (message.fromUserId === tutorId && message.text?.startsWith(TUTOR_AWAY_PREFIX)) continue;
+			if (message.fromUserId === tutorId && isTutorAwayText(message.text)) continue;
 			const text = (message.text ?? (message.fileId ? '(sent a file)' : '')).split('\n').filter(line => !line.startsWith('👉 ')).join('\n').trim();
 			if (text === '') continue;
 			const role = message.fromUserId === tutorId ? 'assistant' : 'user';
