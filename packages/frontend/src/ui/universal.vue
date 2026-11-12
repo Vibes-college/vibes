@@ -25,14 +25,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 				ref="navFooter"
 				v-model:drawerMenuShowing="drawerMenuShowing"
 				v-model:widgetsShowing="widgetsShowing"
-				:class="{ [$style.timelineFooter]: timelineChromeEnabled, [$style.footerHidden]: timelineChromeHidden, [$style.noAnimation]: !prefer.s.animation }"
-				:inert="timelineChromeHidden"
-				:aria-hidden="timelineChromeHidden || undefined"
+				:class="{ [$style.timelineFooter]: timelineChromeEnabled, [$style.footerHidden]: timelineChromeHidden, [$style.keyboardHidden]: keyboardOpen, [$style.noAnimation]: !prefer.s.animation }"
+				:inert="timelineChromeHidden || keyboardOpen"
+				:aria-hidden="timelineChromeHidden || keyboardOpen || undefined"
 				data-timeline-navigation
 			/>
 			<!-- Vibes: with the agent summoned, its button takes this corner instead (lojo/agent/LojoAgent.vue). -->
 			<button
-				v-if="timelineChromeEnabled && isRoot && !agentState.summoned"
+				v-if="timelineChromeEnabled && isRoot && !agentState.summoned && !keyboardOpen"
 				type="button"
 				class="_button _buttonGradate"
 				:class="[$style.floatingPost, { [$style.floatingPostVisible]: timelineChromeHidden, [$style.noAnimation]: !prefer.s.animation }]"
@@ -80,6 +80,7 @@ import { shouldSuggestRestoreBackup } from '@/preferences/utility.js';
 import { DI } from '@/di.js';
 import { shouldSuggestReload } from '@/utility/reload-suggest.js';
 import { agentState } from '@/lojo/agent/state.js';
+import { keyboardOpen, watchKeyboard } from '@/lojo/keyboard.js';
 
 const XWidgets = defineAsyncComponent(() => import('./_common_/widgets.vue'));
 const XStatusBars = defineAsyncComponent(() => import('@/ui/_common_/statusbars.vue'));
@@ -89,6 +90,8 @@ const isRoot = computed(() => mainRouter.currentRoute.value.name === 'index');
 const isGuideList = computed(() => mainRouter.currentRoute.value.path === '/guides');
 // 闯关页：玩的时候收起底栏（创始人 11-10）。收起由游戏叫（pages/lojo/quest.vue 的 bridge.chrome），不跟滚动走
 const isQuest = computed(() => mainRouter.currentRoute.value.path === '/quest');
+// 私信页（和 Mia 聊天）：往上翻记录时底栏收起，回到底部再出来，跟时间线同一套（创始人 11-11）。标题栏和输入框不收（PageWithHeader 的 reversed）
+const isChat = computed(() => /^\/chat\/(user|room)\//.test(mainRouter.currentRoute.value.path));
 
 const DESKTOP_THRESHOLD = 1100;
 const MOBILE_THRESHOLD = 500;
@@ -121,7 +124,7 @@ provideMetadataReceiver((metadataGetter) => {
 provideReactiveMetadata(pageMetadata);
 
 const drawerMenuShowing = ref(false);
-const timelineChromeEnabled = computed(() => !!$i && isMobile.value && (isRoot.value || isGuideList.value || isQuest.value) && !pageMetadata.value?.hideMobileFooter);
+const timelineChromeEnabled = computed(() => !!$i && isMobile.value && (isRoot.value || isGuideList.value || isQuest.value || isChat.value) && !pageMetadata.value?.hideMobileFooter);
 const timelineChromeHidden = ref(false);
 const timelineChromeBlocked = computed(() => drawerMenuShowing.value || widgetsShowing.value || os.popups.value.length > 0);
 provide(DI.mobileTimelineChrome, { enabled: timelineChromeEnabled, blocked: timelineChromeBlocked, hidden: timelineChromeHidden });
@@ -134,6 +137,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+	watchKeyboard();
 	window.addEventListener('resize', onResize);
 	window.addEventListener('keydown', onKeydown);
 });
@@ -214,6 +218,20 @@ $widgets-hide-threshold: 1090px;
 .content {
 	flex: 1;
 	min-height: 0;
+}
+
+// Keyboard up (lojo/keyboard.ts): the app takes only the part of the screen above the keyboard, and the bottom bar steps
+// aside so the chat box sits right on the keyboard.
+:global(html.vibes-kb-open) .root {
+	position: fixed;
+	top: var(--vibes-vvtop, 0px);
+	left: 0;
+	right: 0;
+	height: var(--vibes-vvh, 100dvh);
+}
+
+.keyboardHidden {
+	display: none;
 }
 
 .timelineFooter {

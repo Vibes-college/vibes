@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div
 	ref="rootEl"
-	:class="[reversed ? '_pageScrollableReversed' : '_pageScrollable', { [$style.mobileTimeline]: chromeEnabled, [$style.navigationHidden]: chromeHidden }]"
+	:class="[reversed ? '_pageScrollableReversed' : '_pageScrollable', { [$style.mobileTimeline]: chromeEnabled, [$style.navigationHidden]: chromeHidden, [$style.barOnly]: chromeEnabled && reversed }]"
 	:data-mobile-timeline="chromeEnabled || undefined"
 	@scroll.passive="onScroll"
 	@pointerdown.passive="armScroll"
@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@wheel.passive="armScroll"
 	@keydown="onKeydown"
 >
-	<MkStickyContainer :hideHeader="chromeHidden" :hideFooter="chromeHidden">
+	<MkStickyContainer :hideHeader="chromeHidden && !reversed" :hideFooter="chromeHidden && !reversed">
 		<template #header>
 			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" v-bind="pageHeaderPropsWithoutTabs"/>
 			<MkPageHeader v-else v-model:tab="tab" v-bind="pageHeaderProps"/>
@@ -84,14 +84,23 @@ const chromeHidden = computed(() => chromeEnabled.value && !!chrome?.hidden.valu
 const tracker = createScrollChromeTracker();
 let scrollArmed = false;
 
+// Vibes: how far the reader has moved from where the page starts. A chat (reversed) starts at the newest message at
+// the bottom and its scrollTop goes negative going up, so reading older messages counts like scrolling down a
+// timeline: the bottom bar goes away, and comes back on the way down or at the newest message. In a chat only the
+// bottom bar hides; the title and the message box stay.
+function scrolled(el: HTMLElement | null | undefined): number | undefined {
+	if (el == null) return undefined;
+	return props.reversed ? -el.scrollTop : el.scrollTop;
+}
+
 function resetChrome() {
-	tracker.reset(rootEl.value?.scrollTop);
+	tracker.reset(scrolled(rootEl.value));
 	scrollArmed = false;
 	if (chrome && chromeEnabled.value) chrome.hidden.value = false;
 }
 
 function armScroll() {
-	if (!scrollArmed) tracker.reset(rootEl.value?.scrollTop);
+	if (!scrollArmed) tracker.reset(scrolled(rootEl.value));
 	scrollArmed = true;
 }
 
@@ -103,7 +112,8 @@ function onKeydown(event: KeyboardEvent) {
 function onScroll(event: Event) {
 	const el = rootEl.value;
 	if (!el || event.target !== el || !chromeEnabled.value || !chrome) return;
-	if (el.scrollTop <= 12 || chrome.blocked.value) {
+	const top = scrolled(el)!;
+	if (top <= 12 || chrome.blocked.value) {
 		resetChrome();
 		return;
 	}
@@ -111,7 +121,7 @@ function onScroll(event: Event) {
 	if (!scrollArmed) return;
 	const focused = window.document.activeElement;
 	if (focused?.matches(':focus-visible') && focused.closest('[data-timeline-navigation]')) return;
-	chrome.hidden.value = tracker.update(el.scrollTop, el.scrollHeight - el.clientHeight);
+	chrome.hidden.value = tracker.update(top, el.scrollHeight - el.clientHeight);
 }
 
 watch([chromeEnabled, tab, () => chrome?.blocked.value], resetChrome);
@@ -151,6 +161,22 @@ defineExpose({
 
 .navigationHidden {
 	--MI-floatingBottom: env(safe-area-inset-bottom, 0px);
+}
+
+// Vibes: a chat with the bottom bar away: the message box goes down to the bottom edge, clear of the home indicator.
+.barOnly.navigationHidden {
+	--MI-stickyBottom: 0px;
+	--vibes-chatBottomPad: env(safe-area-inset-bottom, 0px);
+}
+
+// Keyboard up (lojo/keyboard.ts): the bottom bar is gone, so nothing is kept clear for it.
+:global(html.vibes-kb-open) .mobileTimeline {
+	--MI-stickyBottom: 0px;
+	--vibes-chatBottomPad: 0px;
+
+	.body {
+		padding-bottom: 0;
+	}
 }
 
 .footerTabs {

@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="!mock && sourceText !== '' && (canSpeak || englishStatus.available || createMode)" :class="[$style.root, { [$style.alignEnd]: align === 'end' }]">
+<div v-if="!mock && sourceText !== '' && (canSpeak || (englishStatus.available && (note != null || hasEnglish(sourceText))) || createMode)" :class="[$style.root, { [$style.alignEnd]: align === 'end' }]">
 	<div :class="$style.actions">
 		<button v-if="canSpeak" class="_button" :class="[$style.action, { [$style.active]: speakingKey === `${uid}:post` }]" :aria-pressed="speakingKey === `${uid}:post`" @click="speakPost">
 			<i :class="[speakIcon(`${uid}:post`), { [$style.spin]: loadingKey === `${uid}:post` }]"></i>
@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i class="ti ti-microphone"></i>
 			{{ currentVoice?.name ?? englishLabels.voice }}
 		</button>
-		<button v-if="englishStatus.available && !createMode" class="_button" :class="[$style.action, { [$style.active]: panelOpen }]" :aria-expanded="panelOpen" @click="toggle">
+		<button v-if="englishStatus.available && !createMode && (note != null || hasEnglish(sourceText))" class="_button" :class="[$style.action, { [$style.active]: panelOpen }]" :aria-expanded="panelOpen" @click="toggle">
 			<i class="ti ti-language"></i>
 			{{ panelOpen ? englishLabels.hide : englishLabels.explain }}
 		</button>
@@ -88,7 +88,7 @@ import { DI } from '@/di.js';
 import { englishLabels } from '@/lojo/english/labels.js';
 import { englishErrorText, englishStatus, explainNote, explainText, loadEnglishStatus } from '@/lojo/english/api.js';
 import { currentVoice, loadingKey, openVoiceMenu, speakingKey, speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
-import { looksEnglish, speechText } from '@/lojo/english/text.js';
+import { hasEnglish, looksEnglish, speechText } from '@/lojo/english/text.js';
 import { isSaved, loadWordbook, reloadWordbook, toggleWord } from '@/lojo/english/wordbook.js';
 import { createLabels } from '@/lojo/create/labels.js';
 import { canCreateFrom, loadCreateState } from '@/lojo/create/state.js';

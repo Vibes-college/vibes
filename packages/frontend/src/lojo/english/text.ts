@@ -31,6 +31,13 @@ export function looksEnglish(text: string | null | undefined): boolean {
 	return count(plain, latinRe) >= 6 && !looksChinese(text);
 }
 
+// Any English word at all (two letters or more, links and handles left out): in chats, 翻译讲解 shows only then;
+// a message in Chinese alone has nothing to explain (founder, 2026-11-11).
+export function hasEnglish(text: string | null | undefined): boolean {
+	if (!text) return false;
+	return /[A-Za-z]{2,}/.test(stripMarkup(text));
+}
+
 // Leading @mentions (a reply's addressees) stay as typed; only the body goes to the AI.
 export function splitMentions(text: string): { prefix: string; body: string } {
 	const prefix = text.match(/^(?:\s*@[\w.-]+(?:@[\w.-]+)?)+\s+/)?.[0] ?? '';

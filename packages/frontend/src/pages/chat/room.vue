@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :reversed="tab === 'chat'" :tabs="headerTabs" :actions="headerActions">
+<PageWithHeader v-model:tab="tab" :reversed="tab === 'chat'" :tabs="headerTabs" :actions="headerActions" autoHideNavigation>
 	<div v-if="tab === 'chat'" class="_spacer" style="--MI_SPACER-w: 700px;">
 		<div class="_gaps">
 			<div v-if="initializing">
@@ -138,7 +138,7 @@ const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-// Vibes: AI tutor accounts get "AI 英语助教" under their name.
+// Vibes: AI tutor accounts get "AI 学习导师" under their name (chatLabels.aiTutor).
 const tutorIds = ref<string[]>([]);
 (misskeyApi as unknown as (endpoint: string) => Promise<string[]>)('lojo/tutor/ids').then(ids => { tutorIds.value = ids; }, () => {});
 const room = ref<Misskey.entities.ChatRoom | null>(null);
@@ -531,6 +531,9 @@ definePage(computed(() => {
 .footer {
 	width: 100%;
 	padding-top: 8px;
+	// Vibes: room for the home indicator when the bottom bar is away (PageWithHeader.vue).
+	padding-bottom: var(--vibes-chatBottomPad, 0px);
+	box-sizing: border-box;
 }
 
 .new {
