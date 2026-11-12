@@ -4,8 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
+<!-- Vibes: one rounded box, text on top, tools and a round send button below (founder 2026-11-11 23:30: "没有框框"). -->
 <div
-	:class="$style.root"
+	:class="[$style.root, { [$style.focused]: focused }]"
+	data-chat-form
 	@dragover.stop="onDragover"
 	@drop.stop="onDrop"
 >
@@ -13,23 +15,25 @@ SPDX-License-Identifier: AGPL-3.0-only
 		ref="textareaEl"
 		v-model="text"
 		:class="$style.textarea"
-		class="_acrylic"
-		:placeholder="i18n.ts.inputMessageHere"
+		rows="1"
+		:placeholder="placeholder ?? i18n.ts.inputMessageHere"
 		:readonly="textareaReadOnly"
 		@keydown="onKeydown"
 		@paste="onPaste"
+		@focus="focused = true"
+		@blur="focused = false"
 	></textarea>
-	<div v-if="englishPanel" class="_acrylic" :class="$style.english">
+	<div v-if="englishPanel" :class="$style.english">
 		<MkLojoEnglishCompose mode="compose" :text="text" @use="useEnglish" @close="englishPanel = false"/>
 	</div>
+	<div v-if="file" :class="$style.file" @click="file = null"><i class="ti ti-photo"></i> {{ file.name }} <i class="ti ti-x"></i></div>
 	<footer :class="$style.footer">
-		<div v-if="file" :class="$style.file" @click="file = null">{{ file.name }}</div>
 		<div :class="$style.buttons">
-			<button class="_button" :class="$style.button" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
-			<button class="_button" :class="$style.button" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button class="_button" :class="$style.button" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
+			<button class="_button" :class="$style.button" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 			<button v-if="englishStatus.available" v-tooltip="englishLabels.composeButton" class="_button" :class="[$style.button, { [$style.buttonActive]: englishPanel }]" :aria-label="englishLabels.composeButton" :aria-expanded="englishPanel" @click="toggleEnglish"><i class="ti ti-language"></i></button>
-			<button class="_button" :class="[$style.button, $style.send]" :disabled="!canSend || sending" :title="i18n.ts.send" @click="send">
-				<template v-if="!sending"><i class="ti ti-send"></i></template><template v-if="sending"><MkLoading :em="true"/></template>
+			<button class="_button" :class="$style.send" data-chat-send :disabled="!canSend || sending" :title="i18n.ts.send" :aria-label="i18n.ts.send" @click="send">
+				<template v-if="!sending"><i class="ti ti-arrow-up"></i></template><template v-if="sending"><MkLoading :em="true"/></template>
 			</button>
 		</div>
 	</footer>
@@ -58,6 +62,7 @@ import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
 const props = defineProps<{
 	user?: Misskey.entities.UserDetailed | null;
 	room?: Misskey.entities.ChatRoom | null;
+	placeholder?: string; // Vibes: "跟 Vibi 说点什么…" in a chat with Vibi
 }>();
 
 const textareaEl = shallowRef<HTMLTextAreaElement>();
@@ -67,6 +72,7 @@ const text = ref<string>('');
 const file = ref<Misskey.entities.DriveFile | null>(null);
 const sending = ref(false);
 const textareaReadOnly = ref(false);
+const focused = ref(false);
 let autocompleteInstance: Autocomplete | null = null;
 
 const canSend = computed(() => (text.value != null && text.value !== '') || file.value != null);
@@ -103,6 +109,17 @@ function getDraftKey() {
 }
 
 watch([text, file], saveDraft);
+
+// Vibes: one line when empty, taller as the text grows, up to about five lines, then it scrolls inside the box
+// (field-sizing is not in every Safari yet, so size it by hand; the cap is max-height in the style).
+function fitHeight() {
+	const el = textareaEl.value;
+	if (el == null) return;
+	el.style.height = 'auto';
+	el.style.height = `${el.scrollHeight}px`;
+}
+
+watch(text, () => nextTick(fitHeight));
 
 async function onPaste(ev: ClipboardEvent) {
 	if (!ev.clipboardData) return;
@@ -323,6 +340,7 @@ onMounted(() => {
 		text.value = draft.data.text;
 		file.value = draft.data.file;
 	}
+	nextTick(fitHeight);
 });
 
 onBeforeUnmount(() => {
@@ -334,11 +352,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" module>
+// Vibes: the message box (founder 2026-11-11 23:30). 12px from the sides, 8px from the bottom; the page footer adds the
+// home indicator (room.vue / PageWithHeader.vue) so this stays the same with the bottom bar folded, out, or the keyboard up.
 .root {
 	position: relative;
-	border-bottom: none;
-	border-radius: 14px 14px 0 0;
+	box-sizing: border-box;
+	width: calc(100% - 24px);
+	max-width: 676px;
+	margin: 0 auto 8px;
+	border-radius: 22px;
+	border: 1px solid color-mix(in srgb, var(--MI_THEME-fg) 9%, transparent);
+	background: var(--MI_THEME-panel);
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 	overflow: clip;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.focused {
+	border-color: color-mix(in srgb, var(--MI_THEME-accent) 55%, transparent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--MI_THEME-accent) 14%, transparent), 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .textarea {
@@ -347,57 +379,105 @@ onBeforeUnmount(() => {
 	width: 100%;
 	min-width: 100%;
 	max-width: 100%;
-	min-height: 80px;
+	// One line empty; about five lines at most, then it scrolls inside the box.
+	min-height: 0;
+	max-height: calc(1.45em * 5 + 12px);
+	overflow-y: auto;
 	margin: 0;
-	padding: 16px 16px 0 16px;
+	padding: 10px 16px 2px;
 	resize: none;
 	font-size: 1em;
+	line-height: 1.45;
 	font-family: inherit;
 	outline: none;
 	border: none;
 	border-radius: 0;
 	box-shadow: none;
 	box-sizing: border-box;
+	background: transparent;
 	color: var(--MI_THEME-fg);
-	field-sizing: content;
+
+	&::placeholder {
+		color: color-mix(in srgb, var(--MI_THEME-fg) 45%, transparent);
+	}
 }
 
 // Vibes: not sticky (founder's iPhone, 2026-11-11: after the keyboard closed, the send row was gone until she
 // scrolled). The form already sits in the page's sticky footer; a second sticky inside it, in a box with overflow: clip,
 // was placed below the box by iOS Safari after the keyboard changed the page height, and clipped away.
 .footer {
-	background: var(--MI_THEME-panel);
+	padding: 0 6px 6px;
 }
 
 .file {
-	padding: 8px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 4px 12px 0;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	background: color-mix(in srgb, var(--MI_THEME-fg) 6%, transparent);
 	cursor: pointer;
 }
 
 .buttons {
 	display: flex;
+	align-items: center;
 }
 
-.button {
-	height: 50px;
-	aspect-ratio: 1;
+// (.buttons > so it wins over the global _button colour)
+.buttons > .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 18px;
+	font-size: 20px;
+	color: color-mix(in srgb, var(--MI_THEME-fg) 55%, transparent);
 
 	&:hover {
 		color: var(--MI_THEME-accent);
+		background: color-mix(in srgb, var(--MI_THEME-accent) 8%, transparent);
 	}
 }
-.send {
+
+.buttons > .send {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	margin-left: auto;
-	color: var(--MI_THEME-accent);
+	width: 34px;
+	height: 34px;
+	border-radius: 50%;
+	font-size: 18px;
+	color: #fff;
+	background: var(--MI_THEME-accent);
+	transition: background 0.15s ease, transform 0.1s ease;
+
+	> i {
+		-webkit-text-stroke: 0.6px currentColor;
+	}
+
+	&:active:not(:disabled) {
+		transform: scale(0.94);
+	}
+
+	&:disabled {
+		cursor: default;
+		color: #fff;
+		background: color-mix(in srgb, var(--MI_THEME-fg) 16%, transparent);
+	}
 }
 
 // Vibes: the English button while its panel is open, and the panel between the textarea and the buttons.
-.buttonActive {
+.buttons > .buttonActive {
 	color: var(--MI_THEME-accent);
 }
 
 .english {
-	padding-top: 8px;
+	margin: 6px 10px 0;
 	// The form lives in the sticky page footer; a long result must not push the textarea off a small screen.
 	max-height: 40vh;
 	overflow-y: auto;

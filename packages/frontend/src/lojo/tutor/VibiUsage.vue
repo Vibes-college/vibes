@@ -3,10 +3,11 @@ SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<!-- Vibes: the usage line under a chat with Vibi (lojo/tutor/usage-text.ts). Refreshed when a message comes or goes. -->
+<!-- Vibes: the notice above the message box in a chat with Vibi (lojo/tutor/usage-text.ts), only when the allowance is
+used up (or gems are being used for it) or the whole-site fuse has blown. The everyday percentages live in the usage
+card in the ⋯ menu (VibiUsageSheet.vue; founder, 2026-11-11 23:29). Refreshed when a message comes or goes. -->
 <template>
-<div v-if="usage" :class="[$style.root, usage.state !== 'ok' || usage.siteFullUntil ? $style.done : null]" data-vibi-usage :data-state="usage.siteFullUntil ? 'site-full' : usage.state" role="status">
-	<div v-if="usage.state === 'ok' && !usage.siteFullUntil" :class="$style.bar"><div :class="[$style.fill, pct >= 80 ? $style.high : null]" :style="{ width: `${pct}%` }"></div></div>
+<div v-if="usage && (usage.state !== 'ok' || usage.siteFullUntil)" :class="$style.root" data-vibi-usage :data-state="usage.siteFullUntil ? 'site-full' : usage.state" role="status">
 	<div :class="$style.text">{{ text }}</div>
 </div>
 </template>
@@ -25,7 +26,6 @@ const now = ref(new Date());
 let timer: number | null = null;
 let backTimer: number | null = null;
 
-const pct = computed(() => Math.max(usage.value?.fivePct ?? 0, usage.value?.weekPct ?? 0));
 const text = computed(() => usage.value ? usageText(usage.value, now.value, zh) : '');
 
 async function load() {
@@ -56,47 +56,19 @@ onBeforeUnmount(() => {
 
 <style lang="scss" module>
 .root {
-	margin: 0 auto 6px;
-	max-width: 700px;
-	padding: 0 12px;
+	width: calc(100% - 24px);
+	max-width: 676px;
+	margin: 0 auto 8px;
+	padding: 8px 14px;
 	box-sizing: border-box;
-	font-size: 11px;
-	opacity: 0.75;
-}
-
-.done {
-	opacity: 1;
 	font-size: 12px;
-	padding: 6px 12px;
-	border-radius: 8px;
-	background: var(--MI_THEME-infoWarnBg, rgba(255, 180, 0, 0.12));
-	color: var(--MI_THEME-infoWarnFg, inherit);
-}
-
-.bar {
-	height: 3px;
-	border-radius: 2px;
-	background: var(--MI_THEME-divider);
-	overflow: hidden;
-	margin-bottom: 3px;
-}
-
-.fill {
-	height: 100%;
-	background: var(--MI_THEME-accent);
-}
-
-.high {
-	background: var(--MI_THEME-warn);
+	line-height: 1.5;
+	border-radius: 14px;
+	background: color-mix(in srgb, #D9962B 12%, var(--MI_THEME-panel));
+	color: var(--MI_THEME-fg);
 }
 
 .text {
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.done .text {
 	white-space: normal;
 }
 </style>

@@ -60,3 +60,22 @@ export function usageText(u: VibiUsage, now: Date, zh: boolean): string {
 	const five = zh ? `5 小时内已用 ${u.fivePct}%` : `Last 5 hours: ${u.fivePct}%`;
 	return `${week} · ${five}`;
 }
+
+// The usage card in the chat's ⋯ menu (founder, 2026-11-11 23:29): one line under each bar.
+// 5 hours: "约 2 小时 15 分后恢复"; it rolls, so this is when the oldest use in the window drops out.
+export function fiveBackText(u: VibiUsage, now: Date, zh: boolean): string {
+	if (u.fivePct <= 0 || u.fiveResetAt == null) return zh ? '还没用，随时可聊' : 'Nothing used yet';
+	const mins = Math.max(1, Math.ceil((new Date(u.fiveResetAt).getTime() - now.getTime()) / 60000));
+	const h = Math.floor(mins / 60);
+	const m = mins % 60;
+	if (zh) return `约 ${h > 0 ? `${h} 小时 ` : ''}${h > 0 && m === 0 ? '' : `${m} 分`}后恢复`.replace(' 后', '后');
+	return `Back in about ${h > 0 ? `${h}h ` : ''}${h > 0 && m === 0 ? '' : `${m}m`}`.trim();
+}
+
+// The week: "周四 14:00 恢复", always the weekday and time, in the viewer's own time zone.
+export function weekBackText(u: VibiUsage, zh: boolean): string {
+	if (u.weekPct <= 0 || u.weekResetAt == null) return zh ? '本周还没用' : 'Nothing used this week';
+	const at = new Date(u.weekResetAt);
+	const hm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+	return zh ? `${WEEKDAYS_ZH[at.getDay()]} ${hm} 恢复` : `Resets ${WEEKDAYS_EN[at.getDay()]} ${hm}`;
+}

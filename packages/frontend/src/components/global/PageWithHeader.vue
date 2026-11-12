@@ -232,6 +232,13 @@ defineExpose({
 	--MI-floatingBottom: env(safe-area-inset-bottom, 0px);
 }
 
+// Vibes: a chat (reversed) keeps its message box in the sticky footer, so the timeline's room for the floating post
+// button (72px + 12px or the home indicator) is just empty space between the last message and the box (founder 11-11
+// 23:29: too much wasted). The footer itself keeps clear of the bar and the home indicator.
+.mobileTimeline.barOnly .body {
+	padding-bottom: 0;
+}
+
 // Vibes: a chat with the bottom bar away: the message box goes down to the bottom edge, clear of the home indicator.
 .barOnly.navigationHidden {
 	--MI-stickyBottom: 0px;

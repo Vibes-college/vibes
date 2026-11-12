@@ -84,9 +84,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</button>
 					</div>
 				</Transition>
-				<!-- Vibes: Vibi's allowance and gems, only in a chat with an AI tutor (lojo/tutor/usage-text.ts). -->
-				<XVibiUsage v-if="initialized && user && tutorIds.includes(user.id)" :tick="messages.length"/>
-				<XForm v-if="initialized" :user="user" :room="room" :class="$style.form"/>
+				<!-- Vibes: in a chat with an AI tutor, a notice only when the allowance is used up or the whole site is paused;
+				the everyday usage is in the ⋯ menu (lojo/tutor/VibiUsageSheet.vue). -->
+				<XVibiUsage v-if="initialized && isTutorChat" :tick="messages.length"/>
+				<XForm v-if="initialized" :user="user" :room="room" :placeholder="isTutorChat ? (lang.startsWith('zh') ? '跟 Vibi 说点什么…' : 'Message Vibi…') : undefined"/>
 			</div>
 		</div>
 	</template>
@@ -94,7 +95,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, computed, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
+import { ref, useTemplateRef, computed, defineAsyncComponent, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { getScrollContainer } from '@@/js/scroll.js';
 import { lang } from '@@/js/config.js';
@@ -148,6 +149,7 @@ const user = ref<Misskey.entities.UserDetailed | null>(null);
 const tutorIds = ref<string[]>([]);
 const tutorTitle = ref('');
 misskeyApi('lojo/tutor/public').then(res => { tutorIds.value = res.ids; tutorTitle.value = res.title; }, () => {});
+const isTutorChat = computed(() => user.value != null && tutorIds.value.includes(user.value.id));
 // The AI's title only in the Chinese UI; in other languages just the name (founder, 2026-11-11: English shows only "Vibi").
 const showTutorTitle = lang.startsWith('zh');
 const room = ref<Misskey.entities.ChatRoom | null>(null);
@@ -452,6 +454,19 @@ function showMenu(ev: PointerEvent) {
 		}
 	}
 
+	// Vibes: Vibi's usage card (founder, 2026-11-11 23:29: not under the message box, in the ⋯ menu).
+	if (isTutorChat.value) {
+		menuItems.push({
+			text: lang.startsWith('zh') ? '用量' : 'Usage',
+			icon: 'ti ti-gauge',
+			action: () => {
+				const { dispose } = os.popup(defineAsyncComponent(() => import('@/lojo/tutor/VibiUsageSheet.vue')), {}, {
+					closed: () => dispose(),
+				});
+			},
+		});
+	}
+
 	os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
 }
 
@@ -540,7 +555,10 @@ definePage(computed(() => {
 
 .footer {
 	width: 100%;
-	padding-top: 8px;
+	// Vibes: with the list's own 12px below the last message, about 14px between it and the message box.
+	padding-top: 2px;
+	// Vibes: one colour with the page behind it (founder 11-11 23:30: no two-tone band); messages slide under it.
+	background: var(--MI_THEME-bg);
 	// Vibes: room for the home indicator when the bottom bar is away (PageWithHeader.vue).
 	padding-bottom: var(--vibes-chatBottomPad, 0px);
 	box-sizing: border-box;
@@ -568,12 +586,6 @@ definePage(computed(() => {
 
 .footer {
 
-}
-
-.form {
-	margin: 0 auto;
-	width: 100%;
-	max-width: 700px;
 }
 
 // Vibes: lined up with the form, on the other person's side.
