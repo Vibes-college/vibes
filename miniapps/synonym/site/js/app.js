@@ -547,10 +547,11 @@ async function startGame(daily = false) {
 	miaSay(daily ? '今天人人都是这一屏。<b>清完就停表</b>，看你几秒。' : '这屏藏着 1 对<b>长得像</b>的陷阱，别配它。');
 	$('#combo').style.opacity = 0; $('.boardwrap').classList.remove('fire');
 	$$('.boardwrap .note, #wire').forEach(n => n.remove());
-	drawHearts(); drawHud();
+	drawHearts();
 	const ms = daily ? DAILY_MS : (Number(qs.get('roundms')) || ROUND_MS);
 	$('#bar').style.transform = 'scaleX(1)'; $('#clock').textContent = `${ms / 60000 | 0}:${String(Math.round(ms / 1000) % 60).padStart(2, '0')}`; $('.timer').classList.remove('hot');
 	renderScreen(false);
+	drawHud(); // 先发牌再画顶栏：今日一屏的「还剩 N 对」要等 drawScreen 算出 G.left
 	$$('#board .card').forEach(c => { c.style.visibility = 'hidden'; });
 	const cnt = $('#count');
 	for (const n of [3, 2, 1]) {
