@@ -30,7 +30,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'photo-words',
 		name: '拍照单词',
 		icon: 'ti ti-camera',
-		link: { kind: 'external', href: '/photo/index.html' },
+		link: { kind: 'external', href: '/apps/photo/' },
 		intro: {
 			summary: '拍一张照片，点一下你想学的东西，AI 帮你抠成贴纸，配上单词卡贴到墙上。',
 			audience: '想通过身边实物学英语单词的人。',
