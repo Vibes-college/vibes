@@ -471,6 +471,13 @@ onBeforeUnmount(() => {
 	}
 }
 
+// Dark mode: the light text colour at 16% reads as a lit button on navy, so the greyed-out send is dimmed further
+// (faint fill, grey arrow) to look as unclickable as the grey one in light mode.
+html[data-color-scheme=dark] .buttons > .send:disabled {
+	color: color-mix(in srgb, var(--MI_THEME-fg) 38%, transparent);
+	background: color-mix(in srgb, var(--MI_THEME-fg) 8%, transparent);
+}
+
 // Vibes: the English button while its panel is open, and the panel between the textarea and the buttons.
 .buttons > .buttonActive {
 	color: var(--MI_THEME-accent);
