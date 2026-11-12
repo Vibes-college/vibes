@@ -479,6 +479,10 @@ export * as 'lojo/gems/admin-adjust' from './endpoints/lojo/gems/admin-adjust.js
 export * as 'lojo/gems/grant-invite' from './endpoints/lojo/gems/grant-invite.js';
 export * as 'lojo/gems/config' from './endpoints/lojo/gems/config.js';
 export * as 'lojo/tutor/pilot-tool' from './endpoints/lojo/tutor/pilot-tool.js';
+export * as 'lojo/apps/register' from './endpoints/lojo/apps/register.js';
+export * as 'lojo/apps/report' from './endpoints/lojo/apps/report.js';
+export * as 'lojo/apps/list' from './endpoints/lojo/apps/list.js';
+export * as 'lojo/apps/recent' from './endpoints/lojo/apps/recent.js';
 export * as 'lojo/tutor/quest-poke' from './endpoints/lojo/tutor/quest-poke.js';
 export * as 'lojo/gates/progress' from './endpoints/lojo/gates/progress.js';
 export * as 'lojo/gates/start' from './endpoints/lojo/gates/start.js';

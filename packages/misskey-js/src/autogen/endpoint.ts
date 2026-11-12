@@ -489,6 +489,12 @@ import type {
 	LojoAgentEnglishResponse,
 	LojoAgentPromptRequest,
 	LojoAgentPromptResponse,
+	LojoAppsListResponse,
+	LojoAppsRecentRequest,
+	LojoAppsRecentResponse,
+	LojoAppsRegisterRequest,
+	LojoAppsRegisterResponse,
+	LojoAppsReportRequest,
 	LojoBootReportRequest,
 	LojoConnReportRequest,
 	LojoCreateCopyRequest,
@@ -1131,6 +1137,10 @@ export type Endpoints = {
 	'lojo/admin/boot-report': { req: LojoAdminBootReportRequest; res: LojoAdminBootReportResponse };
 	'lojo/agent/english': { req: LojoAgentEnglishRequest; res: LojoAgentEnglishResponse };
 	'lojo/agent/prompt': { req: LojoAgentPromptRequest; res: LojoAgentPromptResponse };
+	'lojo/apps/list': { req: EmptyRequest; res: LojoAppsListResponse };
+	'lojo/apps/recent': { req: LojoAppsRecentRequest; res: LojoAppsRecentResponse };
+	'lojo/apps/register': { req: LojoAppsRegisterRequest; res: LojoAppsRegisterResponse };
+	'lojo/apps/report': { req: LojoAppsReportRequest; res: EmptyResponse };
 	'lojo/boot-report': { req: LojoBootReportRequest; res: EmptyResponse };
 	'lojo/conn-report': { req: LojoConnReportRequest; res: EmptyResponse };
 	'lojo/create/copy': { req: LojoCreateCopyRequest; res: LojoCreateCopyResponse };

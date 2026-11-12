@@ -2026,6 +2026,12 @@ declare namespace entities {
         LojoAgentEnglishResponse,
         LojoAgentPromptRequest,
         LojoAgentPromptResponse,
+        LojoAppsListResponse,
+        LojoAppsRecentRequest,
+        LojoAppsRecentResponse,
+        LojoAppsRegisterRequest,
+        LojoAppsRegisterResponse,
+        LojoAppsReportRequest,
         LojoBootReportRequest,
         LojoConnReportRequest,
         LojoCreateCopyRequest,
@@ -3013,6 +3019,24 @@ type LojoAgentPromptRequest = operations['lojo___agent___prompt']['requestBody']
 
 // @public (undocumented)
 type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsListResponse = operations['lojo___apps___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsRecentRequest = operations['lojo___apps___recent']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsRecentResponse = operations['lojo___apps___recent']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsRegisterRequest = operations['lojo___apps___register']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsRegisterResponse = operations['lojo___apps___register']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsReportRequest = operations['lojo___apps___report']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type LojoBootReportRequest = operations['lojo___boot-report']['requestBody']['content']['application/json'];

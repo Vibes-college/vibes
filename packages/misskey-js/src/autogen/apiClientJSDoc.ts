@@ -3614,6 +3614,50 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * The mini app directory.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/apps/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The signed-in learner's recent practice across mini apps (the summary index).
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/apps/recent', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * A mini app registers itself in the directory. Needs the mini app service key.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/apps/register', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * A mini app reports one finished set to the summary index. Needs the mini app service key.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/apps/report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Vibes: an anonymous record of how fast the app started on this device, sent once per page load without the account (see src/misc/lojo-boot-report.ts). Stored per day for the stability report.
      * 
      * **Credential required**: *No*
@@ -4318,7 +4362,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook and the mistakes of a quest level. Needs the shared secret, or an admin.
+     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, and the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12). Needs the shared secret, or an admin.
      * 
      * **Credential required**: *No*
      */

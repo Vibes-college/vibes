@@ -16,6 +16,7 @@ import { LojoTutorService } from '@/core/LojoTutorService.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
 import { RoleService } from '@/core/RoleService.js';
+import { LojoAppsService } from '@/core/LojoAppsService.js';
 
 // The shared secret, compared in constant time; with no secret set, only admins get in.
 function secretOk(given: string | null | undefined): boolean {
@@ -29,7 +30,7 @@ function secretOk(given: string | null | undefined): boolean {
 export const meta = {
 	tags: ['lojo', 'admin'],
 	requireCredential: false,
-	description: 'Mia on Mastra: Mia\'s fixed prompt, the progress card, keyword search of the learner\'s chat with Mia, their wordbook and the mistakes of a quest level. Needs the shared secret, or an admin.',
+	description: 'Mia on Mastra: Mia\'s fixed prompt, the progress card, keyword search of the learner\'s chat with Mia, their wordbook, the mistakes of a quest level, and the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12). Needs the shared secret, or an admin.',
 	errors: {
 		noSuchTutor: { message: 'No such tutor.', code: 'NO_SUCH_TUTOR', id: '0b6d1b8e-3a0c-4a51-9a8e-6a0f5c2d7e11' },
 		forbidden: { message: 'Forbidden.', code: 'FORBIDDEN', id: '5c1f3f0e-8f7a-4b8e-9f43-2b1d6f9a0c77' },
@@ -40,13 +41,17 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
-		tool: { type: 'string', enum: ['prompt', 'progress', 'searchChat', 'wordbook', 'levelMistakes'] },
+		tool: { type: 'string', enum: ['prompt', 'progress', 'searchChat', 'wordbook', 'levelMistakes', 'listApps', 'appSpec', 'appCall', 'recentActivity'] },
 		secret: { type: 'string', maxLength: 200, nullable: true },
 		learnerId: { type: 'string', format: 'misskey:id' },
 		tutorId: { type: 'string', format: 'misskey:id', nullable: true },
 		query: { type: 'string', maxLength: 1000 },
 		levelId: { type: 'string', maxLength: 64, nullable: true },
 		limit: { type: 'integer', minimum: 1, maximum: 20, default: 5 },
+		app: { type: 'string', maxLength: 32, nullable: true },
+		path: { type: 'string', maxLength: 100, nullable: true },
+		params: { type: 'object', nullable: true },
+		days: { type: 'integer', minimum: 1, maximum: 90, default: 7 },
 	},
 	required: ['tool', 'learnerId'],
 } as const;
@@ -59,6 +64,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private lojoTutorService: LojoTutorService,
 		private roleService: RoleService,
+		private lojoAppsService: LojoAppsService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (!secretOk(ps.secret) && !(me != null && await this.roleService.isAdministrator(me))) throw new ApiError(meta.errors.forbidden);
@@ -81,6 +87,20 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				}
 				case 'levelMistakes':
 					return { mistakes: await this.lojoTutorService.questMistakes?.(ps.learnerId, ps.levelId ?? null) ?? null };
+				// The mini app tools. Vibi is the only caller for now; what it may read is the directory's grants.
+				case 'listApps':
+					return { apps: await this.lojoAppsService.listFor('vibi') };
+				case 'appSpec': {
+					const app = ps.app ? await this.lojoAppsService.get(ps.app) : null;
+					return app ? this.lojoAppsService.specFor(app, 'vibi') : { error: { code: 'NO_SUCH_APP', message: `no app ${ps.app ?? ''}` } };
+				}
+				case 'appCall': {
+					const query: Record<string, string> = {};
+					for (const [k, v] of Object.entries(ps.params ?? {})) if (v != null && typeof v !== 'object') query[k] = String(v);
+					return await this.lojoAppsService.call('vibi', ps.learnerId, ps.app ?? '', ps.path ?? '', query);
+				}
+				case 'recentActivity':
+					return { lines: await this.lojoAppsService.recent(ps.learnerId, { since: new Date(Date.now() - ps.days * 86400_000), app: ps.app ?? null, limit: ps.limit * 4 }) };
 			}
 		});
 	}
