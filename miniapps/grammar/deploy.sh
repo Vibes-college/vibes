@@ -1,7 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: AGPL-3.0-only
 # 上线语法课小程序（/apps/grammar/）。纯静态：打包好的文件放在 ~/.vibes-apps/static/grammar/<版本>/，
-# 门口的 Caddy 发 ~/.vibes-apps/static/grammar/current/ 里的文件。上线就是把 current 指到新版本，不重启任何容器。
+# 门口的 Caddy 发哪个版本写在 ~/.vibes-apps/static/grammar.root。上线就是改这一行、让门口 caddy reload（平滑换，
+# 不断连接），不重启任何容器。（不用软链接改指向：Mac 的 Docker 文件共享会一直记着旧链接，换完是 400。）
 #   sh miniapps/grammar/deploy.sh            局域网测试站：打包，换上，查门口能打开，打标签 grammar/v<VERSION>
 #   sh miniapps/grammar/deploy.sh --rollback 换回上一次的版本（同 rollback.sh）
 # 正式站（香港）的做法写在 冲刺1111/社区工程/小程序搬家/正式站上线计划.md，要创始人点头，这个脚本现在不碰正式站。
@@ -26,15 +27,19 @@ for f in grammar.js content.js; do
     echo "注意：小程序里的 $f 和社区那份不一样，先跑 node apps/community/scripts/sync-course.mjs"
 done
 
-CUR=$(readlink "$STATIC/current" 2>/dev/null || true)
+CUR=$(cat "$STATE/$APP.current" 2>/dev/null || true)
 docker build -q -f "$HERE/Dockerfile" -t "vibes-app-$APP:$VERSION" "$MINI" >/dev/null
 rm -rf "$STATIC/$VERSION.new"
 C=$(docker create "vibes-app-$APP:$VERSION")
 docker cp -q "$C:/app/dist" "$STATIC/$VERSION.new"; docker rm "$C" >/dev/null
-rm -rf "$STATIC/$VERSION"; mv "$STATIC/$VERSION.new" "$STATIC/$VERSION"
-# 一步换过去：先做一个新的链接，再改名盖掉 current（改名是原子的，换的那一下也不会 404）
-ln -sfn "$VERSION" "$STATIC/.current.$$"
-python3 -c 'import os,sys; os.replace(sys.argv[1], sys.argv[2])' "$STATIC/.current.$$" "$STATIC/current"
+# 发出去的版本目录不改不删（正在发的文件被换掉会出错）：同一个版本号再上，内容必须一样；改了内容就先改 VERSION。
+if [ -d "$STATIC/$VERSION" ]; then
+  diff -rq "$STATIC/$VERSION" "$STATIC/$VERSION.new" >/dev/null || { rm -rf "$STATIC/$VERSION.new"; echo "v$VERSION 已经发过、内容不一样：先改 VERSION 和 CHANGELOG.md"; exit 1; }
+  rm -rf "$STATIC/$VERSION.new"
+else
+  mv "$STATIC/$VERSION.new" "$STATIC/$VERSION"
+fi
+sh "$HERE/serve.sh" "$VERSION"
 [ -n "$CUR" ] && [ "$CUR" != "$VERSION" ] && echo "$CUR" > "$STATE/$APP.prev"
 curl -fsS http://127.0.0.1:4322/apps/$APP/6.1 | grep -q "/apps/$APP/assets/" || { echo "门口 /apps/$APP/ 打不开或不是新文件；退回：sh $HERE/rollback.sh"; exit 1; }
 echo "$VERSION" > "$STATE/$APP.current"

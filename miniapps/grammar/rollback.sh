@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: AGPL-3.0-only
-# 退回语法课小程序：把 current 指回上一次的版本（或指定版本）。纯静态，不碰任何容器。
+# 退回语法课小程序：门口改发上一次的版本（或指定版本）。纯静态，不重启任何容器。
 #   sh miniapps/grammar/rollback.sh          退回 deploy.sh 记下的上一版
 #   sh miniapps/grammar/rollback.sh 0.1.0    退回指定版本（~/.vibes-apps/static/grammar/0.1.0/ 要还在）
 # 要整个退回社区里的旧页面：见 冲刺1111/社区工程/小程序搬家/计划.md「退回」。
@@ -13,9 +13,8 @@ TO=${1:-$(cat "$STATE/$APP.prev" 2>/dev/null || true)}
 LOCK=/tmp/vibes-app-$APP.lock
 mkdir "$LOCK" 2>/dev/null || { echo "$APP 已经在上线或退回"; exit 1; }
 trap 'rmdir "$LOCK"' EXIT
-CUR=$(readlink "$STATIC/current" 2>/dev/null || true)
-ln -sfn "$TO" "$STATIC/.current.$$"
-python3 -c 'import os,sys; os.replace(sys.argv[1], sys.argv[2])' "$STATIC/.current.$$" "$STATIC/current"
+CUR=$(cat "$STATE/$APP.current" 2>/dev/null || true)
+sh "$(dirname "$0")/serve.sh" "$TO"
 [ -n "$CUR" ] && [ "$CUR" != "$TO" ] && echo "$CUR" > "$STATE/$APP.prev"
 echo "$TO" > "$STATE/$APP.current"
 echo "$APP 已退回 v$TO"
