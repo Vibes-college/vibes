@@ -3,7 +3,7 @@
 <template>
 <label :class="$style.root">
 	<span v-if="$slots.prefix" :class="$style.prefix"><slot name="prefix"></slot></span>
-	<input v-model="model" :class="$style.input" :type="type ?? 'text'" :placeholder="placeholder" :autocapitalize="autocapitalize" :aria-label="placeholder"/>
+	<input v-model="model" :class="$style.input" :type="type ?? 'text'" :placeholder="placeholder" :autocapitalize="autocapitalize"/>
 </label>
 </template>
 
