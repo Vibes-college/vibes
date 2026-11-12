@@ -1,0 +1,48 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "听写 dictation", "version": "1", "description": "Vibes 小程序「听写」的只读接口。只返回调用者本人（或授权给调用方的那位用户）的数据。时间都是 ISO 8601（UTC）。没登录时练的只存在那台设备的浏览器里，这里查不到。" },
+  "servers": [{ "url": "/apps/dictation/api/v1" }],
+  "paths": {
+    "/progress": {
+      "get": {
+        "summary": "三组听写各自的进度",
+        "x-vibes-kind": "progress",
+        "responses": { "200": { "description": "items 每组一条：拼写、数字和日期、单复数", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "dictation" }, "kind": { "const": "progress" }, "next": { "type": "null" },
+          "summary": { "type": "object", "properties": {
+            "practised": { "type": "integer", "description": "一共练过几道题（同一道练多次算一道）" },
+            "total": { "type": "integer", "description": "题库一共几道" },
+            "often": { "type": "integer", "description": "常错里现在有几道（错 2 次进，连对 2 次出）" } } },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "set": { "type": "string", "description": "组的 id：spelling / numbers / plural" },
+            "name": { "type": "string", "description": "组名（中文）" },
+            "items": { "type": "integer", "description": "这一组题库几道" },
+            "practised": { "type": "integer", "description": "练过几道" },
+            "right": { "type": "integer", "description": "一共对了几次" },
+            "wrong": { "type": "integer", "description": "一共错了几次（打错又改对不算错）" },
+            "often": { "type": "array", "items": { "type": "string" }, "description": "这一组常错里的词或答案（标准写法）" },
+            "lastAt": { "type": ["string", "null"], "format": "date-time", "description": "这一组最近一次练的时间" } } } } } } } } } }
+      }
+    },
+    "/answers": {
+      "get": {
+        "summary": "练习记录，新的在前：每次存进度时，哪道题多对或多错了几次记一行",
+        "x-vibes-kind": "answers",
+        "parameters": [
+          { "name": "since", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "只要这个时间以后的" },
+          { "name": "until", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "只要这个时间以前的" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "上一页返回的 next" }
+        ],
+        "responses": { "200": { "description": "items 是记录，next 是下一页的 cursor（没有就是 null）。搬家前的练习没有逐次记录，从搬家后开始记", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "dictation" }, "kind": { "const": "answers" }, "next": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "item": { "type": "string", "description": "题的 id" },
+            "word": { "type": ["string", "null"], "description": "这道题的标准答案" },
+            "set": { "type": "string" }, "setName": { "type": "string" },
+            "right": { "type": "integer" }, "wrong": { "type": "integer" },
+            "at": { "type": "string", "format": "date-time" } } } } } } } } } }
+      }
+    }
+  }
+}

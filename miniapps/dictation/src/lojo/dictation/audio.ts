@@ -3,13 +3,25 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 听写's recordings: each item's `say` read by our Fish Audio voices through lojo/english/speech. The server
-// synthesizes each (voice, text) once and keeps it for everyone; this page also keeps the URLs it was given.
+// 听写's recordings. Signed in: each item's `say` read by our Fish Audio voices through the community's
+// lojo/english/speech, as before the move (the server synthesizes each (voice, text) once and keeps it for everyone;
+// this page also keeps the URLs it was given). Not signed in (the free try, formerly /dictation-try/): the course's own
+// recordings in audio/<id>.mp3, made once with the open Kokoro model (tools/recordings.mjs); found by the text they read.
 import { computed, ref } from 'vue';
+import recordings from './recordings.json';
 import type { EnglishVoice } from '@/lojo/english/api.js';
 import { englishStatus, speechUrl } from '@/lojo/english/api.js';
 import { voiceId } from '@/lojo/english/speech.js';
 import { takeAudioFocus } from '@/lojo/audio.js';
+import { $i } from '@/i.js';
+import { APP_BASE } from '@/router.js';
+
+const bySay = new Map(Object.entries(recordings as Record<string, { say: string; v: string }>).map(([id, r]) => [r.say, `${APP_BASE}audio/${id}.mp3?v=${r.v}`]));
+
+// Not signed in: only the course's recordings (a gate's gaps need an account anyway).
+export const ownRecordings = $i == null;
+// Whether there is anything to play at all: the community's voices, or the recordings when not signed in.
+export const canPlay = computed(() => ownRecordings || englishStatus.value.speech);
 
 // Test recordings are mostly British: a British voice, unless the learner has picked one for read-aloud.
 export const dictationVoice = computed<EnglishVoice | null>(() => {
@@ -58,6 +70,10 @@ export function unlockAudio(): void {
 }
 
 export function audioUrl(text: string): Promise<string> {
+	if (ownRecordings) {
+		const own = bySay.get(text);
+		return own != null ? Promise.resolve(own) : Promise.reject({ code: 'NO_RECORDING' });
+	}
 	const voice = dictationVoice.value?.id ?? '';
 	const key = `${voice}|${text}`;
 	let p = urls.get(key);

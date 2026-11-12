@@ -3,10 +3,13 @@ SPDX-FileCopyrightText: syuilo and misskey-project
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<!-- 听写 (/dictation): listen to a line and type what goes in its gap, the way IELTS listening gap-fills are marked.
-Three sets (spelling, numbers and dates, singular and plural), 10 at a time from each set's pool; 常错 words come back
-until they are right twice in a row. From a gate's result (/dictation?gate=<attempt>&tag=spelling), the gaps that gate
-missed. Questions: courses/english/ielts/dictation.js in the Vibes workspace; progress: the account registry. -->
+<!-- 听写 (/apps/dictation/, the mini app; until 11-12 the community page /dictation and the free try /dictation-try/):
+listen to a line and type what goes in its gap, the way IELTS listening gap-fills are marked. Three sets (spelling,
+numbers and dates, singular and plural), 10 at a time from each set's pool; 常错 words come back until they are right
+twice in a row. From a gate's result (?gate=<attempt>&tag=spelling), the gaps that gate missed. Questions:
+courses/english/ielts/dictation.js in the Vibes workspace. Signed in: progress kept by this mini app for the account,
+missed words into the wordbook, sets count for 闯关. Not signed in: practice all the same with the course's own
+recordings, progress only in this browser, and at the end the placement test as the next step. -->
 <template>
 <div :class="$style.root" data-dictation>
 	<MkPageHeader :canOmitTitle="false"/>
@@ -33,6 +36,9 @@ missed. Questions: courses/english/ielts/dictation.js in the Vibes workspace; pr
 				@startOften="startOften"
 				@voice="openVoiceMenu"
 			/>
+			<p v-if="phase === 'entry' && !signedIn" :class="$style.guest">
+				{{ dictLabels.guestNote }} <a href="/" class="_link">{{ dictLabels.guestSignIn }}</a>
+			</p>
 			<XPractice
 				v-else-if="phase === 'practice' && round"
 				:round="round"
@@ -61,6 +67,10 @@ missed. Questions: courses/english/ielts/dictation.js in the Vibes workspace; pr
 				@map="toMap"
 				@home="exit"
 			/>
+			<a v-if="phase === 'end' && !signedIn" :href="quizHref" :class="$style.quiz" data-quiz>
+				<span :class="$style.quizText"><b>{{ dictLabels.quizTitle }}</b><small>{{ dictLabels.quizText }}</small></span>
+				<i class="ti ti-arrow-right" aria-hidden="true"></i>
+			</a>
 		</template>
 	</div>
 </div>
@@ -79,7 +89,7 @@ import { gateItems, toContent } from '@/lojo/dictation/content.js';
 import { DICTATION_TAGS, countRun, loadCarry } from '@/lojo/dictation/carry.js';
 import { drawRound, oftenIds, recordAnswer, seenCount, shuffle } from '@/lojo/dictation/logic.js';
 import { progress, progressLoaded, reloadProgress, saveProgress } from '@/lojo/dictation/store.js';
-import { dictationVoice, prefetchAudio, stopAudio, unlockAudio } from '@/lojo/dictation/audio.js';
+import { canPlay, dictationVoice, prefetchAudio, stopAudio, unlockAudio } from '@/lojo/dictation/audio.js';
 import { blip, unlockSfx } from '@/lojo/dictation/sfx.js';
 import { dictLabels, dictLang } from '@/lojo/dictation/labels.js';
 import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
@@ -90,6 +100,7 @@ import { coursePath } from '@/lojo/route/my-maps.js';
 import { definePage } from '@/page.js';
 import { useRouter } from '@/router.js';
 import { questFrom, reportQuestSet } from '@/lojo/quest-refill.js';
+import { $i } from '@/i.js';
 
 const props = defineProps<{
 	// from a gate's result: its attempt, and the tag of the card that was opened
@@ -113,7 +124,14 @@ const savedIds = ref<string[]>([]);
 const guideName = ref<string | null>(null);
 let roundSeq = 0;
 
-const speech = computed(() => englishStatus.value.speech);
+const speech = canPlay;
+const signedIn = $i != null;
+// Not signed in, the next step after a round is the placement test, as on the free try: ?src=dictation-try keeps
+// counting where people came from; the address this page was opened with (?src=xhs…) goes along as via.
+const quizHref = (() => {
+	const via = new URLSearchParams(location.search).get('src');
+	return `/quest?src=dictation-try${via ? `&via=${encodeURIComponent(via)}` : ''}`;
+})();
 const voice = computed(() => (dictationVoice.value ? { name: dictationVoice.value.name, accent: dictationVoice.value.accent } : null));
 
 // The gate's missed gaps of the card that was opened (all of them for an unknown tag).
@@ -148,7 +166,7 @@ async function load() {
 	}
 	carry.value = props.gate ? loadCarry(props.gate) : null;
 	phase.value = 'entry';
-	if (guideName.value == null) {
+	if (guideName.value == null && signedIn) {
 		guideTitle(content.value.guide).then(title => {
 			guideName.value = title;
 		}, () => { /* the link says 看攻略 without the title */ });
@@ -228,8 +246,8 @@ function onAnswer(answered: { verdict: Verdict; replays: number }) {
 		recordAnswer(progress.value, item.id, answered.verdict.correct);
 		void saveProgress();
 	}
-	// A missed spelling word goes into the wordbook, with the sentence it was heard in.
-	if (!answered.verdict.correct && item.word != null) {
+	// A missed spelling word goes into the wordbook (the account's), with the sentence it was heard in.
+	if (signedIn && !answered.verdict.correct && item.word != null) {
 		addWord(item.word, 'dictation').then(added => {
 			if (added && round.value === r) savedIds.value = [...savedIds.value, item.id];
 		}, () => { /* not saved; practice goes on */ });
@@ -244,7 +262,7 @@ function onNext() {
 		prefetch(index.value + 1);
 	} else {
 		r.endedAt = Date.now();
-		reportQuestSet('dictation', `${r.kind}:${r.setId ?? 'mixed'}`, r.results.length, r.startedAt, r.endedAt, questFrom(router.getCurrentFullPath()) != null);
+		if (signedIn) reportQuestSet('dictation', `${r.kind}:${r.setId ?? 'mixed'}`, r.results.length, r.startedAt, r.endedAt, questFrom(router.getCurrentFullPath()) != null);
 		if (r.kind === 'gate' && carry.value != null) carry.value = { ...carry.value, runs: countRun(carry.value.attemptId) };
 		void show('end');
 	}
@@ -297,6 +315,41 @@ definePage(() => ({ title: dictLabels.pageTitle, icon: 'ti ti-headphones' }));
 	margin: 0 auto;
 	padding: 16px 16px 48px;
 	box-sizing: border-box;
+}
+
+.guest {
+	margin: 12px 4px 0;
+	font-size: 0.85em;
+	line-height: 1.6;
+	opacity: 0.8;
+}
+
+.quiz {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 16px 0 0;
+	padding: 14px 16px;
+	border-radius: 16px;
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-fg);
+	text-decoration: none;
+}
+
+.quizText {
+	flex: 1;
+	min-width: 0;
+
+	b {
+		display: block;
+		margin-bottom: 2px;
+	}
+
+	small {
+		display: block;
+		line-height: 1.55;
+		opacity: 0.85;
+	}
 }
 
 .notice {

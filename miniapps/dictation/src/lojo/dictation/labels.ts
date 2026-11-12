@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// Copy for 听写 (/dictation), kept apart from upstream Crowdin translations. Chinese first, short sentences.
+// Copy for 听写 (/apps/dictation/), kept apart from upstream Crowdin translations. Chinese first, short sentences.
 // Never promise a score: a gate's band is a practice level.
 import { learnLang } from '@/lojo/learn-lang.js';
 import type { DictLimit } from './mark.js';
@@ -18,6 +18,10 @@ const zh = {
 	loadFailed: '听写没加载出来。',
 	retry: '重试',
 	progressFailed: '练习记录没读出来，这次练的先不存。',
+	guestNote: '没登录也能练；练习记录只存在这台设备的浏览器里。',
+	guestSignIn: '登录后跟着账号走',
+	quizTitle: '下一步：做一次定级测试',
+	quizText: '听力也有定级测试：看看自己现在大概在哪一档，从对应的那一站开始闯关。免费注册就能做。',
 
 	// entry
 	eyebrow: '雅思听力 · 小程序',
@@ -162,6 +166,10 @@ const en: typeof zh = {
 	loadFailed: 'Dictation didn’t load.',
 	retry: 'Retry',
 	progressFailed: 'Your practice record didn’t load, so this time won’t be saved.',
+	guestNote: 'You can practise without signing in; progress stays in this browser only.',
+	guestSignIn: 'Sign in to keep it with your account',
+	quizTitle: 'Next: take a placement test',
+	quizText: 'Listening has a placement test too: see roughly where you are now and start the gates from that stop. Free to sign up.',
 
 	eyebrow: 'IELTS LISTENING · PRACTICE',
 	heading: 'Dictation: spelling, numbers, plurals',

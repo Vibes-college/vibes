@@ -5,10 +5,11 @@
 
 // From a gate's result to 听写: the gaps missed there with a dictation tag (spelling, numbers, plural) go along, so the
 // learner practises exactly those. The result page keeps them in this tab's sessionStorage under the attempt and
-// links to /dictation?gate=<attemptId>&tag=<tag>; a reload of either page finds them again.
+// links to /apps/dictation/?gate=<attemptId>&tag=<tag> (the dictation mini app, same origin and tab, so it reads them
+// there); a reload of either page finds them again.
 import type { GateAttempt, GateLimit, GateReason, GateResult } from '@/lojo/gates/player.js';
 
-export const DICTATION_PATH = '/dictation';
+export const DICTATION_PATH = '/apps/dictation/';
 // The tags whose PRACTICE app (courses/english/ielts/content.js) is dictation.
 export const DICTATION_TAGS: readonly string[] = ['spelling', 'numbers', 'plural'];
 

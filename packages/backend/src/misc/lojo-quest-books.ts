@@ -240,7 +240,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "dictation",
 			"zh": "听写",
-			"path": "/dictation"
+			"path": "/apps/dictation/"
 		},
 		"verify": "闯关第一章听力 1-1「名字和字母」、1-2「数字和日期」、1-3「他改口了」。录音只放一遍，跟考场一样。",
 		"verifyUrl": "/quest?level=1-1",
@@ -436,7 +436,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "dictation",
 			"zh": "听写 · 常错词",
-			"path": "/dictation"
+			"path": "/apps/dictation/"
 		},
 		"verify": "闯关第一章任何一关没过两次的时候。练完错得最多的那一类，再回来打同一关。",
 		"verifyUrl": "/quest",

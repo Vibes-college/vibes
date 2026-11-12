@@ -87,15 +87,11 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/create.vue')),
 	loginRequired: true,
 }, {
-	// 听写: listen and type the gap (spelling, numbers and dates, plurals). ?gate=<attempt>&tag=… practises a gate's misses.
+	// 听写 moved out to its own mini app at /apps/dictation/ (小程序搬出社区, 2026-11-12), together with the free try
+	// /dictation-try/; the old address goes there with its query (?gate=<attempt>&tag=… from a gate's result).
 	name: 'lojo-dictation',
 	path: '/dictation',
-	component: page(() => import('@/pages/lojo/dictation.vue')),
-	loginRequired: true,
-	query: {
-		gate: 'gate',
-		tag: 'tag',
-	},
+	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 0 号线 · 机考打字 moved out to its own mini app at /apps/typing/ (小程序搬出社区, 2026-11-12); the old address
 	// (bookmarks, old links, the app shell kept by the service worker) goes there with its query.

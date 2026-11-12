@@ -90,7 +90,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'dictation',
 		name: '听写',
 		icon: 'ti ti-headphones',
-		link: { kind: 'route', to: '/dictation' },
+		link: { kind: 'external', href: '/apps/dictation/' },
 		intro: {
 			summary: '听一句英语，把空着的词打出来，专门练拼写、数字日期、单复数这几个雅思听力最容易丢分的地方。',
 			audience: '备考雅思听力、容易在拼写和数字上丢分的人。',

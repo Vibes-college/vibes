@@ -249,10 +249,10 @@ export const TAGS = {
    攻略在 courses/english/ielts/guides/：听力 8 篇，阅读 6 篇。选题见 docs/research/english-guides.md。 */
 export const PRACTICE = {
  // 听力和阅读都用的标签，按线分别指定；键是 LINES 里线的 id，写一个值就是两条线都用。
- spelling: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: { path: '/dictation', zh: '听写', en: 'Dictation' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
- numbers: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: { path: '/dictation', zh: '听写', en: 'Dictation' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ spelling: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: { path: '/apps/dictation/', zh: '听写', en: 'Dictation' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ numbers: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: { path: '/apps/dictation/', zh: '听写', en: 'Dictation' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
  'word-limit': { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
- plural: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: { path: '/dictation', zh: '听写', en: 'Dictation' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ plural: { guide: { listening: 'ielts-listening-gaps', reading: 'ielts-reading-completion' }, app: { path: '/apps/dictation/', zh: '听写', en: 'Dictation' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
  form: { guide: { listening: 'ielts-listening-predict', reading: 'ielts-reading-completion' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
  sentence: { guide: { reading: 'ielts-reading-completion' }, app: null, topics: { reading: ['雅思阅读'] } },
  choice: { guide: { listening: 'ielts-listening-choice', reading: 'ielts-reading-choice' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },

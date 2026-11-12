@@ -263,7 +263,7 @@ describe('the gaps a gate missed go along to dictation', () => {
 		// no line of the recording names it: the answer is read the way a recording would
 		expect(carry.gaps[1]).toMatchObject({ ignoreSpaces: true, say: 'oh one six one five five five oh one nine nine.' });
 		expect(carryFromResult([{ result: { ...result, items: [result.items[2]] }, attempt }], '听力 4.5', '1.2')).toBeNull();
-		expect(carryPath('att1', 'spelling')).toBe('/dictation?gate=att1&tag=spelling');
+		expect(carryPath('att1', 'spelling')).toBe('/apps/dictation/?gate=att1&tag=spelling');
 	});
 
 	test('as items: a word letter by letter, a number on Enter, marked as the gate marked it', () => {

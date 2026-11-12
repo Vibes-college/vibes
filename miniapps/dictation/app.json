@@ -1,0 +1,12 @@
+{
+  "id": "dictation",
+  "name": "听写",
+  "summary": "雅思听力填空的三样基本功：单词拼写、数字和日期、单复数。听一句，把空里的内容打出来；错 2 次进常错，连对 2 次出来。",
+  "base": "/apps/dictation/",
+  "spec": "/apps/dictation/api.json",
+  "kinds": {
+    "progress": "三组（拼写、数字和日期、单复数）各练过几道、对错几次、常错里还有哪些词",
+    "answers": "每次练的记录（哪道题、哪一组、这次对几次错几次、什么时候）"
+  },
+  "defaultGrants": { "vibi": ["progress", "answers"] }
+}

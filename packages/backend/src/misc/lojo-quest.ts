@@ -304,7 +304,7 @@ export function gearPath(gear: string | null | undefined): { app: string; path: 
 	if (app === 'wordbook') return { app, path: '/apps/wordbook/', zh: '生词本', givesHeart: true };
 	if (app === 'synonym-match') return { app, path: `/synonym/index.html?topic=${encodeURIComponent(stop ?? 'general')}`, zh: '同义词连连看', givesHeart: true };
 	if (app === 'graded-reading') return { app, path: 'https://vibes.college/read/artisan/', zh: '分级阅读', givesHeart: false };
-	return { app: 'dictation', path: '/dictation', zh: '听写', givesHeart: true };
+	return { app: 'dictation', path: '/apps/dictation/', zh: '听写', givesHeart: true };
 }
 
 // A book's gear for this learner: 'level' is the level's own gear; 生词本 with too few cards today goes to the

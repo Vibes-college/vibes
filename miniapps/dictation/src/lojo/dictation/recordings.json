@@ -1,0 +1,346 @@
+{
+ "sp-accommodation": {
+  "say": "The price includes accommodation for three nights. Accommodation.",
+  "v": "1d6fbc6fa1c9"
+ },
+ "sp-necessary": {
+  "say": "Is it necessary to book in advance? Necessary.",
+  "v": "ad28d18fd3cd"
+ },
+ "sp-environment": {
+  "say": "The talk is about the local environment. Environment.",
+  "v": "1473da5bb337"
+ },
+ "sp-wednesday": {
+  "say": "The library closes early on Wednesday. Wednesday.",
+  "v": "b5245d884868"
+ },
+ "sp-february": {
+  "say": "The course starts in February. February.",
+  "v": "c4119864a6c3"
+ },
+ "sp-receipt": {
+  "say": "Please keep your receipt in case you need a refund. Receipt.",
+  "v": "4f8578d5b5bc"
+ },
+ "sp-library": {
+  "say": "You can borrow a laptop from the library. Library.",
+  "v": "92ed06b36ab9"
+ },
+ "sp-government": {
+  "say": "The project is paid for by the government. Government.",
+  "v": "e7d2328d3238"
+ },
+ "sp-colleague": {
+  "say": "I'll ask a colleague to show you around. Colleague.",
+  "v": "47aedf3aef38"
+ },
+ "sp-temperature": {
+  "say": "The temperature will drop to five degrees tonight. Temperature.",
+  "v": "7047735fc719"
+ },
+ "sp-colour": {
+  "say": "What colour is your suitcase? Colour.",
+  "v": "5a3fdf56d9d0"
+ },
+ "sp-centre": {
+  "say": "Meet us outside the sports centre. Centre.",
+  "v": "26fb2b083bb1"
+ },
+ "sp-programme": {
+  "say": "The evening programme starts at seven. Programme.",
+  "v": "f4a02556786a"
+ },
+ "sp-cancelled": {
+  "say": "Tomorrow's boat trip has been cancelled. Cancelled.",
+  "v": "338e9f431280"
+ },
+ "sp-organise": {
+  "say": "Who is going to organise the trip? Organise.",
+  "v": "edfe0b45eab1"
+ },
+ "sp-separate": {
+  "say": "Each guest has a separate bathroom. Separate.",
+  "v": "03029f72e3ac"
+ },
+ "sp-questionnaire": {
+  "say": "Please fill in this short questionnaire. Questionnaire.",
+  "v": "02a5698c7821"
+ },
+ "sp-restaurant": {
+  "say": "There's a restaurant on the top floor. Restaurant.",
+  "v": "65117be3c7a7"
+ },
+ "sp-business": {
+  "say": "She runs a small business in town. Business.",
+  "v": "9b4d4d071bea"
+ },
+ "sp-guarantee": {
+  "say": "The bike comes with a two-year guarantee. Guarantee.",
+  "v": "225a3ab58234"
+ },
+ "sp-definitely": {
+  "say": "I'll definitely be there by six. Definitely.",
+  "v": "156ed507e3ce"
+ },
+ "sp-recommend": {
+  "say": "Can you recommend a good hotel near the station? Recommend.",
+  "v": "815d0f33663d"
+ },
+ "sp-address": {
+  "say": "Please write your email address on the form. Address.",
+  "v": "6f54beb8448d"
+ },
+ "sp-beginning": {
+  "say": "Hand in the form at the beginning of the course. Beginning.",
+  "v": "522ba3cfe834"
+ },
+ "sp-immediately": {
+  "say": "Call reception immediately if you lose your key. Immediately.",
+  "v": "827de044c4c8"
+ },
+ "sp-calendar": {
+  "say": "All the club events are on the calendar by the door. Calendar.",
+  "v": "bdc3c22a6665"
+ },
+ "sp-knowledge": {
+  "say": "You don't need any knowledge of French. Knowledge.",
+  "v": "9b816b1c1023"
+ },
+ "sp-insurance": {
+  "say": "Travel insurance is included in the price. Insurance.",
+  "v": "7e5e720ad7fe"
+ },
+ "sp-theatre": {
+  "say": "The theatre is next to the car park. Theatre.",
+  "v": "c510edd57882"
+ },
+ "sp-favourite": {
+  "say": "What's your favourite part of the course? Favourite.",
+  "v": "72f1da041ce4"
+ },
+ "nu-mobile": {
+  "say": "My mobile number is oh seven seven double oh, nine double oh, four six one.",
+  "v": "449ebedaa1a9"
+ },
+ "nu-office": {
+  "say": "The office number is oh one one seven, four nine six, oh eight three two.",
+  "v": "2f05af6ec951"
+ },
+ "nu-home": {
+  "say": "You can call me at home on oh two oh, seven nine four six, oh double one five.",
+  "v": "07d4f7572d34"
+ },
+ "nu-contact": {
+  "say": "It's oh seven seven double oh, nine oh oh, eight one five.",
+  "v": "4600c5ea4fe0"
+ },
+ "nu-ticket": {
+  "say": "A return ticket costs twelve pounds fifty.",
+  "v": "d0876b7bab74"
+ },
+ "nu-deposit": {
+  "say": "The deposit is fifteen pounds. Sorry, I mean fifty pounds.",
+  "v": "3513a52f4ea6"
+ },
+ "nu-rent": {
+  "say": "The rent is one thousand, two hundred and fifty pounds a month.",
+  "v": "76f84f889bab"
+ },
+ "nu-room": {
+  "say": "A double room costs eighty-nine dollars ninety-five a night.",
+  "v": "4a0d26c3d149"
+ },
+ "nu-tour": {
+  "say": "The guided tour costs thirteen pounds.",
+  "v": "d97284739383"
+ },
+ "nu-entry": {
+  "say": "Entry is three pounds seventy-five.",
+  "v": "c05c3aa4464c"
+ },
+ "nu-start": {
+  "say": "The course starts on the fifteenth of March.",
+  "v": "1d0fd9930bf2"
+ },
+ "nu-deadline": {
+  "say": "The deadline for applications is the twenty-second of February.",
+  "v": "4626a0caae74"
+ },
+ "nu-arrival": {
+  "say": "We arrive on the first of July.",
+  "v": "8e3aff94981a"
+ },
+ "nu-party": {
+  "say": "The party is on Saturday the thirtieth of November.",
+  "v": "e47a8072ba10"
+ },
+ "nu-exam": {
+  "say": "Your exam is on the third of September.",
+  "v": "6a68990441cc"
+ },
+ "nu-move": {
+  "say": "We're moving on the twelfth of August.",
+  "v": "dbe13e91a0c8"
+ },
+ "nu-return": {
+  "say": "Please return the car by the thirty-first of October.",
+  "v": "e16facc7495f"
+ },
+ "nu-checkin": {
+  "say": "Check-in opens at half past nine in the morning.",
+  "v": "e18099ecd897"
+ },
+ "nu-bus": {
+  "say": "The last bus leaves at a quarter to six in the evening.",
+  "v": "d14a5e9b4802"
+ },
+ "nu-film": {
+  "say": "The film starts at twenty to eight this evening.",
+  "v": "7868ce718589"
+ },
+ "nu-meeting": {
+  "say": "Let's meet at a quarter past eleven in the morning.",
+  "v": "254030bbd2e6"
+ },
+ "nu-cb": {
+  "say": "The postcode is C, B, two, one, T, N.",
+  "v": "a26d4f82d819"
+ },
+ "nu-ng": {
+  "say": "It's N, G, seven, two, J, E.",
+  "v": "534e3a8f98e4"
+ },
+ "nu-eh": {
+  "say": "The postcode is E, H, eight, nine, Y, L.",
+  "v": "d48ff7aaea4c"
+ },
+ "nu-harrison": {
+  "say": "My surname is Harrison. H, A, double R, I, S, O, N.",
+  "v": "239cd3842a68"
+ },
+ "nu-jarvis": {
+  "say": "I live at fourteen Jarvis Road. That's J, A, R, V, I, S.",
+  "v": "0e3a6816c1c7"
+ },
+ "nu-whitmore": {
+  "say": "My name's Emma Whitmore. W, H, I, T, M, O, R, E.",
+  "v": "1cf6a7ca4b16"
+ },
+ "nu-kessler": {
+  "say": "It's Kessler. K, E, double S, L, E, R.",
+  "v": "fdde8c1e65c5"
+ },
+ "nu-pembury": {
+  "say": "I'm at nine Pembury Street. P, E, M, B, U, R, Y.",
+  "v": "75b803fb0266"
+ },
+ "nu-booking": {
+  "say": "Your booking reference is B, K, four, seven, two.",
+  "v": "12d69c8b0be8"
+ },
+ "pl-photos": {
+  "say": "You'll need to bring two photos for your student card.",
+  "v": "7568dae0b3b0"
+ },
+ "pl-meals": {
+  "say": "The fee includes all meals.",
+  "v": "80d71fecba24"
+ },
+ "pl-luggage": {
+  "say": "Please don't bring heavy luggage.",
+  "v": "8bbbc2256982"
+ },
+ "pl-equipment": {
+  "say": "We provide all the equipment you need.",
+  "v": "1a64a021c4d8"
+ },
+ "pl-information": {
+  "say": "More information is on our website.",
+  "v": "71f871a3129b"
+ },
+ "pl-children": {
+  "say": "There are activities for children on Saturday mornings.",
+  "v": "8baba7573434"
+ },
+ "pl-libraries": {
+  "say": "The college has three libraries.",
+  "v": "f6b23e9ecdcf"
+ },
+ "pl-shelves": {
+  "say": "Please put your books on the shelves by the door.",
+  "v": "5bc8c8cac86a"
+ },
+ "pl-buses": {
+  "say": "Two buses leave for the airport every hour.",
+  "v": "4349831e6b6f"
+ },
+ "pl-bus-station": {
+  "say": "Let's meet outside the bus station.",
+  "v": "65f2351e0292"
+ },
+ "pl-bikes": {
+  "say": "Visitors can hire bikes at the main gate.",
+  "v": "72c0589544dd"
+ },
+ "pl-gloves": {
+  "say": "Bring a pair of gloves. It gets cold on the boat.",
+  "v": "d7de6f9070af"
+ },
+ "pl-timetable": {
+  "say": "You'll get a timetable when you arrive.",
+  "v": "c655f53f694e"
+ },
+ "pl-leader": {
+  "say": "Each group needs a leader.",
+  "v": "9e6c4b097b7b"
+ },
+ "pl-people": {
+  "say": "We have tables for up to eight people.",
+  "v": "0438ebc92722"
+ },
+ "pl-women": {
+  "say": "It's a running club for women over fifty.",
+  "v": "99d171f053ac"
+ },
+ "pl-species": {
+  "say": "There are over two hundred species of birds on the island.",
+  "v": "d6419e4eb2a3"
+ },
+ "pl-tours": {
+  "say": "The guided tours are free for members.",
+  "v": "8ae5990c76a5"
+ },
+ "pl-furniture": {
+  "say": "The flat comes with new furniture.",
+  "v": "556d3075dc81"
+ },
+ "pl-advice": {
+  "say": "The website gives useful advice on finding a flat.",
+  "v": "3c9cd7c4e9ad"
+ },
+ "pl-boxes": {
+  "say": "Put the empty boxes by the back door.",
+  "v": "1d13f070a4de"
+ },
+ "pl-knives": {
+  "say": "Please don't put sharp knives in the dishwasher.",
+  "v": "075cc4dc21bc"
+ },
+ "pl-activities": {
+  "say": "There are lots of activities for families.",
+  "v": "c22c9cd2d427"
+ },
+ "pl-room": {
+  "say": "Every room has a desk and a lamp.",
+  "v": "f39ed168948a"
+ },
+ "pl-sheep": {
+  "say": "The farm keeps about forty sheep.",
+  "v": "d3bd1caa84ef"
+ },
+ "pl-clothes": {
+  "say": "Bring warm clothes for the walk.",
+  "v": "bb7bcde4c645"
+ }
+}

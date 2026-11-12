@@ -138,7 +138,7 @@ function focusHeading() {
 
 defineExpose({ focusHeading });
 
-// by name, looked up in $style by the template (useCssModule() is empty in production builds: see typing.chars.vue)
+// by name, looked up in $style by the template (useCssModule() is empty in production builds: same as the typing mini app)
 function badgeClass(setId: string): string {
 	return setId === 'spelling' ? 'badgeSpelling' : setId === 'numbers' ? 'badgeNumbers' : setId === 'plural' ? 'badgePlural' : '';
 }
