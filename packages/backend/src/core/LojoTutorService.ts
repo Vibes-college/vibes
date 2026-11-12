@@ -95,8 +95,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	// Model calls per UTC day for all tutors together: a fuse for the whole site (default 20000, founder 2026-11-11; see
 	// tutorDailyLimit). Each learner's own allowance is in LojoUsageService (5 hours + a week, counted in money).
 	private readonly dailyLimit = tutorDailyLimit();
-	// who gets a notification when the fuse is half used and when it blows (besides the warning in the log)
-	private readonly fuseNotify = (process.env.LOJO_TUTOR_FUSE_NOTIFY ?? 'vibes_admin').split(',').map(x => x.trim()).filter(x => x !== '');
+	// Who gets a notification when the fuse is half used and when it blows (besides the warning in the log): these
+	// usernames, or by default the site's root admin (vibes_admin on app.vibes.college).
+	private readonly fuseNotify = (process.env.LOJO_TUTOR_FUSE_NOTIFY ?? '').split(',').map(x => x.trim()).filter(x => x !== '');
 	private readonly mastraUrl = (process.env.LOJO_TUTOR_MASTRA_URL ?? '').replace(/\/$/, '');
 	private readonly mastraSecret = process.env.LOJO_TUTOR_MASTRA_SECRET ?? '';
 	private readonly skipUsernames = (process.env.LOJO_TUTOR_SKIP_USERNAMES ?? 'vibes_editors').split(',').map(x => x.trim()).filter(x => x !== '');
@@ -857,11 +858,11 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			? `tutor daily fuse 50%: ${used} of ${this.dailyLimit} model calls used today (UTC)`
 			: `tutor daily fuse blown: ${this.dailyLimit} model calls used today (UTC); Vibi answers no one until 00:00 UTC`;
 		this.logger.warn(line);
-		// (an empty where list would match every user)
-		if (this.fuseNotify.length === 0) return;
-		const admins = await this.usersRepository.findBy(this.fuseNotify.map(username => ({ usernameLower: username.toLowerCase(), host: IsNull() })));
-		for (const admin of admins) {
-			this.notificationService.createNotification(admin.id, 'app', {
+		const ids = this.fuseNotify.length > 0
+			? (await this.usersRepository.findBy(this.fuseNotify.map(username => ({ usernameLower: username.toLowerCase(), host: IsNull() })))).map(u => u.id)
+			: (await this.db.query(`SELECT "rootUserId" FROM "meta" WHERE "rootUserId" IS NOT NULL LIMIT 1`) as { rootUserId: string }[]).map(r => r.rootUserId);
+		for (const id of ids) {
+			this.notificationService.createNotification(id, 'app', {
 				appAccessTokenId: null,
 				customHeader: news === 'half' ? 'Vibi 全站保险丝：今天已用一半' : 'Vibi 全站保险丝：今天已拉断',
 				customBody: news === 'half'
