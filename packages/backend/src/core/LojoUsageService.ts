@@ -54,6 +54,38 @@ const FIVE_HOURS = 5 * 60 * 60 * 1000;
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 export const MILLI = 1000;
 
+// The fuse for the whole site: model calls per UTC day for all tutors together (founder, 2026-11-11: 20000, with a
+// warning at half). LOJO_TUTOR_DAILY_LIMIT changes it without a release. Each learner's allowance above is the real
+// limit; this only stops a runaway (a bug, a loop, many accounts) from running up the bill. When it blows, Vibi stays
+// quiet and only the usage line under the chat says so, until 00:00 UTC (08:00 Beijing).
+export const TUTOR_DAILY_LIMIT_DEFAULT = 20000;
+export function tutorDailyLimit(): number {
+	return Number(process.env.LOJO_TUTOR_DAILY_LIMIT) || TUTOR_DAILY_LIMIT_DEFAULT;
+}
+export function tutorBudgetKey(at: Date): string {
+	return `lojoTutor:budget:${at.toISOString().slice(0, 10)}`;
+}
+// After the call that made the count `used`: 'half' exactly once when it reaches half, 'full' once on the first call
+// past the limit (both are told only once a day), null otherwise.
+export function fuseNews(used: number, limit: number): 'half' | 'full' | null {
+	if (used === limit + 1) return 'full';
+	if (used === Math.ceil(limit / 2)) return 'half';
+	return null;
+}
+export function nextUtcDay(at: Date): Date {
+	return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() + 1));
+}
+
+// Invite reward (founder, 2026-11-11): both sides get inviteGems only once the invited member has paid for membership
+// and the 7-day refund window has passed without a refund, so nothing ever has to be taken back. There are no payments
+// yet: until there are, an admin grants it by hand (admin page). Once payments are recorded, a daily job calls
+// settleInvite for each paid invitee and this decides.
+export const INVITE_REFUND_DAYS = 7;
+export function inviteRewardDue(payment: { paidAt: Date; refundedAt: Date | null } | null, now: Date): boolean {
+	if (payment == null || payment.refundedAt != null) return false;
+	return now.getTime() >= payment.paidAt.getTime() + INVITE_REFUND_DAYS * 24 * 60 * 60 * 1000;
+}
+
 export type GemKind = 'invite' | 'contribution' | 'purchase' | 'spend' | 'expire' | 'refund' | 'admin';
 export type ModelUsage = { hit: number; miss: number; out: number };
 
@@ -65,6 +97,8 @@ export type UsageStatus = {
 	// when the allowance that ran out comes back (null when state is ok)
 	backAt: string | null;
 	gems: number; // thousandths of a gem
+	// the whole-site fuse has blown: Vibi answers no one until this time (null normally)
+	siteFullUntil: string | null;
 };
 
 type Windows = { fiveStart: Date | null; fiveUsed: number; weekStart: Date | null; weekUsed: number };
@@ -160,9 +194,10 @@ export class LojoUsageService {
 	public async status(userId: string): Promise<UsageStatus> {
 		const c = await this.config();
 		const now = Date.now();
-		const [rows, gems] = await Promise.all([
+		const [rows, gems, siteUsed] = await Promise.all([
 			this.db.query(`SELECT * FROM "lojo_usage" WHERE "userId" = $1`, [userId]),
 			this.balance(this.db.manager, userId, new Date(now)),
+			this.redisClient.get(tutorBudgetKey(new Date(now))).then(Number).catch(() => 0),
 		]);
 		const w = currentWindows(this.toWindows(rows[0]), now);
 		const left = allowanceLeft(w, c);
@@ -180,6 +215,7 @@ export class LojoUsageService {
 			state: left > 0 ? 'ok' : gems > 0 ? 'gems' : 'out',
 			backAt: backAt?.toISOString() ?? null,
 			gems,
+			siteFullUntil: siteUsed >= tutorDailyLimit() ? nextUtcDay(new Date(now)).toISOString() : null,
 		};
 	}
 
@@ -252,6 +288,13 @@ export class LojoUsageService {
 			inviter: await this.grant(inviterId, 'invite', milli, { ref: `invite:${inviteeId}:inviter`, note: `invited ${inviteeId}`, byUserId }),
 			invitee: await this.grant(inviteeId, 'invite', milli, { ref: `invite:${inviteeId}:invitee`, note: `invited by ${inviterId}`, byUserId }),
 		};
+	}
+
+	// Called with the invitee's membership payment once payments exist (see inviteRewardDue). Safe to call every day:
+	// the ledger refs make it pay out once. Returns null while it is not due.
+	public async settleInvite(inviterId: string, inviteeId: string, payment: { paidAt: Date; refundedAt: Date | null } | null, now = new Date()): Promise<{ inviter: boolean; invitee: boolean } | null> {
+		if (!inviteRewardDue(payment, now)) return null;
+		return this.grantInvite(inviterId, inviteeId);
 	}
 
 	public async ledger(userId: string, limit = 100): Promise<{ id: string; kind: string; amount: number; lotId: string | null; paid: boolean; expiresAt: string | null; note: string | null; createdAt: string }[]> {

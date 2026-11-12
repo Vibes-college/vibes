@@ -8,7 +8,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { LojoUsageService } from '@/core/LojoUsageService.js';
 
 // The chat page's usage line for Vibi: how much of the 5-hour and weekly allowance is used, when each comes back, and
-// whether gems are in use. gems is in thousandths of a gem.
+// whether gems are in use, and whether the whole-site fuse has blown. gems is in thousandths of a gem.
 export const meta = {
 	tags: ['lojo'], requireCredential: true, kind: 'read:account',
 	description: 'Your own Vibi allowance: percent used of the 5-hour and weekly windows, when they reset, and your gems.',
@@ -22,6 +22,8 @@ export const meta = {
 			state: { type: 'string', optional: false, nullable: false, enum: ['ok', 'gems', 'out'] },
 			backAt: { type: 'string', optional: false, nullable: true },
 			gems: { type: 'number', optional: false, nullable: false },
+			// the whole-site fuse has blown: Vibi answers no one until then
+			siteFullUntil: { type: 'string', optional: false, nullable: true },
 		},
 	},
 } as const;

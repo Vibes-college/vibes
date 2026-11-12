@@ -5,8 +5,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <!-- Vibes: the usage line under a chat with Vibi (lojo/tutor/usage-text.ts). Refreshed when a message comes or goes. -->
 <template>
-<div v-if="usage" :class="[$style.root, usage.state !== 'ok' ? $style.done : null]" data-vibi-usage :data-state="usage.state" role="status">
-	<div v-if="usage.state === 'ok'" :class="$style.bar"><div :class="[$style.fill, pct >= 80 ? $style.high : null]" :style="{ width: `${pct}%` }"></div></div>
+<div v-if="usage" :class="[$style.root, usage.state !== 'ok' || usage.siteFullUntil ? $style.done : null]" data-vibi-usage :data-state="usage.siteFullUntil ? 'site-full' : usage.state" role="status">
+	<div v-if="usage.state === 'ok' && !usage.siteFullUntil" :class="$style.bar"><div :class="[$style.fill, pct >= 80 ? $style.high : null]" :style="{ width: `${pct}%` }"></div></div>
 	<div :class="$style.text">{{ text }}</div>
 </div>
 </template>
@@ -35,7 +35,8 @@ async function load() {
 		if (backTimer != null) window.clearTimeout(backTimer);
 		backTimer = null;
 		// Come back on time when the allowance resets (at most a day ahead; timers further out are not worth it).
-		const wait = usage.value.backAt ? new Date(usage.value.backAt).getTime() - Date.now() + 2000 : null;
+		const until = usage.value.siteFullUntil ?? usage.value.backAt;
+		const wait = until ? new Date(until).getTime() - Date.now() + 2000 : null;
 		if (wait != null && wait > 0 && wait < 86400000) backTimer = window.setTimeout(load, wait);
 	} catch { /* the line just stays as it was */ }
 }

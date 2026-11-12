@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { USAGE_DEFAULTS as C, addMonths, allowanceLeft, callCost, currentWindows, gemsFor, spendOrder } from '@/core/LojoUsageService.js';
+import { USAGE_DEFAULTS as C, TUTOR_DAILY_LIMIT_DEFAULT, addMonths, allowanceLeft, callCost, currentWindows, fuseNews, gemsFor, inviteRewardDue, nextUtcDay, spendOrder, tutorDailyLimit } from '@/core/LojoUsageService.js';
 
 const H = 60 * 60 * 1000;
 const t0 = new Date('2026-11-11T00:00:00Z');
@@ -49,5 +49,28 @@ describe('Vibi allowance and gems (pure parts)', () => {
 	});
 	test('gifted gems expire six months later', () => {
 		expect(addMonths(t0, C.giftMonths).toISOString()).toBe('2027-05-11T00:00:00.000Z');
+	});
+
+	test('the site fuse is 20000 a day by default, and the environment can change it', () => {
+		const was = process.env.LOJO_TUTOR_DAILY_LIMIT;
+		delete process.env.LOJO_TUTOR_DAILY_LIMIT;
+		expect(TUTOR_DAILY_LIMIT_DEFAULT).toBe(20000);
+		expect(tutorDailyLimit()).toBe(20000);
+		process.env.LOJO_TUTOR_DAILY_LIMIT = '50';
+		expect(tutorDailyLimit()).toBe(50);
+		if (was == null) delete process.env.LOJO_TUTOR_DAILY_LIMIT; else process.env.LOJO_TUTOR_DAILY_LIMIT = was;
+	});
+	test('the fuse speaks once at half and once when it blows', () => {
+		expect([9999, 10000, 10001, 20000, 20001, 20002].map(n => fuseNews(n, 20000))).toEqual([null, 'half', null, null, 'full', null]);
+		expect([2, 3, 4, 5, 6].map(n => fuseNews(n, 5))).toEqual([null, 'half', null, null, 'full']);
+		expect(nextUtcDay(new Date('2026-11-11T23:59:00Z')).toISOString()).toBe('2026-11-12T00:00:00.000Z');
+	});
+	test('the invite reward is due only after a paid membership has passed 7 days without a refund', () => {
+		const paidAt = new Date('2026-11-01T10:00:00Z');
+		const day = 24 * H;
+		expect(inviteRewardDue(null, t0)).toBe(false);
+		expect(inviteRewardDue({ paidAt, refundedAt: null }, new Date(paidAt.getTime() + 7 * day - 1))).toBe(false);
+		expect(inviteRewardDue({ paidAt, refundedAt: null }, new Date(paidAt.getTime() + 7 * day))).toBe(true);
+		expect(inviteRewardDue({ paidAt, refundedAt: new Date(paidAt.getTime() + 2 * day) }, new Date(paidAt.getTime() + 30 * day))).toBe(false);
 	});
 });

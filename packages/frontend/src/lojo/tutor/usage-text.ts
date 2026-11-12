@@ -13,6 +13,7 @@ export type VibiUsage = {
 	state: 'ok' | 'gems' | 'out';
 	backAt: string | null;
 	gems: number; // thousandths of a gem
+	siteFullUntil?: string | null; // the whole-site fuse has blown until then
 };
 
 const WEEKDAYS_ZH = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -35,6 +36,13 @@ export function gemsText(milli: number): string {
 }
 
 export function usageText(u: VibiUsage, now: Date, zh: boolean): string {
+	// The whole-site fuse (a daily cap for everyone together) comes before the learner's own allowance.
+	if (u.siteFullUntil) {
+		const at = whenText(u.siteFullUntil, now, zh);
+		return zh
+			? `今天找 Vibi 的人太多，全站暂停回复，${at} 恢复。没扣你的额度。`
+			: `Vibi is too busy today and is pausing for everyone. Back ${at}; nothing was taken from your allowance.`;
+	}
 	const back = u.backAt ? whenText(u.backAt, now, zh) : null;
 	if (u.state === 'out') {
 		return zh

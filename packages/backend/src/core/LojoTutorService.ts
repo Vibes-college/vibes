@@ -6,7 +6,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import * as Redis from 'ioredis';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import { bindThis } from '@/decorators.js';
 import type { MiDriveFile, NotesRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
@@ -21,7 +21,8 @@ import { LojoEnglishService } from '@/core/LojoEnglishService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { LojoGateService } from '@/core/LojoGateService.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
-import { LojoUsageService, type ModelUsage } from '@/core/LojoUsageService.js';
+import { LojoUsageService, fuseNews, tutorBudgetKey, tutorDailyLimit, type ModelUsage } from '@/core/LojoUsageService.js';
+import { NotificationService } from '@/core/NotificationService.js';
 import type { MiLocalUser } from '@/models/User.js';
 import type Logger from '@/logger.js';
 import type { Config } from '@/config.js';
@@ -91,9 +92,11 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	private readonly tz = process.env.LOJO_TUTOR_TZ || 'Asia/Shanghai';
 	private readonly hours = (process.env.LOJO_TUTOR_HOURS || '9-21').split('-').map(Number);
 	private readonly proactive = process.env.LOJO_TUTOR_PROACTIVE !== '0';
-	// Model calls per UTC day for all tutors together: a fuse for the whole site. Each learner's own allowance is in
-	// LojoUsageService (5 hours + a week, counted in money; founder, 2026-11-11).
-	private readonly dailyLimit = Number(process.env.LOJO_TUTOR_DAILY_LIMIT) || 3000;
+	// Model calls per UTC day for all tutors together: a fuse for the whole site (default 20000, founder 2026-11-11; see
+	// tutorDailyLimit). Each learner's own allowance is in LojoUsageService (5 hours + a week, counted in money).
+	private readonly dailyLimit = tutorDailyLimit();
+	// who gets a notification when the fuse is half used and when it blows (besides the warning in the log)
+	private readonly fuseNotify = (process.env.LOJO_TUTOR_FUSE_NOTIFY ?? 'vibes_admin').split(',').map(x => x.trim()).filter(x => x !== '');
 	private readonly mastraUrl = (process.env.LOJO_TUTOR_MASTRA_URL ?? '').replace(/\/$/, '');
 	private readonly mastraSecret = process.env.LOJO_TUTOR_MASTRA_SECRET ?? '';
 	private readonly skipUsernames = (process.env.LOJO_TUTOR_SKIP_USERNAMES ?? 'vibes_editors').split(',').map(x => x.trim()).filter(x => x !== '');
@@ -126,6 +129,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private lojoGateService: LojoGateService,
 		private lojoWordService: LojoWordService,
 		private lojoUsageService: LojoUsageService,
+		private notificationService: NotificationService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-tutor');
 	}
@@ -842,12 +846,30 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	private async spendBudget(): Promise<boolean> {
-		const used = await this.count(`lojoTutor:budget:${new Date().toISOString().slice(0, 10)}`);
-		if (used > this.dailyLimit) {
-			if (used === this.dailyLimit + 1) this.logger.warn(`daily limit of ${this.dailyLimit} tutor model calls reached`);
-			return false;
+		const used = await this.count(tutorBudgetKey(new Date()));
+		const news = fuseNews(used, this.dailyLimit);
+		if (news != null) this.tellFuse(news, used).catch(err => this.logger.warn(`could not tell admins about the fuse: ${err}`));
+		return used <= this.dailyLimit;
+	}
+
+	private async tellFuse(news: 'half' | 'full', used: number): Promise<void> {
+		const line = news === 'half'
+			? `tutor daily fuse 50%: ${used} of ${this.dailyLimit} model calls used today (UTC)`
+			: `tutor daily fuse blown: ${this.dailyLimit} model calls used today (UTC); Vibi answers no one until 00:00 UTC`;
+		this.logger.warn(line);
+		// (an empty where list would match every user)
+		if (this.fuseNotify.length === 0) return;
+		const admins = await this.usersRepository.findBy(this.fuseNotify.map(username => ({ usernameLower: username.toLowerCase(), host: IsNull() })));
+		for (const admin of admins) {
+			this.notificationService.createNotification(admin.id, 'app', {
+				appAccessTokenId: null,
+				customHeader: news === 'half' ? 'Vibi 全站保险丝：今天已用一半' : 'Vibi 全站保险丝：今天已拉断',
+				customBody: news === 'half'
+					? `今天（UTC）Vibi 已调用模型 ${used} 次，上限 ${this.dailyLimit}。到上限后所有人都暂停回复，北京时间早上 8 点恢复。上限可用 LOJO_TUTOR_DAILY_LIMIT 改。`
+					: `今天（UTC）Vibi 已到上限 ${this.dailyLimit} 次，所有人暂停回复，北京时间早上 8 点恢复。用户聊天页底部会看到提示。`,
+				customIcon: null,
+			});
 		}
-		return true;
 	}
 
 	// Adds up the tokens of the calls behind one answer (retries included), to charge them as one.
