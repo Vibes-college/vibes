@@ -66,7 +66,11 @@ what went wrong, the answers and the transcript. A vocabulary paper also lists t
 				<MkA v-if="card.guide && guides[card.guide]" :to="`/guides/${card.guide}`" :class="$style.link">
 					<i class="ti ti-book"></i> {{ gateLabels.guide }} · {{ guides[card.guide] }}
 				</MkA>
-				<MkA v-if="card.app" :to="appPath(card)" :class="$style.link">
+				<!-- a mini app moved out to /apps/<id>/ (2026-11-12) is a whole page, not a route here -->
+				<a v-if="card.app && appPath(card).startsWith('/apps/')" :href="appPath(card)" :class="$style.link">
+					<i class="ti ti-apps"></i> {{ gateLabels.app }} · {{ card.app[gateLang] }}
+				</a>
+				<MkA v-else-if="card.app" :to="appPath(card)" :class="$style.link">
 					<i class="ti ti-apps"></i> {{ gateLabels.app }} · {{ card.app[gateLang] }}
 				</MkA>
 				<MkA v-for="topic in card.topics" :key="topic" :to="`/tags/${encodeURIComponent(topic)}`" :class="$style.link">
@@ -111,7 +115,7 @@ what went wrong, the answers and the transcript. A vocabulary paper also lists t
 			<MkButton rounded :disabled="allSaved || addingAll" :wait="addingAll" @click="addAll">
 				<i :class="allSaved ? 'ti ti-check' : 'ti ti-bookmarks'"></i> {{ allSaved ? gateLabels.allSaved : gateLabels.addAll }}
 			</MkButton>
-			<MkA to="/wordbook" :class="$style.link"><i class="ti ti-notebook"></i> {{ gateLabels.openWordbook }}</MkA>
+			<a href="/apps/wordbook/" :class="$style.link"><i class="ti ti-notebook"></i> {{ gateLabels.openWordbook }}</a>
 		</div>
 	</section>
 

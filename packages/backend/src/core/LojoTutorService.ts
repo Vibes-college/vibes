@@ -663,13 +663,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// Counted as the wordbook page counts them (recognize + spell due now), in Beijing time.
 	public async wordbookFacts(learnerId: string): Promise<WordbookFacts> {
-		const t = await this.lojoWordService.today({ id: learnerId } as MiLocalUser, -480);
-		if (t.total === 0) return { words: 0, dueToday: 0, reviewedToday: 0, updatedAt: null };
-		const [last] = await this.db.query<{ at: Date | null }[]>(
-			'SELECT GREATEST((SELECT MAX("reviewedAt") FROM "lojo_word_review" WHERE "userId" = $1), (SELECT MAX("createdAt") FROM "lojo_word" WHERE "userId" = $1)) AS at',
-			[learnerId],
-		);
-		return { words: t.total, dueToday: t.recognizeDue + t.spellDue, reviewedToday: t.reviewedToday, updatedAt: last?.at ? new Date(last.at).toISOString() : null };
+		const s = await this.lojoWordService.stats(learnerId, { tzOffset: -480 });
+		if (s.words === 0) return { words: 0, dueToday: 0, reviewedToday: 0, updatedAt: null };
+		return { words: s.words, dueToday: s.dueNow, reviewedToday: s.reviewedToday, updatedAt: s.lastAt };
 	}
 
 	// Older messages between this learner and the tutor that match the words of query: English words through Postgres

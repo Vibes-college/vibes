@@ -1,0 +1,22 @@
+{
+  "name": "vibes-miniapp-wordbook",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "icons": "node tools/icons.mjs",
+    "build": "node tools/icons.mjs && vite build",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "postgres": "3.4.7",
+    "ts-fsrs": "5.4.2"
+  },
+  "devDependencies": {
+    "@tabler/icons": "3.35.0",
+    "@vitejs/plugin-vue": "6.0.1",
+    "sass-embedded": "^1.93.2",
+    "vite": "7.1.12",
+    "vue": "3.5.22"
+  }
+}

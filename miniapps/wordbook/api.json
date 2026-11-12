@@ -1,0 +1,82 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "生词本 wordbook", "version": "1", "description": "Vibes 小程序「生词本」的接口。只返回、只改调用者本人（或授权给调用方的那位用户）的词。时间都是 ISO 8601（UTC）。写的接口只收本人，或者带 wordbook:write 授权的社区和小程序（听写、词汇、拍照学词只能加词）；Vibi 只能读。" },
+  "servers": [{ "url": "/apps/wordbook/api/v1" }],
+  "paths": {
+    "/stats": {
+      "get": {
+        "summary": "生词本概况：一共几个词、现在要复习几张、今天复习了几张、连续几天",
+        "x-vibes-kind": "reviews",
+        "parameters": [
+          { "name": "tzOffset", "in": "query", "schema": { "type": "integer", "minimum": -840, "maximum": 840, "default": -480 }, "description": "按哪个时区算「今天」，Date#getTimezoneOffset() 的值，北京是 -480" },
+          { "name": "dueBefore", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "另外数一下这个时间前到期的卡（闯关用）" },
+          { "name": "reviewsFrom", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "reviewsTo", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "和 reviewsFrom 一起：数这段时间里复习了几张（闯关补心核对用）" }
+        ],
+        "responses": { "200": { "description": "概况", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "wordbook" }, "kind": { "const": "reviews" },
+          "words": { "type": "integer", "description": "一共存了几个词" },
+          "dueNow": { "type": "integer", "description": "现在要复习几张卡（认得 + 拼写，和生词本页上的数一样）" },
+          "newLeft": { "type": "integer", "description": "今天还能学几个新词（每天 10 个）" },
+          "reviewedToday": { "type": "integer", "description": "今天复习了几张" },
+          "streak": { "type": "integer", "description": "连续几天有复习" },
+          "lastAt": { "type": ["string", "null"], "format": "date-time", "description": "最近一次存词或复习的时间" },
+          "dueBefore": { "type": "integer" }, "reviewsBetween": { "type": "integer" } } } } } } }
+      }
+    },
+    "/words": {
+      "get": {
+        "summary": "存的词，新存的在前",
+        "x-vibes-kind": "words",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 2000, "default": 20 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "上一页返回的 next" }
+        ],
+        "responses": { "200": { "description": "items 是词，next 是下一页的 cursor（没有就是 null）", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "wordbook" }, "kind": { "const": "words" }, "next": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "id": { "type": "string" }, "text": { "type": "string", "description": "词或短语" },
+            "kind": { "type": "string", "enum": ["word", "phrase", "idiom", "slang", "grammar"] },
+            "meaning": { "type": "string" }, "usage": { "type": "string" }, "example": { "type": "string" }, "exampleZh": { "type": "string" },
+            "source": { "type": "string", "enum": ["post", "gate", "dictation", "manual", "vocab"], "description": "从哪儿存的：帖子讲解、闯关错题、听写、手动加、词汇线" },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "recognize": { "$ref": "#/components/schemas/Card" }, "spell": { "$ref": "#/components/schemas/Card" } } } } } } } } } }
+      },
+      "post": {
+        "summary": "加一个词（已经有了就不重复加，created 是 false）",
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "required": ["item", "source"], "properties": {
+          "item": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string", "maxLength": 256 }, "kind": { "type": "string" }, "meaning": { "type": "string" }, "usage": { "type": "string" }, "example": { "type": "string" }, "exampleZh": { "type": "string" } } },
+          "source": { "type": "string", "enum": ["post", "gate", "dictation", "manual", "vocab"] },
+          "noteId": { "type": ["string", "null"] } } } } } },
+        "responses": { "200": { "description": "{ created, word }" } }
+      }
+    },
+    "/words/import": { "post": { "summary": "一次搬进很多词（只收本人和社区）", "responses": { "200": { "description": "{ added }" } } } },
+    "/words/{id}": { "delete": { "summary": "删一个词和它的卡、复习记录（只收本人和社区）", "responses": { "204": { "description": "删了" } } } },
+    "/today": { "get": { "summary": "今天要复习的卡，按顺序（生词本页面用；内容多，Vibi 用 /stats）", "responses": { "200": { "description": "queue 和各种数" } } } },
+    "/reviews": {
+      "get": {
+        "summary": "每次复习的记录，新的在前",
+        "x-vibes-kind": "reviews",
+        "parameters": [
+          { "name": "since", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "until", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "items 是记录", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "wordbook" }, "kind": { "const": "reviews" }, "next": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "word": { "type": "string" }, "card": { "type": "string", "enum": ["recognize", "spell"], "description": "认得卡还是拼写卡" },
+            "rating": { "type": "integer", "description": "1 忘了，2 有点难，3 记得，4 很简单" }, "remembered": { "type": "boolean" },
+            "firstTime": { "type": "boolean", "description": "这张卡第一次复习" }, "at": { "type": "string", "format": "date-time" }, "durationMs": { "type": ["integer", "null"] } } } } } } } } } }
+      },
+      "post": { "summary": "记一次复习（只收本人和社区）。rating 1–4；reps 是页面上这张卡的复习次数，对不上说明这次已经记过了", "responses": { "200": { "description": "{ applied, card }" } } }
+    }
+  },
+  "components": { "schemas": { "Card": { "type": "object", "properties": {
+    "id": { "type": "string" }, "kind": { "type": "string", "enum": ["recognize", "spell"] },
+    "state": { "type": "string", "enum": ["new", "learning", "review", "relearning"] },
+    "due": { "type": "string", "format": "date-time", "description": "下次该复习的时间" }, "reps": { "type": "integer" }, "lapses": { "type": "integer", "description": "忘了几次" },
+    "lastReview": { "type": ["string", "null"], "format": "date-time" } } } } }
+}

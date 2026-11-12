@@ -51,7 +51,7 @@ marked), the forms that count, a one-line rule and the guide. -->
 			<i class="ti ti-book" aria-hidden="true"></i> {{ guideName ? dictLabels.guide(guideName) : dictLabels.guideGeneric }} <i class="ti ti-arrow-right" aria-hidden="true"></i>
 		</MkA>
 		<p v-if="wordSaved" :class="$style.saved">
-			<i class="ti ti-notebook" aria-hidden="true"></i> {{ dictLabels.wordSaved }} · <MkA to="/wordbook" behavior="window" class="_link">{{ dictLabels.openWordbook }}</MkA>
+			<i class="ti ti-notebook" aria-hidden="true"></i> {{ dictLabels.wordSaved }} · <a href="/apps/wordbook/" target="_blank" rel="noopener" class="_link">{{ dictLabels.openWordbook }}</a>
 		</p>
 	</template>
 </div>

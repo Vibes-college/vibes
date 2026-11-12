@@ -301,7 +301,7 @@ export function gearPath(gear: string | null | undefined): { app: string; path: 
 	if (app === 'vocab') return { app, path: `/vocab/${stop ?? '5.3'}?tab=practice&scope=all`, zh: '词汇线', givesHeart: true };
 	if (app === 'grammar') return { app, path: `/grammar/${stop ?? '6.3'}`, zh: '语法线', givesHeart: false };
 	if (app === 'typing') return { app, path: '/apps/typing/?stop=spelling', zh: '机考打字 · 拼写站', givesHeart: true };
-	if (app === 'wordbook') return { app, path: '/wordbook', zh: '生词本', givesHeart: true };
+	if (app === 'wordbook') return { app, path: '/apps/wordbook/', zh: '生词本', givesHeart: true };
 	if (app === 'synonym-match') return { app, path: `/synonym/index.html?topic=${encodeURIComponent(stop ?? 'general')}`, zh: '同义词连连看', givesHeart: true };
 	if (app === 'graded-reading') return { app, path: 'https://vibes.college/read/artisan/', zh: '分级阅读', givesHeart: false };
 	return { app: 'dictation', path: '/dictation', zh: '听写', givesHeart: true };

@@ -258,7 +258,7 @@ export const PRACTICE = {
  choice: { guide: { listening: 'ielts-listening-choice', reading: 'ielts-reading-choice' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
  distractor: { guide: { listening: 'ielts-listening-choice', reading: 'ielts-reading-choice' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
  matching: { guide: { listening: 'ielts-listening-discussion', reading: 'ielts-reading-matching' }, app: null, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
- paraphrase: { guide: 'ielts-paraphrase', app: { path: '/wordbook', zh: '生词本', en: 'Wordbook' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
+ paraphrase: { guide: 'ielts-paraphrase', app: { path: '/apps/wordbook/', zh: '生词本', en: 'Wordbook' }, topics: { listening: ['雅思听力'], reading: ['雅思阅读'] } },
  // 只有听力用的标签
  map: { guide: 'ielts-listening-maps', app: null, topics: ['雅思听力'] },
  discussion: { guide: 'ielts-listening-discussion', app: null, topics: ['雅思听力'] },

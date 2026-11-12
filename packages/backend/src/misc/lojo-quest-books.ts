@@ -38,7 +38,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "wordbook",
 			"zh": "生词本",
-			"path": "/wordbook"
+			"path": "/apps/wordbook/"
 		},
 		"verify": "闯关第一章词汇岔路 1-7「会认也会拼」、1-8「固定搭配」、1-9「近义说法」。拼写题考的正是你想不想得出来。",
 		"verifyUrl": "/quest?level=1-7",
@@ -105,7 +105,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "wordbook",
 			"zh": "生词本",
-			"path": "/wordbook"
+			"path": "/apps/wordbook/"
 		},
 		"verify": "词汇岔路 1-7 到 1-9 过关一周以后，回去再打同一关，看还过不过得了。考前一周：把生词本里到期的词清零一次。",
 		"verifyUrl": "/quest?level=1-7",
@@ -376,7 +376,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "typing",
 			"zh": "机考打字",
-			"path": "/typing"
+			"path": "/apps/typing/"
 		},
 		"verify": "支线 0 号线「机考打字」。过了之后，闯关里的听力关答案也试着边听边打。",
 		"verifyUrl": "/typing",

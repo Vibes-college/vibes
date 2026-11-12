@@ -160,7 +160,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'wordbook',
 		name: '生词本复习',
 		icon: 'ti ti-notebook',
-		link: { kind: 'route', to: '/wordbook' },
+		link: { kind: 'external', href: '/apps/wordbook/' },
 		intro: {
 			summary: '帖子讲解、听写、词汇线、语法线答错的生词都会自动进这里，按记忆曲线安排复习时间，到期才提醒你。',
 			audience: '想把学过的生词真正记住、不想每天刷一堆新词的人。',

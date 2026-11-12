@@ -12,7 +12,7 @@ import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestContent, MiLojoQuestLog } from '@/models/LojoQuest.js';
 import type { MiLojoQuestLevel, MiLojoQuestPlacement } from '@/models/LojoQuest.js';
-import { MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
+import { LojoWordService } from '@/core/LojoWordService.js';
 import { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
 import { LojoTutorService } from '@/core/LojoTutorService.js';
@@ -157,6 +157,7 @@ export class LojoQuestService implements OnModuleInit, OnApplicationShutdown {
 		private redisClient: Redis.Redis,
 		private idService: IdService,
 		private lojoTutorService: LojoTutorService,
+		private lojoWordService: LojoWordService,
 		private lojoSpeechService: LojoSpeechService,
 		private driveFileEntityService: DriveFileEntityService,
 	) {
@@ -354,7 +355,8 @@ export class LojoQuestService implements OnModuleInit, OnApplicationShutdown {
 	// 生词本 cards due by the end of today (Beijing): below 10, a wordbook gear cannot give a heart today.
 	private async wordbookLow(userId: string, now: Date): Promise<boolean> {
 		const end = new Date(Date.parse(`${addDays(dayOf(now), 1)}T00:00:00+08:00`));
-		const due = await this.db.getRepository(MiLojoWordCard).count({ where: { userId, due: LessThan(end) }, take: WORDBOOK_MIN });
+		// the wordbook mini app answers (小程序搬出社区); when it is down, send the gear to the fallback
+		const due = await this.lojoWordService.stats(userId, { dueBefore: end }).then(s => s.dueBefore ?? 0, () => 0);
 		return due < WORDBOOK_MIN;
 	}
 
@@ -1284,10 +1286,9 @@ export class LojoQuestService implements OnModuleInit, OnApplicationShutdown {
 		const now = new Date();
 		let items = p.items;
 		if (p.app === 'wordbook') {
-			const reviews = await this.db.getRepository(MiLojoWordReview).createQueryBuilder('v')
-				.where('v.userId = :userId', { userId })
-				.andWhere('v.reviewedAt >= :from AND v.reviewedAt <= :to', { from: new Date(p.startedAt - 5000), to: new Date(p.startedAt + p.durationMs + 5000) })
-				.getCount();
+			// counted by the wordbook mini app; when it is down, the set cannot be checked and does not count
+			const reviews = await this.lojoWordService.stats(userId, { reviewsFrom: new Date(p.startedAt - 5000), reviewsTo: new Date(p.startedAt + p.durationMs + 5000) })
+				.then(s => s.reviewsBetween ?? 0, () => 0);
 			items = Math.min(items, reviews);
 		}
 		const ok = setCounts(items, p.durationMs, p.startedAt, now);

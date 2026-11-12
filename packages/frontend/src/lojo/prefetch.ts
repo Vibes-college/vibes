@@ -16,7 +16,6 @@ const signedInPages = [
 	() => import('@/pages/notifications.vue'),
 	() => import('@/pages/explore.vue'),
 	() => import('@/pages/search.vue'),
-	() => import('@/pages/lojo/wordbook.vue'),
 	() => import('@/pages/settings/index.vue'),
 	() => import('@/pages/settings/profile.vue'),
 	// the bottom bar's two tabs: the route map with the IELTS map (route.vue loads these two), and the guides

@@ -46,7 +46,7 @@ its sound, and 加进生词本; 全部加进生词本 below. Used by a round's s
 			<i :class="allIn ? 'ti ti-check' : busy ? ['ti ti-loader-2', $style.spin] : 'ti ti-notebook'" aria-hidden="true"></i>
 			{{ allIn ? L.allAdded : L.addAll }}
 		</button>
-		<MkA to="/wordbook" class="_link">{{ L.openWordbook }}</MkA>
+		<a href="/apps/wordbook/" class="_link">{{ L.openWordbook }}</a>
 	</div>
 </div>
 </template>

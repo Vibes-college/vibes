@@ -8,15 +8,14 @@
 // it too (for checks by hand).
 
 import { timingSafeEqual } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
-import { DI } from '@/di-symbols.js';
 import { LojoTutorService } from '@/core/LojoTutorService.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
 import { RoleService } from '@/core/RoleService.js';
 import { LojoAppsService } from '@/core/LojoAppsService.js';
+import { LojoWordService } from '@/core/LojoWordService.js';
 
 // The shared secret, compared in constant time; with no secret set, only admins get in.
 function secretOk(given: string | null | undefined): boolean {
@@ -59,12 +58,10 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
-		@Inject(DI.db)
-		private db: DataSource,
-
 		private lojoTutorService: LojoTutorService,
 		private roleService: RoleService,
 		private lojoAppsService: LojoAppsService,
+		private lojoWordService: LojoWordService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (!secretOk(ps.secret) && !(me != null && await this.roleService.isAdministrator(me))) throw new ApiError(meta.errors.forbidden);
@@ -79,11 +76,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					return { hits: await this.lojoTutorService.searchChat(tutorId, ps.learnerId, ps.query ?? '', { limit: ps.limit, minScore: 1 }) };
 				case 'wordbook': {
 					const facts = await this.lojoTutorService.wordbookFacts(ps.learnerId);
-					const words = await this.db.query<{ text: string; meaning: string; due: Date | null }[]>(
-						'SELECT w."text", w."meaning", MIN(c."due") AS due FROM "lojo_word" w LEFT JOIN "lojo_word_card" c ON c."wordId" = w."id" WHERE w."userId" = $1 GROUP BY w."id" ORDER BY w."createdAt" DESC LIMIT $2',
-						[ps.learnerId, ps.limit * 4],
-					);
-					return { ...facts, recent: words.map(w => ({ text: w.text, meaning: w.meaning.slice(0, 80), due: w.due?.toISOString().slice(0, 10) ?? null })) };
+					// from the wordbook mini app (小程序搬出社区); a word is due when the earlier of its two cards is
+					const words = await this.lojoWordService.recent(ps.learnerId, ps.limit * 4);
+					const due = (w: typeof words[number]) => (w.recognize.due < w.spell.due ? w.recognize.due : w.spell.due);
+					return { ...facts, recent: words.map(w => ({ text: w.text, meaning: w.meaning.slice(0, 80), due: due(w).slice(0, 10) })) };
 				}
 				case 'levelMistakes':
 					return { mistakes: await this.lojoTutorService.questMistakes?.(ps.learnerId, ps.levelId ?? null) ?? null };

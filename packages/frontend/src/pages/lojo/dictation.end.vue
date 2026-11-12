@@ -59,7 +59,7 @@ to the map to try the gate again. -->
 	</p>
 	<p v-if="wordsAdded > 0" :class="$style.words">
 		<i class="ti ti-notebook" aria-hidden="true"></i> {{ dictLabels.addedWords(wordsAdded) }}
-		<MkA to="/wordbook" class="_link">{{ dictLabels.openWordbook }}</MkA>
+		<a href="/apps/wordbook/" class="_link">{{ dictLabels.openWordbook }}</a>
 	</p>
 
 	<div :class="$style.acts">

@@ -1,0 +1,12 @@
+{
+  "id": "wordbook",
+  "name": "生词本",
+  "summary": "存下来的生词，每个词两张复习卡（认得、拼写），按记忆曲线排每天要复习的。",
+  "base": "/apps/wordbook/",
+  "spec": "/apps/wordbook/api.json",
+  "kinds": {
+    "words": "存了哪些词：词、意思、例句、从哪儿来、两张卡各自下次什么时候复习",
+    "reviews": "复习情况：今天要复习几张、复习了几张、连续几天，以及每次复习记得没有"
+  },
+  "defaultGrants": { "vibi": ["words", "reviews"] }
+}

@@ -29,9 +29,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA v-tooltip.noDelay.right="'攻略'" :class="$style.item" :activeClass="$style.active" aria-label="攻略" to="/guides">
 				<i :class="$style.itemIcon" class="ti ti-book ti-fw"></i><span :class="$style.itemText">攻略</span>
 			</MkA>
-			<MkA v-if="$i != null" v-tooltip.noDelay.right="englishLabels.wordbook" :class="$style.item" :activeClass="$style.active" :aria-label="englishLabels.wordbook" to="/wordbook">
+			<!-- 生词本 runs on its own at /apps/wordbook/ (小程序搬出社区, 2026-11-12): a whole page, not a route here. -->
+			<a v-if="$i != null" v-tooltip.noDelay.right="englishLabels.wordbook" :class="$style.item" :aria-label="englishLabels.wordbook" href="/apps/wordbook/">
 				<i :class="$style.itemIcon" class="ti ti-notebook ti-fw"></i><span :class="$style.itemText">{{ englishLabels.wordbook }}</span>
-			</MkA>
+			</a>
 			<!-- 创作台, once 生产者视角 is on (settings/create). -->
 			<MkA v-if="$i != null && creatorView" v-tooltip.noDelay.right="createLabels.studioTitle" :class="$style.item" :activeClass="$style.active" :aria-label="createLabels.studioTitle" to="/create">
 				<i :class="$style.itemIcon" class="ti ti-layout-dashboard ti-fw"></i><span :class="$style.itemText">{{ createLabels.studioTitle }}</span>

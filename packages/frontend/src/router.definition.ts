@@ -65,11 +65,10 @@ export const ROUTE_DEF = [{
 		level: 'level',
 	},
 }, {
-	// 生词本: expressions saved from the English explanations under posts.
+	// 生词本 moved out to its own mini app at /apps/wordbook/ (小程序搬出社区, 2026-11-12); the old address goes there.
 	name: 'lojo-wordbook',
 	path: '/wordbook',
-	component: page(() => import('@/pages/lojo/wordbook.vue')),
-	loginRequired: true,
+	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 创作台: the drafts 创作讲解 wrote (生产者视角, settings/create).
 	name: 'lojo-create-home',
