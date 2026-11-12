@@ -290,10 +290,21 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				signal: AbortSignal.timeout(90 * 1000),
 			});
 			if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
-			return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown };
+			return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown; usage?: unknown };
 		});
-		// That service does not report its tokens, so a reply is charged a fixed amount (lojoUsage:config mastraReply).
-		await this.chargeLearner(learner.id, 'mastra.reply', null, (await this.lojoUsageService.config()).mastraReply);
+		// Charged by the tokens it reports (mia-mastra v0.3.2+: every DeepSeek call for this learner since the last reply,
+		// Observer and Reflector included). If it reports none, or some calls' usage was lost, the fixed estimate
+		// (lojoUsage:config mastraReply) is charged instead and logged.
+		const u = res.usage as { hit?: unknown; miss?: unknown; out?: unknown; unreported?: unknown } | undefined;
+		const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x >= 0 ? Math.floor(x) : null);
+		const reported = u && n(u.hit) != null && n(u.miss) != null && n(u.out) != null && !(n(u.unreported) ?? 0)
+			? { hit: n(u.hit)!, miss: n(u.miss)!, out: n(u.out)! } : null;
+		if (reported) {
+			await this.chargeLearner(learner.id, 'mastra.reply', reported);
+		} else {
+			this.logger.warn(`mastra usage not reported learner=${learner.id}; charged the estimate`);
+			await this.chargeLearner(learner.id, 'mastra.est', null, (await this.lojoUsageService.config()).mastraReply);
+		}
 		const answer = normalizeTutorReply(res);
 		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
 		const out = await this.withNextLink(tutor.id, answer, questTry ?? undefined);

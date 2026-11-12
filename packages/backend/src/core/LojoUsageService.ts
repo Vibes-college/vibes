@@ -26,7 +26,7 @@ export type UsageConfig = {
 	fiveHour: number; week: number;
 	// how many millionths of a yuan of model cost one gem pays for (about 5 replies)
 	perGem: number;
-	// what one Mia-on-Mastra reply is charged, as that service does not report its tokens back
+	// what one Mia-on-Mastra reply is charged when that service does not report its tokens (normally it does)
 	mastraReply: number;
 	// gifted gems (invite, contribution, admin) expire after this many months; bought gems never expire
 	giftMonths: number;
@@ -34,14 +34,18 @@ export type UsageConfig = {
 	inviteGems: number;
 };
 
-// Average reply measured on the test site 2026-11-11 (see 冲刺1111/Vibi额度/): about 0.0025 yuan at peak prices.
-const AVG_REPLY = 2500;
+// What one learner message costs on average, the notes / Observer / Reflector calls it sets off included, counted at
+// the peak prices above (so an hour of chat uses the same allowance day or night). Measured on the LAN test site
+// 2026-11-11 off-peak with the 60-message script, 3 learners each (180 messages per path), doubled to peak:
+// classic path ¥0.001283 → 2566, Mia on Mastra ¥0.001098 → 2196. The larger one is used so both get about 100 messages
+// per 5 hours and 800 per week (founder, 2026-11-11: "尽量让用户能聊个尽兴").
+const AVG_REPLY = 2600;
 export const USAGE_DEFAULTS: UsageConfig = {
 	priceHit: 0.04, priceMiss: 2, priceOut: 8,
 	fiveHour: 100 * AVG_REPLY,
 	week: 800 * AVG_REPLY,
 	perGem: 5 * AVG_REPLY,
-	mastraReply: 5000,
+	mastraReply: 2200,
 	giftMonths: 6,
 	inviteGems: 990,
 };
