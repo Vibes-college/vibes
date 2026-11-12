@@ -545,6 +545,11 @@ export const ROUTE_DEF = [{
 		name: 'vibesStability',
 		component: page(() => import('@/pages/lojo/stability.vue')),
 	}, {
+		// Vibes: Vibi's allowance and gem ledger for any learner (admins only, like its API).
+		path: '/gems',
+		name: 'vibesGems',
+		component: page(() => import('@/pages/lojo/gems-admin.vue')),
+	}, {
 		path: '/users',
 		name: 'users',
 		component: page(() => import('@/pages/admin/users.vue')),

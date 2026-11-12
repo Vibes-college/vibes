@@ -214,11 +214,12 @@ export class LojoEnglishService implements OnApplicationShutdown {
 	// A multi-turn JSON chat for the AI tutor, with up to two retries on a malformed or empty answer.
 	// It does not spend the English helper's daily budget: the tutor keeps its own.
 	// source names the caller in the usage log line (e.g. "tutor.reply learner=<id>").
-	public async chatJson<T>(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number, normalize: (raw: unknown) => T, source = 'tutor'): Promise<T> {
+	// onUsage hears the tokens of every call made (retries too), so the learner's allowance can be charged what it cost.
+	public async chatJson<T>(messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number, normalize: (raw: unknown) => T, source = 'tutor', onUsage?: (u: { hit: number; miss: number; out: number }) => void): Promise<T> {
 		if (this.apiKey === '') throw new ApiError(lojoEnglishErrors.unavailable);
 		for (let attempt = 1; ; attempt++) {
 			try {
-				return normalize(await this.requestMessages(source, messages, temperature, maxTokens));
+				return normalize(await this.requestMessages(source, messages, temperature, maxTokens, onUsage));
 			} catch (err) {
 				if (attempt < 3 && (err instanceof LojoEnglishInvalidResponse || err instanceof LojoTutorInvalidResponse)) continue;
 				throw err;
@@ -252,7 +253,7 @@ export class LojoEnglishService implements OnApplicationShutdown {
 		], temperature, maxTokens);
 	}
 
-	private async requestMessages(source: string, messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number): Promise<unknown> {
+	private async requestMessages(source: string, messages: { role: 'system' | 'user' | 'assistant'; content: string }[], temperature: number, maxTokens: number, onUsage?: (u: { hit: number; miss: number; out: number }) => void): Promise<unknown> {
 		const started = Date.now();
 		const res = await this.httpRequestService.send(ENDPOINT, {
 			method: 'POST',
@@ -283,6 +284,7 @@ export class LojoEnglishService implements OnApplicationShutdown {
 
 		const json = await res.json() as ChatCompletion;
 		logModelUsage(this.logger, source, json, Date.now() - started);
+		onUsage?.({ hit: json.usage?.prompt_cache_hit_tokens ?? 0, miss: json.usage?.prompt_cache_miss_tokens ?? 0, out: json.usage?.completion_tokens ?? 0 });
 		const choice = json.choices?.[0];
 		const content = choice?.message?.content ?? '';
 		// A cut-off answer would be cut off again on retry, so it is not worth a second call.

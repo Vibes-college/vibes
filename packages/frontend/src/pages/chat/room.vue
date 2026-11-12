@@ -84,6 +84,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</button>
 					</div>
 				</Transition>
+				<!-- Vibes: Vibi's allowance and gems, only in a chat with an AI tutor (lojo/tutor/usage-text.ts). -->
+				<XVibiUsage v-if="initialized && user && tutorIds.includes(user.id)" :tick="messages.length"/>
 				<XForm v-if="initialized" :user="user" :room="room" :class="$style.form"/>
 			</div>
 		</div>
@@ -101,6 +103,7 @@ import XForm from './room.form.vue';
 import XSearch from './room.search.vue';
 import XMembers from './room.members.vue';
 import XInfo from './room.info.vue';
+import XVibiUsage from '@/lojo/tutor/VibiUsage.vue';
 import type { MenuItem } from '@/types/menu.js';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import * as os from '@/os.js';

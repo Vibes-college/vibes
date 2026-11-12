@@ -31,6 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
+import { lang } from '@@/js/config.js';
 import { onActivated, onMounted, onUnmounted, provide, watch, ref, computed } from 'vue';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import type { PageMetadata } from '@/page.js';
@@ -113,6 +114,12 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		text: '稳定性日报',
 		to: '/admin/stability',
 		active: currentPage.value?.route.name === 'vibesStability',
+	}, {
+		// Vibes: anyone's Vibi allowance and gem ledger, add or take gems (pages/lojo/gems-admin.vue).
+		icon: 'ti ti-diamond',
+		text: lang.startsWith('zh') ? 'Vibi 用量和宝石' : 'Vibi usage & gems',
+		to: '/admin/gems',
+		active: currentPage.value?.route.name === 'vibesGems',
 	}] : []), {
 		icon: 'ti ti-users',
 		text: i18n.ts.users,

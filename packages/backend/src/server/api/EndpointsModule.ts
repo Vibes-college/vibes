@@ -15,6 +15,7 @@ import { LojoTutorService } from '@/core/LojoTutorService.js';
 import { LojoGateService } from '@/core/LojoGateService.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
 import { LojoQuestService } from '@/core/LojoQuestService.js';
+import { LojoUsageService } from '@/core/LojoUsageService.js';
 import * as endpointsObject from './endpoint-list.js';
 import { GetterService } from './GetterService.js';
 import { ApiLoggerService } from './ApiLoggerService.js';
@@ -37,6 +38,7 @@ const endpointProviders = endpoints.map(([path, endpoint]): Provider => ({ provi
 		LojoGateService,
 		LojoWordService,
 		LojoQuestService,
+		LojoUsageService,
 		GetterService,
 		ApiLoggerService,
 		...endpointProviders,

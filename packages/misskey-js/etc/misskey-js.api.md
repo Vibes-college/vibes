@@ -2063,6 +2063,14 @@ declare namespace entities {
         LojoGatesStartResponse,
         LojoGatesSubmitRequest,
         LojoGatesSubmitResponse,
+        LojoGemsAdminAdjustRequest,
+        LojoGemsAdminAdjustResponse,
+        LojoGemsAdminShowRequest,
+        LojoGemsAdminShowResponse,
+        LojoGemsConfigRequest,
+        LojoGemsConfigResponse,
+        LojoGemsGrantInviteRequest,
+        LojoGemsGrantInviteResponse,
         LojoGuidesBookmarkRequest,
         LojoGuidesBookmarkResponse,
         LojoGuidesCommentsCreateRequest,
@@ -2135,6 +2143,7 @@ declare namespace entities {
         LojoTutorPublicResponse,
         LojoTutorQuestPokeRequest,
         LojoTutorQuestPokeResponse,
+        LojoUsageShowResponse,
         LojoWordsAddRequest,
         LojoWordsAddResponse,
         LojoWordsImportRequest,
@@ -3112,6 +3121,30 @@ type LojoGatesSubmitRequest = operations['lojo___gates___submit']['requestBody']
 type LojoGatesSubmitResponse = operations['lojo___gates___submit']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoGemsAdminAdjustRequest = operations['lojo___gems___admin-adjust']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsAdminAdjustResponse = operations['lojo___gems___admin-adjust']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsAdminShowRequest = operations['lojo___gems___admin-show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsAdminShowResponse = operations['lojo___gems___admin-show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsConfigRequest = operations['lojo___gems___config']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsConfigResponse = operations['lojo___gems___config']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsGrantInviteRequest = operations['lojo___gems___grant-invite']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoGemsGrantInviteResponse = operations['lojo___gems___grant-invite']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoGuidesBookmarkRequest = operations['lojo___guides___bookmark']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3326,6 +3359,9 @@ type LojoTutorQuestPokeRequest = operations['lojo___tutor___quest-poke']['reques
 
 // @public (undocumented)
 type LojoTutorQuestPokeResponse = operations['lojo___tutor___quest-poke']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoUsageShowResponse = operations['lojo___usage___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoWordsAddRequest = operations['lojo___words___add']['requestBody']['content']['application/json'];

@@ -21,6 +21,7 @@ import { LojoEnglishService } from '@/core/LojoEnglishService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { LojoGateService } from '@/core/LojoGateService.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
+import { LojoUsageService, type ModelUsage } from '@/core/LojoUsageService.js';
 import type { MiLocalUser } from '@/models/User.js';
 import type Logger from '@/logger.js';
 import type { Config } from '@/config.js';
@@ -90,9 +91,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	private readonly tz = process.env.LOJO_TUTOR_TZ || 'Asia/Shanghai';
 	private readonly hours = (process.env.LOJO_TUTOR_HOURS || '9-21').split('-').map(Number);
 	private readonly proactive = process.env.LOJO_TUTOR_PROACTIVE !== '0';
-	// Model calls per UTC day for all tutors together, and replies per learner per day.
+	// Model calls per UTC day for all tutors together: a fuse for the whole site. Each learner's own allowance is in
+	// LojoUsageService (5 hours + a week, counted in money; founder, 2026-11-11).
 	private readonly dailyLimit = Number(process.env.LOJO_TUTOR_DAILY_LIMIT) || 3000;
-	private readonly learnerDailyReplies = Number(process.env.LOJO_TUTOR_LEARNER_DAILY_REPLIES) || 60;
 	private readonly mastraUrl = (process.env.LOJO_TUTOR_MASTRA_URL ?? '').replace(/\/$/, '');
 	private readonly mastraSecret = process.env.LOJO_TUTOR_MASTRA_SECRET ?? '';
 	private readonly skipUsernames = (process.env.LOJO_TUTOR_SKIP_USERNAMES ?? 'vibes_editors').split(',').map(x => x.trim()).filter(x => x !== '');
@@ -124,6 +125,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private lojoSpeechService: LojoSpeechService,
 		private lojoGateService: LojoGateService,
 		private lojoWordService: LojoWordService,
+		private lojoUsageService: LojoUsageService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-tutor');
 	}
@@ -201,15 +203,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				await this.sayAway(tutor, learner);
 				return;
 			}
-			const day = new Date().toISOString().slice(0, 10);
-			const replies = await this.count(`lojoTutor:replies:${tutorId}:${learnerId}:${day}`);
-			if (replies > this.learnerDailyReplies) {
-				// Once a day, say so instead of going quiet.
-				if (await this.redisClient.set(`lojoTutor:break:${tutorId}:${learnerId}:${day}`, '1', 'EX', 2 * 24 * 60 * 60, 'NX') === 'OK') {
-					await this.send(tutor, learner, ['I need a little break now 😊 Let\'s pick this up tomorrow!'], false, undefined);
-				}
-				return;
-			}
+			// Allowance used up and no gems: she does not answer. Only the chat page says why and when it comes back;
+			// Vibi herself never talks about allowances or paying (docs/decisions.md 2026-10-25).
+			if (!(await this.lojoUsageService.canChat(learnerId))) return;
 			// Learners switched over to Mia on Mastra get her; if she fails, the usual Mia below answers instead.
 			if (await this.onMastra(learnerId)) {
 				const done = await this.replyWithMastra(tutor, learner).catch(err => {
@@ -232,12 +228,15 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			const system = tutorSystemPrompt(card, memory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
 			const context = tutorContextMessage({ now: this.nowText(), learnerName: this.nameOf(learner), progress, recall, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
 			let answer: TutorReply;
+			const usage = this.usageMeter();
 			try {
-				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history, { role: 'system', content: context }], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`));
+				answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...history, { role: 'system', content: context }], 0.8, 900, normalizeTutorReply, `tutor.reply learner=${learnerId}`, usage.add));
 			} catch (err) {
 				if (!(await this.markDownOn(err))) throw err;
 				await this.sayAway(tutor, learner);
 				return;
+			} finally {
+				await this.chargeLearner(learnerId, 'tutor.reply', usage.total());
 			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, questTry ?? undefined), answer.voice, card.extensions.vibes?.voice);
 			const lastLearner = history.findLast(turn => turn.role === 'user')?.content ?? '';
@@ -293,6 +292,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
 			return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown };
 		});
+		// That service does not report its tokens, so a reply is charged a fixed amount (lojoUsage:config mastraReply).
+		await this.chargeLearner(learner.id, 'mastra.reply', null, (await this.lojoUsageService.config()).mastraReply);
 		const answer = normalizeTutorReply(res);
 		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
 		const out = await this.withNextLink(tutor.id, answer, questTry ?? undefined);
@@ -360,11 +361,13 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			today: this.nowText(),
 			notes: { profile: memory.profile, facts: memory.facts.map(({ id, text }) => ({ id, text })), summary: memory.summary },
 		});
+		// The notes come from the learner's own chatting, so they count towards the learner's allowance too.
+		const usage = this.usageMeter();
 		const update = await this.lojoEnglishService.chatJson([
 			{ role: 'system', content: tutorSystemPrompt(card, sessionMemory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) }) },
 			...history,
 			{ role: 'system', content: task },
-		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`);
+		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`, usage.add).finally(() => this.chargeLearner(learnerId, 'tutor.notes', usage.total()));
 		const next = applyMemoryUpdate(memory, update, new Date(), () => this.idService.gen());
 		await this.registryApiService.set(learnerId, null, SCOPE, tutorId, next);
 		await this.redisClient.hincrby(this.stateKey(tutorId, learnerId), 'notesPending', -pending);
@@ -834,6 +837,22 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			return false;
 		}
 		return true;
+	}
+
+	// Adds up the tokens of the calls behind one answer (retries included), to charge them as one.
+	private usageMeter(): { add: (u: ModelUsage) => void; total: () => ModelUsage | null } {
+		let sum: ModelUsage | null = null;
+		return {
+			add: u => { sum = { hit: (sum?.hit ?? 0) + u.hit, miss: (sum?.miss ?? 0) + u.miss, out: (sum?.out ?? 0) + u.out }; },
+			total: () => sum,
+		};
+	}
+
+	// What Vibi's answer cost, off the learner's allowance (then gems). Messages she writes first are not charged.
+	private async chargeLearner(learnerId: string, source: string, usage: ModelUsage | null, fixedCost?: number): Promise<void> {
+		if (usage == null && fixedCost == null) return;
+		await this.lojoUsageService.charge(learnerId, `${source}:${this.idService.gen()}`, source, usage, fixedCost)
+			.catch(err => this.logger.warn(`could not charge ${learnerId} for ${source}: ${err}`));
 	}
 
 	private async count(key: string): Promise<number> {

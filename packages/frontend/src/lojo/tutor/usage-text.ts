@@ -1,0 +1,54 @@
+/*
+ * SPDX-FileCopyrightText: syuilo and misskey-project
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+// The usage line under a chat with Vibi (founder, 2026-11-11): how much of the 5-hour and weekly allowance is used and
+// when it comes back; when it is used up, whether gems are in use. Only this line talks about it: Vibi never does.
+// There is no way to buy gems yet, so there is no buy button.
+
+export type VibiUsage = {
+	fivePct: number; fiveResetAt: string | null;
+	weekPct: number; weekResetAt: string | null;
+	state: 'ok' | 'gems' | 'out';
+	backAt: string | null;
+	gems: number; // thousandths of a gem
+};
+
+const WEEKDAYS_ZH = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const WEEKDAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// "今天 14:00", "明天 09:30", "周四 14:00" (within a week), else "11月20日 14:00"; in the viewer's own time.
+export function whenText(iso: string, now: Date, zh: boolean): string {
+	const at = new Date(iso);
+	const hm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+	const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+	const days = Math.round((day(at) - day(now)) / 86400000);
+	if (days <= 0) return zh ? `今天 ${hm}` : `today ${hm}`;
+	if (days === 1) return zh ? `明天 ${hm}` : `tomorrow ${hm}`;
+	if (days < 7) return zh ? `${WEEKDAYS_ZH[at.getDay()]} ${hm}` : `${WEEKDAYS_EN[at.getDay()]} ${hm}`;
+	return zh ? `${at.getMonth() + 1}月${at.getDate()}日 ${hm}` : `${at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${hm}`;
+}
+
+export function gemsText(milli: number): string {
+	return milli >= 10000 ? String(Math.floor(milli / 1000)) : String(Math.floor(milli / 100) / 10);
+}
+
+export function usageText(u: VibiUsage, now: Date, zh: boolean): string {
+	const back = u.backAt ? whenText(u.backAt, now, zh) : null;
+	if (u.state === 'out') {
+		return zh
+			? `额度用完了，${back ?? '稍后'}恢复。在那之前 Vibi 先不回复。`
+			: `You've used up your allowance. It's back ${back ?? 'soon'}; Vibi won't reply until then.`;
+	}
+	if (u.state === 'gems') {
+		return zh
+			? `额度用完了，现在在用宝石（还剩 ${gemsText(u.gems)} 颗）。额度${back ? ` ${back}` : '稍后'}恢复。`
+			: `You've used up your allowance, so gems are being used now (${gemsText(u.gems)} left). Allowance back ${back ?? 'soon'}.`;
+	}
+	const week = u.weekPct > 0 && u.weekResetAt
+		? (zh ? `本周已用 ${u.weekPct}%，${whenText(u.weekResetAt, now, zh)} 恢复` : `This week: ${u.weekPct}% used, resets ${whenText(u.weekResetAt, now, zh)}`)
+		: (zh ? `本周已用 ${u.weekPct}%` : `This week: ${u.weekPct}% used`);
+	const five = zh ? `5 小时内已用 ${u.fivePct}%` : `Last 5 hours: ${u.fivePct}%`;
+	return `${week} · ${five}`;
+}

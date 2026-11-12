@@ -526,6 +526,14 @@ import type {
 	LojoGatesStartResponse,
 	LojoGatesSubmitRequest,
 	LojoGatesSubmitResponse,
+	LojoGemsAdminAdjustRequest,
+	LojoGemsAdminAdjustResponse,
+	LojoGemsAdminShowRequest,
+	LojoGemsAdminShowResponse,
+	LojoGemsConfigRequest,
+	LojoGemsConfigResponse,
+	LojoGemsGrantInviteRequest,
+	LojoGemsGrantInviteResponse,
 	LojoGuidesBookmarkRequest,
 	LojoGuidesBookmarkResponse,
 	LojoGuidesCommentsCreateRequest,
@@ -598,6 +606,7 @@ import type {
 	LojoTutorPublicResponse,
 	LojoTutorQuestPokeRequest,
 	LojoTutorQuestPokeResponse,
+	LojoUsageShowResponse,
 	LojoWordsAddRequest,
 	LojoWordsAddResponse,
 	LojoWordsImportRequest,
@@ -1138,6 +1147,10 @@ export type Endpoints = {
 	'lojo/gates/progress': { req: LojoGatesProgressRequest; res: LojoGatesProgressResponse };
 	'lojo/gates/start': { req: LojoGatesStartRequest; res: LojoGatesStartResponse };
 	'lojo/gates/submit': { req: LojoGatesSubmitRequest; res: LojoGatesSubmitResponse };
+	'lojo/gems/admin-adjust': { req: LojoGemsAdminAdjustRequest; res: LojoGemsAdminAdjustResponse };
+	'lojo/gems/admin-show': { req: LojoGemsAdminShowRequest; res: LojoGemsAdminShowResponse };
+	'lojo/gems/config': { req: LojoGemsConfigRequest; res: LojoGemsConfigResponse };
+	'lojo/gems/grant-invite': { req: LojoGemsGrantInviteRequest; res: LojoGemsGrantInviteResponse };
 	'lojo/guides/bookmark': { req: LojoGuidesBookmarkRequest; res: LojoGuidesBookmarkResponse };
 	'lojo/guides/comments/create': { req: LojoGuidesCommentsCreateRequest; res: LojoGuidesCommentsCreateResponse };
 	'lojo/guides/comments/delete': { req: LojoGuidesCommentsDeleteRequest; res: LojoGuidesCommentsDeleteResponse };
@@ -1178,6 +1191,7 @@ export type Endpoints = {
 	'lojo/tutor/poke': { req: LojoTutorPokeRequest; res: LojoTutorPokeResponse };
 	'lojo/tutor/public': { req: EmptyRequest; res: LojoTutorPublicResponse };
 	'lojo/tutor/quest-poke': { req: LojoTutorQuestPokeRequest; res: LojoTutorQuestPokeResponse };
+	'lojo/usage/show': { req: EmptyRequest; res: LojoUsageShowResponse };
 	'lojo/words/add': { req: LojoWordsAddRequest; res: LojoWordsAddResponse };
 	'lojo/words/import': { req: LojoWordsImportRequest; res: LojoWordsImportResponse };
 	'lojo/words/list': { req: EmptyRequest; res: LojoWordsListResponse };
