@@ -16,8 +16,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 >
 	<MkStickyContainer :hideHeader="chromeHidden && !reversed" :hideFooter="chromeHidden && !reversed">
 		<template #header>
-			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" v-bind="pageHeaderPropsWithoutTabs"/>
-			<MkPageHeader v-else v-model:tab="tab" v-bind="pageHeaderProps"/>
+			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" :class="{ [$style.solidHeader]: reversed }" v-bind="pageHeaderPropsWithoutTabs"/>
+			<MkPageHeader v-else v-model:tab="tab" :class="{ [$style.solidHeader]: reversed }" v-bind="pageHeaderProps"/>
 		</template>
 		<div :class="$style.body">
 			<MkSwiper v-if="prefer.s.enableHorizontalSwipe && swipable && (props.tabs?.length ?? 1) > 1" v-model:tab="tab" :class="$style.swiper" :tabs="props.tabs ?? []">
@@ -279,6 +279,16 @@ defineExpose({
 	.body {
 		padding-bottom: 0;
 	}
+}
+
+// Vibes: in a chat (a reversed page) messages scroll right under the header. The stock header is 75% see-through and
+// leans on the blur to hide them; where the blur is not drawn (blur turned off in settings, some Safari/WebView
+// cases) the messages read straight through the title and tabs. Even 96% still let them show in Safari's engine, so the
+// chat header is solid, and the blur goes with it (nothing shows through to blur) (2026-11-11).
+.solidHeader.solidHeader {
+	background: var(--MI_THEME-pageHeaderBg);
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
 }
 
 .footerTabs {
