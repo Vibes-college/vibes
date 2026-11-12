@@ -1,0 +1,46 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "词汇线 vocab", "version": "1", "description": "Vibes 小程序「词汇线」（雅思 5 号线）的只读接口。只返回调用者本人（或授权给调用方的那位用户）的数据。时间都是 ISO 8601（UTC）。词都是英式拼法（课程文件里的写法）。" },
+  "servers": [{ "url": "/apps/vocab/api/v1" }],
+  "paths": {
+    "/progress": {
+      "get": {
+        "summary": "9 站各自的进度",
+        "x-vibes-kind": "progress",
+        "responses": { "200": { "description": "items 每站一条，没练过的站也有（learned 0、lastAt null）", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "vocab" }, "kind": { "const": "progress" }, "next": { "type": "null" },
+          "summary": { "type": "object", "properties": {
+            "learned": { "type": "integer", "description": "一共拼对过几个词（第一次就对、没看提示）" },
+            "total": { "type": "integer", "description": "整条线一共几个词" },
+            "missed": { "type": "integer", "description": "现在拼错待复习的词有几个" },
+            "stopsPractised": { "type": "integer", "description": "练过几站" } } },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "stop": { "type": "string", "description": "站的 id，如 5.2" },
+            "name": { "type": "string", "description": "站名（中文）" },
+            "words": { "type": "integer", "description": "这一站几个词" },
+            "learned": { "type": "integer", "description": "拼对过几个" },
+            "missed": { "type": "array", "items": { "type": "string" }, "description": "拼错待复习的词（再第一次就拼对才出来）" },
+            "lastAt": { "type": ["string", "null"], "format": "date-time", "description": "这一站最近一次练的时间" } } } } } } } } } }
+      }
+    },
+    "/answers": {
+      "get": {
+        "summary": "练习记录，新的在前：每答一个词一行",
+        "x-vibes-kind": "answers",
+        "parameters": [
+          { "name": "since", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "只要这个时间以后的" },
+          { "name": "until", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "只要这个时间以前的" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "上一页返回的 next" }
+        ],
+        "responses": { "200": { "description": "items 是记录，next 是下一页的 cursor（没有就是 null）。搬家前的练习没有逐个记录，从搬家后开始记", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "vocab" }, "kind": { "const": "answers" }, "next": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "stop": { "type": "string" }, "stopName": { "type": "string" },
+            "word": { "type": "string" },
+            "right": { "type": "boolean", "description": "第一次就拼对（没看提示）" },
+            "at": { "type": "string", "format": "date-time" } } } } } } } } } }
+      }
+    }
+  }
+}

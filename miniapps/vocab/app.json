@@ -1,0 +1,12 @@
+{
+  "id": "vocab",
+  "name": "词汇线",
+  "summary": "雅思 5 号线 · 词汇：9 站，每站 30–40 个词。看词表、选意思、听音拼写；第一次就拼对（没看提示）算拼对过，拼错的进待复习，再拼对就出来。",
+  "base": "/apps/vocab/",
+  "spec": "/apps/vocab/api.json",
+  "kinds": {
+    "progress": "每一站几个词、拼对过几个、现在拼错待复习的词、最近一次练的时间",
+    "answers": "每答一个词的记录（哪一站、哪个词、对没对、什么时候）"
+  },
+  "defaultGrants": { "vibi": ["progress", "answers"] }
+}
