@@ -1,0 +1,107 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* 小程序的底色和几个社区全局样式的替身。颜色默认取社区的 Vibes Light（packages/frontend-shared/themes/lojo-light.json5）；
+   打开过社区的人，shell/theme.ts 会换成他在社区里用的配色（含深色）。 */
+:root {
+	--MI_THEME-accent: #2340A3;
+	--MI_THEME-cta: #E8603F;
+	--MI_THEME-bg: #F6F1E7;
+	--MI_THEME-panel: #FFFDF8;
+	--MI_THEME-popup: #FFFDF8;
+	--MI_THEME-divider: #E9E1D2;
+	--MI_THEME-buttonBg: #EFE8DA;
+	--MI_THEME-buttonHoverBg: #E6DDCB;
+	--MI_THEME-fg: #4A4E63;
+	--MI_THEME-fgHighlighted: #2A2F48;
+	--MI_THEME-fgOnAccent: #fff;
+	--MI_THEME-focus: rgba(35, 64, 163, 0.3);
+	--MI_THEME-error: #ec4137;
+	--MI_THEME-link: #3557C9;
+	--MI_THEME-pageHeaderBg: #F6F1E7;
+	color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+	margin: 0;
+	min-height: 100dvh;
+	background: var(--MI_THEME-bg);
+	color: var(--MI_THEME-fg);
+	font-family: "Hiragino Maru Gothic Pro", "BIZ UDGothic", Roboto, HelveticaNeue, Arial, sans-serif;
+	font-size: 15px;
+	line-height: 1.35;
+	overflow-wrap: break-word;
+}
+#app { min-height: 100dvh; }
+a { color: var(--MI_THEME-link); }
+
+/* 社区的 _button / _link */
+._button {
+	appearance: none; display: inline-block; padding: 0; margin: 0;
+	background: none; border: none; cursor: pointer; color: inherit; font: inherit;
+	user-select: none; -webkit-tap-highlight-color: transparent;
+}
+._button:disabled { cursor: default; }
+._button:focus-visible { outline: 2px solid var(--MI_THEME-focus); outline-offset: 2px; }
+._link { color: var(--MI_THEME-link); text-decoration: none; }
+._link:hover { text-decoration: underline; }
+
+/* 顶栏 */
+.mini-header {
+	position: sticky; top: 0; z-index: 10;
+	display: flex; align-items: center; gap: 8px;
+	height: 52px; padding: 0 8px; padding-top: env(safe-area-inset-top);
+	background: var(--MI_THEME-pageHeaderBg);
+	border-bottom: 1px solid var(--MI_THEME-divider);
+}
+.mini-header h1 { flex: 1; margin: 0; font-size: 15px; font-weight: bold; text-align: center; color: var(--MI_THEME-fgHighlighted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-back { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; color: var(--MI_THEME-fg); }
+.mini-back:hover { background: var(--MI_THEME-buttonBg); }
+.mini-spacer { width: 40px; }
+
+/* 按钮（MkButton 替身） */
+.mk-btn {
+	display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+	min-height: 38px; padding: 8px 16px; border: none; border-radius: 6px;
+	background: var(--MI_THEME-buttonBg); color: var(--MI_THEME-fg);
+	font: inherit; font-weight: bold; text-decoration: none; cursor: pointer;
+}
+.mk-btn:hover { background: var(--MI_THEME-buttonHoverBg); }
+.mk-btn.primary { background: var(--MI_THEME-cta); color: var(--MI_THEME-fgOnAccent); }
+.mk-btn.primary:hover { filter: brightness(1.05); }
+.mk-btn.rounded { border-radius: 999px; }
+.mk-btn.large { min-height: 46px; padding: 10px 24px; font-size: 16px; }
+.mk-btn.full { width: 100%; }
+.mk-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* 加载圈 */
+.mini-loading { display: grid; place-items: center; padding: 48px 0; }
+.mini-loading span { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--MI_THEME-divider); border-top-color: var(--MI_THEME-accent); animation: mini-spin 0.8s linear infinite; }
+@keyframes mini-spin { to { transform: rotate(360deg); } }
+
+/* 提示条（os.toast 替身） */
+.mini-toast {
+	position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 1000;
+	transform: translateX(-50%); max-width: calc(100vw - 32px);
+	padding: 10px 16px; border-radius: 999px;
+	background: var(--MI_THEME-fgHighlighted); color: var(--MI_THEME-panel);
+	font-size: 14px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+	transition: opacity 0.4s;
+}
+.mini-toast.out { opacity: 0; }
+
+/* 菜单（os.popupMenu 替身） */
+.mini-menu {
+	position: fixed; z-index: 1001; width: 240px; max-height: 260px; overflow: auto;
+	padding: 6px 0; border-radius: 10px;
+	background: var(--MI_THEME-popup); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.mini-menu button { display: block; width: 100%; padding: 9px 14px; border: none; background: none; color: var(--MI_THEME-fg); font: inherit; text-align: left; cursor: pointer; }
+.mini-menu button:hover, .mini-menu button.active { background: var(--MI_THEME-buttonBg); }
+.mini-menu .label { padding: 6px 14px; font-size: 12px; opacity: 0.7; }
+.mini-menu hr { margin: 6px 0; border: none; border-top: 1px solid var(--MI_THEME-divider); }
+
+/* 没登录 */
+.mini-signin { max-width: 420px; margin: 0 auto; padding: 96px 24px; text-align: center; }
+.mini-signin h1 { font-size: 20px; color: var(--MI_THEME-fgHighlighted); }
+.mini-signin p { margin: 12px 0 28px; }

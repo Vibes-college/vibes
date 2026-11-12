@@ -1,0 +1,49 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "机考打字 typing", "version": "1", "description": "Vibes 小程序「机考打字」的只读接口。只返回调用者本人（或授权给调用方的那位用户）的数据。时间都是 ISO 8601（UTC）。" },
+  "servers": [{ "url": "/apps/typing/api/v1" }],
+  "paths": {
+    "/progress": {
+      "get": {
+        "summary": "打字线每一站的进度",
+        "x-vibes-kind": "progress",
+        "responses": { "200": { "description": "items 每站一条，按站的顺序", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "typing" }, "kind": { "const": "progress" }, "next": { "type": "null" },
+          "summary": { "type": "object", "properties": {
+            "passed": { "type": "integer", "description": "过了几站" },
+            "total": { "type": "integer", "description": "一共几站（现在是 5）" },
+            "practiceMinutes": { "type": "integer", "description": "在各站里练的总时间，分钟" },
+            "finishedAt": { "type": ["string", "null"], "format": "date-time", "description": "整条线点亮的时间，没点亮是 null" } } },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "stop": { "type": "string", "description": "站的 id：numbers / spelling / listening / sentences / mock" },
+            "n": { "type": "integer", "description": "第几站，从 1 开始" },
+            "name": { "type": "string", "description": "站名（中文）" },
+            "tries": { "type": "integer", "description": "交过几次" },
+            "passed": { "type": "boolean" },
+            "passedAt": { "type": ["string", "null"], "format": "date-time", "description": "第一次过关的时间" },
+            "passedOn": { "type": ["string", "null"], "enum": ["desktop", "phone", null], "description": "在电脑还是手机上过的" },
+            "best": { "type": ["object", "null"], "description": "最好的一次：pass 过没过、score/total 对几个/共几个、acc 准确率 0–1、wpm 每分钟词数" },
+            "lastAt": { "type": ["string", "null"], "format": "date-time", "description": "最近一次交的时间" } } } } } } } } } }
+      }
+    },
+    "/tries": {
+      "get": {
+        "summary": "每次打完一站的记录，新的在前",
+        "x-vibes-kind": "tries",
+        "parameters": [
+          { "name": "since", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "只要这个时间以后的" },
+          { "name": "until", "in": "query", "schema": { "type": "string", "format": "date-time" }, "description": "只要这个时间以前的" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "上一页返回的 next" }
+        ],
+        "responses": { "200": { "description": "items 是记录，next 是下一页的 cursor（没有就是 null）", "content": { "application/json": { "schema": { "type": "object", "properties": {
+          "app": { "const": "typing" }, "kind": { "const": "tries" }, "next": { "type": ["string", "null"] },
+          "items": { "type": "array", "items": { "type": "object", "properties": {
+            "stop": { "type": "string" }, "n": { "type": "integer" }, "name": { "type": "string" },
+            "passed": { "type": "boolean", "description": "记这一行时这一站是否已经过关" },
+            "at": { "type": "string", "format": "date-time" },
+            "best": { "type": ["object", "null"], "description": "当时这一站最好的一次" } } } } } } } } } }
+      }
+    }
+  }
+}

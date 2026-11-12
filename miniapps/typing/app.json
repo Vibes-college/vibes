@@ -1,0 +1,12 @@
+{
+  "id": "typing",
+  "name": "机考打字",
+  "summary": "雅思机考前的 5 站打字练习：数字符号、拼写、边听边打、打句子、机考模拟。",
+  "base": "/apps/typing/",
+  "spec": "/apps/typing/api.json",
+  "kinds": {
+    "progress": "每一站练了几次、过没过、最好成绩，整条线过了几站",
+    "tries": "每次打完一站的记录（哪一站、过没过、什么时候）"
+  },
+  "defaultGrants": { "vibi": ["progress", "tries"] }
+}
