@@ -21,11 +21,51 @@ export const progress = ref<DictProgress>(emptyProgress());
 export const progressLoaded = ref(false);
 
 function readLocal(): DictProgress {
+	let p: DictProgress;
 	try {
-		return toProgress(JSON.parse(localStorage.getItem(LOCAL_KEY) ?? 'null'));
+		p = toProgress(JSON.parse(localStorage.getItem(LOCAL_KEY) ?? 'null'));
 	} catch {
-		return emptyProgress();
+		p = emptyProgress();
 	}
+	return importTry(p);
+}
+
+// The free try (/dictation-try/, 11-11 to 11-12) kept its records in this browser under its own name. The first time this
+// page opens here, they are read over once (decided 2026-11-12): only items and sets this page has no record of yet,
+// so nothing newer is overwritten. The old copy is left as it was; a mark keeps it from being read again.
+const TRY_KEY = 'vibes-dictation-try:v1';
+const TRY_DONE_KEY = 'vibes-dictation:try-imported';
+
+export function importTry(p: DictProgress): DictProgress {
+	try {
+		if (localStorage.getItem(TRY_DONE_KEY) != null) return p;
+		const old = fromTry(JSON.parse(localStorage.getItem(TRY_KEY) ?? 'null'));
+		if (old != null) {
+			for (const [id, rec] of Object.entries(old.items)) p.items[id] ??= rec;
+			for (const [set, ids] of Object.entries(old.last)) p.last[set] ??= ids;
+			localStorage.setItem(LOCAL_KEY, JSON.stringify(p));
+		}
+		localStorage.setItem(TRY_DONE_KEY, new Date().toISOString());
+	} catch {
+		// storage off or broken: practise from what there is, try again next time
+	}
+	return p;
+}
+
+// The try kept per item { r, w, streak, seen, at, given } and counted a word as 常错 while w >= 2 and streak < 2.
+// Here that is o; m (misses since it last left 常错) is all its misses unless it has already left.
+export function fromTry(value: unknown): DictProgress | null {
+	if (value == null || typeof value !== 'object' || (value as { v?: unknown }).v !== 1) return null;
+	const v = value as { items?: Record<string, Record<string, unknown>>; last?: unknown };
+	const items: Record<string, unknown> = {};
+	for (const [id, rec] of Object.entries(v.items ?? {})) {
+		if (rec == null || typeof rec !== 'object') continue;
+		const r = rec.r, w = rec.w, s = rec.streak;
+		if (![r, w, s].every(n => typeof n === 'number' && Number.isInteger(n) && n >= 0)) continue;
+		const o = (w as number) >= 2 && (s as number) < 2;
+		items[id] = { r, w, s, o, m: o || (w as number) < 2 ? w : 0, at: typeof rec.at === 'number' ? rec.at : 0 };
+	}
+	return toProgress({ items, last: v.last });
 }
 
 let loading: Promise<void> | null = null;
