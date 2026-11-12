@@ -50,7 +50,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'synonym-match',
 		name: '同义词连连看',
 		icon: 'ti ti-arrows-exchange',
-		link: { kind: 'external', href: '/synonym/index.html' },
+		link: { kind: 'external', href: '/apps/synonym/' },
 		intro: {
 			summary: '题目换了说法，你也认得出。点两张意思一样的卡，把它们连起来。',
 			audience: '在练雅思阅读、听力，老是认不出题目换了说法的人。',

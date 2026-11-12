@@ -309,7 +309,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "synonym-match",
 			"zh": "同义词连连看",
-			"path": "/synonym/index.html?topic=general"
+			"path": "/apps/synonym/?topic=general"
 		},
 		"verify": "闯关第一章 Boss「换装者」：同义替换，听力、阅读都有。练习关 1-6「换了说法」、1-9「近义说法」也考这个。",
 		"verifyUrl": "/quest?level=boss",

@@ -285,16 +285,7 @@ export class ClientServerService {
 			decorateReply: false,
 		});
 
-		// 同义替换消消乐: a static mini app on the same origin, so it can read the login token and call the API.
-		// Files are copied from prototypes/synonym-match by apps/community/scripts/sync-synonym.sh.
-		// The entry is /synonym/index.html: the service worker takes over extensionless paths as community pages.
-		fastify.register(fastifyStatic, {
-			root: resolve(this.staticAssets, 'miniapps', 'synonym'),
-			prefix: '/synonym/',
-			maxAge: 0,
-			decorateReply: false,
-		});
-		fastify.get('/synonym', async (request, reply) => reply.redirect('/synonym/index.html'));
+		// 同义词连连看 moved out to /apps/synonym/ (小程序搬出社区, 2026-11-12): the gateway serves it and answers /synonym/… with 301.
 
 		// LOJO rent map: AMap JS API. The public JS key is handed to the page; the security code
 		// stays on the server and is added by this fixed-upstream proxy (AMap's serviceHost mode).
