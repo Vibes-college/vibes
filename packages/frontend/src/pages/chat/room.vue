@@ -85,8 +85,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</Transition>
 				<XForm v-if="initialized" :user="user" :room="room" :class="$style.form"/>
-				<!-- Vibes, TEMPORARY (2026-11-12, remove once the iPhone send row is confirmed): numbers for vibes_admin only. -->
-				<div v-if="kbDebug !== ''" :class="$style.kbDebug">{{ kbDebug }}</div>
 			</div>
 		</div>
 	</template>
@@ -121,27 +119,6 @@ import { makeDateSeparatedTimelineComputedRef } from '@/utility/timeline-date-se
 import { chatLabels } from '@/lojo/english/labels.js';
 
 const $i = ensureSignin();
-// Vibes, TEMPORARY (2026-11-12): the keyboard and the bottom bar in numbers, shown only to vibes_admin, so a screenshot
-// from a real iPhone says where the send row went. Remove with the template line once it is confirmed.
-const kbDebug = ref('');
-let kbDebugTimer: number | null = null;
-
-function readKbDebug() {
-	const vv = window.visualViewport;
-	const send = window.document.querySelector('button:has(> i.ti-send)')?.getBoundingClientRect();
-	const nav = window.document.querySelector('[data-timeline-navigation]')?.getBoundingClientRect();
-	const html = window.document.documentElement;
-	kbDebug.value = [
-		`ih ${window.innerHeight}`, `vv ${Math.round(vv?.height ?? 0)}/${Math.round(vv?.offsetTop ?? 0)}`, `sy ${Math.round(window.scrollY)}`,
-		`kb ${html.classList.contains('vibes-kb-open') ? 1 : 0}`, `navH ${html.style.getPropertyValue('--vibes-navH') || '-'}`,
-		`send ${send ? `${Math.round(send.top)}-${Math.round(send.bottom)}` : '-'}`, `nav ${nav && nav.height > 0 ? Math.round(nav.top) : '-'}`,
-	].join(' · ');
-}
-
-if ($i.username === 'vibes_admin') {
-	onMounted(() => { kbDebugTimer = window.setInterval(readKbDebug, 500); });
-	onBeforeUnmount(() => { if (kbDebugTimer != null) window.clearInterval(kbDebugTimer); });
-}
 const router = useRouter();
 
 const props = defineProps<{
@@ -162,8 +139,9 @@ const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
-// Vibes: AI tutor accounts get their title after the name and an 「AI」 badge. The title is set in one place on the
-// server (tutorPublic.title in packages/backend/src/misc/lojo-tutor.ts); empty means only the name and the badge.
+// Vibes: AI tutor accounts get their title after the name. The title is set in one place on the server
+// (tutorPublic.title in packages/backend/src/misc/lojo-tutor.ts); empty means only the name. No 「AI」 badge (founder,
+// 2026-11-11: too ugly, and the tutor's profile already says it is an AI).
 const tutorIds = ref<string[]>([]);
 const tutorTitle = ref('');
 misskeyApi('lojo/tutor/public').then(res => { tutorIds.value = res.ids; tutorTitle.value = res.title; }, () => {});
@@ -514,11 +492,8 @@ definePage(computed(() => {
 				userName: user.value,
 				title: user.value.name ?? user.value.username,
 				avatar: user.value,
-				// Vibes: the AI tutor gets 「· 学搭子」 (Chinese UI only) and a small 「AI」 badge, so nobody mistakes it for a person.
-				...(tutorIds.value.includes(user.value.id) ? {
-					badge: 'AI',
-					...(showTutorTitle && tutorTitle.value !== '' ? { nameSuffix: tutorTitle.value } : {}),
-				} : {}),
+				// Vibes: the AI tutor gets 「· 学搭子」 (Chinese UI only).
+				...(tutorIds.value.includes(user.value.id) && showTutorTitle && tutorTitle.value !== '' ? { nameSuffix: tutorTitle.value } : {}),
 			};
 		} else if (room.value) {
 			return {
@@ -596,15 +571,6 @@ definePage(computed(() => {
 	margin: 0 auto;
 	width: 100%;
 	max-width: 700px;
-}
-
-.kbDebug {
-	margin: 0 auto;
-	max-width: 700px;
-	padding: 2px 8px;
-	font-size: 10px;
-	font-family: monospace;
-	opacity: 0.7;
 }
 
 // Vibes: lined up with the form, on the other person's side.
