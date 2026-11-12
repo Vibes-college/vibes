@@ -274,6 +274,11 @@ const bridge: Bridge = {
 		}
 		if (!path.startsWith('/')) return;
 		if (!path.startsWith('/quest')) markFromQuest();
+		// mini apps that run on their own (/apps/<id>/, 小程序搬出社区 2026-11-12) are whole pages, not routes here
+		if (path.startsWith('/apps/')) {
+			window.location.href = path;
+			return;
+		}
 		if ($i == null && fresh.value != null) {
 			window.location.href = path;
 			return;

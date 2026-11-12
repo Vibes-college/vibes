@@ -107,7 +107,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'typing',
 		name: '机考打字',
 		icon: 'ti ti-keyboard',
-		link: { kind: 'route', to: '/typing' },
+		link: { kind: 'external', href: '/apps/typing/' },
 		intro: {
 			summary: '机考雅思要在电脑上打字作答，这条线带你练完 5 站打字，帮你适应机考，一遍大约 15 分钟。',
 			audience: '第一次在社区学习、还没打过机考雅思的新人。',

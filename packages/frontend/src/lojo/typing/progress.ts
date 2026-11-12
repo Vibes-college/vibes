@@ -3,87 +3,26 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 0 号线 · 机考打字's record in the account registry, so it follows the learner across devices: each stop's tries,
-// its first pass (and on what), its best try, and when the whole line lit up. Every write is merged with the account's
-// copy first, so a try made on another device is never written over. The route map reads loadTypingProgress().
-import { ref } from 'vue';
+// 0 号线 · 机考打字 moved out to its own mini app at /apps/typing/ (小程序搬出社区, 2026-11-12), which keeps each
+// learner's progress itself. The route map still shows how many stops are passed: it asks the mini app, with the
+// learner's own sign-in, like the mini app's page does.
 import { typingContent } from './content.js';
-import { emptyProgress, mergeProgress, passedIds, toProgress } from './record.js';
-import type { TypingProgress } from './record.js';
-import { misskeyApi } from '@/utility/misskey-api.js';
 import { $i } from '@/i.js';
 
-// The page: /typing.
-export const TYPING_PATH = '/typing';
-
-const SCOPE = ['client', 'lojo', 'english'];
-const KEY = 'typing';
-const stopIds = () => typingContent.stops.map(s => s.id);
-
-export const typingProgress = ref<TypingProgress>(emptyProgress());
-// ready once the account's copy has been read; failed: it couldn't be (the page shows the line as new and says so)
-export const progressLoad = ref<'idle' | 'loading' | 'ready' | 'failed'>('idle');
-// the last write didn't go through; the next one takes this one's tries along
-export const saveFailed = ref(false);
-
-// The account's copy; null when there is none (never practised).
-async function readRemote(): Promise<TypingProgress | null> {
-	try {
-		return toProgress(await misskeyApi('i/registry/get', { scope: SCOPE, key: KEY }));
-	} catch (err) {
-		if ((err as { code?: string } | null)?.code === 'NO_SUCH_KEY') return null;
-		throw err;
-	}
-}
-
-// Opening the page (and coming back to it) reads the account's copy again: another device may have practised since.
-export async function syncTypingProgress(): Promise<void> {
-	if ($i == null) {
-		progressLoad.value = 'ready';
-		return;
-	}
-	if (progressLoad.value !== 'ready') progressLoad.value = 'loading';
-	try {
-		const remote = await readRemote();
-		if (remote != null) typingProgress.value = mergeProgress(typingProgress.value, remote, stopIds());
-		progressLoad.value = 'ready';
-	} catch {
-		if (progressLoad.value !== 'ready') progressLoad.value = 'failed';
-	}
-}
-
-let saving: Promise<void> = Promise.resolve();
-let queued = false;
-
-// One write at a time; tries that come in while one is waiting go out with it.
-export function saveTypingProgress(): Promise<void> {
-	if ($i == null) return Promise.resolve();
-	if (queued) return saving;
-	queued = true;
-	saving = saving.catch(() => undefined).then(async () => {
-		queued = false;
-		const ids = stopIds();
-		const merged = mergeProgress(typingProgress.value, await readRemote() ?? emptyProgress(), ids);
-		await misskeyApi('i/registry/set', { scope: SCOPE, key: KEY, value: JSON.parse(JSON.stringify(merged)) });
-		// whatever was recorded while this was on its way stays
-		typingProgress.value = mergeProgress(typingProgress.value, merged, ids);
-		saveFailed.value = false;
-		progressLoad.value = 'ready';
-	});
-	saving.catch(() => {
-		saveFailed.value = true;
-	});
-	return saving;
-}
+// The page.
+export const TYPING_PATH = '/apps/typing/';
 
 // For the route map: the stops of 0 号线 passed (their ids, in line order), out of how many, and whether that is all of
-// them. Reads the account's copy each time; rejects when it can't be read (not when there is none yet).
+// them. Rejects when the mini app can't be asked (not when the learner never practised).
 export async function loadTypingProgress(): Promise<{ passed: string[]; total: number; done: boolean }> {
-	const ids = stopIds();
+	const ids = typingContent.stops.map(s => s.id);
+	let passed: string[] = [];
 	if ($i != null) {
-		const remote = await readRemote();
-		if (remote != null) typingProgress.value = mergeProgress(typingProgress.value, remote, ids);
+		const r = await window.fetch(`${TYPING_PATH}api/v1/progress`, { headers: { authorization: `Bearer ${$i.token}` } });
+		if (!r.ok) throw new Error(`typing progress ${r.status}`);
+		const body = await r.json() as { items: { stop: string; passed: boolean }[] };
+		const done = new Set(body.items.filter(i => i.passed).map(i => i.stop));
+		passed = ids.filter(id => done.has(id));
 	}
-	const passed = passedIds(typingProgress.value, ids);
 	return { passed, total: ids.length, done: ids.length > 0 && passed.length === ids.length };
 }

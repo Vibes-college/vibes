@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 /* 雅思 · 0 号线 · 机考打字：5 站，大约 15 分钟。新来的人先点亮这条短线，再去听力线做定级测试。
-   社区的 /typing 页读这个文件（同步到社区代码的 lojo/route/courses/ielts/typing.js，不要在那边改）。
+   打字小程序（社区仓库 miniapps/typing/，地址 /apps/typing/）和社区的路线图读这个文件（同步到社区代码的 lojo/route/courses/ielts/typing.js，不要在那边改；小程序那份是构建时的拷贝）。
    定下来的规矩（docs/decisions.md 2026-10-29，demo 在 prototypes/typing-line/）：
    - 放在定级测试前面；每站开始前写明过关规则，过了这一站就亮；可以越级挑战，过了不会点亮前面的站；
    - 电脑上速度 20 词/分钟以上；准确率 95% 以上（第 4、5 站）；

@@ -197,7 +197,7 @@ async function start() {
 			// 同路人: who else tried a gate lately; the server leaves out anyone who shouldn't be shown
 			peers: (station: string, limit: number) => misskeyApi('lojo/gates/peers', { course: entry.id, station, limit }),
 			openUser: (username: string) => router.pushByPath(`/@${username}`),
-			// a pack's warm-up line (IELTS: 0 号线 · 机考打字, WARMUP in content.js): its progress, kept in the account registry, and its page
+			// a pack's warm-up line (IELTS: 0 号线 · 机考打字, WARMUP in content.js): its progress, kept by the typing mini app (/apps/typing/), and its page
 			warmup: (id: string) => {
 				if (id !== 'typing') return Promise.resolve(null);
 				if (fromKept && firstWarm !== undefined) {
@@ -208,7 +208,7 @@ async function start() {
 				}
 				return loadTypingProgress().then(w => { keep(WARM_NAME, w); return w; });
 			},
-			openPath: (path: string) => router.pushByPath(path),
+			openPath: (path: string) => (path.startsWith('/apps/') ? window.location.assign(path) : router.pushByPath(path)),
 			setHash: (id: string | null) => {
 				if (!active || window.location.pathname !== basePath) return;
 				window.history.replaceState(window.history.state, '', id ? `${basePath}#${encodeURIComponent(id)}` : basePath);

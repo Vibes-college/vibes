@@ -98,11 +98,17 @@ export const ROUTE_DEF = [{
 		tag: 'tag',
 	},
 }, {
-	// 0 号线 · 机考打字: a short line of 5 typing stops before the IELTS listening placement test.
+	// 0 号线 · 机考打字 moved out to its own mini app at /apps/typing/ (小程序搬出社区, 2026-11-12); the old address
+	// (bookmarks, old links, the app shell kept by the service worker) goes there with its query.
 	name: 'lojo-typing',
 	path: '/typing',
-	component: page(() => import('@/pages/lojo/typing.vue')),
-	loginRequired: true,
+	component: page(() => import('@/pages/lojo/to-app.vue')),
+}, {
+	// A mini app's own address opened inside this app: only when a service worker from before 2026-11-12 still served
+	// the app shell for it. Goes to the mini app's index.html, which no service worker takes over.
+	name: 'lojo-to-app',
+	path: '/apps/:path(*)',
+	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 5 号线 · 词汇: one stop's words and three ways to practise them (/vocab/5.2); its gate is /gate/ielts/5.2.
 	name: 'lojo-vocab',

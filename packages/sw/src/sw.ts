@@ -46,10 +46,11 @@ async function respondToNavigation(request: Request): Promise<Response> {
 // the background for next time. The server sends the same app for every page; other pages only add a title and tags
 // for link previews, which the app does not need. From mainland China loading the page takes several round trips of
 // about 0.2 s each (measured 2026-10-24), and a phone back from the background could wait up to FETCH_TIMEOUT_MS.
-// Paths the server answers itself (API, files, feeds, OAuth, the repair pages) still go to the server.
+// Paths the server answers itself (API, files, feeds, OAuth, the repair pages) still go to the server, and so do the
+// mini apps at /apps/<id>/, which run on their own (小程序搬出社区, 2026-11-12).
 // The copy is dropped when a new service worker activates.
 const HOME_CACHE = 'vibes-home';
-const SERVER_PATHS = /^\/(?:api|api-doc|api\.json|files|proxy|avatar|identicon|emoji|emojis|notes\/[^/]+\/activity|users|likes|follows|inbox|nodeinfo|\.well-known|oauth|healthz|streaming|url|vite|embed_vite|embed|assets|static-assets|client-assets|lojo-assets|lojo-amap|lojo-places|_AMapService|tarball|fluent-emoji|twemoji|twemoji-badge|_info_card_|bios|cli|flush)(?:\/|$)/;
+const SERVER_PATHS = /^\/(?:apps|api|api-doc|api\.json|files|proxy|avatar|identicon|emoji|emojis|notes\/[^/]+\/activity|users|likes|follows|inbox|nodeinfo|\.well-known|oauth|healthz|streaming|url|vite|embed_vite|embed|assets|static-assets|client-assets|lojo-assets|lojo-amap|lojo-places|_AMapService|tarball|fluent-emoji|twemoji|twemoji-badge|_info_card_|bios|cli|flush)(?:\/|$)/;
 
 function isAppPage(request: Request, url: URL): boolean {
 	return request.method === 'GET'

@@ -141,9 +141,9 @@ export const LINES = [
  ] },
 ];
 
-// 0 号线 · 机考打字（创始人 2026-10-29）：不是闯关线，是新人先走的一条短线，在自己的页面 /typing（题目在 typing.js）。
+// 0 号线 · 机考打字（创始人 2026-10-29）：不是闯关线，是新人先走的一条短线，在自己的页面（2026-11-12 起搬出社区，独立小程序 /apps/typing/；题目在 typing.js）。
 // 地图把它放在线路列表最上面；新来的人底部第一个按钮先指向它，定级测试排在后面。color 用 --l7。
-export const WARMUP = { id: 'typing', n: 0, path: '/typing', zh: '机考打字', en: 'Typing for the computer test', stops: 5, minutes: 15, color: '#B4457E' };
+export const WARMUP = { id: 'typing', n: 0, path: '/apps/typing/', zh: '机考打字', en: 'Typing for the computer test', stops: 5, minutes: 15, color: '#B4457E' };
 
 /* 换乘站：一道关在两条线上。题目文件按第一个编号命名（1.4-A.js）。
    只考一科的套题只算它自己那条线；两科各半的套题写 lines: [1, 2]，两条线都算。 */
