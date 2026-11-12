@@ -14,7 +14,8 @@ import SignIn from './shell/SignIn.vue';
 
 applyCommunityTheme();
 // 社区里是 /vocab/:stop 路由给的 props；这里自己从地址里读：/apps/vocab/5.2 → 5.2，什么都没有就从第一站 5.1 开始。
-const stop = decodeURIComponent(location.pathname.slice(APP_BASE.length).replace(/\/+$/, '')) || '5.1';
+// 从社区页面里点过来时，社区会换成 /apps/vocab/5.2/index.html（绕开旧的离线缓存），所以去掉末尾的 index.html。
+const stop = decodeURIComponent(location.pathname.slice(APP_BASE.length).replace(/(\/index\.html)?\/*$/, '')) || '5.1';
 const app = createApp($i == null ? SignIn : App, $i == null ? {} : { stop });
 app.component('MkA', MkA).component('MkLoading', MkLoading).component('MkPageHeader', MkPageHeader);
 app.mount('#app');

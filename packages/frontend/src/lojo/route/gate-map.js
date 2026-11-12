@@ -28,7 +28,7 @@ const STATES = ['passed', 'open', 'locked', 'soon'];
 const RANK = { open: 3, passed: 2, locked: 1, soon: 0 };
 const COLOR = n => `var(--l${n})`;
 // 词汇、语法两条线的站有自己的页面：先在词表上练、先看讲解，再闯关
-const STUDY = { vocab: { path: '/vocab/', icon: 'vocabulary' }, grammar: { path: '/grammar/', icon: 'book-2' } };
+const STUDY = { vocab: { path: '/apps/vocab/', icon: 'vocabulary' }, grammar: { path: '/grammar/', icon: 'book-2' } };
 const pathD = (p, r = 28) => {
 	let d = `M${p[0][0]} ${p[0][1]}`;
 	for (let i = 1; i < p.length; i++) {

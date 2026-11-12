@@ -272,8 +272,8 @@ export const PRACTICE = {
  features: { guide: 'ielts-reading-matching', app: null, topics: ['雅思阅读'] },
  endings: { guide: 'ielts-reading-matching', app: null, topics: ['雅思阅读'] },
  // 词汇：回这一站的词表练（{station} 由结果页换成这次的站号）
- 'vocab-spell': { guide: null, app: { path: '/vocab/{station}', zh: '这一站的词', en: 'Words for this stop' }, topics: [] },
- 'vocab-meaning': { guide: null, app: { path: '/vocab/{station}', zh: '这一站的词', en: 'Words for this stop' }, topics: [] },
+ 'vocab-spell': { guide: null, app: { path: '/apps/vocab/{station}', zh: '这一站的词', en: 'Words for this stop' }, topics: [] },
+ 'vocab-meaning': { guide: null, app: { path: '/apps/vocab/{station}', zh: '这一站的词', en: 'Words for this stop' }, topics: [] },
  // 语法：回讲解的那一节
  '6.1/g-core': { guide: null, app: { path: '/grammar/6.1?section=s2', zh: '讲解第 2 节', en: 'Lesson, part 2' }, topics: [] },
  '6.1/g-one-verb': { guide: null, app: { path: '/grammar/6.1?section=s3', zh: '讲解第 3 节', en: 'Lesson, part 3' }, topics: [] },

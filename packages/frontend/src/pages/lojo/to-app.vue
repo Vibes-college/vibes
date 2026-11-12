@@ -17,7 +17,7 @@ shows for a moment, to send the learner there:
 const at = window.location;
 const parts = at.pathname.split('/');
 const target = parts[1] === 'apps'
-	? (/\.[a-z0-9]+$/i.test(at.pathname) ? at.pathname : `${at.pathname.replace(/\/?$/, '/')}index.html`)
+	? (/\.[a-z][a-z0-9]*$/i.test(at.pathname) ? at.pathname : `${at.pathname.replace(/\/?$/, '/')}index.html`)
 	: `/apps/${encodeURIComponent(parts[1] ?? '')}/${parts.slice(2).join('/')}`;
 if (target !== at.pathname) window.location.replace(`${target}${at.search}${at.hash}`);
 </script>

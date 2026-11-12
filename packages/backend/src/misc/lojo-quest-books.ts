@@ -556,7 +556,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "vocab",
 			"zh": "词汇线 5.4",
-			"path": "/vocab/5.4"
+			"path": "/apps/vocab/5.4"
 		},
 		"verify": "闯关第一章阅读 1-5「对、错、没提到」，和 Boss「换装者」里的判断题。",
 		"verifyUrl": "/quest?level=1-5",

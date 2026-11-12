@@ -105,11 +105,11 @@ export const ROUTE_DEF = [{
 	path: '/apps/:path(*)',
 	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
-	// 5 号线 · 词汇: one stop's words and three ways to practise them (/vocab/5.2); its gate is /gate/ielts/5.2.
+	// 5 号线 · 词汇 moved out to its own mini app at /apps/vocab/<stop> (小程序搬出社区, 2026-11-12); the old address
+	// (/vocab/5.2?tab=practice&scope=all from 闯关) goes there with its query.
 	name: 'lojo-vocab',
 	path: '/vocab/:stop',
-	component: page(() => import('@/pages/lojo/vocab.vue')),
-	loginRequired: true,
+	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 6 号线 · 语法: one stop's lesson (/grammar/6.2, ?section=s3 opens it at that part); its gate is /gate/ielts/6.2.
 	name: 'lojo-grammar',

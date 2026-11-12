@@ -228,7 +228,7 @@ describe('闯关 rules', () => {
 			expect(bookGear(j5, null, { wordbookLow: true, hearts: 5 })).toBe('vocab:5.4');
 		}
 		expect(gearPath('graded-reading').givesHeart).toBe(false);
-		expect(gearPath('vocab:5.4').path).toBe('/vocab/5.4?tab=practice&scope=all');
+		expect(gearPath('vocab:5.4').path).toBe('/apps/vocab/5.4?tab=practice&scope=all');
 	});
 
 	test('behind: at the last 7 days\' pace, 2 or more levels short of the exam', () => {

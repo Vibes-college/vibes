@@ -192,7 +192,7 @@ const dictation = computed(() => carryFromResult(
 watch(dictation, carry => {
 	if (carry) saveCarry(carry);
 }, { immediate: true });
-// "/vocab/{station}" is this stop's words
+// "/apps/vocab/{station}" is this stop's words
 const appPath = (card: RecommendCard) => {
 	const path = practicePath(card.app?.path ?? '', props.result.station);
 	const carry = dictation.value;

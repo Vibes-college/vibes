@@ -123,7 +123,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'vocab',
 		name: '词汇线',
 		icon: 'ti ti-vocabulary',
-		link: { kind: 'route', to: '/vocab/5.1' },
+		link: { kind: 'external', href: '/apps/vocab/5.1' },
 		intro: {
 			summary: '按雅思话题分组学词：词表配发音、音标、中文和例句，练法有拼写、听写、打字三种，错的词自动进生词本。',
 			audience: '想系统过一遍雅思核心词汇的人。',
