@@ -81,7 +81,7 @@ describe('Vibes AI tutor in the quest map', () => {
 		const t = normalizeQuestTry(sampleTry)!;
 		const full = questAwayMessage(k, t);
 		expect(full.messages).toHaveLength(1);
-		expect(full.messages[0]).toMatch(/^Mia 这会儿不在线/);
+		expect(full.messages[0]).toMatch(/^Vibi 这会儿不在线/);
 		expect(full.messages[0]).not.toMatch(/FALSE|402|余额|出错/);
 		expect(full.next).toBe('retry');
 		expect(full.messages[0]).toContain('先想两种别的说法');

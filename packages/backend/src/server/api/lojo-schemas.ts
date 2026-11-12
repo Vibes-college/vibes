@@ -5,6 +5,7 @@
 
 import { gateSkills, gateTypes } from '@/misc/lojo-gates.js';
 import { WORD_SOURCES } from '@/misc/lojo-words.js';
+import { questNoContent } from '@/misc/lojo-quest-content.js';
 
 export const lojoEntityTypes = ['housing', 'food', 'pets', 'events', 'travel'] as const;
 
@@ -563,4 +564,6 @@ export const lojoQuestErrors = {
 	invalidExamDate: { message: 'The exam date must be a day after today and within two years (YYYY-MM-DD).', code: 'INVALID_EXAM_DATE', id: '2982c072-7c22-4e4a-9541-457ae50f700e' },
 	placementTooSoon: { message: 'The placement test can be taken once in 30 days.', code: 'PLACEMENT_TOO_SOON', id: 'e21fe3c9-26fe-4f67-be40-fdc1f9161c95' },
 	placementNoFirstPart: { message: 'Hand in the first part of the placement test first.', code: 'PLACEMENT_NO_FIRST_PART', id: '986f5e1a-607b-4ec9-97a0-25834023b2df' },
+	invalidContent: { message: 'The quest levels were not imported:', code: 'INVALID_QUEST_CONTENT', id: '2f6c1a8e-0d4b-4c7a-9e35-7b1d0c6f4a21' },
+	noContent: questNoContent,
 } as const;

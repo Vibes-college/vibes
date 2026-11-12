@@ -4076,6 +4076,39 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Import the 闯关 chapters (map, levels, questions) as a new version and use it at once, without a restart. Sent by apps/community/scripts/quest-import.mjs in the Vibes workspace; the questions hold the answers, so they are kept out of the public source. Every chapter is checked first, and a batch that drops a level a learner has progress on is refused: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/quest/content-rollback.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/quest/content-import', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Go back to the 闯关 version before the one in use (or to the one given), at once, without a restart. Refused if that version lacks a level a learner has progress on. The newer version is kept, so it can be put back the same way.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/quest/content-rollback', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The imported 闯关 versions, newest first (the last 30), and which one this process is using now.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+     */
+    request<E extends 'lojo/quest/content-versions', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Opened the 情报站 (timeline posts): ticks Boss prep. Never gives a heart.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*

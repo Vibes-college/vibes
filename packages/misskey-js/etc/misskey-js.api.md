@@ -2104,6 +2104,11 @@ declare namespace entities {
         LojoQuestBoardResponse,
         LojoQuestCheckRequest,
         LojoQuestCheckResponse,
+        LojoQuestContentImportRequest,
+        LojoQuestContentImportResponse,
+        LojoQuestContentRollbackRequest,
+        LojoQuestContentRollbackResponse,
+        LojoQuestContentVersionsResponse,
         LojoQuestNewsRequest,
         LojoQuestNewsResponse,
         LojoQuestPlacementDismissResponse,
@@ -3242,6 +3247,21 @@ type LojoQuestCheckRequest = operations['lojo___quest___check']['requestBody']['
 
 // @public (undocumented)
 type LojoQuestCheckResponse = operations['lojo___quest___check']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestContentImportRequest = operations['lojo___quest___content-import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestContentImportResponse = operations['lojo___quest___content-import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestContentRollbackRequest = operations['lojo___quest___content-rollback']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestContentRollbackResponse = operations['lojo___quest___content-rollback']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestContentVersionsResponse = operations['lojo___quest___content-versions']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoQuestNewsRequest = operations['lojo___quest___news']['requestBody']['content']['application/json'];

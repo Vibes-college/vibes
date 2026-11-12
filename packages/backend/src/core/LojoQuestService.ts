@@ -5,11 +5,12 @@
 
 import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import type { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DataSource, EntityManager, In, LessThan } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestLog } from '@/models/LojoQuest.js';
+import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestContent, MiLojoQuestLog } from '@/models/LojoQuest.js';
 import type { MiLojoQuestLevel, MiLojoQuestPlacement } from '@/models/LojoQuest.js';
 import { MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
 import { MiUser } from '@/models/User.js';
@@ -19,10 +20,10 @@ import { LojoSpeechService } from '@/core/LojoSpeechService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { lojoDefaultVoice, lojoVoiceIds, lojoVoices } from '@/misc/lojo-voices.js';
-import { QUEST_CH1, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
-import { QUEST_CH2 } from '@/misc/lojo-quest-ch2.js';
-import { QUEST_CH3 } from '@/misc/lojo-quest-ch3.js';
-import { QUEST_CH4 } from '@/misc/lojo-quest-ch4.js';
+import { QUEST_NUMBERS } from '@/misc/lojo-quest-numbers.js';
+import {
+	questChapterOf, questChapters, questContentId, questContentProblems, questContentVersion, questFirstChapter, questNodeOf, questQuestionOf, setQuestContent,
+} from '@/misc/lojo-quest-content.js';
 import type { QuestChapter, QuestNode, QuestQuestion, QuestRules } from '@/misc/lojo-quest-types.js';
 import { QUEST_BOOKS, bookForCause } from '@/misc/lojo-quest-books.js';
 import type { QuestBook } from '@/misc/lojo-quest-books.js';
@@ -43,14 +44,14 @@ type Row = Omit<MiLojoQuest, 'user'>;
 type Log = { kind: string; ref: string; hearts: number; xp: number; data?: Record<string, unknown> };
 type Mode = 'practice' | 'level' | 'retest' | 'boss';
 
-// 雅思四章（11-11 导入）。第二章起起点、Boss、三个站的 id 带章号（2-boss…），第一章照旧（存档里是 boss、start）。
-const CHAPTERS: QuestChapter[] = [QUEST_CH1, QUEST_CH2, QUEST_CH3, QUEST_CH4];
-const CH = QUEST_CH1;
+// 雅思四章。第二章起起点、Boss、三个站的 id 带章号（2-boss…），第一章照旧（存档里是 boss、start）。
+// 题目和地图在数据库里（2026-11-12 起，misc/lojo-quest-content.ts）：导入的那一版，这个服务每几秒看一眼换没换。
 const N = QUEST_NUMBERS;
-const chapterOf = (no: number): QuestChapter => CHAPTERS.find(c => c.no === no) ?? CH;
-const NODES = new Map<string, QuestNode>(CHAPTERS.flatMap(c => c.nodes.map(n => [n.id, n] as const)));
-const nodeOf = (id: string): QuestNode | undefined => NODES.get(id);
-const questionOf = (node: QuestNode | undefined, qid: string): QuestQuestion | undefined => node?.pool?.find(q => q.id === qid);
+const chapterOf = questChapterOf;
+const nodeOf = questNodeOf;
+const questionOf = (node: QuestNode | undefined, qid: string): QuestQuestion | undefined => questQuestionOf(node, qid);
+// how often each process checks which version is in use (the one that imported switches at once)
+const CONTENT_CHECK_MS = 5000;
 const bookOf = (slug: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.slug === slug);
 const bookByRef = (ref: string): QuestBook | undefined => QUEST_BOOKS.find(b => b.ref === ref);
 // 锦囊还没导进来的（j11 起）照 shelfRule 跳过
@@ -61,7 +62,6 @@ const questLevelName = (id: string): string => {
 	return n ? [n.kind === 'boss' ? `Boss ${n.label}` : n.label, n.name, n.zh ? `(${n.zh})` : null].filter(x => x).join(' ') : id;
 };
 const levelOrder = (c: QuestChapter) => c.nodes.filter(n => n.kind === 'level').map(n => n.id).concat(c.nodes.filter(n => n.kind === 'boss').map(n => n.id));
-const LEVEL_ORDER = levelOrder(CH);
 const BOARD_MIN_PLAYERS = 5;
 // Boss 备战三项：第一章存档里是 guide / gear / news，第二章起带章号（c2:guide…）；extra = 连输后要多做的一项还没做
 const PREP_ITEMS = ['guide', 'gear', 'news'] as const;
@@ -88,7 +88,7 @@ const guidePath = (b: QuestBook) => `/guides/${b.slug}`;
 // 先玩后注册 (冲刺1111 新手前三分钟 第 2–4 条): a visitor may play the first level without an account. The try is kept in
 // redis for a few hours under a random id only the visitor's page has; nothing about the visitor is stored. Saving
 // (存档 = signing up) moves the pass onto the new account (trialClaim).
-const TRIAL_LEVEL = LEVEL_ORDER[0];
+const trialLevel = () => levelOrder(questFirstChapter())[0];
 const TRIAL_TTL_S = 6 * 60 * 60;
 const trialKey = (id: string) => `lojoQuestTrial:${id}`;
 type Trial = { levelId: string; questionIds: string[]; answers: MiLojoQuestAttempt['answers']; status: string; mode: Mode; createdAt: string };
@@ -139,9 +139,9 @@ function publicQuestion(q: QuestQuestion) {
 	};
 }
 
-// 闯关: hearts, streak, levels, 补心 and the Boss for a learner. Rules in misc/lojo-quest.ts, chapter in misc/lojo-quest-ch1.ts.
+// 闯关: hearts, streak, levels, 补心 and the Boss for a learner. Rules in misc/lojo-quest.ts, chapters imported into the database (misc/lojo-quest-content.ts).
 @Injectable()
-export class LojoQuestService {
+export class LojoQuestService implements OnModuleInit, OnApplicationShutdown {
 	// 闯关定级 is on the test site only for now (11-11): its recording is still the browser reading a script, so the
 	// answers are in what the page gets. On the live site the banner and menu item stay hidden and no paper is served.
 	private placementOn: boolean;
@@ -169,6 +169,89 @@ export class LojoQuestService {
 		this.placementOn = !this.live;
 	}
 
+	/* ---------- the levels and questions: imported into the database, a version per import ---------- */
+
+	private contentTimer: NodeJS.Timeout | null = null;
+
+	async onModuleInit(): Promise<void> {
+		await this.refreshContent().catch(() => { /* table not there yet (before the migration): the timer tries again */ });
+		this.contentTimer = setInterval(() => void this.refreshContent().catch(() => {}), CONTENT_CHECK_MS);
+		this.contentTimer.unref();
+	}
+
+	onApplicationShutdown(): void {
+		if (this.contentTimer) clearInterval(this.contentTimer);
+		this.contentTimer = null;
+	}
+
+	// Load the active version if it is not the one in memory. One small query; the chapters only when they changed.
+	public async refreshContent(): Promise<void> {
+		const repo = this.db.getRepository(MiLojoQuestContent);
+		const head = await repo.findOne({ where: { active: true }, select: { id: true }, order: { id: 'DESC' } });
+		if (head == null || head.id === questContentId()) return;
+		const row = await repo.findOneByOrFail({ id: head.id });
+		setQuestContent(row.id, row.version, row.chapters);
+	}
+
+	// Level and Boss ids a new version must keep: what learners' saves point at, and every level of the version in use.
+	private async savedLevelIds(): Promise<string[]> {
+		const saved: { id: string }[] = await this.db.query('SELECT DISTINCT jsonb_object_keys("levels") AS "id" FROM "lojo_quest"');
+		return saved.map(r => r.id);
+	}
+
+	private async keptLevelIds(): Promise<string[]> {
+		const inUse = questContentId() == null ? [] : questChapters().flatMap(c => c.nodes.filter(n => n.kind === 'level' || n.kind === 'boss').map(n => n.id));
+		return [...new Set([...await this.savedLevelIds(), ...inUse])];
+	}
+
+	// Check a batch of chapters and, if every check passes, make it the version in use. Nothing is written otherwise.
+	public async importContent(chapters: unknown, note: string): Promise<{ id: number; version: string; chapters: number; questions: number } | { problems: string[] }> {
+		await this.refreshContent();
+		const problems = questContentProblems(chapters, await this.keptLevelIds());
+		if (problems.length > 0) return { problems };
+		const list = (chapters as QuestChapter[]).slice().sort((a, b) => a.no - b.no);
+		const version = list.map(c => c.version).join('+').slice(0, 256);
+		const id = await this.db.transaction(async em => {
+			await em.query('LOCK TABLE "lojo_quest_content" IN EXCLUSIVE MODE');
+			await em.update(MiLojoQuestContent, { active: true }, { active: false });
+			const saved = await em.save(MiLojoQuestContent, em.create(MiLojoQuestContent, { version, chapters: list, active: true, createdAt: new Date(), note: note.slice(0, 512) }));
+			return saved.id;
+		});
+		setQuestContent(id, version, list);
+		return { id, version, chapters: list.length, questions: list.reduce((s, c) => s + c.nodes.reduce((t, n) => t + (n.pool?.length ?? 0), 0), 0) };
+	}
+
+	// Go back to the version before the one in use (or to a given one). The newer row stays, so it can be put back.
+	public async rollbackContent(to: number | null): Promise<{ id: number; version: string; from: number | null } | { problems: string[] }> {
+		await this.refreshContent();
+		const repo = this.db.getRepository(MiLojoQuestContent);
+		const current = questContentId();
+		const target = to != null
+			? await repo.findOneBy({ id: to })
+			: current == null ? null : await repo.findOne({ where: { id: LessThan(current) }, order: { id: 'DESC' } });
+		if (target == null) return { problems: [to != null ? `没有版本 ${to}` : '没有更早的版本可以退回'] };
+		// going back may drop levels the newer version added, but never one a learner has progress on
+		const problems = questContentProblems(target.chapters, await this.savedLevelIds());
+		if (problems.length > 0) return { problems };
+		await this.db.transaction(async em => {
+			await em.query('LOCK TABLE "lojo_quest_content" IN EXCLUSIVE MODE');
+			await em.update(MiLojoQuestContent, { active: true }, { active: false });
+			await em.update(MiLojoQuestContent, { id: target.id }, { active: true });
+		});
+		setQuestContent(target.id, target.version, target.chapters);
+		return { id: target.id, version: target.version, from: current };
+	}
+
+	// Every version, newest first, for the import script's list
+	public async contentVersions(): Promise<{ id: number; version: string; active: boolean; createdAt: string; note: string }[]> {
+		const rows = await this.db.getRepository(MiLojoQuestContent).find({ select: { id: true, version: true, active: true, createdAt: true, note: true }, order: { id: 'DESC' }, take: 30 });
+		return rows.map(r => ({ id: r.id, version: r.version, active: r.active, createdAt: r.createdAt.toISOString(), note: r.note }));
+	}
+
+	public contentInUse(): { id: number | null; version: string | null } {
+		return { id: questContentId(), version: questContentVersion() };
+	}
+
 	// A chapter's rules on this site
 	private rulesFor(no: number): QuestRules {
 		const r = chapterOf(no).rules;
@@ -192,7 +275,7 @@ export class LojoQuestService {
 	// yet (第一章 always, as before), and does the one more item asked after losses in a row.
 	private tickPrep(row: Row, item: typeof PREP_ITEMS[number]): void {
 		const next = { ...row.prep };
-		for (const c of CHAPTERS) {
+		for (const c of questChapters()) {
 			if (c.no !== 1 && (!this.chapterOpen(row, c.no) || this.bossBeaten(row, c.no))) continue;
 			next[prepKey(c.no, item)] = true;
 			delete next[prepKey(c.no, 'extra')];
@@ -209,8 +292,8 @@ export class LojoQuestService {
 
 	// The chapter a learner is on now: the first open one whose Boss is not beaten, else the last open one.
 	private currentChapter(row: Row): QuestChapter {
-		const open = CHAPTERS.filter(c => this.chapterOpen(row, c.no));
-		return open.find(c => !this.bossBeaten(row, c.no)) ?? open[open.length - 1] ?? CH;
+		const open = questChapters().filter(c => this.chapterOpen(row, c.no));
+		return open.find(c => !this.bossBeaten(row, c.no)) ?? open[open.length - 1] ?? questFirstChapter();
 	}
 
 	private async heartsFor(userId: string) {
@@ -304,7 +387,7 @@ export class LojoQuestService {
 	// and can be started once prep is done.
 	private nodeStates(row: Row): Record<string, 'done' | 'open' | 'locked'> {
 		const states: Record<string, 'done' | 'open' | 'locked'> = {};
-		for (const c of CHAPTERS) {
+		for (const c of questChapters()) {
 			const open = this.chapterOpen(row, c.no);
 			const prep = this.prepOf(row, c.no);
 			const passed = (id: string) => id === c.startId || row.levels[id]?.passedAt != null;
@@ -509,7 +592,7 @@ export class LojoQuestService {
 			bossLosses: row.bossLosses,
 			chestToday: row.chestDay === today,
 			bag: row.bag,
-			badges: CHAPTERS.filter(c => this.bossBeaten(row, c.no)).map(c => c.rules.chest.badge),
+			badges: questChapters().filter(c => this.bossBeaten(row, c.no)).map(c => c.rules.chest.badge),
 			currentChapter: cur.no,
 			lastFail: fail ? { levelId: fail.levelId, cause: fail.cause, failStreak: fail.failStreak } : null,
 			tutorId: lojoTutorIds()[0] ?? null,
@@ -518,9 +601,9 @@ export class LojoQuestService {
 			onboarded: row.onboarded,
 			behind: behindOf({ order, passed: passedDays, today, daysLeft }),
 			notice: row.notice,
-			chapter: this.packChapter(CH, row, states, today),
+			chapter: this.packChapter(questFirstChapter(), row, states, today),
 			// 四章（第二章起，正式站上是没开的铅笔稿）
-			chapters: CHAPTERS.map(c => this.packChapter(c, row, states, today)),
+			chapters: questChapters().map(c => this.packChapter(c, row, states, today)),
 			openTimed,
 			books: QUEST_BOOKS.map(b => {
 				const g = bookGear(b, failNode?.gear, { wordbookLow, hearts: row.hearts });
@@ -930,12 +1013,12 @@ export class LojoQuestService {
 	public async trialShow(id: string | null) {
 		const now = new Date();
 		const row = await this.trialRow(id, now);
-		return { ...this.pack(row, [], now, true), trial: true, trialLevel: TRIAL_LEVEL };
+		return { ...this.pack(row, [], now, true), trial: true, trialLevel: trialLevel() };
 	}
 
 	public async trialStart() {
 		const now = new Date();
-		const node = nodeOf(TRIAL_LEVEL)!;
+		const node = nodeOf(trialLevel())!;
 		const rules = rulesOf(node, 'practice');
 		const { questions } = pickSet(node.pool ?? [], node.sets, rules.total, [], []);
 		const id = randomBytes(18).toString('base64url');

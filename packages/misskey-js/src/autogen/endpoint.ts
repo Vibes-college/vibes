@@ -567,6 +567,11 @@ import type {
 	LojoQuestBoardResponse,
 	LojoQuestCheckRequest,
 	LojoQuestCheckResponse,
+	LojoQuestContentImportRequest,
+	LojoQuestContentImportResponse,
+	LojoQuestContentRollbackRequest,
+	LojoQuestContentRollbackResponse,
+	LojoQuestContentVersionsResponse,
 	LojoQuestNewsRequest,
 	LojoQuestNewsResponse,
 	LojoQuestPlacementDismissResponse,
@@ -1168,6 +1173,9 @@ export type Endpoints = {
 	'lojo/quest/audio': { req: LojoQuestAudioRequest; res: LojoQuestAudioResponse };
 	'lojo/quest/board': { req: EmptyRequest; res: LojoQuestBoardResponse };
 	'lojo/quest/check': { req: LojoQuestCheckRequest; res: LojoQuestCheckResponse };
+	'lojo/quest/content-import': { req: LojoQuestContentImportRequest; res: LojoQuestContentImportResponse };
+	'lojo/quest/content-rollback': { req: LojoQuestContentRollbackRequest; res: LojoQuestContentRollbackResponse };
+	'lojo/quest/content-versions': { req: EmptyRequest; res: LojoQuestContentVersionsResponse };
 	'lojo/quest/news': { req: LojoQuestNewsRequest; res: LojoQuestNewsResponse };
 	'lojo/quest/placement-dismiss': { req: EmptyRequest; res: LojoQuestPlacementDismissResponse };
 	'lojo/quest/placement-finish': { req: LojoQuestPlacementFinishRequest; res: LojoQuestPlacementFinishResponse };

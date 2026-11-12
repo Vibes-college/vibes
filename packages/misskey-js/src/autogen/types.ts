@@ -3342,6 +3342,33 @@ export type paths = {
          */
         post: operations['lojo___quest___check'];
     };
+    '/lojo/quest/content-import': {
+        /**
+         * lojo/quest/content-import
+         * @description Import the 闯关 chapters (map, levels, questions) as a new version and use it at once, without a restart. Sent by apps/community/scripts/quest-import.mjs in the Vibes workspace; the questions hold the answers, so they are kept out of the public source. Every chapter is checked first, and a batch that drops a level a learner has progress on is refused: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/quest/content-rollback.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___quest___content-import'];
+    };
+    '/lojo/quest/content-rollback': {
+        /**
+         * lojo/quest/content-rollback
+         * @description Go back to the 闯关 version before the one in use (or to the one given), at once, without a restart. Refused if that version lacks a level a learner has progress on. The newer version is kept, so it can be put back the same way.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___quest___content-rollback'];
+    };
+    '/lojo/quest/content-versions': {
+        /**
+         * lojo/quest/content-versions
+         * @description The imported 闯关 versions, newest first (the last 30), and which one this process is using now.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+         */
+        post: operations['lojo___quest___content-versions'];
+    };
     '/lojo/quest/news': {
         /**
          * lojo/quest/news
@@ -33639,6 +33666,219 @@ export interface operations {
             };
         };
     };
+    'lojo___quest___content-import': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    chapters: Record<string, never>[];
+                    /** @default  */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: number;
+                        version: string;
+                        chapters: number;
+                        questions: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___content-rollback': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @default null */
+                    to?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: number;
+                        version: string;
+                        from: number | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___quest___content-versions': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        inUse: {
+                            id: number | null;
+                            version: string | null;
+                        };
+                        versions: {
+                            id: number;
+                            version: string;
+                            active: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            note: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___quest___news: {
         requestBody: {
             content: {
@@ -35328,6 +35568,7 @@ export interface operations {
                         state: 'ok' | 'gems' | 'out';
                         backAt: string | null;
                         gems: number;
+                        siteFullUntil: string | null;
                     };
                 };
             };

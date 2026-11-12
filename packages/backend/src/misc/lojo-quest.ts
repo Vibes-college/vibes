@@ -4,15 +4,15 @@
  */
 
 // 闯关 rules, pure so they can be tested (test/unit/LojoQuest.ts). Days and refill times are Beijing time (UTC+8).
-// Numbers come from the route map's numbers.json (QUEST_NUMBERS in misc/lojo-quest-ch1.ts, generated); what differs by
-// chapter is in each chapter's rules (QUEST_CH<N>.rules).
+// Numbers come from the route map's numbers.json (QUEST_NUMBERS in misc/lojo-quest-numbers.ts, generated); what differs by
+// chapter is in each chapter's rules (rules of each imported chapter, misc/lojo-quest-content.ts).
 // 补心规则 11-10 定稿（闯关核心循环-故事板.md）：
 // - at most 5 hearts; back to 5 at 08:00 and 20:00;
 // - below 5, two paths give 1 heart each, once a day each: 锦囊 (pass its 3-question check, 2 right) and 装备
 //   (one practice set of at least 10 items and at least 2 minutes); the same set or book counts once a day;
 // - 情报 gives no heart, it only ticks Boss prep; hearts cannot be bought.
 
-import { QUEST_CAUSE_ORDER, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
+import { QUEST_CAUSE_ORDER, QUEST_NUMBERS } from '@/misc/lojo-quest-numbers.js';
 import type { QuestCause, QuestQuestion } from '@/misc/lojo-quest-types.js';
 import type { QuestBook } from '@/misc/lojo-quest-books.js';
 

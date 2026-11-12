@@ -61,7 +61,7 @@ import { MiLojoEntity } from '@/models/LojoEntity.js';
 import { MiLojoEntityNote } from '@/models/LojoEntityNote.js';
 import { MiLojoGateAttempt, MiLojoGateCourse } from '@/models/LojoGate.js';
 import { MiLojoWord, MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
-import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestLog } from '@/models/LojoQuest.js';
+import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestContent, MiLojoQuestLog } from '@/models/LojoQuest.js';
 import { MiRelay } from '@/models/Relay.js';
 import { MiSignin } from '@/models/Signin.js';
 import { MiSwSubscription } from '@/models/SwSubscription.js';
@@ -258,6 +258,7 @@ export const entities = [
 	MiLojoQuest,
 	MiLojoQuestAttempt,
 	MiLojoQuestLog,
+	MiLojoQuestContent,
 	MiAd,
 	MiPasswordResetRequest,
 	MiUserPending,

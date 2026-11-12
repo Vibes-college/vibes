@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import {
 	addDays, ageOf, behindOf, dayOf, displayAnswer, drawQuestions, examDateOk, grade, heartsNow, isSpellingSlip, judge, lastRefillAt, mainCause, nextRefillAt,
 	bookGear, gearPath, pickSet, setCounts, settleStreak, shelfFor, starsAfter, streakNow, touchStreak, wrongCause,
 } from '@/misc/lojo-quest.js';
-import { QUEST_CH1, QUEST_NUMBERS } from '@/misc/lojo-quest-ch1.js';
-import { QUEST_CH2 } from '@/misc/lojo-quest-ch2.js';
-import { QUEST_CH3 } from '@/misc/lojo-quest-ch3.js';
-import { QUEST_CH4 } from '@/misc/lojo-quest-ch4.js';
-import type { QuestQuestion } from '@/misc/lojo-quest-types.js';
+import { QUEST_NUMBERS } from '@/misc/lojo-quest-numbers.js';
+import { questContentProblems } from '@/misc/lojo-quest-content.js';
+import type { QuestChapter, QuestQuestion } from '@/misc/lojo-quest-types.js';
 import { QUEST_BOOKS } from '@/misc/lojo-quest-books.js';
 import { lojoVoiceIds } from '@/misc/lojo-voices.js';
 
@@ -21,6 +20,16 @@ const q = (over: Partial<QuestQuestion>): QuestQuestion => ({
 	ignoreSpaces: false, caseInsensitive: true, cause: 'not-heard', causes: null, pick: null, bothWrongCause: null, playOnce: false, lecture: null,
 	evidence: '', why: '', audio: null, tags: [], ...over,
 });
+
+// The chapters (with the answers) are not in this repository: they are in the Vibes workspace, courses/english/ielts/quest,
+// imported into the database by apps/community/scripts/quest-import.mjs. Their tests run where that folder is (or
+// QUEST_CONTENT_DIR points at it) and are skipped elsewhere, e.g. in a checkout of the public repository.
+const CONTENT_DIR = process.env.QUEST_CONTENT_DIR ?? new URL('../../../../../../../courses/english/ielts/quest/', import.meta.url).pathname;
+const CONTENT: QuestChapter[] | null = existsSync(`${CONTENT_DIR}/ch1.json`)
+	? [1, 2, 3, 4].map(n => JSON.parse(readFileSync(`${CONTENT_DIR}/ch${n}.json`, 'utf8')) as QuestChapter)
+	: null;
+const [QUEST_CH1, QUEST_CH2, QUEST_CH3, QUEST_CH4] = CONTENT ?? [];
+const noContent = CONTENT == null;
 
 const bj = (s: string) => new Date(`${s}+08:00`);
 
@@ -74,7 +83,7 @@ describe('闯关 rules', () => {
 		expect(second.slice(0, 3).every(q => !first.some(f => f.id === q.id))).toBe(true);
 	});
 
-	test.each([QUEST_CH1, QUEST_CH2, QUEST_CH3, QUEST_CH4])('chapter $no data is sound', ch => {
+	test.skipIf(noContent).each(CONTENT ?? [])('chapter $no data is sound', ch => {
 		const ids = new Set(ch.nodes.map(n => n.id));
 		expect(ids.has(ch.startId)).toBe(true);
 		expect(ids.has(ch.bossId)).toBe(true);
@@ -114,6 +123,7 @@ describe('闯关 rules', () => {
 	test('books', () => {
 		expect(QUEST_BOOKS.length).toBe(10);
 		for (const b of QUEST_BOOKS) expect(b.quiz).toHaveLength(3);
+		if (noContent) return;
 		for (const n of QUEST_CH1.nodes) for (const r of n.shelf) expect(QUEST_BOOKS.some(b => b.ref === r)).toBe(true);
 	});
 
@@ -133,12 +143,12 @@ describe('闯关 rules', () => {
 		expect(wrongCause(yn, 'NO')).toBe('qualifier');
 	});
 
-	test('主错因 ties go by the chapter order', () => {
+	test.skipIf(noContent)('主错因 ties go by the chapter order', () => {
 		expect(mainCause(['vocab', 'time-out'], QUEST_CH4.causeOrder)).toBe('time-out');
 		expect(mainCause(['vocab', 'grammar'])).toBe('grammar');
 	});
 
-	test('the timed levels of chapter 4', () => {
+	test.skipIf(noContent)('the timed levels of chapter 4', () => {
 		const timed = QUEST_CH4.nodes.filter(n => n.timed != null);
 		expect(timed.map(n => n.id).sort()).toEqual(['4-6', '4-boss']);
 		const boss = timed.find(n => n.kind === 'boss')!.timed!;
@@ -255,5 +265,29 @@ describe('闯关 rules', () => {
 	test('numbers come from numbers.json', () => {
 		expect(QUEST_NUMBERS.level.questionsPerTry).toBe(5);
 		expect(QUEST_NUMBERS.boss.hp).toBe(5);
+	});
+});
+
+describe('闯关 import check (lojo/quest/content-import)', () => {
+	test.skipIf(noContent)('the four chapters pass, and keep every level id', () => {
+		const ids = CONTENT!.flatMap(c => c.nodes.map(n => n.id));
+		expect(questContentProblems(CONTENT, ids)).toEqual([]);
+	});
+
+	test.skipIf(noContent)('a batch is refused whole for one bad question, a lost level or a missing chapter 1', () => {
+		const copy = (): QuestChapter[] => JSON.parse(JSON.stringify(CONTENT));
+		const bad = copy();
+		const level = bad[2].nodes.find(n => n.pool?.some(x => x.type === 'choice'))!;
+		level.pool!.find(x => x.type === 'choice')!.answer = 'Z';
+		const p = questContentProblems(bad);
+		expect(p.length).toBe(1);
+		expect(p[0]).toContain(level.id);
+		const lost = copy();
+		lost[1].nodes = lost[1].nodes.filter(n => n.id !== '2-3');
+		lost[1].edges = lost[1].edges.filter(e => e[0] !== '2-3' && e[1] !== '2-3');
+		expect(questContentProblems(lost, ['1-1', '2-3']).join()).toContain('2-3');
+		expect(questContentProblems(copy().slice(1)).join()).toContain('第一章');
+		expect(questContentProblems([])).toEqual(['没有章节']);
+		expect(questContentProblems({ no: 1 })).toEqual(['没有章节']);
 	});
 });

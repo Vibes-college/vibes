@@ -416,7 +416,7 @@ describe('the page', () => {
 	test('a stop without a lesson says so, and leads back to the map', () => {
 		const { container } = renderLesson('9.9');
 		expect(container.querySelector('[role="alert"]')?.textContent).toContain(grammarLabels.missing);
-		expect(container.querySelector('[role="alert"] a')?.getAttribute('href')).toBe('/map');
+		expect(container.querySelector('[role="alert"] a')?.getAttribute('href')).toBe('/quest');
 		expect(container.querySelector('[data-section]')).toBeNull();
 	});
 });

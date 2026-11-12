@@ -507,6 +507,9 @@ export * as 'lojo/quest/placement-paper' from './endpoints/lojo/quest/placement-
 export * as 'lojo/quest/placement-first' from './endpoints/lojo/quest/placement-first.js';
 export * as 'lojo/quest/placement-finish' from './endpoints/lojo/quest/placement-finish.js';
 export * as 'lojo/quest/placement-dismiss' from './endpoints/lojo/quest/placement-dismiss.js';
+export * as 'lojo/quest/content-import' from './endpoints/lojo/quest/content-import.js';
+export * as 'lojo/quest/content-rollback' from './endpoints/lojo/quest/content-rollback.js';
+export * as 'lojo/quest/content-versions' from './endpoints/lojo/quest/content-versions.js';
 export * as 'lojo/funnel' from './endpoints/lojo/funnel.js';
 export * as 'lojo/words/list' from './endpoints/lojo/words/list.js';
 export * as 'lojo/words/add' from './endpoints/lojo/words/add.js';

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 闯关各章共用的类型。每章的数据在 misc/lojo-quest-ch<N>.ts，由 apps/community/scripts/quest-chapter.mjs 生成。
+// 闯关各章共用的类型。每章的数据在 Vibes 工作区 courses/english/ielts/quest/ch<N>.json，导入数据库（misc/lojo-quest-content.ts）。
 
 // 错因键（第一章 7 个，第二到四章各加几个；同票顺序在每章的 causeOrder）
 export type QuestCause = string;

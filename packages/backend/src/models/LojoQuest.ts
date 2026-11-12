@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import type { QuestChapter } from '@/misc/lojo-quest-types.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 
@@ -190,4 +191,30 @@ export class MiLojoQuestLog {
 
 	@Column('jsonb', { default: {} })
 	public data: Record<string, unknown>;
+}
+
+// 闯关的题目和地图，一次导入一行（apps/community/scripts/quest-import.mjs，2026-11-12 起）。题目带答案，代码是公开的，所以放这里。
+// active 的那一行在用（只有一行）；退回上一版 = 把 active 挪到前一行。旧版本留着，不删。
+@Entity('lojo_quest_content')
+export class MiLojoQuestContent {
+	@PrimaryGeneratedColumn({ primaryKeyConstraintName: 'PK_lojo_quest_content' })
+	public id: number;
+
+	// what the import was called: the chapter versions joined (ch1-2026-11-11c+ch2-…), or the note given
+	@Column('varchar', { length: 256 })
+	public version: string;
+
+	@Column('jsonb')
+	public chapters: QuestChapter[];
+
+	@Index('IDX_lojo_quest_content_active')
+	@Column('boolean', { default: false })
+	public active: boolean;
+
+	@Column('timestamp with time zone')
+	public createdAt: Date;
+
+	// who imported it, from where (the import script's note)
+	@Column('varchar', { length: 512, default: '' })
+	public note: string;
 }

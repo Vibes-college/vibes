@@ -4,7 +4,7 @@
  */
 
 // 路线图下线后（2026-11-10），旧的站号（/map#2.1、练完页的「回路线图」）对到闯关第一章的哪一关。
-// 按 backend/src/misc/lojo-quest-ch1.ts 每关的 stations 抄过来；章节改了站号要跟着改。
+// 按 Vibes 工作区 courses/english/ielts/quest/ch1.json 每关的 stations 抄过来；章节改了站号要跟着改。
 const STATION_LEVEL: Record<string, string> = {
 	'1.1': '1-1', '1.2': '1-2', '1.3': '1-3',
 	'2.1': '1-4', '2.2': '1-5', '2.3': '1-6',
