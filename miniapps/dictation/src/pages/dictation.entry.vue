@@ -86,7 +86,8 @@ each has been practised and how many are 常错, and the 常错 words themselves
 			<button class="_button _textButton" :class="$style.voiceBtn" @click="ev => emit('voice', ev)">{{ dictLabels.changeVoice }}</button>
 		</p>
 		<p v-if="progressFailed" :class="$style.warn">{{ dictLabels.progressFailed }}</p>
-		<p v-else>{{ dictLabels.savedNote }}</p>
+		<!-- not signed in: the page's own note says where the record is kept -->
+		<p v-else-if="$i != null">{{ dictLabels.savedNote }}</p>
 	</footer>
 </div>
 </template>
@@ -98,6 +99,7 @@ import type { DictProgress } from '@/lojo/dictation/logic.js';
 import MkButton from '@/components/MkButton.vue';
 import { oftenIds, seenCount } from '@/lojo/dictation/logic.js';
 import { dictLabels, dictLang } from '@/lojo/dictation/labels.js';
+import { $i } from '@/i.js';
 
 const props = defineProps<{
 	content: DictContent;
