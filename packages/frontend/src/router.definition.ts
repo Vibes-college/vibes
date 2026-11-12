@@ -111,11 +111,11 @@ export const ROUTE_DEF = [{
 	path: '/vocab/:stop',
 	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
-	// 6 号线 · 语法: one stop's lesson (/grammar/6.2, ?section=s3 opens it at that part); its gate is /gate/ielts/6.2.
+	// 6 号线 · 语法 moved out to its own static mini app at /apps/grammar/<stop> (小程序搬出社区, 2026-11-12); the old
+	// address (/grammar/6.2?section=s3 opens it at that part) goes there with its query. Its gate is /gate/ielts/6.2.
 	name: 'lojo-grammar',
 	path: '/grammar/:stop',
-	component: page(() => import('@/pages/lojo/grammar.vue')),
-	loginRequired: true,
+	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 路线图下线（11-10）：/map 跳到闯关。旧的站号链接（/map#2.1）对得上某一关就打开那一关，对不上就到地图。
 	// AP 的 /map/<course>、/maps、/gate/… 不动。

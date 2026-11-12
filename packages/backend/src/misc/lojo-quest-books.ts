@@ -621,7 +621,7 @@ export const QUEST_BOOKS: QuestBook[] = [
 		"app": {
 			"id": "grammar",
 			"zh": "语法线",
-			"path": "/grammar/6.1"
+			"path": "/apps/grammar/6.1"
 		},
 		"verify": "闯关第一章语法支线 1-10「句子主干」、1-11「单数复数和时态」、1-12「被动语态」。错的那一类学完，回去再打这一关。",
 		"verifyUrl": "/quest?level=1-10",

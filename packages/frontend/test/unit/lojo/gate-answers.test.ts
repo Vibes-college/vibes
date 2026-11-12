@@ -203,10 +203,10 @@ describe('Vibes gate answers (vocabulary and grammar)', () => {
 		expect(plainLine('listening')).toBeNull();
 		expect(plainLine(undefined)).toBeNull();
 		expect(stopPage('vocab', '5.2')).toBe('/apps/vocab/5.2');
-		expect(stopPage('grammar', '6.2')).toBe('/grammar/6.2');
+		expect(stopPage('grammar', '6.2')).toBe('/apps/grammar/6.2');
 		expect(stopPage(null, '1.1')).toBeNull();
 		expect(practicePath('/apps/vocab/{station}', '5.2')).toBe('/apps/vocab/5.2');
-		expect(practicePath('/grammar/6.2?section=s3', '6.2')).toBe('/grammar/6.2?section=s3');
+		expect(practicePath('/apps/grammar/6.2?section=s3', '6.2')).toBe('/apps/grammar/6.2?section=s3');
 		expect(practicePath('/dictation', '1.1')).toBe('/dictation');
 	});
 

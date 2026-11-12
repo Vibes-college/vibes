@@ -158,7 +158,7 @@ export function neighbours(content: GrammarContent, id: string): { prev: Grammar
 	return { prev: content.stops[at - 1] ?? null, next: content.stops[at + 1] ?? null };
 }
 
-export const lessonPath = (id: string): string => `/grammar/${id}`;
+export const lessonPath = (id: string): string => `/apps/grammar/${id}`;
 export const gatePath = (id: string): string => `/gate/${GRAMMAR_COURSE}/${id}`;
 
 // The section a link asks for (/grammar/6.2?section=s3, the router's full path), if the lesson has it.

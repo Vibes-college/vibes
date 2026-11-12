@@ -3,23 +3,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { afterEach, describe, expect, test } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/vue';
-import { defineComponent, h, nextTick } from 'vue';
+import { describe, expect, test } from 'vitest';
 import { exampleIssues, inlineParts, keysUsed, parseExample, plainText, toMarkup, writingText } from '@/lojo/grammar/marks.js';
-import type { MarkSegment, Segment } from '@/lojo/grammar/marks.js';
+import type { Segment } from '@/lojo/grammar/marks.js';
 import { bandText, gatePath, grammarContent, lessonPath, neighbours, sectionFromPath, toGrammarContent, toLesson } from '@/lojo/grammar/content.js';
-import type { ExampleBlock, GrammarLesson } from '@/lojo/grammar/content.js';
-import { grammarLabels, grammarLang } from '@/lojo/grammar/labels.js';
+import type { GrammarLesson } from '@/lojo/grammar/content.js';
 import { GRAMMAR } from '@/lojo/route/courses/ielts/grammar.js';
 import { LINES, PRACTICE } from '@/lojo/route/courses/ielts/content.js';
-import type { Router } from '@/router.js';
-import { DI } from '@/di.js';
-import { provideMetadataReceiver } from '@/page.js';
-import { directives } from '@/directives/index.js';
-import { components } from '@/components/index.js';
-import XGrammar from '@/pages/lojo/grammar.vue';
-import XExample from '@/pages/lojo/grammar.example.vue';
 
 // the course file as written (grammar.js is plain JS)
 type RawBlock = { p?: string; ex?: string; zh?: string; table?: string[][] };
@@ -219,7 +209,7 @@ describe('the course file', () => {
 				expect(sections, key).toContain(tag.see);
 				expect(grammarContent.tags[id][key], key).toEqual({ zh: tag.zh, see: tag.see });
 				const path = RAW_PRACTICE[key]?.app?.path ?? '';
-				expect(path, key).toBe(`/grammar/${id}?section=${tag.see}`);
+				expect(path, key).toBe(`/apps/grammar/${id}?section=${tag.see}`);
 				expect(sectionFromPath(path, grammarContent.lessons[id]), key).toBe(tag.see);
 			}
 		}
@@ -232,7 +222,7 @@ describe('the course file', () => {
 		expect(neighbours(grammarContent, '6.9')).toMatchObject({ prev: { id: '6.8' }, next: null });
 		expect(neighbours(grammarContent, '9.9')).toEqual({ prev: null, next: null });
 		expect(gatePath('6.2')).toBe('/gate/ielts/6.2');
-		expect(lessonPath('6.3')).toBe('/grammar/6.3');
+		expect(lessonPath('6.3')).toBe('/apps/grammar/6.3');
 	});
 });
 
@@ -240,11 +230,11 @@ describe('reading the file safely', () => {
 	const lesson = grammarContent.lessons['6.2'] as GrammarLesson;
 
 	test('?section= in the address: only a section the lesson has', () => {
-		expect(sectionFromPath('/grammar/6.2?section=s3', lesson)).toBe('s3');
-		expect(sectionFromPath('/grammar/6.2?from=gate&section=s5#top', lesson)).toBe('s5');
-		expect(sectionFromPath('/grammar/6.2?section=s9', lesson)).toBeNull();
-		expect(sectionFromPath('/grammar/6.2', lesson)).toBeNull();
-		expect(sectionFromPath('/grammar/6.2#x?section=s3', lesson)).toBeNull();
+		expect(sectionFromPath('/apps/grammar/6.2?section=s3', lesson)).toBe('s3');
+		expect(sectionFromPath('/apps/grammar/6.2?from=gate&section=s5#top', lesson)).toBe('s5');
+		expect(sectionFromPath('/apps/grammar/6.2?section=s9', lesson)).toBeNull();
+		expect(sectionFromPath('/apps/grammar/6.2', lesson)).toBeNull();
+		expect(sectionFromPath('/apps/grammar/6.2#x?section=s3', lesson)).toBeNull();
 	});
 
 	test('malformed stops, sections and blocks are left out', () => {
@@ -284,139 +274,5 @@ describe('reading the file safely', () => {
 	});
 });
 
-describe('the page', () => {
-	afterEach(() => {
-		cleanup();
-	});
-
-	// the words of an example as the page shows them, without the names written under them
-	const bare = (src: string) => src.replace(/\{[svop]:([^{}]*)\}/g, '$1').replace(/\[c:([^[\]]*)\]/g, '$1');
-	const marksOf = (segments: Segment[]) => segments.flatMap(s => (s.kind === 'clause' ? s.parts : [s])).filter((s): s is MarkSegment => s.kind === 'mark');
-
-	// the page reads ?section= from its router; links go through it too
-	const routerAt = (path: string) => ({ getCurrentFullPath: () => path, push: () => undefined, pushByPath: () => undefined }) as unknown as Router;
-	// a host, as the router view is: it takes the page's title
-	const renderLesson = (stop: string, path = `/grammar/${stop}`) => {
-		const titles: string[] = [];
-		const Host = defineComponent({
-			setup() {
-				provideMetadataReceiver(getter => {
-					titles.push(getter().title);
-				});
-				return () => h(XGrammar, { stop });
-			},
-		});
-		const result = render(Host, {
-			global: { directives, components, provide: { [DI.router as symbol]: routerAt(path) }, stubs: { MkPageHeader: true } },
-		});
-		return { ...result, titles };
-	};
-
-	test('every example shows its words exactly, each mark with its name and the punctuation after it in one no-wrap span', () => {
-		for (const id of IDS) {
-			for (const sec of grammarContent.lessons[id].sections) {
-				for (const b of sec.blocks) {
-					if (b.kind !== 'ex') continue;
-					const { container, unmount } = render(XExample, { props: { example: b, sayKey: `${id}/${sec.id}`, speech: true } });
-					const sentence = container.querySelector<HTMLElement>('[data-sentence]');
-					if (sentence == null) throw new Error(`no sentence: ${b.src}`);
-					// the names under the words and a clause's hidden "(clause)" are the only parts in a language of their own
-					const words = sentence.cloneNode(true) as HTMLElement;
-					words.querySelectorAll('[lang]').forEach(el => el.remove());
-					expect(words.textContent, b.src).toBe(bare(b.src));
-					const marks = marksOf(b.segments);
-					const shown = Array.from(sentence.querySelectorAll<HTMLElement>('[data-mark]:not([data-mark="c"])'));
-					expect(shown.map(el => el.dataset.mark), b.src).toEqual(marks.map(m => m.mark));
-					shown.forEach((el, k) => {
-						expect(el.querySelector('[data-mark-label]')?.textContent, b.src).toBe(grammarLabels.marks[marks[k].mark]);
-						// nothing but the punctuation between a mark and the end of its no-wrap span
-						expect(el.parentElement?.textContent, b.src).toBe(`${el.textContent}${marks[k].tail}`);
-					});
-					expect(sentence.querySelectorAll('[data-mark="c"]').length, b.src).toBe(b.segments.filter(s => s.kind === 'clause').length);
-					// the speaker names the sentence it reads
-					expect(container.querySelector('[data-say]')?.getAttribute('aria-label'), b.src).toBe(grammarLabels.say(b.say));
-					unmount();
-				}
-			}
-		}
-	});
-
-	test('no speaker when sentences can\'t be read aloud', () => {
-		const b = grammarContent.lessons['6.1'].sections[0].blocks.find((x): x is ExampleBlock => x.kind === 'ex');
-		if (b == null) throw new Error('no example');
-		const { container } = render(XExample, { props: { example: b, sayKey: 'k', speech: false } });
-		expect(container.querySelector('[data-say]')).toBeNull();
-	});
-
-	test('each lesson: its header, every section, the mistakes after the right one, the writing box, the gate and the line', () => {
-		for (const [at, id] of IDS.entries()) {
-			const lesson = grammarContent.lessons[id];
-			const stop = grammarContent.stops[at];
-			const { container, unmount, titles } = renderLesson(id);
-			const root = container.querySelector<HTMLElement>('[data-grammar]');
-			expect(root?.dataset.grammar, id).toBe(id);
-			expect(titles.at(-1), id).toBe(grammarLabels.pageTitle(bandText(stop.band), stop.title));
-
-			const head = container.querySelector('[data-head]')?.textContent ?? '';
-			for (const part of [grammarLabels.lineTag(6, grammarContent.name[grammarLang]), bandText(stop.band), stop.title, stop.sub, grammarLabels.meta(5, lesson.minutes), grammarLabels.level]) {
-				expect(head, id).toContain(part);
-			}
-
-			const sections = Array.from(container.querySelectorAll<HTMLElement>('[data-section]'));
-			expect(sections.map(s => s.dataset.section), id).toEqual(lesson.sections.map(s => s.id));
-			sections.forEach((s, k) => {
-				expect(s.querySelector('h2')?.textContent, id).toBe(`${k + 1}${lesson.sections[k].h}`);
-				expect(s.querySelectorAll('[data-example]').length, id).toBe(lesson.sections[k].blocks.filter(b => b.kind === 'ex').length);
-				expect(s.querySelectorAll('table').length, id).toBe(lesson.sections[k].blocks.filter(b => b.kind === 'table').length);
-			});
-			expect(Array.from(container.querySelectorAll<HTMLElement>('[data-toc]')).map(c => c.dataset.toc), id).toEqual(lesson.sections.map(s => s.id));
-
-			const mistakes = container.querySelector('[data-mistakes]');
-			expect((mistakes?.previousElementSibling as HTMLElement | null)?.dataset.section, id).toBe(lesson.mistakesAfter);
-			expect(mistakes?.querySelectorAll('li').length, id).toBe(lesson.mistakes.length);
-
-			const writing = container.querySelector('[data-writing] p')?.textContent ?? '';
-			expect(writing, id).toBe(lesson.writing.map(p => p.text).join(''));
-			expect(container.querySelector('[data-writing]')?.textContent?.match(new RegExp(grammarLabels.writingTitle, 'g'))?.length, id).toBe(1);
-
-			// each mark explained in words, not by its colour alone
-			expect(Array.from(container.querySelectorAll('[data-legend] [data-key]')).map(k => k.textContent), id)
-				.toEqual(lesson.keys.map(k => `${grammarLabels.marks[k]}${grammarLabels.legendSep}${grammarLabels.markStyles[k]}`));
-
-			const gates = Array.from(container.querySelectorAll('a[data-gate]')).map(a => a.getAttribute('href'));
-			expect(gates, id).toEqual([`/gate/ielts/${id}`, `/gate/ielts/${id}`]);
-			expect(container.querySelector('a[data-prev]')?.getAttribute('href') ?? null, id).toBe(at > 0 ? `/grammar/${IDS[at - 1]}` : null);
-			expect(container.querySelector('a[data-next]')?.getAttribute('href') ?? null, id).toBe(at < IDS.length - 1 ? `/grammar/${IDS[at + 1]}` : null);
-			unmount();
-		}
-	});
-
-	test('?section=s3 opens the lesson with the focus on section 3\'s heading', async () => {
-		const { container } = renderLesson('6.2', '/grammar/6.2?section=s3');
-		await nextTick();
-		await nextTick();
-		expect(document.activeElement).toBe(container.querySelector('[data-section="s3"] h2'));
-	});
-
-	test('a section that isn\'t there is ignored', async () => {
-		const { container } = renderLesson('6.2', '/grammar/6.2?section=s8');
-		await nextTick();
-		await nextTick();
-		expect(container.contains(document.activeElement)).toBe(false);
-	});
-
-	test('a chip goes to its section and its heading', async () => {
-		const { container } = renderLesson('6.6');
-		const chip = container.querySelector<HTMLElement>('[data-toc="s4"]');
-		if (chip == null) throw new Error('no chip');
-		await fireEvent.click(chip);
-		expect(document.activeElement).toBe(container.querySelector('[data-section="s4"] h2'));
-	});
-
-	test('a stop without a lesson says so, and leads back to the map', () => {
-		const { container } = renderLesson('9.9');
-		expect(container.querySelector('[role="alert"]')?.textContent).toContain(grammarLabels.missing);
-		expect(container.querySelector('[role="alert"] a')?.getAttribute('href')).toBe('/quest');
-		expect(container.querySelector('[data-section]')).toBeNull();
-	});
-});
+// The lesson page itself moved out to the 语法课 mini app (miniapps/grammar, /apps/grammar/<stop>, 小程序搬出社区
+// 2026-11-12); scripts/qa/grammar-check.mjs checks it in a browser. The course file and its marks stay tested here.

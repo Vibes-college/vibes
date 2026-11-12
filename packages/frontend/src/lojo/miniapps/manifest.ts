@@ -142,7 +142,7 @@ export const miniApps: MiniAppDef[] = [
 		id: 'grammar',
 		name: '语法线',
 		icon: 'ti ti-text-grammar',
-		link: { kind: 'route', to: '/grammar/6.1' },
+		link: { kind: 'external', href: '/apps/grammar/6.1' },
 		intro: {
 			summary: '9 站语法讲解，每站先讲清楚一个语法点，再配闯关题，交卷后一次性看对错和讲解。',
 			audience: '想补语法基础、避免雅思写作口语里常见语法错误的人。',

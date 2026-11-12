@@ -287,10 +287,10 @@ export function plainKind(groups: Pick<GateGroup, 'skill'>[]): PlainKind | null 
 // The line a station is on, when it is the vocabulary or the grammar line (content.js LINES: 'vocab', 'grammar').
 export const plainLine = (lineId: string | null | undefined): PlainKind | null => (lineId === 'vocab' || lineId === 'grammar' ? lineId : null);
 
-// The stop's own page: its words and practice (the 词汇线 mini app, /apps/vocab/5.2) or its lesson (/grammar/6.2).
+// The stop's own page: its words and practice (the 词汇线 mini app, /apps/vocab/5.2) or its lesson (the 语法课 mini app, /apps/grammar/6.2).
 export function stopPage(kind: PlainKind | null, station: string): string | null {
 	if (kind == null) return null;
-	return kind === 'vocab' ? `/apps/vocab/${encodeURIComponent(station)}` : `/${kind}/${encodeURIComponent(station)}`;
+	return `/apps/${kind}/${encodeURIComponent(station)}`;
 }
 
 // A PRACTICE page may name the station it is about: "/apps/vocab/{station}" is this stop's words. Other paths are kept.
