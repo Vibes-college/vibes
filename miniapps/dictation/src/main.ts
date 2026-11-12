@@ -10,6 +10,8 @@ import MkPageHeader from './shell/MkPageHeader.vue';
 import App from './pages/dictation.vue';
 
 applyCommunityTheme();
-const app = createApp(App);
+// 闯关结果页的「练习 · 听写」卡片带着 ?gate=<这次闯关>&tag=<哪类空> 过来（社区里由路由转成 props，这里自己读）。
+const query = new URLSearchParams(location.search);
+const app = createApp(App, { gate: query.get('gate') ?? undefined, tag: query.get('tag') ?? undefined });
 app.component('MkA', MkA).component('MkLoading', MkLoading).component('MkPageHeader', MkPageHeader);
 app.mount('#app');
