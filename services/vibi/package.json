@@ -1,0 +1,18 @@
+{
+	"name": "mia-mastra",
+	"private": true,
+	"type": "module",
+	"license": "AGPL-3.0-only",
+	"description": "Mia on Mastra: message history, working memory, observational memory, four tools; no vectors. Switched on per learner by the community.",
+	"scripts": {
+		"start": "node server.mjs"
+	},
+	"dependencies": {
+		"@ai-sdk/deepseek": "3.0.84",
+		"@mastra/core": "1.82.0",
+		"@mastra/memory": "1.41.0",
+		"@mastra/pg": "1.35.0",
+		"zod": "^4",
+		"pg": "8.23.1"
+	}
+}
