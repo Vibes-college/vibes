@@ -7,6 +7,9 @@
 // "this try" (which level, the questions they got wrong, why, hearts, streak, where they can go next) and she writes first.
 // The quest knowledge (rules, causes, guides) lives in the tutor account's own registry (scope lojo/tutor, key quest),
 // maintained by the AI tutor team; without it there is no quest mode. Plan: 闯关上线/Mia接入.md (2026-11-10).
+// The lines that tell her what to do with it are private too (TutorPrompts questNextHead, questNextNone, questFollowUp).
+
+import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 
 const str = (value: unknown, max: number): string => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -149,28 +152,25 @@ export function questKnowledgeSection(knowledge: QuestKnowledge): string {
 }
 
 // This try, its causes and where she can send them: changes as hearts come back, so it goes in the last message.
-export function questTrySection(knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
+export function questTrySection(prompts: QuestPrompts, knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
 	const tags = [...new Set([questTry.cause, ...questTry.wrong.map(w => w.cause)].filter((t): t is string => t != null && t !== ''))];
 	const causes = tags.map(tag => knowledge.causes[tag]).map((c, i) => (c ? `- ${tags[i]}: ${c.zh}. Technique: ${c.technique}` : null)).filter(Boolean);
 	const { next, ...rest } = questTry;
 	const tryFacts = { ...rest, next: next.map(({ url: _url, ...n }) => n) };
 	return [
 		...(causes.length > 0 ? ['Causes in this try:', ...causes as string[], ''] : []),
-		'You can send them to (set "next" to one id, or leave it out):',
-		...(next.length > 0 ? next.map(n => `- ${n.id}: ${n.label}${n.recommended ? ' (recommended)' : ''}`) : ['- (nothing listed: leave "next" out)']),
+		prompts.questNextHead,
+		...(next.length > 0 ? next.map(n => `- ${n.id}: ${n.label}${n.recommended ? ' (recommended)' : ''}`) : [prompts.questNextNone]),
 		'',
 		`This try: ${JSON.stringify(tryFacts)}`,
-		...(followUp ? [
-			'',
-			'You already wrote first about this try (see the chat above). Now answer what they just said, like a person in a chat.',
-			'Do not repeat the hearts, the cause summary or the next step you already gave. Only when they ask what to do next, how to get hearts back, or where to practise, say it again and set "next"; otherwise leave "next" out.',
-			'Hearts and 补心 above are as of now; if they changed since you wrote first, go by these.',
-		] : []),
+		...(followUp ? ['', prompts.questFollowUp] : []),
 	].join('\n');
 }
 
-export function questPromptSection(knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
-	return [questKnowledgeSection(knowledge), '', questTrySection(knowledge, questTry, followUp)].join('\n');
+export type QuestPrompts = Pick<TutorPrompts, 'questNextHead' | 'questNextNone' | 'questFollowUp'>;
+
+export function questPromptSection(prompts: QuestPrompts, knowledge: QuestKnowledge, questTry: QuestTry, followUp = false): string {
+	return [questKnowledgeSection(knowledge), '', questTrySection(prompts, knowledge, questTry, followUp)].join('\n');
 }
 
 // "👉 <label> <full URL>" for the step the tutor chose; null when she chose nothing listed.
@@ -185,9 +185,10 @@ export function questNextLine(questTry: QuestTry, nextId: string | undefined, ba
 // When the model cannot be reached (no balance or a bad key), "Ask Vibi" still gets one fixed message built from this try
 // and the quest knowledge: the cause, its one-line Chinese tip (tipZh), and the next step by the hearts rules she
 // follows. No answers, no error words. Spec: 冲刺1111/Mia/兜底规格.md F2 (AI tutor, 2026-11-11).
-export const TUTOR_AWAY_PREFIX = 'Vibi 这会儿不在线';
-// Away messages sent before the rename to Vibi (2026-11-12) still start with this; they are left out of her context too.
-const LEGACY_AWAY_PREFIXES = ['Mia 这会儿不在线'];
+// In the first person since every learner names her (Momo, 2026-11-17), so it is the same whatever her name is.
+export const TUTOR_AWAY_PREFIX = '我这会儿不在线';
+// Away messages sent before (named Mia until 2026-11-12, then Vibi) still start with these; they are left out of her context too.
+const LEGACY_AWAY_PREFIXES = ['Mia 这会儿不在线', 'Vibi 这会儿不在线'];
 export function isTutorAwayText(text: string | null | undefined): boolean {
 	if (text == null) return false;
 	return text.startsWith(TUTOR_AWAY_PREFIX) || LEGACY_AWAY_PREFIXES.some(prefix => text.startsWith(prefix));

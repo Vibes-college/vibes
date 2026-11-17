@@ -4,12 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader v-model:tab="tab" :reversed="tab === 'chat'" :tabs="headerTabs" :actions="headerActions" autoHideNavigation collapsedNavigation>
+<PageWithHeader :tab="tab" :reversed="tab === 'chat'" :tabs="headerTabs" :actions="headerActions" :back="headerBack" autoHideNavigation collapsedNavigation @update:tab="switchTab">
 	<div v-if="tab === 'chat'" class="_spacer" style="--MI_SPACER-w: 700px;">
 		<div class="_gaps">
 			<div v-if="initializing">
 				<MkLoading/>
 			</div>
+
+			<MkResult v-else-if="fetchError != null" :type="fetchError"/>
 
 			<div v-else-if="messages.length === 0">
 				<div class="_gaps" style="text-align: center;">
@@ -58,6 +60,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 	</div>
 
+	<!-- Vibes: the private-message 「任务」 tab, only in the chat with Vibi (lojo/plan/PlanTab.vue). -->
+	<XPlanTab v-else-if="tab === 'tasks' && isTutorChat && user" :tutor="user" @talk="talkToVibi"/>
+
 	<div v-else-if="tab === 'search'" class="_spacer" style="--MI_SPACER-w: 700px;">
 		<XSearch :userId="userId" :roomId="roomId"/>
 	</div>
@@ -87,7 +92,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<!-- Vibes: in a chat with an AI tutor, a notice only when the allowance is used up or the whole site is paused;
 				the everyday usage is in the ⋯ menu (lojo/tutor/VibiUsageSheet.vue). -->
 				<XVibiUsage v-if="initialized && isTutorChat" :tick="messages.length"/>
-				<XForm v-if="initialized" :user="user" :room="room" :placeholder="isTutorChat ? (lang.startsWith('zh') ? '跟 Vibi 说点什么…' : 'Message Vibi…') : undefined"/>
+				<XForm v-if="initialized" :user="user" :room="room" :placeholder="isTutorChat ? (lang.startsWith('zh') ? `跟 ${myTutorName} 说点什么…` : `Message ${myTutorName}…`) : undefined" :prefill="prefill"/>
 			</div>
 		</div>
 	</template>
@@ -95,7 +100,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, computed, defineAsyncComponent, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
+import { ref, watch, useTemplateRef, computed, defineAsyncComponent, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { getScrollContainer } from '@@/js/scroll.js';
 import { lang } from '@@/js/config.js';
@@ -105,6 +110,7 @@ import XSearch from './room.search.vue';
 import XMembers from './room.members.vue';
 import XInfo from './room.info.vue';
 import XVibiUsage from '@/lojo/tutor/VibiUsage.vue';
+import { planStrings } from '@/lojo/plan/strings.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { PageHeaderItem } from '@/types/page-header.js';
 import * as os from '@/os.js';
@@ -116,11 +122,16 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
 import { prefer } from '@/preferences.js';
 import MkButton from '@/components/MkButton.vue';
-import { useRouter } from '@/router.js';
+import { mainRouter, useRouter } from '@/router.js';
 import { useMutationObserver } from '@/composables/use-mutation-observer.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { makeDateSeparatedTimelineComputedRef } from '@/utility/timeline-date-separate.js';
 import { chatLabels } from '@/lojo/english/labels.js';
+import { myTutorName, personaNameFor } from '@/lojo/tutor/persona.js';
+import { momoLabels } from '@/lojo/tutor/momo-labels.js';
+import { openMomoEdit } from '@/lojo/tutor/momo-setup.js';
+import { vibiLabels } from '@/lojo/agent/labels.js';
+import { vibiShown } from '@/lojo/agent/state.js';
 
 const $i = ensureSignin();
 const router = useRouter();
@@ -139,6 +150,7 @@ export type NormalizedChatMessage = Omit<Misskey.entities.ChatMessageLite, 'from
 
 const initializing = ref(false);
 const initialized = ref(false);
+const fetchError = ref<'notFound' | 'error' | null>(null);
 const moreFetching = ref(false);
 const messages = ref<NormalizedChatMessage[]>([]);
 const canFetchMore = ref(false);
@@ -206,6 +218,11 @@ function normalizeMessage(message: Misskey.entities.ChatMessageLite | Misskey.en
 	};
 }
 
+function toFetchError(err: unknown): 'notFound' | 'error' {
+	const code = (err as { code?: string } | null)?.code;
+	return code === 'NO_SUCH_ROOM' || code === 'NO_SUCH_USER' ? 'notFound' : 'error';
+}
+
 async function initialize() {
 	const LIMIT = 20;
 
@@ -213,12 +230,23 @@ async function initialize() {
 
 	initializing.value = true;
 	initialized.value = false;
+	fetchError.value = null;
 
 	if (props.userId) {
-		const [u, m] = await Promise.all([
+		const result = await Promise.all([
 			misskeyApi('users/show', { userId: props.userId }),
 			misskeyApi('chat/messages/user-timeline', { userId: props.userId, limit: LIMIT }),
-		]);
+		]).catch(err => {
+			fetchError.value = toFetchError(err);
+			return null;
+		});
+
+		if (result == null) {
+			initializing.value = false;
+			return;
+		}
+
+		const [u, m] = result;
 
 		user.value = u;
 		messages.value = m.map(x => normalizeMessage(x));
@@ -242,10 +270,7 @@ async function initialize() {
 		]);
 
 		if (rResult.status === 'rejected') {
-			os.alert({
-				type: 'error',
-				text: i18n.ts.somethingHappened,
-			});
+			fetchError.value = toFetchError(rResult.reason);
 			initializing.value = false;
 			return;
 		}
@@ -270,7 +295,14 @@ async function initialize() {
 			}
 		}
 
-		const m = mResult.status === 'fulfilled' ? mResult.value as Misskey.entities.ChatMessagesRoomTimelineResponse : [];
+		// ルーム情報は取れても、タイムラインの取得だけ失敗することがある（通信エラーなど）
+		if (mResult.status === 'rejected') {
+			fetchError.value = toFetchError(mResult.reason);
+			initializing.value = false;
+			return;
+		}
+
+		const m = mResult.value as Misskey.entities.ChatMessagesRoomTimelineResponse;
 
 		room.value = r;
 		messages.value = m.map(x => normalizeMessage(x));
@@ -454,8 +486,22 @@ function showMenu(ev: PointerEvent) {
 		}
 	}
 
-	// Vibes: Vibi's usage card (founder, 2026-11-11 23:29: not under the message box, in the ⋯ menu).
+	// Vibes: the learner's own Momo: change its face or name (founder 11-17: the learner names it; lojo/tutor/MomoSetup.vue).
+	// Whether Momo peeks out of the corner of every page: on by default, switched off here (founder 11-17 01:29 PT, moved
+	// from 设置 › AI tutor; lojo/agent/state.ts). Then its usage card (founder, 2026-11-11 23:29: in the ⋯ menu).
 	if (isTutorChat.value) {
+		menuItems.push({
+			text: momoLabels.editTitle,
+			icon: 'ti ti-mood-edit',
+			action: () => {
+				void openMomoEdit();
+			},
+		}, {
+			type: 'switch',
+			text: vibiLabels.showOnHome(myTutorName.value),
+			icon: 'ti ti-layout-sidebar-right',
+			ref: vibiShown,
+		});
 		menuItems.push({
 			text: lang.startsWith('zh') ? '用量' : 'Usage',
 			icon: 'ti ti-gauge',
@@ -470,7 +516,95 @@ function showMenu(ev: PointerEvent) {
 	os.popupMenu(menuItems, ev.currentTarget ?? ev.target);
 }
 
-const tab = ref('chat');
+// Vibes: the tab is in the address (#tasks, #search …; the messages have none), so the phone's back gesture goes from
+// 任务 or 搜索 to the messages, and opening the chat again from the list starts on the messages instead of the tab it
+// was left on (founder 11-16). Inside Vibi's panel (lojo/agent/VibiChat.vue) the panel's own router keeps it.
+const tabKeys = ['tasks', 'search', 'members', 'info'];
+const basePath = computed(() => props.userId != null ? `/chat/user/${props.userId}` : `/chat/room/${props.roomId}`);
+
+function tabOf(fullPath: string): string {
+	const at = fullPath.indexOf('#');
+	const key = at < 0 ? '' : fullPath.slice(at + 1);
+	return tabKeys.includes(key) ? key : 'chat';
+}
+
+function pathOf(fullPath: string): string {
+	return fullPath.split('#')[0].split('?')[0];
+}
+
+const tab = ref(tabOf(router.getCurrentFullPath()));
+// this page put the #tab step into the history, so going back to the messages is one step back
+let tabStepPushed = false;
+
+function switchTab(key: string) {
+	if (key === tab.value) return;
+	if (key === 'chat') {
+		backToChat();
+		return;
+	}
+	const path = `${basePath.value}#${key}`;
+	if (tab.value === 'chat' && router === mainRouter) {
+		// forcePage: the deck UI would otherwise open the same chat again in a window
+		router.pushByPath(path, 'forcePage');
+		tabStepPushed = true;
+	} else {
+		router.replaceByPath(path);
+	}
+	tab.value = key;
+}
+
+function backToChat() {
+	tab.value = 'chat';
+	if (router === mainRouter && tabStepPushed) {
+		tabStepPushed = false;
+		window.history.back();
+	} else {
+		router.replaceByPath(basePath.value);
+	}
+}
+
+// The arrow on the messages goes back to wherever the chat was opened from (the list, a profile); opened straight from
+// a link, to the chat list.
+function backToList() {
+	const nav = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+	const openedHere = nav == null || new URL(nav.name).pathname === window.location.pathname;
+	if (openedHere) router.push('/chat');
+	else window.history.back();
+}
+
+const headerBack = computed(() => {
+	if (tab.value !== 'chat') return backToChat;
+	return router === mainRouter ? backToList : undefined;
+});
+
+router.useListener('change', ({ fullPath }) => {
+	if (pathOf(fullPath) !== basePath.value) return;
+	const key = tabOf(fullPath);
+	if (key === 'chat') tabStepPushed = false;
+	if (key !== tab.value) tab.value = key;
+});
+
+onActivated(() => {
+	if (pathOf(router.getCurrentFullPath()) !== basePath.value) return;
+	const key = tabOf(router.getCurrentFullPath());
+	if (key === 'chat') tabStepPushed = false;
+	tab.value = key;
+});
+
+// the task tab's mustard dot: until it is opened once on this device
+const planTabSeen = ref(localStorage.getItem('vibesPlanTabSeen') === '1');
+watch(tab, v => {
+	if (v === 'tasks' && !planTabSeen.value) { planTabSeen.value = true; localStorage.setItem('vibesPlanTabSeen', '1'); }
+});
+
+// Vibes: the 「任务」 tab (2026-11-15). 「和 Vibi 说」 on its empty page goes back to the messages with a sentence in the box.
+const XPlanTab = defineAsyncComponent(() => import('@/lojo/plan/PlanTab.vue'));
+const prefill = ref('');
+
+function talkToVibi(text: string) {
+	prefill.value = text;
+	backToChat();
+}
 
 const headerTabs = computed(() => room.value ? [{
 	key: 'chat',
@@ -492,7 +626,12 @@ const headerTabs = computed(() => room.value ? [{
 	key: 'chat',
 	title: i18n.ts._chat.messages,
 	icon: 'ti ti-messages',
-}, {
+}, ...(isTutorChat.value ? [{
+	key: 'tasks',
+	title: planStrings.tab,
+	icon: 'ti ti-checklist',
+	dot: !planTabSeen.value,
+}] : []), {
 	key: 'search',
 	title: i18n.ts.search,
 	icon: 'ti ti-search',
@@ -508,7 +647,7 @@ definePage(computed(() => {
 		if (user.value) {
 			return {
 				userName: user.value,
-				title: user.value.name ?? user.value.username,
+				title: personaNameFor(user.value) ?? user.value.name ?? user.value.username,
 				avatar: user.value,
 				// Vibes: the AI tutor gets 「· 学搭子」 (Chinese UI only).
 				...(tutorIds.value.includes(user.value.id) && showTutorTitle && tutorTitle.value !== '' ? { nameSuffix: tutorTitle.value } : {}),

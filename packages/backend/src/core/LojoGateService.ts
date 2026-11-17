@@ -25,7 +25,7 @@ import { CacheService } from '@/core/CacheService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { createTemp } from '@/misc/create-temp.js';
 import { PEER_DAYS, adultBirthday, answersOf, gateOf, gateProfileText, gateProgress, lineOf, markSet, paperOf, pickSet, placedStation, placementOf, publicGroups, publicPassage, setsFor, weakTags } from '@/misc/lojo-gates.js';
-import type { GateAttemptFact, GateCourse, GatePlacementPath, GateSet } from '@/misc/lojo-gates.js';
+import type { GateAttemptFact, GateCourse, GateItemResult, GatePlacementPath, GateSet } from '@/misc/lojo-gates.js';
 import { lojoTutorIds } from '@/misc/lojo-tutor.js';
 import { ApiError } from '@/server/api/error.js';
 import { lojoEnglishErrors, lojoGateErrors } from '@/server/api/lojo-schemas.js';
@@ -39,6 +39,12 @@ const PEERS_OPEN = process.env.LOJO_PEERS === 'open';
 const COURSE_TTL = 60 * 1000;
 // Silence around the lines of a recording, in seconds.
 const LEAD = 0.6, SAME_SPEAKER = 0.35, NEW_SPEAKER = 0.7, BEFORE_PAUSE = 0.4, TAIL = 1.2;
+
+// A gate handed in (闯关 listens: sprint stars, whole sets, the mock, 回炉). Never blocks or fails the hand-in.
+export type GateSubmitted = {
+	userId: string; course: string; kind: string; station: string; set: string; attemptId: string;
+	score: number; total: number; items: GateItemResult[]; startedAt: Date; submittedAt: Date;
+};
 
 export type GateAudio = { url: string; duration: number; pauses: { at: number; length: number }[] };
 
@@ -92,6 +98,15 @@ export class LojoGateService {
 		const row = await this.db.getRepository(MiLojoGateCourse).findOneBy({ id });
 		this.courses.set(id, { at: Date.now(), course: row?.data ?? null });
 		return row?.data ?? null;
+	}
+
+	// set by LojoQuestService (it needs this service, so not the other way round)
+	public onSubmitted: ((e: GateSubmitted) => Promise<void>) | null = null;
+
+	// A gate station ready on this site with one of these set letters (its line live, the set imported)
+	public readyIn(course: GateCourse, station: string, sets: readonly string[]): boolean {
+		const line = course.lines.find(l => l.n === lineOf(course, station));
+		return line != null && line.live && setsFor(course, station).some(s => sets.includes(s.set));
 	}
 
 	public async import(course: GateCourse): Promise<{ sets: number }> {
@@ -168,12 +183,13 @@ export class LojoGateService {
 
 	/* ---------- one try at a gate ---------- */
 
-	public async start(userId: string, courseId: string, station: string) {
+	// only: set letters to pick from (闯关冲刺站 A、B; 模考 C); empty or missing = any
+	public async start(userId: string, courseId: string, station: string, only: string[] = []) {
 		const course = await this.course(courseId);
 		if (course == null) throw new ApiError(lojoGateErrors.noSuchCourse);
 		const line = course.lines.find(l => l.n === lineOf(course, station));
 		if (line == null) throw new ApiError(lojoGateErrors.noSuchStation);
-		const sets = line.live ? setsFor(course, station) : [];
+		const sets = (line.live ? setsFor(course, station) : []).filter(s => only.length === 0 || only.includes(s.set));
 		if (sets.length === 0) throw new ApiError(lojoGateErrors.notReady);
 
 		const gate = gateOf(course, station);
@@ -246,6 +262,13 @@ export class LojoGateService {
 		const saved = await repo.findOneByOrFail({ id: attempt.id });
 		// Handed in twice at the same moment: the other request marked it.
 		if (!done.affected) return this.result(userId, course, set, saved, []);
+
+		if (this.onSubmitted && saved.submittedAt) {
+			await this.onSubmitted({
+				userId, course: course.id, kind: saved.kind, station: saved.station, set: set.set, attemptId: saved.id,
+				score: marked.score, total: saved.total, items: marked.items, startedAt: saved.startedAt, submittedAt: saved.submittedAt,
+			}).catch(err => this.logger.warn(`quest after gate ${saved.id}: ${String(err)}`));
+		}
 
 		const lit = new Set(before.stations.filter(s => s.state === 'passed').map(s => s.id));
 		const after = await this.progressOf(userId, course);

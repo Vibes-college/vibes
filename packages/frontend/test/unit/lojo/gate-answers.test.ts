@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
 	answerDone,
 	bare,
@@ -35,7 +35,6 @@ import { answersPayload, blankCount, plainKind, plainLine, practicePath, stopPag
 import type { GateAttempt, GateGroup, GateItem, GateResult } from '@/lojo/gates/player.js';
 import { findVocabWord, missedVocab, vocabWordbookItem } from '@/lojo/gates/vocab.js';
 import type { VocabPack } from '@/lojo/gates/vocab.js';
-import { VOCAB } from '@/lojo/route/courses/ielts/vocab.js';
 
 // Papers as the server sends them; cast, so fields added to the generated types later don't break the fixtures.
 const item = (n: number, more: Partial<GateItem> = {}) => ({ n: [n], q: null, options: [], choose: 1, limit: null, ...more }) as GateItem;
@@ -274,16 +273,36 @@ describe('Vibes gate results (vocabulary)', () => {
 		});
 	});
 
-	test('reads the synced word lists (lojo/route/courses/ielts/vocab.js)', () => {
-		const lists = VOCAB as unknown as VocabPack;
-		expect(lists.stops.length).toBeGreaterThan(0);
-		for (const stop of lists.stops) {
-			for (const g of stop.groups) {
-				for (const w of g.words) {
-					expect(typeof w.w === 'string' && typeof w.zh === 'string' && (w.alt == null || w.alt.every(a => typeof a === 'string'))).toBe(true);
-					expect(findVocabWord(lists, stop.id, w.w)).toBe(w);
-				}
-			}
+	test('reads the IELTS word lists from the site (kind vocab-ielts), once; other courses have none', async () => {
+		// the lists are in the site's database since 2026-11-17: here the site is stood in for
+		vi.resetModules();
+		const loadPack = vi.fn<(kind: string) => Promise<unknown>>();
+		vi.doMock('@/lojo/content-pack.js', () => ({ loadPack }));
+		try {
+			const { loadVocab } = await import('@/lojo/gates/vocab.js');
+			expect(await loadVocab('toefl')).toBeNull();
+			expect(loadPack).not.toHaveBeenCalled();
+
+			// not read (offline): no lists, the page shows the meaning from why; the next result asks again
+			loadPack.mockRejectedValueOnce(new Error('offline'));
+			expect(await loadVocab('ielts')).toBeNull();
+			loadPack.mockResolvedValueOnce(pack);
+			expect(await loadVocab('ielts')).toBe(pack);
+			expect(await loadVocab('ielts')).toBe(pack);
+			expect(loadPack.mock.calls).toEqual([['vocab-ielts'], ['vocab-ielts']]);
+		} finally {
+			vi.doUnmock('@/lojo/content-pack.js');
+		}
+	});
+
+	test('word lists in the wrong shape are not used', async () => {
+		vi.resetModules();
+		vi.doMock('@/lojo/content-pack.js', () => ({ loadPack: async () => ({ version: 'x', stops: 'none' }) }));
+		try {
+			const { loadVocab } = await import('@/lojo/gates/vocab.js');
+			expect(await loadVocab('ielts')).toBeNull();
+		} finally {
+			vi.doUnmock('@/lojo/content-pack.js');
 		}
 	});
 });

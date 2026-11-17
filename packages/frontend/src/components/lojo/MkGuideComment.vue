@@ -30,7 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, ref, watch } from 'vue';
 import type { GuideComment } from '@/lojo/guides/types.js';
 import MkMediaList from '@/components/MkMediaList.vue';
-import { userPage } from '@/filters/user.js';
+import { userPage } from '@@/js/user.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';

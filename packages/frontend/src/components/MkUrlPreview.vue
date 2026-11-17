@@ -70,7 +70,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<i class="ti ti-brand-x"></i> {{ i18n.ts.expandTweet }}
 			</MkButton>
 		</div>
-		<div v-if="!playerEnabled && player.url" :class="$style.action">
+		<div v-if="youTubeId" :class="$style.action">
+			<MkButton :small="true" inline @click="openListeningPlayer()">
+				<i class="ti ti-headphones"></i> 精听播放器
+			</MkButton>
+		</div>
+		<div v-else-if="!playerEnabled && player.url" :class="$style.action">
 			<MkButton :small="true" inline @click="playerEnabled = true">
 				<i class="ti ti-player-play"></i> {{ i18n.ts.enablePlayer }}
 			</MkButton>
@@ -95,6 +100,8 @@ import { transformPlayerUrl } from '@/utility/url-preview.js';
 import { store } from '@/store.js';
 import { prefer } from '@/preferences.js';
 import { maybeMakeRelative } from '@@/js/url.js';
+import { listeningPlayerUrl, youTubeVideoIdOf } from '@/lojo/link-cards.js';
+import { openAppOverlay } from '@/lojo/app-overlay.js';
 
 const props = withDefaults(defineProps<{
 	url: string;
@@ -148,7 +155,26 @@ if (requestUrl.hostname === 'music.youtube.com' && requestUrl.pathname.match('^/
 
 requestUrl.hash = '';
 
-window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLang}`)
+// Vibes（2026-11-16，创始人）：YouTube 卡片的播放键不在帖子里放 YouTube，改为打开我们的精听播放器（带上这条视频）。
+// 手机上在盖住社区的全屏浮层里打开（和左侧栏的小程序一样），电脑上开新标签页，帖子还留在原来的标签页里。
+const youTubeId = youTubeVideoIdOf(requestUrl);
+
+function openListeningPlayer(): void {
+	if (youTubeId == null) return;
+	const href = listeningPlayerUrl(youTubeId);
+	if (isMobile.value) {
+		// 盖在社区上面的全屏浮层里打开，回来时时间线还在原处（2026-11-16，原来是整页跳走）
+		openAppOverlay(href);
+	} else {
+		window.open(href, '_blank', 'noopener');
+	}
+}
+
+// Vibes（2026-11-16）：YouTube 预览改由服务器问 oEmbed。改之前抓到的空壳预览（标题「- YouTube」、没有播放按钮）
+// 在浏览器里缓存一天，所以 YouTube 链接的预览请求多带一个 v 参数，换个地址绕开旧缓存。服务器不读这个参数。
+const previewCacheBust = /^(?:(?:www|m|music)\.)?youtube\.com$|^youtu\.be$/.test(requestUrl.hostname) ? '&v=yt-oembed' : '';
+
+window.fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${versatileLang}${previewCacheBust}`)
 	.then(res => {
 		if (!res.ok) {
 			if (_DEV_) {

@@ -18,6 +18,7 @@ import { DI } from '@/di-symbols.js';
 import type Logger from '@/logger.js';
 import * as Acct from '@/misc/acct.js';
 import { genIdenticon } from '@/misc/gen-identicon.js';
+import { tuosaiHead } from '@/misc/lojo-tuosai.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
@@ -244,10 +245,20 @@ export class ServerService implements OnApplicationShutdown {
 			reply.header('Cache-Control', 'public, max-age=86400');
 
 			if (this.meta.enableIdenticonGeneration) {
-				return await genIdenticon(request.params.x);
+				return genIdenticon(request.params.x);
 			} else {
 				return reply.redirect('/static-assets/avatar.png');
 			}
+		});
+
+		// Lojo: the head of every learner's Momo (misc/lojo-tuosai.ts tuosaiHead), any seed, as SVG; ?sticker=1 adds the
+		// white outline. The seed only feeds the random numbers and never goes into the picture. Cached for 7 days, so
+		// the links carry ?v= (frontend persona-rules.ts PERSONA_HEAD_VERSION), raised whenever the drawing changes.
+		fastify.get<{ Params: { x: string }; Querystring: { sticker?: string } }>('/lojo-head/:x', async (request, reply) => {
+			reply.header('Content-Type', 'image/svg+xml');
+			reply.header('Content-Security-Policy', 'default-src \'none\'; style-src \'unsafe-inline\'');
+			reply.header('Cache-Control', 'public, max-age=604800, immutable');
+			return tuosaiHead(request.params.x.slice(0, 64), { sticker: request.query.sticker === '1' });
 		});
 
 		fastify.register(this.clientServerService.createServer);

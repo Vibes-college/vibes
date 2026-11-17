@@ -8,7 +8,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkAvatar :class="[$style.avatar, prefer.s.useStickyIcons ? $style.useSticky : null]" :user="message.fromUser!" :link="!isMe" :preview="false"/>
 	<div :class="[$style.body, message.file != null && voiceFile == null ? $style.fullWidth : null]" @contextmenu.stop="onContextmenu">
 		<div :class="$style.header"><MkUserName v-if="!isMe && prefer.s['chat.showSenderName'] && message.fromUser != null" :user="message.fromUser"/></div>
-		<MkFukidashi :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null && voiceFile == null" :accented="isMe">
+		<!-- Vibes: a change Vibi made to the plan (私信任务标签) is a card with 「撤销」, not a speech bubble. -->
+		<XPlanChange v-if="planChange" :summary="planChange.summary" :changeId="planChange.changeId" :mine="isMe"/>
+		<!-- Vibes: 发到我的电脑 — Vibi's draft for the learner's computer (only the learner can send it), and the result they hand back. -->
+		<XAgentDraft v-else-if="agentDraft" :draftId="agentDraft.draftId" :text="agentDraft.text" :tutorId="message.fromUserId"/>
+		<XAgentResult v-else-if="agentResult" :did="agentResult.did" :body="agentResult.body"/>
+		<MkFukidashi v-else :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null && voiceFile == null" :accented="isMe">
 			<!-- Vibes: a voice message plays as a voice bubble; the text below it is the transcript. -->
 			<MkChatVoice v-if="voiceFile" :class="$style.voice" :file="voiceFile"/>
 			<Mfm
@@ -23,8 +28,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			/>
 			<MkMediaList v-if="message.file && voiceFile == null" :mediaList="[message.file]" :user="message.fromUser"/>
 		</MkFukidashi>
-		<MkLojoEnglishBar v-if="message.text" :text="message.text" :align="isMe ? 'end' : 'start'" :noListen="voiceFile != null"/>
-		<MkUrlPreview v-for="url in urls" :key="url" :url="url" style="margin: 8px 0;"/>
+		<MkLojoEnglishBar v-if="message.text && !planChange && !agentDraft && !agentResult" :text="message.text" :align="isMe ? 'end' : 'start'" :noListen="voiceFile != null"/>
+		<MkUrlPreview v-for="url in (planChange || agentDraft || agentResult ? [] : urls)" :key="url" :url="url" style="margin: 8px 0;"/>
 		<div :class="$style.footer">
 			<button class="_textButton" style="color: currentColor;" @click="showMenu"><i class="ti ti-dots-circle-horizontal"></i></button>
 			<MkTime :class="$style.time" :time="message.createdAt"/>
@@ -79,6 +84,9 @@ import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
 import MkChatVoice from '@/components/MkChatVoice.vue';
 import MkLojoEnglishBar from '@/components/MkLojoEnglishBar.vue';
 import { isVoiceFile } from '@/lojo/audio.js';
+import { loadPlanTutorIds, parsePlanChange, planTutorIds } from '@/lojo/plan/changeCard.js';
+import XPlanChange from '@/lojo/plan/ChangeCard.vue';
+import { parseAgentDraft, parseAgentResult } from '@/lojo/agent/draftCard.js';
 import { shouldHideFileByDefault } from '@/utility/sensitive-file.js';
 
 const $i = ensureSignin();
@@ -89,6 +97,14 @@ const props = defineProps<{
 }>();
 
 const isMe = computed(() => props.message.fromUserId === $i.id);
+// Vibes: only Vibi's own marker messages are drawn as change cards (anyone else typing the same words gets a bubble).
+if (props.message.text?.startsWith('【任务改动】')) loadPlanTutorIds();
+if (props.message.text?.startsWith('【给电脑的指令】')) loadPlanTutorIds();
+const agentDraft = computed(() => (!isMe.value && planTutorIds.value.includes(props.message.fromUserId) ? parseAgentDraft(props.message.text) : null));
+const agentResult = computed(() => (isMe.value ? parseAgentResult(props.message.text) : null));
+const XAgentDraft = defineAsyncComponent(() => import('@/lojo/agent/DraftCard.vue'));
+const XAgentResult = defineAsyncComponent(() => import('@/lojo/agent/ResultCard.vue'));
+const planChange = computed(() => (!isMe.value && planTutorIds.value.includes(props.message.fromUserId) ? parsePlanChange(props.message.text) : null));
 const urls = computed(() => props.message.text ? extractUrlFromMfm(mfm.parse(props.message.text)) : []);
 // Vibes: audio (an AI tutor's spoken reply) gets the voice bubble instead of the media player.
 // Audio that the user's media settings would hide keeps the regular player, which hides it until tapped.
@@ -275,6 +291,8 @@ function showMenu(ev: PointerEvent, contextmenu = false) {
 
 .body {
 	margin: 0 12px;
+	// Vibes: may be narrower than its widest line, so a card (发到我的电脑) fits a phone instead of running off the edge.
+	min-width: 0;
 
 	&.fullWidth {
 		width: 100%;

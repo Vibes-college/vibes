@@ -3592,6 +3592,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Send to my computer (Vibi drafts, the learner sends it to their own Paseo): whether it is switched on for me, and whether I said a computer is connected. Pass connected to change the latter; the pairing itself never comes to the server.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/agent/bridge', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Polish what the user wants to tell their own coding agent into natural English, with short notes in Chinese.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
@@ -3608,6 +3619,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'lojo/agent/prompt', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * For the profile mini app: per-day counts (summary index + passed quest levels, Beijing days), passed levels, join date and birthday of one learner. Needs the mini app service key.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/apps/learner', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
@@ -3674,6 +3696,50 @@ declare module '../api.js' {
      * **Credential required**: *No*
      */
     request<E extends 'lojo/conn-report', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Import private content of one kind (e.g. "quest-books": the 锦囊书屋 books and their quizzes) as a new version and use it at once, without a restart. Sent by apps/community/scripts/content-import.mjs in the Vibes workspace; the content is kept out of the public source. Everything is checked first: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/content/rollback.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/content/import', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The version in use of a public content kind (a course route pack, kind course-<id>). Without data when `have` is its hash.
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'lojo/content/pack', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Go back to the version of this content kind before the one in use (or to the one given), at once, without a restart. The version is checked again first. The newer version is kept, so it can be put back the same way.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/content/rollback', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The imported versions of one content kind, newest first (the last 30), and which one this process is using now.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+     */
+    request<E extends 'lojo/content/versions', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
@@ -4065,6 +4131,127 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Replace the exam task list the plans are made from (攻略's ielts-tasks.json). Sent by apps/community/scripts/plan-import.mjs in the Vibes workspace; the list is kept out of the public source.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/plan/list-import', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Plan again from today: the stages are worked out anew and what the learner has not touched is replaced.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/replan', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The plan's page settings: the learner's time zone and whether Vibi says so when next week is planned.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/settings', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Make or remake the exam plan from the exam date, minutes per day, target and current score. Returns ok false with a reason when it cannot.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/setup', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * The signed-in learner's exam plan for the task tab of the chat with Vibi: the week (Monday to Sunday) with each day's tasks and check-ins, the stages, streak and recent changes. Moves unfinished tasks to today and fills this week from the list first.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/plan/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * After the task tab shows: reads today's dictation and vocab answers (at most 1.5 s) and ticks what is done. Returns what it ticked, 「今天答了 x / N」 per open thing, and the 「勾上这件吗？」 questions. autoCheck is skipped when a mini app did not answer.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/sync', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Add one task (or a daily check-in) to the plan. Returns ok false with a reason when the day is full or past.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/task/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Move one task to another day.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/task/move', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Tick or untick a task, or a check-in on one day (today by default); removed takes it out.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/task/status', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Undo one change to the plan (within 30 days).
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/undo', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Plan one week from the list (next week by default), replacing what the program planned there and the learner has not touched.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/week', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Answers the next question of a try: an option key (choice, TFNG), the words typed (gap) or the chips joined by spaces (build). The server judges it and takes a heart for a wrong answer. When the try ends, end has the result, XP, the chest, the streak and the review.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
@@ -4120,7 +4307,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Import the 闯关 chapters (map, levels, questions) as a new version and use it at once, without a restart. Sent by apps/community/scripts/quest-import.mjs in the Vibes workspace; the questions hold the answers, so they are kept out of the public source. Every chapter is checked first, and a batch that drops a level a learner has progress on is refused: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/quest/content-rollback.
+     * Import the 闯关 chapters (map, levels, questions) as a new version and use it at once, without a restart. Sent by apps/community/scripts/quest-import.mjs in the Vibes workspace; the questions hold the answers, so they are kept out of the public source. With route (route.json) the map becomes the three-stage route (base, focus, sprint). Every chapter is checked first, and a batch that drops a level a learner has progress on is refused: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/quest/content-rollback.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
      */
@@ -4219,7 +4406,18 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it) and whether the first-time walkthrough is done. Returns the same as lojo/quest/show.
+     * Start a whole timed set (SR-5, SL-5) or the mock (MOCK) of the three-stage route: one old gate per part, done in order on the gate page (the gate picked for each part is in route.run). cancel drops the run in hand. Returns the same as lojo/quest/show.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/quest/run', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it), whether the first-time walkthrough is done, and the target band (4.0–9.0; ≥ 7 makes the advanced route stations required). Returns the same as lojo/quest/show.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
      */
@@ -4362,11 +4560,44 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, and the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12). Needs the shared secret, or an admin.
+     * My own Momo (the AI 学搭子): the face (seed for /lojo-head/<seed>) and the name I gave it, the default ones until I pick.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/tutor/persona/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Pick the face and the name of my own Momo (the AI 学搭子). Leave one out to keep it. The name: at most 10 characters, nothing that pretends to be staff, a teacher or a real person, and none of the site's prohibited words for names. greet (the sign-up step): my Momo then says hello in a chat with no messages yet.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/tutor/persona/update', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). Needs the shared secret, or an admin.
      * 
      * **Credential required**: *No*
      */
     request<E extends 'lojo/tutor/pilot-tool', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Have the AI tutor send one of the study-plan messages to a learner now (for trying it out).
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+     */
+    request<E extends 'lojo/tutor/plan-poke', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

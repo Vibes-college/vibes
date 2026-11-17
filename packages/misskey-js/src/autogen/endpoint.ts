@@ -485,10 +485,14 @@ import type {
 	InviteListResponse,
 	LojoAdminBootReportRequest,
 	LojoAdminBootReportResponse,
+	LojoAgentBridgeRequest,
+	LojoAgentBridgeResponse,
 	LojoAgentEnglishRequest,
 	LojoAgentEnglishResponse,
 	LojoAgentPromptRequest,
 	LojoAgentPromptResponse,
+	LojoAppsLearnerRequest,
+	LojoAppsLearnerResponse,
 	LojoAppsListResponse,
 	LojoAppsRecentRequest,
 	LojoAppsRecentResponse,
@@ -497,6 +501,14 @@ import type {
 	LojoAppsReportRequest,
 	LojoBootReportRequest,
 	LojoConnReportRequest,
+	LojoContentImportRequest,
+	LojoContentImportResponse,
+	LojoContentPackRequest,
+	LojoContentPackResponse,
+	LojoContentRollbackRequest,
+	LojoContentRollbackResponse,
+	LojoContentVersionsRequest,
+	LojoContentVersionsResponse,
 	LojoCreateCopyRequest,
 	LojoCreateCopyResponse,
 	LojoCreateImportRequest,
@@ -564,6 +576,27 @@ import type {
 	LojoNotesLinkResponse,
 	LojoNotesListRequest,
 	LojoNotesListResponse,
+	LojoPlanListImportRequest,
+	LojoPlanListImportResponse,
+	LojoPlanReplanResponse,
+	LojoPlanSettingsRequest,
+	LojoPlanSettingsResponse,
+	LojoPlanSetupRequest,
+	LojoPlanSetupResponse,
+	LojoPlanShowRequest,
+	LojoPlanShowResponse,
+	LojoPlanSyncRequest,
+	LojoPlanSyncResponse,
+	LojoPlanTaskCreateRequest,
+	LojoPlanTaskCreateResponse,
+	LojoPlanTaskMoveRequest,
+	LojoPlanTaskMoveResponse,
+	LojoPlanTaskStatusRequest,
+	LojoPlanTaskStatusResponse,
+	LojoPlanUndoRequest,
+	LojoPlanUndoResponse,
+	LojoPlanWeekRequest,
+	LojoPlanWeekResponse,
 	LojoQuestAnswerRequest,
 	LojoQuestAnswerResponse,
 	LojoQuestAskTutorRequest,
@@ -588,6 +621,8 @@ import type {
 	LojoQuestPlacementPaperResponse,
 	LojoQuestRefillRequest,
 	LojoQuestRefillResponse,
+	LojoQuestRunRequest,
+	LojoQuestRunResponse,
 	LojoQuestSettingsRequest,
 	LojoQuestSettingsResponse,
 	LojoQuestShowResponse,
@@ -610,8 +645,13 @@ import type {
 	LojoStateUpdateRequest,
 	LojoStateUpdateResponse,
 	LojoTutorIdsResponse,
+	LojoTutorPersonaShowResponse,
+	LojoTutorPersonaUpdateRequest,
+	LojoTutorPersonaUpdateResponse,
 	LojoTutorPilotToolRequest,
 	LojoTutorPilotToolResponse,
+	LojoTutorPlanPokeRequest,
+	LojoTutorPlanPokeResponse,
 	LojoTutorPokeRequest,
 	LojoTutorPokeResponse,
 	LojoTutorPublicResponse,
@@ -1135,14 +1175,20 @@ export type Endpoints = {
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
 	'lojo/admin/boot-report': { req: LojoAdminBootReportRequest; res: LojoAdminBootReportResponse };
+	'lojo/agent/bridge': { req: LojoAgentBridgeRequest; res: LojoAgentBridgeResponse };
 	'lojo/agent/english': { req: LojoAgentEnglishRequest; res: LojoAgentEnglishResponse };
 	'lojo/agent/prompt': { req: LojoAgentPromptRequest; res: LojoAgentPromptResponse };
+	'lojo/apps/learner': { req: LojoAppsLearnerRequest; res: LojoAppsLearnerResponse };
 	'lojo/apps/list': { req: EmptyRequest; res: LojoAppsListResponse };
 	'lojo/apps/recent': { req: LojoAppsRecentRequest; res: LojoAppsRecentResponse };
 	'lojo/apps/register': { req: LojoAppsRegisterRequest; res: LojoAppsRegisterResponse };
 	'lojo/apps/report': { req: LojoAppsReportRequest; res: EmptyResponse };
 	'lojo/boot-report': { req: LojoBootReportRequest; res: EmptyResponse };
 	'lojo/conn-report': { req: LojoConnReportRequest; res: EmptyResponse };
+	'lojo/content/import': { req: LojoContentImportRequest; res: LojoContentImportResponse };
+	'lojo/content/pack': { req: LojoContentPackRequest; res: LojoContentPackResponse };
+	'lojo/content/rollback': { req: LojoContentRollbackRequest; res: LojoContentRollbackResponse };
+	'lojo/content/versions': { req: LojoContentVersionsRequest; res: LojoContentVersionsResponse };
 	'lojo/create/copy': { req: LojoCreateCopyRequest; res: LojoCreateCopyResponse };
 	'lojo/create/import': { req: LojoCreateImportRequest; res: LojoCreateImportResponse };
 	'lojo/create/plans': { req: LojoCreatePlansRequest; res: LojoCreatePlansResponse };
@@ -1178,6 +1224,17 @@ export type Endpoints = {
 	'lojo/guides/threads/list': { req: LojoGuidesThreadsListRequest; res: LojoGuidesThreadsListResponse };
 	'lojo/notes/link': { req: LojoNotesLinkRequest; res: LojoNotesLinkResponse };
 	'lojo/notes/list': { req: LojoNotesListRequest; res: LojoNotesListResponse };
+	'lojo/plan/list-import': { req: LojoPlanListImportRequest; res: LojoPlanListImportResponse };
+	'lojo/plan/replan': { req: EmptyRequest; res: LojoPlanReplanResponse };
+	'lojo/plan/settings': { req: LojoPlanSettingsRequest; res: LojoPlanSettingsResponse };
+	'lojo/plan/setup': { req: LojoPlanSetupRequest; res: LojoPlanSetupResponse };
+	'lojo/plan/show': { req: LojoPlanShowRequest; res: LojoPlanShowResponse };
+	'lojo/plan/sync': { req: LojoPlanSyncRequest; res: LojoPlanSyncResponse };
+	'lojo/plan/task/create': { req: LojoPlanTaskCreateRequest; res: LojoPlanTaskCreateResponse };
+	'lojo/plan/task/move': { req: LojoPlanTaskMoveRequest; res: LojoPlanTaskMoveResponse };
+	'lojo/plan/task/status': { req: LojoPlanTaskStatusRequest; res: LojoPlanTaskStatusResponse };
+	'lojo/plan/undo': { req: LojoPlanUndoRequest; res: LojoPlanUndoResponse };
+	'lojo/plan/week': { req: LojoPlanWeekRequest; res: LojoPlanWeekResponse };
 	'lojo/quest/answer': { req: LojoQuestAnswerRequest; res: LojoQuestAnswerResponse };
 	'lojo/quest/ask-tutor': { req: LojoQuestAskTutorRequest; res: LojoQuestAskTutorResponse };
 	'lojo/quest/audio': { req: LojoQuestAudioRequest; res: LojoQuestAudioResponse };
@@ -1192,6 +1249,7 @@ export type Endpoints = {
 	'lojo/quest/placement-first': { req: LojoQuestPlacementFirstRequest; res: LojoQuestPlacementFirstResponse };
 	'lojo/quest/placement-paper': { req: EmptyRequest; res: LojoQuestPlacementPaperResponse };
 	'lojo/quest/refill': { req: LojoQuestRefillRequest; res: LojoQuestRefillResponse };
+	'lojo/quest/run': { req: LojoQuestRunRequest; res: LojoQuestRunResponse };
 	'lojo/quest/settings': { req: LojoQuestSettingsRequest; res: LojoQuestSettingsResponse };
 	'lojo/quest/show': { req: EmptyRequest; res: LojoQuestShowResponse };
 	'lojo/quest/start': { req: LojoQuestStartRequest; res: LojoQuestStartResponse };
@@ -1205,7 +1263,10 @@ export type Endpoints = {
 	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
 	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
 	'lojo/tutor/ids': { req: EmptyRequest; res: LojoTutorIdsResponse };
+	'lojo/tutor/persona/show': { req: EmptyRequest; res: LojoTutorPersonaShowResponse };
+	'lojo/tutor/persona/update': { req: LojoTutorPersonaUpdateRequest; res: LojoTutorPersonaUpdateResponse };
 	'lojo/tutor/pilot-tool': { req: LojoTutorPilotToolRequest; res: LojoTutorPilotToolResponse };
+	'lojo/tutor/plan-poke': { req: LojoTutorPlanPokeRequest; res: LojoTutorPlanPokeResponse };
 	'lojo/tutor/poke': { req: LojoTutorPokeRequest; res: LojoTutorPokeResponse };
 	'lojo/tutor/public': { req: EmptyRequest; res: LojoTutorPublicResponse };
 	'lojo/tutor/quest-poke': { req: LojoTutorQuestPokeRequest; res: LojoTutorQuestPokeResponse };

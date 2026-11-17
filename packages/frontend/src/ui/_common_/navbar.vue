@@ -33,6 +33,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<a v-if="$i != null" v-tooltip.noDelay.right="englishLabels.wordbook" :class="$style.item" :aria-label="englishLabels.wordbook" href="/apps/wordbook/">
 				<i :class="$style.itemIcon" class="ti ti-notebook ti-fw"></i><span :class="$style.itemText">{{ englishLabels.wordbook }}</span>
 			</a>
+			<!-- 我的主页 = 个人主页小程序 /apps/works/u/<自己的用户名>（2026-11-12）；没建页的人那边显示引导，见 miniapps/works/public/page.js。 -->
+			<a v-if="$i != null" v-tooltip.noDelay.right="'我的主页'" :class="$style.item" aria-label="我的主页" :href="`/apps/works/u/${$i.username}`">
+				<i :class="$style.itemIcon" class="ti ti-id-badge-2 ti-fw"></i><span :class="$style.itemText">我的主页</span>
+			</a>
 			<!-- 创作台, once 生产者视角 is on (settings/create). -->
 			<MkA v-if="$i != null && creatorView" v-tooltip.noDelay.right="createLabels.studioTitle" :class="$style.item" :activeClass="$style.active" :aria-label="createLabels.studioTitle" to="/create">
 				<i :class="$style.itemIcon" class="ti ti-layout-dashboard ti-fw"></i><span :class="$style.itemText">{{ createLabels.studioTitle }}</span>

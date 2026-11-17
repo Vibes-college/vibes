@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<component :is="link ? MkA : 'span'" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: user.isCat, [$style.square]: squareAvatars }]" :style="{ color }" :title="acct(user)" @click="onClick">
-	<MkImgWithBlurhash v-if="prefer.s.enableHighQualityImagePlaceholders" :class="$style.inner" :src="url" :hash="user.avatarBlurhash" :cover="true" :onlyAvgColor="true"/>
+<component :is="link ? MkA : 'span'" v-user-preview="preview ? user.id : undefined" v-bind="bound" class="_noSelect" :class="[$style.root, { [$style.animation]: animation, [$style.cat]: user.isCat, [$style.square]: squareAvatars, [$style.momo]: momoHead != null }]" :style="{ color }" :title="acct(user)" @click="onClick">
+	<MkImgWithBlurhash v-if="prefer.s.enableHighQualityImagePlaceholders && momoHead == null" :class="$style.inner" :src="url" :hash="user.avatarBlurhash" :cover="true" :onlyAvgColor="true"/>
 	<img v-else :class="$style.inner" :src="url" alt="" decoding="async" style="pointer-events: none;"/>
 	<MkUserOnlineIndicator v-if="indicator" :class="$style.indicator" :user="user"/>
 	<div v-if="user.isCat" :class="[$style.ears]">
@@ -49,9 +49,10 @@ import { extractAvgColorFromBlurhash } from '@@/js/extract-avg-color-from-blurha
 import MkImgWithBlurhash from '../MkImgWithBlurhash.vue';
 import MkA from './MkA.vue';
 import { getStaticImageUrl } from '@/utility/media-proxy.js';
-import { acct, userPage } from '@/filters/user.js';
+import { acct, userPage } from '@@/js/user.js';
 import MkUserOnlineIndicator from '@/components/MkUserOnlineIndicator.vue';
 import { prefer } from '@/preferences.js';
+import { personaHeadFor } from '@/lojo/tutor/persona.js';
 
 const animation = ref(prefer.s.animation);
 const squareAvatars = ref(prefer.s.squareAvatars);
@@ -86,7 +87,11 @@ const bound = computed(() => props.link
 	? { to: userPage(props.user), target: props.target }
 	: {});
 
+// Vibes: the AI tutor account shows as the learner's own Momo, head only, no circle (lojo/tutor/persona.ts).
+const momoHead = computed(() => personaHeadFor(props.user));
+
 const url = computed(() => {
+	if (momoHead.value != null) return momoHead.value;
 	if (prefer.s.disableShowingAnimatedImages || prefer.s.dataSaver.avatar) return getStaticImageUrl(props.user.avatarUrl);
 	return props.user.avatarUrl;
 });
@@ -181,6 +186,16 @@ watch(() => props.user.avatarBlurhash, () => {
 	object-fit: cover;
 	width: 100%;
 	height: 100%;
+}
+
+// Vibes: Momo's head has its own outline, so no circle around it (lojo/tutor/persona.ts).
+.momo {
+	border-radius: 0;
+
+	> .inner {
+		border-radius: 0;
+		object-fit: contain;
+	}
 }
 
 .indicator {

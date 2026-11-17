@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 5 号线 · 词汇's stops: the course file (courses/english/ielts/vocab.js in the Vibes workspace, synced to
-// lojo/route/courses/ielts/vocab.js) as typed stops. Anything malformed is left out; the unit test checks the file.
-import { VOCAB } from '@/lojo/route/courses/ielts/vocab.js';
-import { LINES } from '@/lojo/route/courses/ielts/content.js';
+// 5 号线 · 词汇's stops: the course's word lists as typed stops. Anything malformed is left out. The lists are not in
+// the code since 2026-11-17: they are imported into the site's database (kind vocab-<course>, content-import.mjs, which
+// checks them first) and the vocabulary mini app reads them from lojo/content/pack (lojo/vocab/load.ts there).
+// This file is the same in the community (packages/frontend, with the unit tests) and in miniapps/vocab.
 import { questUrlForStation } from '@/lojo/quest-links.js';
 
 // A word as the course file has it, British spelling first. alt: other spellings that count (American).
@@ -94,7 +94,7 @@ function toStop(v: unknown): VocabStop | null {
 	};
 }
 
-// The course file's VOCAB, as typed stops in line order.
+// The word lists (the course file's VOCAB), as typed stops in line order. Nothing usable: no stops.
 export function toVocabContent(raw: unknown): VocabContent {
 	const d = isObj(raw) ? raw : {};
 	const gate = isObj(d.gate) ? d.gate : {};
@@ -111,10 +111,8 @@ export function toVocabContent(raw: unknown): VocabContent {
 	};
 }
 
-export const vocabContent: VocabContent = toVocabContent(VOCAB);
-
-export function findStop(id: string): VocabStop | null {
-	return vocabContent.stops.find(s => s.id === id) ?? null;
+export function findStop(content: VocabContent, id: string): VocabStop | null {
+	return content.stops.find(s => s.id === id) ?? null;
 }
 
 // The stop's gate, and the stop on the route map.
@@ -123,10 +121,10 @@ export const gatePath = (id: string): string => `/gate/ielts/${encodeURIComponen
 export const mapPath = (id: string): string => questUrlForStation(id);
 
 // "这一站的词也用在": each listening or reading stop by its line's name and band (听力 4.5), from the route map's
-// content. A stop the map doesn't have is shown by its id.
+// lines (the course's route pack, LINES). A stop the map doesn't have, or before the lines are read, is shown by its id.
 export type UsedIn = { id: string; line: { zh: string; en: string } | null; band: number | null };
 
-export function usedIn(stop: VocabStop, lines: unknown = LINES): UsedIn[] {
+export function usedIn(stop: VocabStop, lines: unknown): UsedIn[] {
 	return stop.uses.map(id => {
 		for (const l of list(lines)) {
 			if (!isObj(l)) continue;

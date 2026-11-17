@@ -105,6 +105,12 @@ export type QuestNode = {
 	keepOrder: boolean;
 	timed: QuestTimed | null;
 	pool: QuestQuestion[] | null;
+	// 三段闯关的摸底站（R0、L0）：不在地图上，不进存档的 levels
+	probe?: boolean;
+	// 关卡卡片上的方法卡（markdown）；没有这个字段时卡片照旧显示 zh
+	hint?: string | null;
+	// 原地图三章 v2：这一页用不上的格子（3-6、4-12）。id 留着（存档里可能有），不画在地图上、打不开
+	hidden?: boolean;
 };
 
 // 每章的规则数字（numbers.json 里各章不一样的那些）
@@ -137,4 +143,6 @@ export type QuestChapter = {
 	// 主错因同票时按这个顺序取
 	causeOrder: QuestCause[];
 	rules: QuestRules;
+	// 原地图三章 v2：接着上一页的同一关（专项关第二页），地图上不画名牌，两页之间不画门
+	cont?: boolean;
 };

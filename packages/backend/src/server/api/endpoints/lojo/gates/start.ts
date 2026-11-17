@@ -27,6 +27,8 @@ export const paramDef = {
 	properties: {
 		course: { type: 'string', minLength: 1, maxLength: 32 },
 		station: { type: 'string', minLength: 1, maxLength: 16 },
+		// 闯关冲刺站只用 A、B 套，模考只用 C 套
+		sets: { type: 'array', maxItems: 8, items: { type: 'string', minLength: 1, maxLength: 4 } },
 	},
 	required: ['course', 'station'],
 } as const;
@@ -34,6 +36,6 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private lojoGateService: LojoGateService) {
-		super(meta, paramDef, async (ps, me) => this.lojoGateService.start(me.id, ps.course, ps.station));
+		super(meta, paramDef, async (ps, me) => this.lojoGateService.start(me.id, ps.course, ps.station, ps.sets ?? []));
 	}
 }

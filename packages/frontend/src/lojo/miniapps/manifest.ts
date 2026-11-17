@@ -7,6 +7,7 @@
 // means adding one entry here: id, icon, where it opens, and the intro copy shown the first time someone opens it.
 // See AGENTS.md (repo root) 英语小程序 section for the rule behind this.
 import type { Router } from '@/router.js';
+import { openAppOverlay } from '@/lojo/app-overlay.js';
 
 export type MiniAppLink =
 	| { kind: 'route'; to: string }
@@ -178,12 +179,13 @@ export const miniApps: MiniAppDef[] = [
 	},
 ];
 
-// Mirrors MkA's own behavior="browser" handling (see components/global/MkA.vue): same-tab real navigation for
-// anything outside the SPA router, SPA navigation for an internal route.
+// SPA navigation for an internal route. Mini apps outside the SPA (/apps/…) open in the full-screen overlay
+// over the community (lojo/app-overlay.ts, 2026-11-16), so coming back doesn't reload the community;
+// any other address is a same-tab real navigation.
 export function openMiniAppLink(link: MiniAppLink, router: Router): void {
 	if (link.kind === 'route') {
 		router.pushByPath(link.to);
 	} else {
-		window.location.href = link.href;
+		openAppOverlay(link.href);
 	}
 }

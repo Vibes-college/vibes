@@ -18,6 +18,7 @@ import { lang } from '@@/js/config.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { usageText } from '@/lojo/tutor/usage-text.js';
 import type { VibiUsage } from '@/lojo/tutor/usage-text.js';
+import { myTutorName } from '@/lojo/tutor/persona.js';
 
 const props = defineProps<{ tick: number }>();
 const zh = lang.startsWith('zh');
@@ -26,7 +27,7 @@ const now = ref(new Date());
 let timer: number | null = null;
 let backTimer: number | null = null;
 
-const text = computed(() => usage.value ? usageText(usage.value, now.value, zh) : '');
+const text = computed(() => usage.value ? usageText(usage.value, now.value, zh, myTutorName.value) : '');
 
 async function load() {
 	try {

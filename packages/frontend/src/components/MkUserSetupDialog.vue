@@ -12,7 +12,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@close="close(true)"
 	@closed="emit('closed')"
 >
-	<template v-if="page === 1" #header><i class="ti ti-user-edit"></i> {{ i18n.ts._initialAccountSetting.profileSetting }}</template>
+	<template v-if="page === 0 && momoStep === true" #header><i class="ti ti-sparkles"></i> {{ momoLabels.stepTitle }}</template>
+	<template v-else-if="page === 1" #header><i class="ti ti-user-edit"></i> {{ i18n.ts._initialAccountSetting.profileSetting }}</template>
 	<template v-else-if="page === 2" #header><i class="ti ti-lock"></i> {{ i18n.ts._initialAccountSetting.privacySetting }}</template>
 	<template v-else-if="page === 3" #header><i class="ti ti-user-plus"></i> {{ i18n.ts.follow }}</template>
 	<template v-else-if="page === 4" #header><i class="ti ti-bell-plus"></i> {{ i18n.ts.pushNotification }}</template>
@@ -30,7 +31,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:enterFromClass="$style.transition_x_enterFrom"
 			:leaveToClass="$style.transition_x_leaveTo"
 		>
-			<template v-if="page === 0">
+			<!-- Vibes: 「认识你的 Momo」 first, until the learner picks or skips (lojo/tutor/MomoSetup.vue). -->
+			<template v-if="page === 0 && momoStep !== false">
+				<div style="height: 100cqh; overflow: auto;">
+					<XMomoSetup v-if="momoStep" mode="welcome" @chat="later(false)" @profile="momoStep = false"/>
+				</div>
+			</template>
+			<template v-else-if="page === 0">
 				<div :class="$style.centerPage">
 					<MkAnimBg style="position: absolute; top: 0;" :scale="1.5"/>
 					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
@@ -76,13 +83,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<template v-else-if="page === 3">
 				<div style="height: 100cqh; overflow: auto;">
-					<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
-						<XFollow/>
-					</div>
-					<div :class="$style.pageFooter">
-						<div class="_buttonsCenter">
-							<MkButton rounded data-testid="user-setup-back" @click="page--"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
-							<MkButton primary rounded gradate style="" data-testid="user-setup-continue" @click="page++">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
+					<div :class="$style.pageRoot">
+						<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;" :class="$style.pageMain">
+							<XFollow/>
+						</div>
+						<div :class="$style.pageFooter">
+							<div class="_buttonsCenter">
+								<MkButton rounded data-testid="user-setup-back" @click="page--"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
+								<MkButton primary rounded gradate style="" data-testid="user-setup-continue" @click="page++">{{ i18n.ts.continue }} <i class="ti ti-arrow-right"></i></MkButton>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -141,6 +150,9 @@ import { instance } from '@/instance.js';
 import MkPushNotificationAllowButton from '@/components/MkPushNotificationAllowButton.vue';
 import { store } from '@/store.js';
 import * as os from '@/os.js';
+import XMomoSetup from '@/lojo/tutor/MomoSetup.vue';
+import { momoLabels } from '@/lojo/tutor/momo-labels.js';
+import { needsMomoStep } from '@/lojo/tutor/persona.js';
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
@@ -153,6 +165,10 @@ const page = ref(store.s.accountSetupWizard);
 watch(page, () => {
 	store.set('accountSetupWizard', page.value);
 });
+
+// Vibes: null while asking the server whether this learner has met their Momo yet.
+const momoStep = ref<boolean | null>(page.value === 0 ? null : false);
+if (momoStep.value == null) void needsMomoStep().then(v => { momoStep.value = v; });
 
 async function close(skip: boolean) {
 	if (skip) {
@@ -245,10 +261,12 @@ async function later(later: boolean) {
 
 .pageMain {
 	flex-grow: 1;
+	padding-bottom: 72px;
 }
 
 .pageFooter {
 	position: sticky;
+	z-index: 10;
 	bottom: 0;
 	left: 0;
 	flex-shrink: 0;

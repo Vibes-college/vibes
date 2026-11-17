@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 0 号线 · 机考打字's stops: the course file (courses/english/ielts/typing.js in the Vibes workspace, synced to
-// lojo/route/courses/ielts/typing.js) as typed stops. Anything malformed is left out; the unit test checks the file.
-import { TYPING } from '@/lojo/route/courses/ielts/typing.js';
+// 0 号线 · 机考打字's stops, as typed stops. The course file is courses/english/ielts/typing.js in the Vibes workspace;
+// since 2026-11-17 it is imported into the site's database (kind typing-ielts, checked by content-import.mjs before it
+// goes in) instead of being copied into this code, and read with lojo/content-pack.ts (the typing mini app's
+// lojo/typing/load.ts, the route map's lojo/typing/progress.ts). Anything malformed is left out.
 
 export type Bilingual = { zh: string; en: string };
 // The targets differ: on a phone stop 4 checks accuracy only and stop 5 is its first sentences.
@@ -140,5 +141,3 @@ export function toTypingContent(raw: unknown): TypingContent {
 		stops,
 	};
 }
-
-export const typingContent: TypingContent = toTypingContent(TYPING);

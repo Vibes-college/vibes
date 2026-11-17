@@ -89,8 +89,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <XStreamIndicator/>
 
-<!-- "召唤 Agent": nothing of it loads until the user summons it in settings, on this device. -->
-<XLojoAgent v-if="$i && agentState.summoned"/>
+<!-- Vibi in the corner: nothing of it loads until 「在首页显示 Vibi」 is on (settings › AI tutor), on this device. -->
+<XLojoAgent v-if="$i && vibiShown"/>
+
+<!-- Vibes: mini apps (/apps/…) open in a full-screen overlay; the community stays underneath, so going back is instant. -->
+<XAppOverlay v-if="appOverlay"/>
 
 <div v-if="pendingApiRequestsCount > 0" id="wait"></div>
 
@@ -105,7 +108,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, ref, TransitionGroup } from 'vue';
+import { defineAsyncComponent, ref, TransitionGroup, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { swInject } from './sw-inject.js';
 import { isSafeMode } from '@@/js/config.js';
@@ -121,16 +124,27 @@ import { prefer } from '@/preferences.js';
 import { globalEvents } from '@/events.js';
 import { store } from '@/store.js';
 import XNavbar from '@/ui/_common_/navbar.vue';
-import { agentState } from '@/lojo/agent/state.js';
+import { vibiShown } from '@/lojo/agent/state.js';
+import { appOverlay, installAppOverlay } from '@/lojo/app-overlay.js';
 
 // Vibes: notification toasts only show when a notification arrives; their ~25 KB of code no longer downloads at startup
 const XNotification = defineAsyncComponent(() => import('./notification.vue'));
 const XStreamIndicator = defineAsyncComponent(() => import('./stream-indicator.vue'));
 const XWidgets = defineAsyncComponent(() => import('./widgets.vue'));
 const XLojoAgent = defineAsyncComponent(() => import('@/lojo/agent/LojoAgent.vue'));
+const XAppOverlay = defineAsyncComponent(() => import('@/lojo/AppOverlay.vue'));
 
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');
+
+// Vibes: mini apps open over the community instead of leaving it (see lojo/app-overlay.ts)
+installAppOverlay();
+watch(appOverlay, v => {
+	if (v != null) {
+		drawerMenuShowing.value = false;
+		widgetsShowing.value = false;
+	}
+});
 
 const dev = _DEV_;
 

@@ -82,8 +82,15 @@ export function useScrollPositionKeeper(scrollContainerRef: Ref<HTMLElement | nu
 		restore();
 		nextTick(() => {
 			restore();
-			window.setTimeout(() => {
+			// Vibes（2026-11-16）：原来 0.1 秒后才对最后一次，返回时先停在差一条帖子的地方、0.1 秒后再跳过去。
+			// 帖子画出来以后高度才准（note render skipping），所以前 0.15 秒每一帧都对一次，跳动只剩一两帧。
+			const startedAt = window.performance.now();
+			const tick = () => {
 				restore();
+				if (window.performance.now() - startedAt < 150) {
+					window.requestAnimationFrame(tick);
+					return;
+				}
 
 				// anchor方式が失敗した場合（anchorIdがnullまたは要素が見つからない場合）の
 				// フォールバック
@@ -93,7 +100,8 @@ export function useScrollPositionKeeper(scrollContainerRef: Ref<HTMLElement | nu
 				}
 
 				ready = true;
-			}, 100);
+			};
+			window.requestAnimationFrame(tick);
 		});
 	});
 }

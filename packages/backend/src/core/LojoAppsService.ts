@@ -32,6 +32,7 @@ export const LOJO_APP_CALLERS = ['vibi'] as const;
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
 const CALL_TIMEOUT_MS = 3000;
 const CALL_MAX_BYTES = 48 * 1024;
+const ANSWERS_TIMEOUT_MS = 1500;
 
 export function lojoServiceKeyOk(given: unknown): boolean {
 	const want = process.env.MINIAPP_SERVICE_KEY ?? '';
@@ -57,7 +58,9 @@ export class LojoAppsService {
 		const base = `/apps/${id}/`;
 		if (m.base != null && m.base !== base) throw new Error(`base must be ${base}`);
 		const internal = String(m.internal ?? '');
-		if (!/^http:\/\/[a-z0-9.-]+(:\d{2,5})?\/$/.test(internal)) throw new Error('internal must be like http://typing:8080/');
+		// 自己有容器的小程序是 http://typing:8080/；共用后台 hub 里的轻小程序多一段自己的 id：http://hub:8080/synonym/
+		const im = /^http:\/\/[a-z0-9.-]+(:\d{2,5})?\/(?:([a-z][a-z0-9-]{1,30})\/)?$/.exec(internal);
+		if (im == null || (im[2] != null && im[2] !== id)) throw new Error(`internal must be like http://typing:8080/ or http://hub:8080/${id}/`);
 		const kinds: Record<string, string> = {};
 		for (const [k, v] of Object.entries(m.kinds ?? {})) if (ID.test(k)) kinds[k] = String(v).slice(0, 200);
 		const grants: Record<string, string[]> = {};
@@ -145,6 +148,58 @@ export class LojoAppsService {
 		}
 	}
 
+	// 私信「任务」标签的自动打勾 (2026-11-15): how many answers a learner gave in a mini app since `since` (their local
+	// midnight), by group or station. Not Vibi's grant: the community itself reads with the caller `plan` and the one scope
+	// `<app>:answers`. Up to 5 pages of 100, 1.5 s for all of them, kept 5 s
+	// (only to spare the app when a page is opened twice at once: back from a round, the count must be the new one). null when the app did not answer in time;
+	// the page then just does not tick (only the log hears of it).
+	private answerCache = new Map<string, { at: number; value: { total: number; by: Record<string, number> } }>();
+
+	public async answersToday(userId: string, appId: 'dictation' | 'vocab', since: Date): Promise<{ total: number; by: Record<string, number> } | null> {
+		const key = `${userId}|${appId}|${since.toISOString()}`;
+		const hit = this.answerCache.get(key);
+		if (hit && Date.now() - hit.at < 5_000) return hit.value;
+		const app = await this.get(appId);
+		if (app == null) return null;
+		const signal = AbortSignal.timeout(ANSWERS_TIMEOUT_MS);
+		const by: Record<string, number> = {};
+		let total = 0;
+		let cursor: string | null = null;
+		try {
+			for (let page = 0; page < 5; page++) {
+				const qs = new URLSearchParams({ since: since.toISOString(), limit: '100' });
+				if (cursor) qs.set('cursor', cursor);
+				const r = await fetch(`${app.internal}api/v1/answers?${qs}`, {
+					headers: {
+						'x-vibes-service': process.env.MINIAPP_SERVICE_KEY ?? '',
+						'x-vibes-user': userId,
+						'x-vibes-caller': 'plan',
+						'x-vibes-scopes': `${appId}:answers`,
+					},
+					signal,
+					redirect: 'error',
+				});
+				if (!r.ok) return null;
+				const body = await r.json() as { items?: any[]; next?: string | null; cursor?: string | null };
+				for (const row of body.items ?? []) {
+					// dictation: one row per word with how many times right and wrong; vocab: one row per word answered
+					const ref = String(appId === 'dictation' ? row.set : row.stop);
+					const n = appId === 'dictation' ? (Number(row.right) || 0) + (Number(row.wrong) || 0) : 1;
+					by[ref] = (by[ref] ?? 0) + n;
+					total += n;
+				}
+				cursor = body.next ?? body.cursor ?? null;
+				if (!cursor) break;
+			}
+		} catch {
+			return null;
+		}
+		const value = { total, by };
+		if (this.answerCache.size > 1000) this.answerCache.clear();
+		this.answerCache.set(key, { at: Date.now(), value });
+		return value;
+	}
+
 	public async report(userId: string, appId: string, line: LojoActivityLine): Promise<void> {
 		if (await this.get(appId) == null) throw new Error('unknown app');
 		const at = line.at != null ? new Date(line.at) : new Date();
@@ -154,6 +209,44 @@ export class LojoAppsService {
 			'INSERT INTO "lojo_app_activity" ("userId","app","what","right","total","note","at") VALUES ($1,$2,$3,$4,$5,$6,$7)',
 			[userId, appId, String(line.what ?? '').slice(0, 200), num(line.right), num(line.total), String(line.note ?? '').slice(0, 200), at],
 		);
+	}
+
+	// 个人主页小程序（/apps/works/，2026-11-12）要的几样，只读：
+	// - days：过去 N 天每天（北京时间）学了几次，按小程序分开数。读摘要索引，另外加上闯关过关（闯关不往摘要里报）；
+	// - levels：闯关过了哪些关、什么时候过的；
+	// - joinedAt、birthday：「哪一季加入」和判断是不是未成年人（没填生日按未成年人算）。
+	public async learner(userId: string, days: number) {
+		const since = new Date(Date.now() - days * 86400_000);
+		const [rows, quest, user] = await Promise.all([
+			this.db.query<{ day: string; app: string; n: number }[]>(
+				`SELECT to_char("at" AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD') AS "day", "app", count(*)::int AS "n"
+				 FROM "lojo_app_activity" WHERE "userId" = $1 AND "at" >= $2 GROUP BY 1, 2
+				 UNION ALL
+				 SELECT to_char(coalesce("endedAt", "createdAt") AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD'), 'quest', count(*)::int
+				 FROM "lojo_quest_attempt" WHERE "userId" = $1 AND "status" = 'passed' AND "createdAt" >= $2 GROUP BY 1, 2`,
+				[userId, since],
+			),
+			this.db.query<{ levels: Record<string, { passedAt?: string }> }[]>('SELECT "levels" FROM "lojo_quest" WHERE "userId" = $1', [userId]),
+			this.db.query<{ id: string; birthday: string | null }[]>(
+				'SELECT u."id", p."birthday" FROM "user" u LEFT JOIN "user_profile" p ON p."userId" = u."id" WHERE u."id" = $1', [userId],
+			),
+		]);
+		if (user.length === 0) return null;
+		const out = new Map<string, { day: string; n: number; apps: Record<string, number> }>();
+		for (const r of rows) {
+			const d = out.get(r.day) ?? { day: r.day, n: 0, apps: {} };
+			d.n += r.n; d.apps[r.app] = (d.apps[r.app] ?? 0) + r.n;
+			out.set(r.day, d);
+		}
+		const levels = Object.entries(quest[0]?.levels ?? {}).flatMap(([id, l]) => (l?.passedAt ? [{ id, at: l.passedAt }] : []));
+		// aidx：前 8 位是 2000-01-01 起的毫秒数（36 进制）
+		const joinedAt = new Date(parseInt(userId.slice(0, 8), 36) + 946684800000).toISOString();
+		return {
+			days: [...out.values()].sort((a, b) => a.day.localeCompare(b.day)),
+			levels: levels.sort((a, b) => a.at.localeCompare(b.at)),
+			joinedAt,
+			birthday: user[0].birthday,
+		};
 	}
 
 	public async recent(userId: string, opts: { since?: Date | null; app?: string | null; limit: number }) {

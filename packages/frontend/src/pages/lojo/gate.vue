@@ -224,6 +224,11 @@ import { useRouter } from '@/router.js';
 
 const props = defineProps<{ course: string; station: string }>();
 
+// Opened from the quest's sprint (/gate/ielts/x.x?quest=SR-1&sets=A,B): draw from those sets, and back goes to that station.
+const fromQuery = new URLSearchParams(window.location.search);
+const questStation = fromQuery.get('quest');
+const questSets = (fromQuery.get('sets') ?? '').split(',').map(s => s.trim()).filter(s => /^[A-Za-z0-9]{1,4}$/.test(s)).slice(0, 8);
+
 // A placement test hands in two papers: after the first comes 'between', then the second.
 type Phase = 'loading' | 'missing' | 'intro' | 'preparing' | 'between' | 'preparingSecond' | 'test' | 'submitting' | 'result';
 
@@ -418,7 +423,7 @@ async function begin() {
 	phase.value = 'preparing';
 	const slowTimer = window.setTimeout(() => { slow.value = true; }, 4000);
 	try {
-		const next = placement.value != null ? await startPlacement(props.course, placement.value) : await startGate(props.course, props.station);
+		const next = placement.value != null ? await startPlacement(props.course, placement.value) : await startGate(props.course, props.station, questStation ? questSets : []);
 		setUp(next);
 		known.value = { total: next.total, pass: next.pass, time: next.time };
 		phase.value = 'test';
@@ -494,6 +499,7 @@ async function handIn(timeUp = false) {
 
 // Back to the map at this station; after a placement test, at the station it put the learner at.
 function toMap() {
+	if (questStation) { router.pushByPath(`/quest?level=${encodeURIComponent(questStation)}&from=gate`); return; }
 	const at = placement.value != null ? result.value?.placement?.placedAt ?? null : props.station;
 	router.pushByPath(at ? `${coursePath(props.course)}#${encodeURIComponent(at)}` : coursePath(props.course));
 }

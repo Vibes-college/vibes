@@ -6,24 +6,9 @@
 import { describe, expect, test } from 'vitest';
 import { exampleIssues, inlineParts, keysUsed, parseExample, plainText, toMarkup, writingText } from '@/lojo/grammar/marks.js';
 import type { Segment } from '@/lojo/grammar/marks.js';
-import { bandText, gatePath, grammarContent, lessonPath, neighbours, sectionFromPath, toGrammarContent, toLesson } from '@/lojo/grammar/content.js';
+import { bandText, gatePath, lessonPath, neighbours, sectionFromPath, toGrammarContent, toLesson } from '@/lojo/grammar/content.js';
 import type { GrammarLesson } from '@/lojo/grammar/content.js';
-import { GRAMMAR } from '@/lojo/route/courses/ielts/grammar.js';
-import { LINES, PRACTICE } from '@/lojo/route/courses/ielts/content.js';
 
-// the course file as written (grammar.js is plain JS)
-type RawBlock = { p?: string; ex?: string; zh?: string; table?: string[][] };
-type RawLesson = { lede: string; minutes: number; mistakesAfter: string; writing: string; sections: { id: string; h: string; blocks: RawBlock[] }[]; mistakes: unknown[] };
-type RawGrammar = {
-	line: number;
-	color: string;
-	stops: { id: string; band: number; title: string }[];
-	lessons: Record<string, RawLesson>;
-	tags: Record<string, Record<string, { zh: string; see: string }>>;
-};
-const RAW = GRAMMAR as unknown as RawGrammar;
-const RAW_PRACTICE = PRACTICE as unknown as Record<string, { app?: { path: string } | null } | undefined>;
-const IDS = ['6.1', '6.2', '6.3', '6.4', '6.5', '6.6', '6.7', '6.8', '6.9'];
 const MARKUP = /[{}[\]]/;
 
 const text = (t: string): Segment => ({ kind: 'text', text: t });
@@ -133,101 +118,89 @@ describe('paragraph text', () => {
 	});
 });
 
-describe('the course file', () => {
-	test('nine stops, 4.0 to 8.0, each with a lesson of five sections', () => {
-		expect(grammarContent.line).toBe(6);
-		expect(grammarContent.color).toBe('#2F5D4A');
-		expect(grammarContent.name).toEqual({ zh: '语法', en: 'Grammar' });
-		expect(grammarContent.stops.map(s => s.id)).toEqual(IDS);
-		expect(grammarContent.stops.map(s => bandText(s.band))).toEqual(['4.0', '4.5', '5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0']);
-		for (const s of grammarContent.stops) {
-			const lesson = grammarContent.lessons[s.id];
-			expect(lesson, s.id).toBeDefined();
-			expect(lesson.sections.map(x => x.id), s.id).toEqual(['s1', 's2', 's3', 's4', 's5']);
-			expect(lesson.minutes, s.id).toBeGreaterThan(0);
-			expect(lesson.mistakes.length, s.id).toBeGreaterThan(0);
-			expect(s.sub && s.focus, s.id).toBeTruthy();
-			// what the gate asks, for the end of the lesson
-			expect(s.types?.zh, s.id).toContain('连词成句');
-		}
+// 示例: the lessons are in the site's database since 2026-11-17, not in the code. content-import.mjs grammar-ielts
+// checks the real ones before they go in (every example's marks, the writing tips, every tag's section and its
+// link from the gate's result). Here: example lessons in the same shape.
+const EXAMPLE = {
+	line: 6,
+	color: '#2F5D4A',
+	stops: [
+		{ id: '6.1', band: 4, title: '示例站一', sub: '示例副标题', focus: '示例重点' },
+		{ id: '6.2', band: 4.5, title: '示例站二' },
+		{ id: '6.3', band: 5, title: '示例站三' },
+	],
+	lessons: {
+		'6.1': {
+			lede: '示例导语，英语要说 `It is hot today.`',
+			minutes: 4,
+			mistakesAfter: 's1',
+			writing: '写作里用得上：示例。',
+			sections: [
+				{ id: 's1', h: '示例一', blocks: [{ p: '示例段落。' }, { ex: '{s:Prices} {v:rise}.', zh: '价格上涨。' }] },
+				{ id: 's2', h: '示例二', blocks: [{ ex: '[c:When it rains], {s:we} {v:stay} home.', zh: '示例。' }] },
+			],
+			mistakes: [{ bad: 'I am agree.', good: 'I agree.', why: '示例。' }],
+		},
+		'6.2': { sections: [{ id: 's1', h: '示例', blocks: [{ p: '示例。' }] }, { id: 's3', h: '示例三', blocks: [{ p: '示例。' }] }] },
+		'6.3': { sections: [{ id: 's1', h: '示例', blocks: [{ p: '示例。' }] }] },
+	},
+	tags: { '6.1': { '6.1/g-core': { zh: '示例标签', see: 's1' } }, '6.2': { '6.2/g-x': { zh: '示例', see: 's3' } } },
+};
+// the route lines (the course's route pack): the line's name, and each gate's question types
+const EXAMPLE_LINES = [
+	{ n: 1, zh: '听力', en: 'Listening', stations: [{ id: '1.1' }] },
+	{ n: 6, zh: '语法（示例）', en: 'Grammar (example)', stations: [{ id: '6.1', types: { zh: '连词成句、选择', en: 'Word order, choice' } }, { id: '6.2' }] },
+];
+const content = toGrammarContent(EXAMPLE, EXAMPLE_LINES);
+
+describe('the lessons (示例)', () => {
+	test('stops in line order; the line\'s name and the gates\' question types come from the route lines', () => {
+		expect(content.line).toBe(6);
+		expect(content.color).toBe('#2F5D4A');
+		expect(content.name).toEqual({ zh: '语法（示例）', en: 'Grammar (example)' });
+		expect(content.stops.map(s => s.id)).toEqual(['6.1', '6.2', '6.3']);
+		expect(content.stops.map(s => bandText(s.band))).toEqual(['4.0', '4.5', '5.0']);
+		expect(content.stops[0]).toMatchObject({ sub: '示例副标题', focus: '示例重点', types: { zh: '连词成句、选择', en: 'Word order, choice' } });
+		expect(content.stops[1]).toMatchObject({ sub: '', focus: '', types: null });
+		// before the route lines are read: 语法, and no question types
+		const alone = toGrammarContent(EXAMPLE, null);
+		expect(alone.name).toEqual({ zh: '语法', en: 'Grammar' });
+		expect(alone.stops.map(s => s.types)).toEqual([null, null, null]);
+		expect(alone.lessons).toEqual(content.lessons);
 	});
 
-	test('nothing in the file is left out as malformed', () => {
-		for (const id of IDS) {
-			const raw = RAW.lessons[id];
-			const lesson = grammarContent.lessons[id];
-			expect(lesson.sections.map(x => x.blocks.length), id).toEqual(raw.sections.map(x => x.blocks.length));
-			expect(lesson.mistakes.length, id).toBe(raw.mistakes.length);
-			// the 常见错误 box goes where the file says
-			expect(lesson.mistakesAfter, id).toBe(raw.mistakesAfter);
-		}
+	test('a lesson as written', () => {
+		const l = content.lessons['6.1'];
+		expect(l.sections.map(s => s.id)).toEqual(['s1', 's2']);
+		expect(l.sections.map(s => s.blocks.map(b => b.kind))).toEqual([['p', 'ex'], ['ex']]);
+		expect(l.sections[0].blocks[1]).toMatchObject({ kind: 'ex', say: 'Prices rise.', zh: '价格上涨。' });
+		expect(l.minutes).toBe(4);
+		expect(l.mistakesAfter).toBe('s1');
+		expect(l.lede).toEqual([{ text: '示例导语，英语要说 ', en: false }, { text: 'It is hot today.', en: true }]);
+		expect(l.writing).toEqual([{ text: '示例。', en: false }]);
+		expect(l.mistakes).toEqual([{ bad: 'I am agree.', good: 'I agree.', why: '示例。' }]);
+		expect(l.keys).toEqual(['s', 'v', 'c']);
+		// no minutes, no mistakesAfter: the 常见错误 box goes after the last part
+		expect(content.lessons['6.2']).toMatchObject({ minutes: null, mistakesAfter: 's3', mistakes: [], writing: [] });
 	});
 
-	test('every example in all nine lessons parses', () => {
-		let n = 0;
-		for (const id of IDS) {
-			for (const sec of RAW.lessons[id].sections) {
-				for (const b of sec.blocks) {
-					if (b.ex == null) continue;
-					n++;
-					const where = `${id} ${sec.id}: ${b.ex}`;
-					const segments = parseExample(b.ex);
-					expect(exampleIssues(b.ex), where).toEqual([]);
-					expect(toMarkup(segments), where).toBe(b.ex);
-					expect(plainText(b.ex), where).not.toMatch(MARKUP);
-					expect(b.zh, where).toBeTruthy();
-					for (const s of segments.flatMap(x => (x.kind === 'clause' ? x.parts : [x]))) {
-						if (s.kind === 'mark') expect(s.text.trim(), where).toBe(s.text);
-						else expect(s.text, where).not.toMatch(MARKUP);
-					}
-				}
-			}
-		}
-		expect(n).toBeGreaterThan(100);
-	});
-
-	test('paragraphs close their backticks, and the writing tips lose their title', () => {
-		for (const id of IDS) {
-			const lesson = grammarContent.lessons[id];
-			const parts = [...lesson.lede, ...lesson.writing, ...lesson.sections.flatMap(s => s.blocks.flatMap(b => (b.kind === 'p' ? b.parts : [])))];
-			for (const p of parts) expect(p.text, id).not.toContain('`');
-			expect(lesson.writing.length, id).toBeGreaterThan(0);
-			expect(lesson.writing.map(p => p.text).join(''), id).not.toMatch(/^写作里用得上/);
-			expect(lesson.keys.length, id).toBeGreaterThan(0);
-		}
-	});
-
-	test('every tag\'s see points at a real section, and the gate\'s result links there', () => {
-		let n = 0;
-		for (const id of IDS) {
-			const sections = RAW.lessons[id].sections.map(s => s.id);
-			const tags = RAW.tags[id];
-			expect(Object.keys(tags).length, id).toBeGreaterThan(0);
-			for (const [key, tag] of Object.entries(tags)) {
-				n++;
-				expect(key.startsWith(`${id}/`), key).toBe(true);
-				expect(sections, key).toContain(tag.see);
-				expect(grammarContent.tags[id][key], key).toEqual({ zh: tag.zh, see: tag.see });
-				const path = RAW_PRACTICE[key]?.app?.path ?? '';
-				expect(path, key).toBe(`/apps/grammar/${id}?section=${tag.see}`);
-				expect(sectionFromPath(path, grammarContent.lessons[id]), key).toBe(tag.see);
-			}
-		}
-		expect(n).toBeGreaterThan(40);
+	test('a tag sends the learner back to its part of the lesson', () => {
+		expect(content.tags).toEqual({ '6.1': { '6.1/g-core': { zh: '示例标签', see: 's1' } }, '6.2': { '6.2/g-x': { zh: '示例', see: 's3' } } });
+		expect(sectionFromPath('/apps/grammar/6.2?section=s3', content.lessons['6.2'])).toBe('s3');
 	});
 
 	test('the stops before and after along the line, and where links go', () => {
-		expect(neighbours(grammarContent, '6.1')).toMatchObject({ prev: null, next: { id: '6.2' } });
-		expect(neighbours(grammarContent, '6.5')).toMatchObject({ prev: { id: '6.4' }, next: { id: '6.6' } });
-		expect(neighbours(grammarContent, '6.9')).toMatchObject({ prev: { id: '6.8' }, next: null });
-		expect(neighbours(grammarContent, '9.9')).toEqual({ prev: null, next: null });
+		expect(neighbours(content, '6.1')).toMatchObject({ prev: null, next: { id: '6.2' } });
+		expect(neighbours(content, '6.2')).toMatchObject({ prev: { id: '6.1' }, next: { id: '6.3' } });
+		expect(neighbours(content, '6.3')).toMatchObject({ prev: { id: '6.2' }, next: null });
+		expect(neighbours(content, '9.9')).toEqual({ prev: null, next: null });
 		expect(gatePath('6.2')).toBe('/gate/ielts/6.2');
 		expect(lessonPath('6.3')).toBe('/apps/grammar/6.3');
 	});
 });
 
 describe('reading the file safely', () => {
-	const lesson = grammarContent.lessons['6.2'] as GrammarLesson;
+	const lesson = toLesson({ sections: ['s1', 's2', 's3', 's4', 's5'].map(id => ({ id, h: '示例', blocks: [{ p: '示例。' }] })) }) as GrammarLesson;
 
 	test('?section= in the address: only a section the lesson has', () => {
 		expect(sectionFromPath('/apps/grammar/6.2?section=s3', lesson)).toBe('s3');
@@ -258,7 +231,7 @@ describe('reading the file safely', () => {
 			},
 			tags: { '6.1': { '6.1/g-core': { zh: '骨架', see: 's1' }, '6.1/bad': { zh: '' } } },
 		};
-		const got = toGrammarContent(raw, LINES);
+		const got = toGrammarContent(raw, EXAMPLE_LINES);
 		expect(got.stops.map(s => s.title)).toEqual(['句子的主干']);
 		const l = got.lessons['6.1'];
 		expect(l.sections.map(s => s.id)).toEqual(['s1']);
@@ -272,7 +245,39 @@ describe('reading the file safely', () => {
 		expect(toLesson({ sections: [] })).toBeNull();
 		expect(toGrammarContent(null, null).stops).toEqual([]);
 	});
+
+	test('a stop keeps its place without a lesson; tags only for stops the line has', () => {
+		const raw = {
+			...EXAMPLE,
+			stops: [...EXAMPLE.stops, { id: '6.4', band: 5.5, title: '示例站四' }],
+			tags: { ...EXAMPLE.tags, '6.4': { '6.4/g-y': { zh: '示例', see: 's1' } }, '9.9': { '9.9/g-z': { zh: '示例', see: 's1' } } },
+		};
+		const got = toGrammarContent(raw, EXAMPLE_LINES);
+		// 6.4 is on the line (the page says its lesson is not ready), but has no lesson to read
+		expect(got.stops.map(s => s.id)).toEqual(['6.1', '6.2', '6.3', '6.4']);
+		expect(Object.keys(got.lessons)).toEqual(['6.1', '6.2', '6.3']);
+		expect(neighbours(got, '6.3').next).toMatchObject({ id: '6.4' });
+		// a tag of a stop that is not on the line is left out
+		expect(Object.keys(got.tags)).toEqual(['6.1', '6.2', '6.4']);
+	});
+
+	test('the line\'s name: the route line with the same number, or 语法', () => {
+		// the file says line 7: the name and the question types come from route line 7, not 6
+		const seven = toGrammarContent({ ...EXAMPLE, line: 7 }, [...EXAMPLE_LINES, { n: 7, zh: '示例七号线', en: 'Line 7 (example)', stations: [{ id: '6.2', types: { zh: '示例题型', en: 'Example' } }] }]);
+		expect(seven.line).toBe(7);
+		expect(seven.name).toEqual({ zh: '示例七号线', en: 'Line 7 (example)' });
+		expect(seven.stops.map(s => s.types?.zh ?? null)).toEqual([null, '示例题型', null]);
+		// route lines that are not a list, or have no such line: 语法, no question types
+		for (const lines of [{ n: 6 }, [], [{ n: 1, zh: '听力' }], 'lines']) {
+			const got = toGrammarContent(EXAMPLE, lines);
+			expect(got.name, JSON.stringify(lines)).toEqual({ zh: '语法', en: 'Grammar' });
+			expect(got.stops.every(s => s.types == null)).toBe(true);
+		}
+		// no line number in the file: 6
+		expect(toGrammarContent({ ...EXAMPLE, line: '6' }, EXAMPLE_LINES).name.zh).toBe('语法（示例）');
+	});
 });
 
 // The lesson page itself moved out to the 语法课 mini app (miniapps/grammar, /apps/grammar/<stop>, 小程序搬出社区
-// 2026-11-12); scripts/qa/grammar-check.mjs checks it in a browser. The course file and its marks stay tested here.
+// 2026-11-12); scripts/qa/grammar-check.mjs checks it in a browser. The marks and how lessons are read stay tested
+// here; the real lessons are checked by content-import.mjs grammar-ielts before they go into the database.

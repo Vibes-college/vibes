@@ -567,3 +567,10 @@ export const lojoQuestErrors = {
 	invalidContent: { message: 'The quest levels were not imported:', code: 'INVALID_QUEST_CONTENT', id: '2f6c1a8e-0d4b-4c7a-9e35-7b1d0c6f4a21' },
 	noContent: questNoContent,
 } as const;
+
+// 内容进数据库 (lojo/content/*, 2026-11-17)
+export const lojoContentErrors = {
+	unknownKind: { message: 'No such content kind.', code: 'UNKNOWN_CONTENT_KIND', id: 'c417b3e9-c6e1-4339-9296-f0fc707a26a1' },
+	invalidContent: { message: 'The content was not imported:', code: 'INVALID_CONTENT', id: '613046a6-d1b2-42d1-a4bf-d661e7cc4de8' },
+	notImportedYet: { message: 'No version of this content has been imported yet.', code: 'CONTENT_NOT_IMPORTED_YET', id: 'e1f47982-6316-44af-92fb-c01efc7940f1' },
+} as const;

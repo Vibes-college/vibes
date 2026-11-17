@@ -49,6 +49,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeNote }]" data-testid="signup-rules-notes-agree" @click="agreeNote = !agreeNote"><i :class="agreeNote ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
 			</MkFolder>
 
+			<!-- Vibes（2026-11-15，Dodo 审核）：只开放 18 岁以上注册，价格页、条款、隐私政策都这么写；不勾不能下一步 -->
+			<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeAge }]" data-testid="signup-rules-age-agree" @click="agreeAge = !agreeAge"><i :class="agreeAge ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我已年满 18 岁 / I am 18 or older</button>
+
 			<div class="_buttonsCenter">
 				<MkButton inline rounded @click="emit('cancel')">算了</MkButton>
 				<MkButton inline primary rounded gradate :disabled="!agreed" data-testid="signup-rules-continue" @click="emit('done')">下一步 <i class="ti ti-arrow-right"></i></MkButton>
@@ -74,9 +77,10 @@ const availablePrivacyPolicy = instance.privacyPolicyUrl != null && instance.pri
 const agreeServerRules = ref(false);
 const agreeTosAndPrivacyPolicy = ref(false);
 const agreeNote = ref(false);
+const agreeAge = ref(false);
 
 const agreed = computed(() => {
-	return (!availableServerRules || agreeServerRules.value) && ((!availableTos && !availablePrivacyPolicy) || agreeTosAndPrivacyPolicy.value) && agreeNote.value;
+	return (!availableServerRules || agreeServerRules.value) && ((!availableTos && !availablePrivacyPolicy) || agreeTosAndPrivacyPolicy.value) && agreeNote.value && agreeAge.value;
 });
 
 const emit = defineEmits<{

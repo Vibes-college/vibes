@@ -133,21 +133,3 @@ export function validateTheme(theme: Record<string, any>): boolean {
 	if (theme.props == null || typeof theme.props !== 'object') return false;
 	return true;
 }
-
-// Vibes: async so the JSON5 parser (about 15 KB compressed) downloads only when someone installs a theme,
-// not on every first open (theme.ts is part of startup).
-export async function parseThemeCode(code: string): Promise<Theme> {
-	const { default: JSON5 } = await import('json5');
-	let theme;
-
-	try {
-		theme = JSON5.parse(code);
-	} catch (_) {
-		throw new Error('Failed to parse theme json');
-	}
-	if (!validateTheme(theme)) {
-		throw new Error('This theme is invaild');
-	}
-
-	return theme;
-}

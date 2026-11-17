@@ -9,6 +9,7 @@ import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { LojoAppsService, lojoServiceKeyOk } from '@/core/LojoAppsService.js';
+import { LojoPlanService } from '@/core/LojoPlanService.js';
 
 export const meta = {
 	tags: ['lojo'],
@@ -45,6 +46,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private lojoAppsService: LojoAppsService,
+		private lojoPlanService: LojoPlanService,
 	) {
 		super(meta, paramDef, async (ps) => {
 			if (!lojoServiceKeyOk(ps.serviceKey)) throw new ApiError(meta.errors.forbidden);
@@ -53,6 +55,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			} catch (e) {
 				throw new ApiError(meta.errors.badLine, { reason: (e as Error).message });
 			}
+			// the task tab: typing ticks by its report (it has no answers to count yet)
+			if (ps.app === 'typing') await this.lojoPlanService.typingReported(ps.userId);
 		});
 	}
 }

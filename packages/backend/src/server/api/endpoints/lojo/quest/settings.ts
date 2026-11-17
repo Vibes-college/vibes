@@ -10,20 +10,24 @@ import { lojoQuestErrors } from '@/server/api/lojo-schemas.js';
 
 export const meta = {
 	tags: ['lojo'], requireCredential: true, kind: 'write:account',
-	description: 'Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it) and whether the first-time walkthrough is done. Returns the same as lojo/quest/show.',
+	description: 'Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it), whether the first-time walkthrough is done, and the target band (4.0–9.0; ≥ 7 makes the advanced route stations required). Returns the same as lojo/quest/show.',
 	limit: { duration: 60 * 60 * 1000, max: 60 },
 	errors: { invalidExamDate: lojoQuestErrors.invalidExamDate },
 	res: { type: 'object', optional: false, nullable: false },
 } as const;
 export const paramDef = {
 	type: 'object',
-	properties: { examDate: { type: 'string', nullable: true, pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, onboarded: { type: 'boolean' } },
+	properties: {
+		examDate: { type: 'string', nullable: true, pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, onboarded: { type: 'boolean' },
+		// 目标分 4.0–9.0（三段闯关：≥ 7 进阶站变必练）
+		target: { type: 'number', nullable: true, minimum: 4, maximum: 9 },
+	},
 	required: [],
 } as const;
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(private svc: LojoQuestService) {
-		super(meta, paramDef, async (ps, me) => this.svc.settings(me.id, { examDate: ps.examDate, onboarded: ps.onboarded }));
+		super(meta, paramDef, async (ps, me) => this.svc.settings(me.id, { examDate: ps.examDate, onboarded: ps.onboarded, target: ps.target }));
 	}
 }

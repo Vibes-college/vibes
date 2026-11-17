@@ -117,7 +117,7 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 	}, {
 		// Vibes: anyone's Vibi allowance and gem ledger, add or take gems (pages/lojo/gems-admin.vue).
 		icon: 'ti ti-diamond',
-		text: lang.startsWith('zh') ? 'Vibi 用量和宝石' : 'Vibi usage & gems',
+		text: lang.startsWith('zh') ? 'AI tutor 用量和宝石' : 'AI tutor usage & gems',
 		to: '/admin/gems',
 		active: currentPage.value?.route.name === 'vibesGems',
 	}] : []), {

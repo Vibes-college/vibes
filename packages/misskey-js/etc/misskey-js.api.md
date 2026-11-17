@@ -4,13 +4,13 @@
 
 ```ts
 
-import type { AuthenticationResponseJSON } from '@simplewebauthn/browser';
+import type { AuthenticationResponseJSON as AuthenticationResponseJSON_2 } from '@simplewebauthn/browser';
 import { EventEmitter } from 'eventemitter3';
 import { Options } from 'reconnecting-websocket';
 import type { PublicKeyCredentialCreationOptionsJSON as PublicKeyCredentialCreationOptionsJSON_2 } from '@simplewebauthn/browser';
 import type { PublicKeyCredentialRequestOptionsJSON as PublicKeyCredentialRequestOptionsJSON_2 } from '@simplewebauthn/browser';
 import _ReconnectingWebSocket from 'reconnecting-websocket';
-import type { RegistrationResponseJSON } from '@simplewebauthn/browser';
+import type { RegistrationResponseJSON as RegistrationResponseJSON_2 } from '@simplewebauthn/browser';
 
 // Warning: (ae-forgotten-export) The symbol "components" needs to be exported by the entry point index.d.ts
 //
@@ -779,6 +779,16 @@ export type Channels = {
         };
         events: {
             note: (payload: Note) => void;
+        };
+        receives: null;
+    };
+    clip: {
+        params: {
+            clipId: string;
+        };
+        events: {
+            updated: () => void;
+            deleted: () => void;
         };
         receives: null;
     };
@@ -2022,10 +2032,14 @@ declare namespace entities {
         InviteListResponse,
         LojoAdminBootReportRequest,
         LojoAdminBootReportResponse,
+        LojoAgentBridgeRequest,
+        LojoAgentBridgeResponse,
         LojoAgentEnglishRequest,
         LojoAgentEnglishResponse,
         LojoAgentPromptRequest,
         LojoAgentPromptResponse,
+        LojoAppsLearnerRequest,
+        LojoAppsLearnerResponse,
         LojoAppsListResponse,
         LojoAppsRecentRequest,
         LojoAppsRecentResponse,
@@ -2034,6 +2048,12 @@ declare namespace entities {
         LojoAppsReportRequest,
         LojoBootReportRequest,
         LojoConnReportRequest,
+        LojoContentImportRequest,
+        LojoContentImportResponse,
+        LojoContentRollbackRequest,
+        LojoContentRollbackResponse,
+        LojoContentVersionsRequest,
+        LojoContentVersionsResponse,
         LojoCreateCopyRequest,
         LojoCreateCopyResponse,
         LojoCreateImportRequest,
@@ -2101,6 +2121,27 @@ declare namespace entities {
         LojoNotesLinkResponse,
         LojoNotesListRequest,
         LojoNotesListResponse,
+        LojoPlanListImportRequest,
+        LojoPlanListImportResponse,
+        LojoPlanReplanResponse,
+        LojoPlanSettingsRequest,
+        LojoPlanSettingsResponse,
+        LojoPlanSetupRequest,
+        LojoPlanSetupResponse,
+        LojoPlanShowRequest,
+        LojoPlanShowResponse,
+        LojoPlanSyncRequest,
+        LojoPlanSyncResponse,
+        LojoPlanTaskCreateRequest,
+        LojoPlanTaskCreateResponse,
+        LojoPlanTaskMoveRequest,
+        LojoPlanTaskMoveResponse,
+        LojoPlanTaskStatusRequest,
+        LojoPlanTaskStatusResponse,
+        LojoPlanUndoRequest,
+        LojoPlanUndoResponse,
+        LojoPlanWeekRequest,
+        LojoPlanWeekResponse,
         LojoQuestAnswerRequest,
         LojoQuestAnswerResponse,
         LojoQuestAskTutorRequest,
@@ -2125,6 +2166,8 @@ declare namespace entities {
         LojoQuestPlacementPaperResponse,
         LojoQuestRefillRequest,
         LojoQuestRefillResponse,
+        LojoQuestRunRequest,
+        LojoQuestRunResponse,
         LojoQuestSettingsRequest,
         LojoQuestSettingsResponse,
         LojoQuestShowResponse,
@@ -2147,8 +2190,13 @@ declare namespace entities {
         LojoStateUpdateRequest,
         LojoStateUpdateResponse,
         LojoTutorIdsResponse,
+        LojoTutorPersonaShowResponse,
+        LojoTutorPersonaUpdateRequest,
+        LojoTutorPersonaUpdateResponse,
         LojoTutorPilotToolRequest,
         LojoTutorPilotToolResponse,
+        LojoTutorPlanPokeRequest,
+        LojoTutorPlanPokeResponse,
         LojoTutorPokeRequest,
         LojoTutorPokeResponse,
         LojoTutorPublicResponse,
@@ -2701,7 +2749,7 @@ type I2faKeyDoneRequest_2 = {
     password: string;
     token?: string | null;
     name: string;
-    credential: RegistrationResponseJSON;
+    credential: RegistrationResponseJSON_2;
 };
 
 // @public (undocumented)
@@ -3009,6 +3057,12 @@ type LojoAdminBootReportRequest = operations['lojo___admin___boot-report']['requ
 type LojoAdminBootReportResponse = operations['lojo___admin___boot-report']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoAgentBridgeRequest = operations['lojo___agent___bridge']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAgentBridgeResponse = operations['lojo___agent___bridge']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoAgentEnglishRequest = operations['lojo___agent___english']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3019,6 +3073,12 @@ type LojoAgentPromptRequest = operations['lojo___agent___prompt']['requestBody']
 
 // @public (undocumented)
 type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsLearnerRequest = operations['lojo___apps___learner']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsLearnerResponse = operations['lojo___apps___learner']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoAppsListResponse = operations['lojo___apps___list']['responses']['200']['content']['application/json'];
@@ -3043,6 +3103,24 @@ type LojoBootReportRequest = operations['lojo___boot-report']['requestBody']['co
 
 // @public (undocumented)
 type LojoConnReportRequest = operations['lojo___conn-report']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentImportRequest = operations['lojo___content___import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentImportResponse = operations['lojo___content___import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentRollbackRequest = operations['lojo___content___rollback']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentRollbackResponse = operations['lojo___content___rollback']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentVersionsRequest = operations['lojo___content___versions']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentVersionsResponse = operations['lojo___content___versions']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoCreateCopyRequest = operations['lojo___create___copy']['requestBody']['content']['application/json'];
@@ -3246,6 +3324,69 @@ type LojoNotesListRequest = operations['lojo___notes___list']['requestBody']['co
 type LojoNotesListResponse = operations['lojo___notes___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoPlanListImportRequest = operations['lojo___plan___list-import']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanListImportResponse = operations['lojo___plan___list-import']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanReplanResponse = operations['lojo___plan___replan']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanSettingsRequest = operations['lojo___plan___settings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanSettingsResponse = operations['lojo___plan___settings']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanSetupRequest = operations['lojo___plan___setup']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanSetupResponse = operations['lojo___plan___setup']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanShowRequest = operations['lojo___plan___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanShowResponse = operations['lojo___plan___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanSyncRequest = operations['lojo___plan___sync']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanSyncResponse = operations['lojo___plan___sync']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanTaskCreateRequest = operations['lojo___plan___task___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanTaskCreateResponse = operations['lojo___plan___task___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanTaskMoveRequest = operations['lojo___plan___task___move']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanTaskMoveResponse = operations['lojo___plan___task___move']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanTaskStatusRequest = operations['lojo___plan___task___status']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanTaskStatusResponse = operations['lojo___plan___task___status']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanUndoRequest = operations['lojo___plan___undo']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanUndoResponse = operations['lojo___plan___undo']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanWeekRequest = operations['lojo___plan___week']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanWeekResponse = operations['lojo___plan___week']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoQuestAnswerRequest = operations['lojo___quest___answer']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3318,6 +3459,12 @@ type LojoQuestRefillRequest = operations['lojo___quest___refill']['requestBody']
 type LojoQuestRefillResponse = operations['lojo___quest___refill']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoQuestRunRequest = operations['lojo___quest___run']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoQuestRunResponse = operations['lojo___quest___run']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoQuestSettingsRequest = operations['lojo___quest___settings']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3384,10 +3531,25 @@ type LojoStateUpdateResponse = operations['lojo___state___update']['responses'][
 type LojoTutorIdsResponse = operations['lojo___tutor___ids']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoTutorPersonaShowResponse = operations['lojo___tutor___persona___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPersonaUpdateRequest = operations['lojo___tutor___persona___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPersonaUpdateResponse = operations['lojo___tutor___persona___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoTutorPilotToolRequest = operations['lojo___tutor___pilot-tool']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorPilotToolResponse = operations['lojo___tutor___pilot-tool']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPlanPokeRequest = operations['lojo___tutor___plan-poke']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorPlanPokeResponse = operations['lojo___tutor___plan-poke']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorPokeRequest = operations['lojo___tutor___poke']['requestBody']['content']['application/json'];
@@ -3993,7 +4155,7 @@ type SigninFlowRequest = {
     username: string;
     password?: string;
     token?: string;
-    credential?: AuthenticationResponseJSON;
+    credential?: AuthenticationResponseJSON_2;
     'hcaptcha-response'?: string | null;
     'g-recaptcha-response'?: string | null;
     'turnstile-response'?: string | null;
@@ -4023,7 +4185,7 @@ type SigninWithPasskeyInitResponse = {
 
 // @public (undocumented)
 type SigninWithPasskeyRequest = {
-    credential?: AuthenticationResponseJSON;
+    credential?: AuthenticationResponseJSON_2;
     context?: string;
 };
 
@@ -4355,8 +4517,8 @@ type VerifyEmailRequest = operations['verify-email']['requestBody']['content']['
 // Warnings were encountered during analysis:
 //
 // src/streaming.ts:57:3 - (ae-forgotten-export) The symbol "ReconnectingWebSocket" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:226:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:241:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:236:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:251:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

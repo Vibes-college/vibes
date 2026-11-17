@@ -25,11 +25,12 @@ import { mainRouter } from '@/router.js';
 import { makeHotkey } from '@/utility/hotkey.js';
 import { addCustomEmoji, removeCustomEmojis, updateCustomEmojis } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
-import { updateCurrentAccountPartial } from '@/accounts.js';
+import { updateCurrentAccount } from '@/accounts.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
 import { prefetchCommonPages } from '@/lojo/prefetch.js';
 import { currentInstallOffer } from '@/lojo/install/prompt.js';
+import { showsMisskeyUpdatedPopup } from '@/lojo/boot-notices.js';
 
 // Vibes: how long 稍后 keeps the setup dialog away (store.ts accountSetupWizardLaterAt)
 const SETUP_LATER_MS = 7 * 24 * 60 * 60 * 1000;
@@ -69,7 +70,8 @@ export async function mainBoot() {
 	emojiPicker.init();
 	prefetchCommonPages($i != null);
 
-	if (isClientUpdated && $i) {
+	// Vibes：升级后的英文「Misskey has been updated!」弹窗不弹（lojo/boot-notices.ts）
+	if (isClientUpdated && $i && showsMisskeyUpdatedPopup()) {
 		const { dispose } = popup(defineAsyncComponent(() => import('@/components/MkUpdated.vue')), {}, {
 			closed: () => dispose(),
 		});
@@ -353,11 +355,11 @@ export async function mainBoot() {
 
 			// 自分の情報が更新されたとき
 			main.on('meUpdated', i => {
-				updateCurrentAccountPartial(i);
+				updateCurrentAccount(i);
 			});
 
 			main.on('readAllNotifications', () => {
-				updateCurrentAccountPartial({
+				updateCurrentAccount({
 					hasUnreadNotification: false,
 					unreadNotificationsCount: 0,
 				});
@@ -365,19 +367,19 @@ export async function mainBoot() {
 
 			main.on('unreadNotification', () => {
 				const unreadNotificationsCount = ($i?.unreadNotificationsCount ?? 0) + 1;
-				updateCurrentAccountPartial({
+				updateCurrentAccount({
 					hasUnreadNotification: true,
 					unreadNotificationsCount,
 				});
 			});
 
 			main.on('newChatMessage', () => {
-				updateCurrentAccountPartial({ hasUnreadChatMessages: true });
+				updateCurrentAccount({ hasUnreadChatMessages: true });
 				sound.playMisskeySfx('chatMessage');
 			});
 
 			main.on('readAllAnnouncements', () => {
-				updateCurrentAccountPartial({ hasUnreadAnnouncement: false });
+				updateCurrentAccount({ hasUnreadAnnouncement: false });
 			});
 
 			// 個人宛てお知らせが発行されたとき

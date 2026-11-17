@@ -10,7 +10,6 @@ import { drawRound, emptyProgress, isOften, oftenIds, recordAnswer, spread, toPr
 import { carryFromResult, carryPath, gapLine, looksSpaceless, spokenForm } from '@/lojo/dictation/carry.js';
 import { gateItems, toContent } from '@/lojo/dictation/content.js';
 import type { GateAttempt, GateGroup, GateResult } from '@/lojo/gates/player.js';
-import { DICTATION } from '@/lojo/route/courses/ielts/dictation.js';
 
 // A seeded random, so a round is the same every run.
 function seeded(seed: number) {
@@ -175,53 +174,73 @@ describe('a round is 10 drawn from a set\'s pool', () => {
 	});
 });
 
-describe('the course file (courses/english/ielts/dictation.js)', () => {
-	const content = toContent(DICTATION);
+// 听写题在社区数据库里（2026-11-17 起，kind dictation-ielts）：这里只用示例题，查读题的规则。题目文件本身
+// （每组够不够 20 题、每个写法按判分算对、录音能读）由导入脚本 apps/community/scripts/content-import.mjs 查。
+const EXAMPLE = {
+	perRound: 10,
+	guide: 'example-guide',
+	sets: [
+		{
+			id: 'spelling', tag: 'spelling', zh: '示例拼写', en: 'Example spelling', mode: 'live', limit: null, instructions: null,
+			items: [
+				{ id: 'ex-colour', answer: ['colour', 'color'], hint: '颜色', line: 'What {} is it?', lineZh: '示例：它是什么颜色的？', say: 'What colour is it? Colour.', rule: '示例规则' },
+				{ id: 'ex-broken', hint: '没有答案，读的时候跳过', line: 'A {}.', say: 'A gap.' },
+			],
+		},
+		{
+			id: 'numbers', tag: 'numbers', zh: '示例数字', en: 'Example numbers', mode: 'enter', limit: { words: 1, number: true },
+			instructions: { zh: '示例', en: 'ONE WORD AND/OR A NUMBER' },
+			items: [
+				{ id: 'ex-date', kind: 'date', answer: ['15 March', 'March 15', '15th March', 'March 15th', '15/03', '15/3'], hint: '日期', line: 'Starts: {}', say: 'It starts on the fifteenth of March.', rule: '示例' },
+				{ id: 'ex-phone', kind: 'phone', answer: ['07700 900461'], ignoreSpaces: true, hint: '手机号', line: 'Mobile: {}', say: 'Oh seven seven double oh, nine double oh, four six one.', rule: '示例' },
+				{ id: 'ex-postcode', kind: 'postcode', answer: ['CB2 1TN'], ignoreSpaces: true, hint: '邮编', line: 'Postcode: {}', say: 'C, B, two, one, T, N.', rule: '示例' },
+			],
+		},
+		{
+			id: 'plural', tag: 'plural', zh: '示例单复数', en: 'Example plural', mode: 'enter', limit: { words: 1, number: false }, instructions: null,
+			items: [
+				{ id: 'ex-boxes', number: 'pl', answer: ['boxes'], near: ['box'], hint: '箱子', line: 'Bring two {}.', say: 'Bring two boxes.', rule: '示例' },
+			],
+		},
+		{ id: 'nameless', mode: 'enter', items: [{ id: 'ex-x', answer: ['x'], line: '{}', say: 'x' }] },
+	],
+};
 
-	test('three sets of 20 or more, every item intact and its own id', () => {
+describe('reading the dictation sets (toContent, example sets)', () => {
+	const content = toContent(EXAMPLE);
+
+	test('sets in order; a set without a name and an item without an answer are left out', () => {
 		expect(content.sets.map(s => s.id)).toEqual(['spelling', 'numbers', 'plural']);
-		const raw = DICTATION.sets.reduce((n, s) => n + s.items.length, 0);
-		const items = content.sets.flatMap(s => s.items);
-		expect(items).toHaveLength(raw);
-		expect(new Set(items.map(it => it.id)).size).toBe(items.length);
-		for (const set of content.sets) expect(set.items.length).toBeGreaterThanOrEqual(20);
+		expect(content.sets[0].items.map(it => it.id)).toEqual(['ex-colour']);
 		expect(content.perRound).toBe(10);
+		expect(content.guide).toBe('example-guide');
+		expect(toContent(null).sets).toEqual([]);
 	});
 
-	test('every accepted form is right under its set\'s word limit, and the recording says something speakable', () => {
-		for (const it of content.sets.flatMap(s => s.items)) {
-			for (const a of it.answer) expect(markText(it, null, a), `${it.id}: ${a}`).toEqual({ correct: true, reason: null });
-			for (const n of it.near) expect(markText(it, null, n).correct, `${it.id} near ${n}`).toBe(false);
-			// the speech server drops these characters
-			expect(it.say, it.id).not.toMatch(/[[\]*_~`<>#@]|https?:/);
-			expect(it.rule, it.id).not.toBeNull();
-			expect(it.hint, it.id).not.toBeNull();
-		}
-	});
-
-	test('spelling words carry what the wordbook needs; British and American spellings both count', () => {
-		const spelling = content.sets.find(s => s.id === 'spelling')!;
-		for (const it of spelling.items) {
-			expect(it.mode).toBe('live');
-			expect(it.word, it.id).toMatchObject({ text: it.answer[0], kind: 'word' });
-			expect(it.word!.example, it.id).toContain(it.answer[0]);
-			expect(it.word!.exampleZh, it.id).not.toBe('');
-		}
-		const colour = spelling.items.find(it => it.id === 'sp-colour')!;
+	test('a spelling word carries what the wordbook needs; British and American spellings both count', () => {
+		const colour = content.sets[0].items[0];
+		expect(colour.mode).toBe('live');
+		expect(colour.word).toMatchObject({ text: 'colour', kind: 'word', example: 'What colour is it?', exampleZh: '示例：它是什么颜色的？' });
 		expect(markText(colour, null, 'color').correct).toBe(true);
 	});
 
-	test('dates take the usual forms; phones and postcodes ignore spaces', () => {
-		const numbers = content.sets.find(s => s.id === 'numbers')!;
-		const start = numbers.items.find(it => it.id === 'nu-start')!;
+	test('dates take the usual forms under the set\'s word limit; phones and postcodes ignore spaces', () => {
+		const [date, phone, postcode] = content.sets[1].items;
 		for (const form of ['15 March', 'March 15', '15th March', 'March 15th', '15/03', '15/3', 'march 15th.']) {
-			expect(markText(start, null, form).correct, form).toBe(true);
+			expect(markText(date, null, form).correct, form).toBe(true);
 		}
-		expect(markText(start, null, 'the fifteenth of March').reason).toBe('word-limit');
-		const mobile = numbers.items.find(it => it.id === 'nu-mobile')!;
-		expect(markText(mobile, null, '07700900461').correct).toBe(true);
-		expect(mobile.inputmode).toBe('tel');
-		expect(markText(numbers.items.find(it => it.id === 'nu-cb')!, null, 'cb21tn').correct).toBe(true);
+		expect(markText(date, null, 'the fifteenth of March').reason).toBe('word-limit');
+		expect(markText(phone, null, '07700900461').correct).toBe(true);
+		expect(phone.inputmode).toBe('tel');
+		expect(markText(postcode, null, 'cb21tn').correct).toBe(true);
+	});
+
+	test('a plural keeps its number; its near form (the singular) is marked wrong and caught as a near miss', () => {
+		const boxes = content.sets[2].items[0];
+		expect(boxes).toMatchObject({ number: 'pl', kind: 'pl', near: ['box'], inputmode: 'text', word: null });
+		expect(markText(boxes, null, 'box')).toEqual({ correct: false, reason: 'wrong' });
+		expect(nearMiss(boxes.near, 'Box')).toBe(true);
+		expect(markText(boxes, null, 'two boxes').reason).toBe('word-limit');
 	});
 });
 
@@ -268,7 +287,7 @@ describe('the gaps a gate missed go along to dictation', () => {
 
 	test('as items: a word letter by letter, a number on Enter, marked as the gate marked it', () => {
 		const carry = carryFromResult([{ result, attempt }], '听力 4.5', '1.2')!;
-		const content = toContent(DICTATION);
+		const content = toContent(EXAMPLE);
 		const [word, phone] = gateItems(carry, null, content.sets);
 		expect(word).toMatchObject({ mode: 'live', setId: 'spelling', gate: { given: 'Holins' } });
 		expect(phone).toMatchObject({ mode: 'enter', setId: 'numbers' });

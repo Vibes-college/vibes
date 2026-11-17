@@ -99,7 +99,7 @@ const DOOR_STYLE = `
 `;
 
 // Same look as the door in pages/lojo/quest.vue, which replaces it once the app is up.
-const DOOR_HTML = `<svg class="peek" viewBox="0 0 390 150" aria-hidden="true"><path d="M195 150 Q150 125 120 100 Q100 80 150 60 Q200 40 195 15" fill="none" stroke="#141E52" stroke-width="2.4" stroke-dasharray="1 7" stroke-linecap="round"/><path d="M150 60 Q230 70 300 45" fill="none" stroke="#c9bda4" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round"/><path d="M0 95 Q100 80 200 98 T390 88" fill="none" stroke="#d6e0e6" stroke-width="10" stroke-linecap="round"/><g font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle" fill="#141E52"><circle cx="120" cy="100" r="14" fill="#FFFDF8" stroke="#141E52" stroke-width="1.8"/><text x="120" y="104">1-1</text><circle cx="150" cy="60" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="150" y="64">1-2</text><circle cx="300" cy="45" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="300" y="49">1-7</text><path d="M195 4 l-7 7 h4 v8 h6 v-8 h4z" fill="#E8603F"/></g></svg><div class="card"><div class="kicker">闯关 · 雅思第一章</div><h1>用闯关的方式，让你沉迷学习</h1><p>一关一关，打到考场。第一关：听人报名字、地址，一个字母一个字母拼出来。</p><div class="actions"><button class="primary" type="button" data-open="trial">先打一关，不用注册</button><button type="button" data-open="signin">已有账号？登录</button></div></div>`;
+const DOOR_HTML = `<svg class="peek" viewBox="0 0 390 150" aria-hidden="true"><path d="M195 150 Q150 125 120 100 Q100 80 150 60 Q200 40 195 15" fill="none" stroke="#141E52" stroke-width="2.4" stroke-dasharray="1 7" stroke-linecap="round"/><path d="M150 60 Q230 70 300 45" fill="none" stroke="#c9bda4" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round"/><path d="M0 95 Q100 80 200 98 T390 88" fill="none" stroke="#d6e0e6" stroke-width="10" stroke-linecap="round"/><g font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle" fill="#141E52"><circle cx="120" cy="100" r="14" fill="#FFFDF8" stroke="#141E52" stroke-width="1.8"/><text x="120" y="104">词1</text><circle cx="150" cy="60" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="150" y="64">语1</text><circle cx="300" cy="45" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="300" y="49">词4</text><path d="M195 4 l-7 7 h4 v8 h6 v-8 h4z" fill="#E8603F"/></g></svg><div class="card"><div class="kicker">闯关 · 雅思基础关</div><h1>用闯关的方式，让你沉迷学习</h1><p>一关一关，打到考场。第一关：听一个单词，把它拼出来。</p><div class="actions"><button class="primary" type="button" data-open="trial">先打一关，不用注册</button><button type="button" data-open="signin">已有账号？登录</button></div></div>`;
 
 // Plain ES2017 (it runs before anything else, also on older phones). FRAME is replaced with the frame's address.
 const SCRIPT = `(function () {
@@ -193,6 +193,12 @@ const SCRIPT = `(function () {
 		chrome: function (hidden) { return bridge.via != null && bridge.via.chrome != null ? bridge.via.chrome(hidden) : false; },
 		// Open the summoned agent's panel, if any.
 		agent: function () { return bridge.via != null && bridge.via.agent != null ? bridge.via.agent() : false; },
+		// The learner's own Momo, name and face (quest.js loadMomo, 11-17). The game asks right away, usually before the
+		// app is up, so until then it comes straight from the server.
+		momo: function () {
+			if (bridge.via != null && bridge.via.momo != null) return bridge.via.momo();
+			return result(post('lojo/tutor/persona/show', {}));
+		},
 		// The game calls this once its map is drawn: the app may start downloading now (boot.js).
 		ready: function () {
 			if (window.vibesQuestReady) return;

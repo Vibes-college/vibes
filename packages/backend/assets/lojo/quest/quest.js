@@ -9,6 +9,18 @@
 (() => {
 'use strict';
 
+/* 不碰页面的小函数（转义、报错的字、日期、定级测试的朗读时长等）在 quest-kit.js，index.html 先装它（2026-11-16 拆大文件） */
+const {
+	esc, md, errText, leftText,
+	heartSVG,
+	chWord, chSub,
+	newsSnippet,
+	isPick, limitText, nl, reviewHtml,
+	tmFmt, tmUsed, tplFill,
+	dayD, ymd,
+	plLen, plLineAt, plResumePoint, plFmt, bjMD,
+} = window.QuestKit;
+
 /* ================= 跟社区的连接 ================= */
 let Q = null;
 // 先读自己这个框上挂的那份：社区会把看过的页面留在内存里，回到旧页面时框会重新加载，这时 window.parent 上那份
@@ -88,8 +100,32 @@ const QUERY = (() => {
 
 /* ================= 小工具 ================= */
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+/* ================= 学员自己那只 Momo（创始人 2026-11-17 00:13 PT） =================
+   名字和脸跟私信里一样（社区 lojo/tutor/persona.ts）：社区给（Q.momo），单独打开时自己问服务器。先用社区存在本机的那份，
+   免得闪一下。游客试玩、预览、没拿到：默认的 Momo 和一张固定的脸。只有头，带白边（/lojo-head/<seed>?sticker=1）。
+   闯关体验设计 11-17：不放大，38px 也要看得清轮廓。 */
+const MOMO = { name: 'Momo', seed: 'momo' };
+const momoName = () => esc(MOMO.name);
+function showMomo() {
+	const src = '/lojo-head/' + encodeURIComponent(MOMO.seed) + '?v=2&sticker=1'; // v: same as persona-rules.ts PERSONA_HEAD_VERSION
+	for (const img of $$('img.momo')) if (img.getAttribute('src') !== src) img.src = src;
+	for (const el of $$('.momoName')) el.textContent = MOMO.name;
+}
+function loadMomo() {
+	const take = p => { if (p && typeof p.name === 'string' && p.name) MOMO.name = p.name; if (p && typeof p.seed === 'string' && p.seed) MOMO.seed = p.seed; };
+	if (!PREVIEW && !TRIAL) {
+		try {
+			const id = JSON.parse(localStorage.getItem('account') || 'null')?.id;
+			if (id) take(JSON.parse(localStorage.getItem('vibes:momo:' + id) || 'null'));
+		} catch (e) { /* 没存过 */ }
+	}
+	showMomo();
+	if (PREVIEW || TRIAL) return;
+	const ask = (Q && typeof Q.momo === 'function') ? Promise.resolve(Q.momo())
+		: Q ? Promise.reject(null) : fetchApi('lojo/tutor/persona/show', {});
+	ask.then(p => { take(p); showMomo(); }, () => {});
+}
 const svgNS = 'http://www.w3.org/2000/svg';
 const show = (el, d = 'flex') => { (typeof el === 'string' ? $(el) : el).style.display = d; };
 const hide = el => { (typeof el === 'string' ? $(el) : el).style.display = 'none'; };
@@ -137,28 +173,12 @@ function drawSnd() { $('#sndBtn').textContent = soundOn ? '🔊' : '🔇'; $('#s
 $('#sndBtn').onclick = () => { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? '1' : '0'); } catch (e) { /* 存不了就只管这一次 */ } drawSnd(); play('tap'); };
 drawSnd();
 
-function toast(t, ms = 1800) { const el = $('#toast'); el.textContent = t; gsap.killTweensOf(el); gsap.fromTo(el, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.25 }); gsap.to(el, { opacity: 0, duration: 0.3, delay: ms / 1000 }); }
+function toast(t, ms = 1800) { const el = $('#toast'); el.textContent = t; el.style.bottom = (($('.dock')?.offsetHeight ?? 110) + 10) + 'px'; gsap.killTweensOf(el); gsap.fromTo(el, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.25 }); gsap.to(el, { opacity: 0, duration: 0.3, delay: ms / 1000 }); }
 function say(el, html) { el.classList.remove('open'); el.innerHTML = html; gsap.fromTo(el, { scale: 0.85 }, { scale: 1, transformOrigin: '0 100%', duration: 0.45, ease: 'back.out(2)' }); }
 const miaSay = h => say($('#miaSay'), h);
 function bounce(el) { if (el) gsap.fromTo(el, { scale: 0.8 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1,.35)', transformOrigin: '50% 50%' }); }
 const AR = () => $('#app').getBoundingClientRect();
 function ctr(el) { const a = AR(), r = el.getBoundingClientRect(); return { x: r.left - a.left + r.width / 2, y: r.top - a.top + r.height / 2, w: r.width, h: r.height }; }
-function errText(e) {
-	const c = e?.code;
-	if (c === 'NO_HEARTS') return '心打光了';
-	if (c === 'LEVEL_LOCKED') return '这关还没开：先过前面连着它的一关';
-	if (c === 'BOSS_NOT_READY') return '备战还没齐';
-	if (c === 'NO_SUCH_ATTEMPT') return '这一局已经结束了，回地图重新开';
-	if (c === 'NOT_RETESTABLE') return '这关现在不用回测';
-	if (c === 'INVALID_EXAM_DATE') return '日期不对：要选明天以后、两年以内的一天';
-	if (c === 'NO_AUDIO') return '录音暂时出不来，先看文字';
-	if (c === 'NOT_SIGNED_IN') return '先登录社区';
-	if (c === 'TRIAL_SAVE') return '存档后解锁';
-	if (c === 'PLACEMENT_TOO_SOON') return '30 天里能测一次';
-	if (c === 'PLACEMENT_NO_FIRST_PART') return '第一段没存上，从第一段重新测';
-	if (c === 'RATE_LIMIT_EXCEEDED') return '点得太快了，歇一下再来';
-	return '网卡了一下，再试一次';
-}
 
 /* ================= 服务器的数据 ================= */
 let D = null;          // lojo/quest/show 最近一次的结果
@@ -177,13 +197,8 @@ function refillLabel() {
 	const h = bj(at).getUTCHours(), sameDay = bj(at).toISOString().slice(0, 10) === bj(new Date(serverNow())).toISOString().slice(0, 10);
 	return h === 20 ? '北京时间今晚 20:00' : sameDay ? '北京时间早上 8:00' : '北京时间明早 8:00';
 }
-function leftText(ms) {
-	const s = Math.max(0, Math.round(ms / 1000));
-	return [s / 3600 | 0, (s % 3600 / 60) | 0, s % 60].map(x => String(x).padStart(2, '0')).join(':');
-}
 
 /* ================= 心 ================= */
-const heartSVG = on => `<svg viewBox="0 0 16 16"><path d="M8 4 c-1.5 -3 -7 -2.5 -6 1.5 c.6 2.4 3.6 4.4 6 6.5 c2.4 -2.1 5.4 -4.1 6 -6.5 c1 -4 -4.5 -4.5 -6 -1.5z" fill="${on ? '#E8603F' : '#E9E1D2'}" stroke="#141E52" stroke-width="1.2"/></svg>`;
 let shownHearts = 0;
 function drawHearts(n) {
 	shownHearts = n;
@@ -238,7 +253,6 @@ const curCh = () => chap(D?.currentChapter ?? 1);
 const nodeCh = n => chap(n?.ch ?? 1);
 const allNodes = () => Object.values(NODE);
 const chNodes = no => allNodes().filter(n => n.ch === no);
-const chWord = c => String(c.title).split(' · ')[0]; // 「第二章」
 const bossOf = c => NODE[c.bossId] ?? c.nodes.find(n => n.kind === 'boss');
 // 这一章 Boss 的备战：第一章用顶层字段（页面会就地更新），第二章起用 chapters 里的
 function bossInfo(c) {
@@ -306,7 +320,7 @@ function drawArt(H) {
 	let bands = '', s = `<rect x="0" y="0" width="390" height="${H}" fill="${st(1).tint}"/>`;
 	chs.forEach(c => {
 		const o = chOff(c.no), S = st(c.no);
-		const title = c.no > 1 ? `<g transform="translate(14 18)"><rect width="112" height="28" rx="6" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><rect width="7" height="28" rx="3" fill="${S.deep}"/><text x="62" y="19" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="13.5" fill="#141E52">${esc(c.title)}</text></g>` : '';
+		const title = !c.cont ? `<g transform="translate(14 18)"><rect width="112" height="28" rx="6" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/><rect width="7" height="28" rx="3" fill="${S.deep}"/><text x="62" y="19" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="13.5" fill="#141E52">${esc(c.title)}</text></g>` : '';
 		if (c.open || chs.length === 1) { s += `<g class="c${c.no}" transform="translate(0 ${o})"><rect width="390" height="${CH_H}" fill="${S.tint}"/><g class="land">${A.land(c.no)}</g>${title}</g>`; return; }
 		// 没开的章：铅笔稿（点不了），上面斜线 +「正在修路」
 		const XY = {}; c.nodes.forEach(n => { XY[n.id] = n; });
@@ -329,7 +343,7 @@ function drawArt(H) {
 		const from = chOff(c.no) + 60, to = chOff(nx.no) + 582;
 		s += `<path d="M195 ${from} L195 ${to}" fill="none" stroke="#cbbfa8" stroke-width="2.6" stroke-dasharray="2 7" stroke-linecap="round"/>` +
 			(nx.open ? `<path d="M195 ${from} L195 ${to}" fill="none" stroke="#141E52" stroke-width="3" stroke-linecap="round"/>` : '');
-		doors += A.door(c.no, dy, esc(nx.title), c.beaten && !nx.open);
+		if (!nx.cont) doors += A.door(c.no, dy, esc(nx.title), c.beaten && !nx.open);
 	});
 	$('#bands').innerHTML = bands;
 	$('#chs').innerHTML = s;
@@ -349,7 +363,8 @@ function doorTap(k) {
 	if (nx?.open && nx.no === k + 1) { play('tap', 0.5); mapScrollTo(NODE[nx.startId] ?? bossOf(c)); return; }
 	if (k === 1 && c.beaten) { doorCard1(); return; }
 	play('fail', 0.4);
-	miaSay(k === 1 ? `先打赢第一章 Boss「${esc(bn)}」，这扇门才会动。` : `打赢${esc(chWord(c))} Boss「${esc(bn)}」，这扇门就开。`);
+	if (c.beaten && nx) { miaSay(`${esc(chWord(nx))}正在修路。先回头把褪色的关再打一遍，手感不丢。`); return; }
+	miaSay(k === 1 ? `先打赢${esc(chWord(c))} Boss「${esc(bn)}」，这扇门才会动。` : `打赢${esc(chWord(c))} Boss「${esc(bn)}」，这扇门就开。`);
 }
 function drawMap() {
 	const chs = CHS(), H = chs.length * CH_GAP - (CH_GAP - CH_H);
@@ -404,6 +419,7 @@ function drawMap() {
 }
 let mapAt = null;
 function mapScrollTo(n) {
+	if (routeOn()) return;
 	const w = $('#mapwrap'), sc = $('#map').getBoundingClientRect().width / 390;
 	if (!n || w.scrollHeight <= w.clientHeight + 1) return;
 	w.scrollTop = Math.max(0, n.y * sc - w.clientHeight * 0.45);
@@ -442,6 +458,7 @@ function drawTop() {
 	drawHearts(D.hearts);
 }
 function drawDock() {
+	if (routeOn()) { RT.dock(); return; }
 	const tg = target(), go = $('#go');
 	go.classList.remove('boss'); go.disabled = !tg;
 	if (!tg) { const c = curCh(); $('#todayH').textContent = c.title; $('#todayS').textContent = '这一章没有能打的关了'; go.textContent = `等${chWord(chap(c.no + 1) ?? c)}`; }
@@ -481,7 +498,8 @@ function loadRank() {
 	}).catch(() => { RANK.busy = false; });
 }
 function miaLine() {
-	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? '1-1 拿下了。<b>存个档</b>，明天从 1-2 接着打。' : '我是 Vibi。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。';
+	if (routeOn()) return RT.line();
+	if (inTrial()) return NODE[D.trialLevel]?.state === 'done' ? `${trialLab()} 拿下了。<b>存个档</b>，明天从 ${trialNextLab()} 接着打。` : `我是 ${momoName()}。从这儿一关一关往上走，打赢最上面的 Boss 就过了这一章。`;
 	const tg = target(), h = D.hearts;
 	if (h <= 0) return `心打光了。<b>读本锦囊</b>或<b>练一组</b>，各补 1 颗；不补就等${refillLabel()} 回满。`;
 	if (D.lastFail && NODE[D.lastFail.levelId]?.state === 'open') {
@@ -496,14 +514,20 @@ function miaLine() {
 		return '备战齐了，门开了。进去就打。';
 	}
 	if (!D.streak.doneToday && D.streak.days > 0) return `火苗 <b>${D.streak.days}</b> 天，今天还没续上。过一关、或补一次心，就算今天练过。`;
-	if (tg?.practice) return tg.ch === 1 ? '前 3 关是<b>练手关</b>，放心打。' : '这关是<b>练手关</b>，答错不扣心，放心打。';
+	if (tg?.practice) return '这关是<b>练手关</b>，答错不扣心，放心打。';
 	if (tg?.timed && !tg.tries && D.chapters) return esc(nodeCh(tg).rules?.timedCopy?.miaFirstTimed ?? '这关有沙漏。');
 	return `今天这一步：<b>${esc(tg?.label ?? '')}</b>。心有 <b>${h}</b> 颗。`;
 }
 function render() {
-	drawTop(); drawMap(); drawDock(); drawCount(); drawPbar();
+	drawTop(); drawMap(); RT?.draw(); drawDock(); drawCount(); drawPbar();
 	miaSay(miaLine());
 }
+/* 三段闯关（2026-11-13）：服务器给了 route 就画三段地图（quest-route.js），旧的 svg 地图藏起来；打关的流程不变 */
+const RT = typeof window.VibesRoute === 'function' ? window.VibesRoute({
+	D: () => D, setD: r => { D = r; }, NODE: () => NODE, soundOn: () => soundOn, RM,
+	esc, md, api, go, toast, play, tune, miaSay, openSheet, closeSheet, startLevel, nodeTap, gearGo, refresh: () => refreshQuiet(), render: () => render(), errText, unlockAudio,
+}) : null;
+const routeOn = () => !!(RT && D?.route);
 
 /* 离考场倒数：有日子就倒数 + 还剩几关；没定就请他定 */
 function levelsLeft() { return chNodes(curCh().no).filter(n => (n.kind === 'level' || n.kind === 'boss') && n.state !== 'done').length; }
@@ -548,9 +572,7 @@ function intro() {
 		.from('#count', { y: -10, opacity: 0, duration: 0.35 }, 0.5);
 	if ($$('.inkE').length) tl.to('.inkE', { strokeDashoffset: 0, duration: 0.35, stagger: 0.07, ease: 'power1.inOut' }, 0.15);
 	gsap.to('#pin', { scale: 1.12, transformOrigin: '50% 100%', duration: 0.45, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-	gsap.to('#miaHeart', { scale: 1.18, transformOrigin: '50% 50%', duration: 0.4, repeat: -1, yoyo: true, ease: 'sine.inOut', repeatDelay: 0.6 });
 	gsap.to('#flameSvg', { scaleY: 1.15, transformOrigin: '50% 100%', duration: 0.3, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-	if (!RM) setInterval(() => gsap.fromTo('#miaEyes', { scaleY: 1 }, { scaleY: 0.1, transformOrigin: '50% 26px', duration: 0.08, yoyo: true, repeat: 1 }), 3200);
 }
 /* 进场动画之后：第一次来走引导；漏了一天的通知（服务器只给一次）；再处理地址栏 */
 function afterIntro() {
@@ -610,6 +632,10 @@ const busy = () => $('#ptest').style.display === 'flex' || $('#quiz').style.disp
 /* ?book= 翻到哪本；?level= 打开哪关；?from=<小程序> 是练完一组从小程序回来 */
 const FROM_ZH = { dictation: '听写', typing: '机考打字', vocab: '词汇线', grammar: '语法线', wordbook: '生词本', 'photo-words': '拍照单词' };
 function handleQuery() {
+	if (routeOn() && QUERY.level && !QUERY.book) {
+		if (QUERY.from && QUERY.from !== 'quest' && QUERY.from !== 'gate') miaSay(`从${esc(FROM_ZH[QUERY.from] ?? '小程序')}回来了。心现在 <b>${D.hearts}</b> 颗。`);
+		if (RT.handle(QUERY.level)) { QUERY.level = null; return; }
+	}
 	if (QUERY.book && bookBySlug(QUERY.book)) { enterShelf('browse', { open: QUERY.book }); return; }
 	if (QUERY.level && NODE[QUERY.level]) {
 		const n = NODE[QUERY.level];
@@ -717,14 +743,6 @@ function newsSheet(n) {
 		if (r.xp) toast(`看了情报 · 经验 +${r.xp}`, 1600);
 		if (!was) { play('pass', 0.6); refreshQuiet().then(() => gsap.from(`#nd-${bossOf(nodeCh(n))?.id} .pp-news`, { scale: 2.4, transformOrigin: '50% 50%', duration: 0.5, ease: 'back.out(3)' })); }
 	}).catch(e => { const st = $('#newsSt'); if (st) st.textContent = '没记上：' + errText(e); });
-}
-// 情报预览：每个话题标签拉最新几条，合并去重（Boss 的帖子同时带两个标签），只放第一段约 80 字，点开进帖子
-function newsSnippet(text) {
-	// 帖子第一行是关卡开头语（Stop 1-4 · … / Chapter 1 boss · …），每条都一样，预览里跳过；也去掉标签、More/Source 行
-	const t = String(text ?? '').replace(/^(Stop [\w-]+|Chapter \d+ boss) · [^.\n]*\.\s*/i, '')
-		.split('\n').filter(l => !/^\s*(More|Source)s?:/i.test(l)).join(' ')
-		.replace(/#\S+/g, '').replace(/\s+/g, ' ').trim();
-	return t.length > 80 ? t.slice(0, 80) + '…' : t;
 }
 function publicNotesByTag(tag) {
 	if (PREVIEW) return Promise.resolve([]);
@@ -926,6 +944,7 @@ function backToMap(then) {
 	return refresh().then(() => { if (then) then(); }, () => {});
 }
 $('#go').onclick = () => {
+	if (routeOn()) { barAway(); unlockAudio(); RT.goNow(); return; }
 	const tg = target(); if (!tg) return;
 	barAway();
 	unlockAudio();
@@ -936,11 +955,12 @@ let starting = false;
 function startLevel(id, opt) {
 	if (inTrial() && id !== D.trialLevel) { trialLocked(); return; }
 	if (starting) return; starting = true;
-	const n = NODE[id];
+	const n = NODE[id] ?? RT?.node(id);
+	RT?.resetCombo();
 	api('lojo/quest/start', { levelId: id, retest: !!opt?.retest }).then(st => {
 		D.hearts = st.hearts;
 		const k = st.resumed ? Math.min(st.answered ?? 0, (st.questions?.length ?? 1) - 1) : 0;
-		AT = { ...st, node: n, i: k, marks: [...Array(k)].map(() => 'done'), end: null, practice: st.mode === 'practice' || st.mode === 'retest' };
+		AT = { ...st, node: n, i: k, marks: [...Array(k)].map(() => 'done'), end: null, practice: st.mode === 'practice' || st.mode === 'retest' || st.mode === 'probe' };
 		const visible = $('#quiz').style.display === 'flex' || $('#boss').style.display === 'flex';
 		const open = () => {
 			if (st.mode === 'boss') openBoss(); else openQuiz();
@@ -948,7 +968,7 @@ function startLevel(id, opt) {
 			if (st.timer) timerBegin(st.timer, !st.resumed);
 			if (st.resumed && !st.timeUp) toast(`接着答第 ${k + 1} 题 · 沙漏一直在走`, 2200);
 		};
-		if (visible) { gsap.to(['#fail', '#bossLose'], { y: '140%', duration: 0.3 }); hide('#pqEnd'); open(); } else zoomInto(n, open);
+		if (visible) { gsap.to(['#fail', '#bossLose'], { y: '140%', duration: 0.3 }); hide('#pqEnd'); open(); } else if (routeOn() || n?.x == null) open(); else zoomInto(n, open);
 	}).catch(e => {
 		if (e?.code === 'NO_HEARTS') { play('fail', 0.6); showEmpty($('#quiz').style.display === 'flex' ? 'fail' : 'out'); return; }
 		if (e?.code === 'BOSS_NOT_READY') { play('fail', 0.6); backToMap(bossSheet); return; }
@@ -963,15 +983,6 @@ const TYPE_ZH = { gap: '填空', choice: '选择', TFNG: '判断', YNNG: '判断
 const SKILL_ZH = { listening: '听力', reading: '阅读', grammar: '语法', vocab: '词汇', mixed: '综合' };
 const TFNG_OPTS = [{ key: 'TRUE', text: 'TRUE' }, { key: 'FALSE', text: 'FALSE' }, { key: 'NOT GIVEN', text: 'NOT GIVEN' }];
 const YNNG_OPTS = [{ key: 'YES', text: 'YES' }, { key: 'NO', text: 'NO' }, { key: 'NOT GIVEN', text: 'NOT GIVEN' }];
-const isPick = t => t === 'choice' || t === 'TFNG' || t === 'YNNG' || t === 'multi';
-function limitText(l) {
-	if (!l) return '';
-	if (l.words && l.number) return `不超过 ${l.words} 个词，和/或一个数字`;
-	if (l.words) return `不超过 ${l.words} 个词`;
-	if (l.number) return '填一个数字';
-	return '';
-}
-const nl = s => esc(s).replace(/\n/g, '<br>');
 function paintQ(pre, q) {
 	const P = s => $('#' + pre + s);
 	P('Pass').textContent = q.passage ?? '';
@@ -1143,7 +1154,9 @@ function explain(r, rightWord) {
 }
 function quizJudged(r, el, q) {
 	markEl(el, r.correct, r.half);
-	if (r.correct) { play('tap'); tune([660, 880], 'triangle', 0.07, 0.2, 0.08); } else {
+	// 三段闯关：连对有连击音，难题答对有爆点（juice.js）；它响了就不再叠原来的叮
+	const juiced = routeOn() && RT.judged(r, el, q);
+	if (r.correct) { if (!juiced) { play('tap'); tune([660, 880], 'triangle', 0.07, 0.2, 0.08); } } else {
 		play(r.half ? 'tap' : 'fail', r.half ? 0.6 : 1);
 		showRight('q', q, r);
 	}
@@ -1189,16 +1202,6 @@ $('#qNext').onclick = () => {
 };
 $('#qBack').onclick = () => { play('tap'); backToMap(); };
 
-/* 结果里的逐题回顾：错题在前，超过 2 条先折起来 */
-function reviewHtml(end) {
-	const rows = end.review.map(r => `<div class="${r.correct ? '' : r.half ? 'half' : 'no'}"><i>${r.correct ? '✓' : r.half ? '½' : '✕'}</i><span>第 ${r.n} 题${r.correct ? `：${esc(r.answer)}` : r.timeout ? `：没答（时间到），答案 <b>${esc(r.answer)}</b>` : `：${r.half ? '对一半，' : ''}你填 ${esc(r.given || '（空）')}，答案 <b>${esc(r.answer)}</b>`}。${esc(r.why ?? '')}${!r.correct && r.evidence ? `<span class="evid" style="display:block">${esc(r.evidence)}</span>` : ''}</span></div>`);
-	const wrong = end.review.map((r, i) => (r.correct ? -1 : i)).filter(i => i >= 0);
-	const right = end.review.map((r, i) => (r.correct ? i : -1)).filter(i => i >= 0);
-	const order = [...wrong, ...right];
-	const fold = wrong.length > 2;
-	return order.map((i, k) => (fold && k >= 2 ? rows[i].replace('<div class="', '<div data-more style="display:none" class="') : rows[i])).join('') +
-		(fold ? `<button class="more" data-more-btn>还有 ${order.length - 2} 题 · 展开</button>` : '');
-}
 document.addEventListener('click', e => {
 	const b = e.target.closest?.('[data-more-btn]'); if (!b) return;
 	play('tap', 0.5); b.parentElement.querySelectorAll('[data-more]').forEach(x => { x.style.display = ''; }); b.remove();
@@ -1210,12 +1213,19 @@ function heartsTold(set) {
 }
 function trialLocked() {
 	play('fail', 0.4);
-	if (NODE[D.trialLevel]?.state === 'done') saveCard(); else toast('存档后解锁：先打 1-1');
+	if (NODE[D.trialLevel]?.state === 'done') saveCard(); else toast(`存档后解锁：先打 ${NODE[D.trialLevel]?.label ?? '第一关'}`);
+}
+// 试玩那一关、和它后面一关叫什么：跟着地图排法走，不写死编号
+const trialLab = () => esc(NODE[D?.trialLevel]?.label ?? '第一关');
+function trialNextLab() {
+	const n = NODE[D?.trialLevel], c = n && nodeCh(n);
+	const e = c?.edges?.find(([a, b, br]) => a === n.id && (br ?? 'main') === 'main' && NODE[b]?.kind === 'level');
+	return esc((e && NODE[e[1]]?.label) ?? '下一关');
 }
 function trialEnd(end) {
 	practiceEnd(end);
-	$('#pqEndS').innerHTML = `对 ${end.right} / ${end.total}<br>存个档，明天从 1-2 接着打。30 秒就好。`;
-	$('#pqDone').textContent = '存档，继续 1-2';
+	$('#pqEndS').innerHTML = `对 ${end.right} / ${end.total}<br>存个档，明天从 ${trialNextLab()} 接着打。30 秒就好。`;
+	$('#pqDone').innerHTML = `存档，继续 ${trialNextLab()}`;
 	$('#pqSkip').textContent = '先不存'; show('#pqSkip', 'block');
 	funnel('save_card_shown');
 	$('#pqDone').onclick = () => { play('tap'); funnel('save_open'); backToMap(() => saveForm()); };
@@ -1229,14 +1239,14 @@ function trialEnd(end) {
 			return;
 		}
 		funnel('save_skip_final');
-		backToMap(() => flameThenFreeze(end.streak, null, () => miaSay('1-2 存档后解锁。想存了，点上面的<b>存档</b>。')));
+		backToMap(() => flameThenFreeze(end.streak, null, () => miaSay(`${trialNextLab()} 存档后解锁。想存了，点上面的<b>存档</b>。`)));
 	};
 }
 /* 地图上的存档卡：刷新回来、点了锁着的关、点顶上「存档」 */
 function saveCard() {
 	funnel('save_card_shown');
-	openSheet(`<h4>${esc(NODE[D.trialLevel]?.label ?? '1-1')} 拿下了！</h4><div class="sub">存个档，明天从 1-2 接着打。30 秒就好。</div>
-		<button class="sbtn" data-a="save">存档，继续 1-2</button>
+	openSheet(`<h4>${trialLab()} 拿下了！</h4><div class="sub">存个档，明天从 ${trialNextLab()} 接着打。30 秒就好。</div>
+		<button class="sbtn" data-a="save">存档，继续 ${trialNextLab()}</button>
 		<div class="exLinks"><span></span><button data-a="skip">先不存</button></div>`, b => {
 		b.querySelector('[data-a="save"]').onclick = () => { play('tap'); funnel('save_open'); closeSheet(true); setTimeout(saveForm, 300); };
 		b.querySelector('[data-a="skip"]').onclick = () => { funnel(TR.skips++ === 0 ? 'save_skip' : 'save_skip_final'); closeSheet(); };
@@ -1246,7 +1256,7 @@ const USER_RE = /^[a-zA-Z0-9_]{1,20}$/;
 const newUsername = () => 'vb_' + Math.random().toString(36).slice(2, 8);
 function saveForm() {
 	const invite = !!Q?.needsInvite;
-	openSheet(`<h4>存档</h4><div class="sub">存好以后，明天从 1-2 接着打。</div>
+	openSheet(`<h4>存档</h4><div class="sub">存好以后，明天从 ${trialNextLab()} 接着打。</div>
 		<label class="fld"><span>昵称</span><input id="svName" maxlength="30" autocomplete="nickname" enterkeyhint="next"><small>大家看到的名字，中文也行，随时能改</small></label>
 		<label class="fld"><span>登录名</span><input id="svUser" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false" enterkeyhint="next"><small id="svUserTip">已经帮你填好了，用来登录；英文或数字，定了以后不能改</small></label>
 		<label class="fld"><span>密码</span><span class="pw"><input id="svPw" type="password" autocomplete="new-password" enterkeyhint="done"><button type="button" id="svShow">显示</button></span><small id="svPwTip">至少 8 位，别和别的网站用同一个</small></label>
@@ -1309,7 +1319,7 @@ function claimTrial() {
 			toast(`存好了 · 火苗 🔥${D.streak?.days || 1}，明天来续上`, 2600);
 			miaSay('存好了。<a href="#" id="miaExam">哪天考雅思？</a>定了日子，我帮你倒数；走慢了，地图上会提醒你。');
 			const a = $('#miaExam'); if (a) a.onclick = e => { e.preventDefault(); e.stopPropagation(); openExamSheet(); };
-		} else toast('账号存好了，这一关没记上：再打一次 1-1', 2600);
+		} else toast(`账号存好了，这一关没记上：再打一次 ${NODE[D?.trialLevel]?.label ?? '第一关'}`, 2600);
 	};
 	if (!id) { refresh().then(() => done(false), () => {}); return; }
 	api('lojo/quest/trial-claim', { trialId: id }).then(r => { D = r; done(true); }, () => refresh().then(() => done(false), () => {}));
@@ -1317,19 +1327,20 @@ function claimTrial() {
 
 function endLevel(end) {
 	if (inTrial()) { funnel(end.passed ? 'trial_pass' : 'trial_fail'); if (end.passed) { trialEnd(end); return; } }
-	if (AT.mode === 'retest' || (AT.mode === 'practice' && end.passed)) { practiceEnd(end); return; }
+	if (AT.mode === 'retest' || AT.mode === 'probe' || (AT.mode === 'practice' && end.passed)) { practiceEnd(end); return; }
 	if (end.passed) passFlow(end); else failFlow(end);
 }
 
 /* 练手关 / 回测 的结果：小章 + 一行字，不开宝箱 */
 function practiceEnd(end) {
-	const lab = esc(AT.node.label), retest = AT.mode === 'retest';
+	const lab = esc(AT.node.label), retest = AT.mode === 'retest', probe = AT.mode === 'probe';
 	const passed = retest ? end.passed : true;
 	$('#pqStamp').className = 'pqStamp' + (retest && passed ? ' coral' : '');
 	$('#pqStamp').firstChild.textContent = retest ? (passed ? '亮' : '再') : '过';
-	$('#pqStamp small').textContent = retest ? '回测' : '练手关';
-	$('#pqEndH').textContent = retest ? (passed ? `${AT.node.label} 重新点亮` : '还差一点') : `${AT.node.label} 拿下了！`;
-	$('#pqEndS').innerHTML = retest
+	$('#pqStamp small').textContent = retest ? '回测' : probe ? '摸底' : '练手关';
+	if (probe) $('#pqStamp').firstChild.textContent = '完';
+	$('#pqEndH').textContent = retest ? (passed ? `${AT.node.label} 重新点亮` : '还差一点') : probe ? '摸底做完了' : `${AT.node.label} 拿下了！`;
+	$('#pqEndS').innerHTML = probe ? `对 ${end.right} / ${end.total} · 按你常错的题型重排了专项的顺序，最弱的先练` : retest
 		? (passed ? `对 ${end.right} / ${end.total} · 这关不再褪色，7 天后再回测` : `对 ${end.right} / ${end.total} · 要对 ${end.need} 题才亮。没扣心，明天再测`)
 		: `对 ${end.right} / ${end.total}`;
 	$('#pqXp').textContent = end.xp ? `+${end.xp} 经验` : '';
@@ -1342,7 +1353,7 @@ function practiceEnd(end) {
 	$('#pqDone').onclick = () => {
 		play('tap');
 		backToMap(() => {
-			flameThenFreeze(end.streak, null, () => miaSay(retest ? (passed ? `${lab} 又亮了。` : `${lab} 明天再测一次，不扣心。`) : `${lab} 热身完了。下一关在图钉那儿。`));
+			flameThenFreeze(end.streak, null, () => miaSay(retest ? (passed ? `${lab} 又亮了。` : `${lab} 明天再测一次，不扣心。`) : probe ? '专项的顺序按摸底排好了：<b>最弱的题型在最前面</b>。' : `${lab} 热身完了。下一关在图钉那儿。`));
 		});
 	};
 	void lab;
@@ -1423,13 +1434,13 @@ function failFlow(end) {
 	if (T) {
 		$('#failP').innerHTML = esc(tplFill(TC.failByTime ?? '对 {right} 题，时间到时还有 {n} 题没答。', { right: end.right, n: T.unanswered })) +
 			(T.heartsLost ? ` 扣 ${T.heartsLost} 颗心。` : '') + heartRow(D.hearts, T.heartsLost ?? 0) +
-			(TC.miaFailByTime ? `<span class="tmMia">Vibi：${esc(TC.miaFailByTime)}</span>` : '');
+			(TC.miaFailByTime ? `<span class="tmMia">${momoName()}：${esc(TC.miaFailByTime)}</span>` : '');
 	} else $('#failP').innerHTML = (n.practice ? `对 <b>${end.right}</b> 题，差 ${Math.max(1, end.need - end.right)} 题。再打会换一组题。` : `对 <b>${end.right}</b> 题，要对 ${end.need} 题才过。心还剩 <b>${D.hearts}</b> 颗。`) +
 		(end.failStreak >= 2 ? `<br>这关连着没过 ${end.failStreak} 次了，先别急着重打。` : '');
 	$('#failReview').innerHTML = reviewHtml(end);
 	const rec = end.recommended;
 	$('#failMia').style.display = D.tutorId ? '' : 'none';
-	$('#failShelf').innerHTML = rec ? `去书屋<small>Vibi 推荐 ${rec.no} 号「${esc(rec.spine)}」</small>` : '去书屋<small>挑一本锦囊读完再打</small>';
+	$('#failShelf').innerHTML = rec ? `去书屋<small>${momoName()} 推荐 ${rec.no} 号「${esc(rec.spine)}」</small>` : '去书屋<small>挑一本锦囊读完再打</small>';
 	$('#failShelf').classList.add('rec');
 	const g = n.gear;
 	const sub = n.practice ? `${esc(g?.zh ?? '听写')} · 练一组手感更稳`
@@ -1452,7 +1463,7 @@ function askMia(btn) {
 	const to = `/chat/user/${D.tutorId}`;
 	let away = false;
 	api('lojo/quest/ask-tutor', { attemptId: AT.attemptId }).then(r => {
-		if (r?.result === 'limit') toast('Vibi 今天找你找得够多了，你直接跟她说就行', 2000);
+		if (r?.result === 'limit') toast(`${MOMO.name} 今天找你找得够多了，你直接跟 TA 说就行`, 2000);
 		// Mia 暂时不在（模型账户没钱或钥匙失效）：不跳私信，直接翻到推荐的锦囊。这次作答还能等她回来再问（兜底规格 F2）
 		away = r?.result === 'away';
 	}).catch(() => {}).finally(() => {
@@ -1461,7 +1472,7 @@ function askMia(btn) {
 		const rec = AT?.end?.recommended?.slug, levelId = AT?.node?.id;
 		backToMap(() => {
 			enterShelf('stuck', { rec, levelId });
-			toast(rec && !D.refilledToday.guide ? 'Vibi 这会儿不在，先帮你翻到这本，读完过小测还能补 1 颗心 📖' : 'Vibi 这会儿不在，先看看这本 📖', 3200);
+			toast(rec && !D.refilledToday.guide ? `${MOMO.name} 这会儿不在，先帮你翻到这本，读完过小测还能补 1 颗心 📖` : `${MOMO.name} 这会儿不在，先看看这本 📖`, 3200);
 		});
 	});
 }
@@ -1494,7 +1505,6 @@ function thud() {
 		o.connect(g).connect(actx.destination); o.start(); o.stop(t + 0.32);
 	} catch (e) { /* 没声音也能玩 */ }
 }
-const tmFmt = s => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const tmLeft = () => Math.max(0, (TM.endsAt - (Date.now() + TM.skew)) / 1000);
 // 把计时器挂到这一关的顶栏：题关在 ✕ 右边（换掉进度条），Boss 在血条下一行靠左
 function timerShow(t, zero) {
@@ -1618,8 +1628,6 @@ function loseHearts(root) {
 			.call(done).to(h, { scale: 1, y: 3, rotate: -8, duration: 0.28, ease: 'back.out(3)' });
 	});
 }
-const tmUsed = t => { const e = t?.elapsedSeconds ?? 0; return { m: Math.floor(e / 60), s: e % 60 }; };
-const tplFill = (tpl, o) => String(tpl ?? '').replace(/\{(\w+)\}/g, (_, k) => (o[k] ?? ''));
 // 地图上：有一局限时关还开着（刷新、切走又回来），提醒回去接着答，钟没停
 let openTimedTold = null;
 function remindOpenTimed() {
@@ -1697,7 +1705,7 @@ function confetti() {
 		gsap.to(c, { x: (Math.random() - 0.5) * a.width * 1.1, y: (Math.random() - 0.2) * a.height * 0.9, rotation: '+=' + (Math.random() * 720 - 360), opacity: 0, duration: 1.4 + Math.random() * 0.9, ease: 'power2.out', onComplete: () => c.remove() });
 	}
 }
-const BADGE_ZH = { 'ielts-c1': '第一章打通', 'ielts-c2': '第二章打通', 'ielts-c3': '第三章打通', 'ielts-c4': '第四章打通' };
+const BADGE_ZH = { 'ielts-c1': '基础关打通', 'ielts-c2': '专项关打通', 'ielts-c3': '专项关全部打通', 'ielts-c4': '冲刺关打通' };
 function bossWin(end) {
 	clearInterval(wordTimer);
 	gsap.to('#bossBody', { y: 60, rotation: 25, opacity: 0, transformOrigin: '75px 140px', duration: 0.6, ease: 'power2.in' });
@@ -1721,7 +1729,7 @@ function bossWin(end) {
 				const nx = CHS().find(x => x.no === c.no + 1);
 				miaSay(!end.firstPass ? 'Boss 又倒了一次。回头把褪色的关再打一遍，手感不丢。'
 					: nx?.open ? `Boss 倒了！${w}打通，${esc(chWord(nx))}的路开了，图钉在那边。`
-						: nx ? `Boss 倒了！${w}打通。${esc(chWord(nx))}「${esc(String(nx.title).split(' · ')[1] ?? '')}」正在修路，先回头把褪色的关再打一遍，手感不丢。`
+						: nx ? `Boss 倒了！${w}打通。${esc(chWord(nx))}${chSub(nx) ? `「${esc(chSub(nx))}」` : ''}正在修路，先回头把褪色的关再打一遍，手感不丢。`
 							: `Boss 倒了！${w}打通，雅思这条路走完了。`);
 			});
 		} });
@@ -1868,7 +1876,7 @@ function tagSpines(rec) {
 	D.books.forEach(b => {
 		const s = $(`#row1 .spine[data-slug="${CSS.escape(b.slug)}"]`); if (!s) return; const r = s.getBoundingClientRect();
 		if (b.slug === rec) {
-			const tag = document.createElement('div'); tag.className = 'recTag'; tag.textContent = 'Vibi 推荐'; $('#shelf').appendChild(tag);
+			const tag = document.createElement('div'); tag.className = 'recTag'; tag.textContent = `${MOMO.name} 推荐`; $('#shelf').appendChild(tag);
 			gsap.set(tag, { left: Math.max(4, Math.min(sr.width - tag.offsetWidth - 4, r.left - sr.left + r.width / 2 - tag.offsetWidth / 2)), top: r.top - sr.top - 34 });
 			gsap.from(tag, { scale: 0, duration: 0.4, ease: 'back.out(3)' }); loops.push(gsap.to(tag, { y: -5, duration: 0.45, repeat: -1, yoyo: true, ease: 'sine.inOut' }));
 		} else if (b.checkedToday || b.inBag) {
@@ -1882,7 +1890,7 @@ const bookH = () => Math.min(540, AR().height - BOOK_TOP - 96);
 $('#row1').addEventListener('click', e => { const s = e.target.closest('.spine'); if (s && !shelf.picked) openBook(s); });
 function doitLabel(b) {
 	if (!b.app) return null;
-	if (b.app.path == null) return D.tutorId ? `找 Vibi 练 · ${esc(b.app.zh)}` : null;
+	if (b.app.path == null) return D.tutorId ? (b.app.id === 'mia' ? `找 ${momoName()} 练` : `找 ${momoName()} 练 · ${esc(b.app.zh)}`) : null;
 	return /^https?:/.test(b.app.path) ? `打开「${esc(b.app.zh)}」↗` : `去「${esc(b.app.zh)}」`;
 }
 function openBook(s) {
@@ -2154,7 +2162,10 @@ $('#emptyBack').onclick = () => {
 /* ================= 第一次进来：3 步引导 ================= */
 function rel(el) { const a = AR(), r = el.getBoundingClientRect(); return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height }; }
 const COACH = [
-	{ el: () => $('#mapwrap'), pad: -6, t: '我是 <b>Vibi</b>，陪你闯关。用闯关的方式学雅思：从<b>起点</b>一关一关往上走，右上角那座房子就是<b>考场</b>。' },
+	// 三段地图的引导文案：路线图 2026-11-13 给的两句；旧地图（--no-route 退回时）不再提「右上角的房子」
+	{ el: () => $('#mapwrap'), pad: -6, t: () => routeOn()
+		? '这是你的闯关地图，分三段：<b>基础 → 专项 → 冲刺</b>。顶上那条进度告诉你现在在哪一段。<br>亮着的站就能进。5 题对 4 题算过线，连着过两次拿 <b>★★</b>，下一站就开了。'
+		: `我是 <b>${momoName()}</b>，陪你闯关。从<b>起点</b>一关一关往上走，亮着的关就能进。` },
 	{ el: () => [$('#streakChip'), $('#heartChip')], pad: 5, t: '<b>火苗</b>是连胜，每天打一关就续上；漏一天会断。<b>心</b>每天 5 颗，正式关答错扣 1 颗。' },
 	{ el: () => $('#count'), pad: 6, t: '最后一件：<b>哪天考雅思？</b>定了日子，这行就开始倒数；走慢了，地图上会提醒你。', exam: true },
 ];
@@ -2163,7 +2174,7 @@ function coachStep(i) {
 	ci = i; const s = COACH[i], rs = [].concat(s.el()).map(rel);
 	const x = Math.min(...rs.map(r => r.x)) - s.pad, y = Math.min(...rs.map(r => r.y)) - s.pad;
 	const x2 = Math.max(...rs.map(r => r.x + r.w)) + s.pad, y2 = Math.max(...rs.map(r => r.y + r.h)) + s.pad;
-	$('#coachT').innerHTML = s.t; $$('#coachCard .dots i').forEach((d, j) => { d.className = j === i ? 'on' : ''; });
+	$('#coachT').innerHTML = typeof s.t === 'function' ? s.t() : s.t; $$('#coachCard .dots i').forEach((d, j) => { d.className = j === i ? 'on' : ''; });
 	$('#coachX').innerHTML = s.exam ? examHTML(D.examDate) : '';
 	if (s.exam) wireExam($('#coachX'), $('#coachNext'));
 	$('#coachNext').textContent = i < 2 ? '下一步' : '就这天'; $('#coachNext').disabled = !!s.exam && !D.examDate;
@@ -2190,10 +2201,10 @@ $('#coachNext').onclick = () => {
 };
 $('#coachSkip').onclick = () => { play('tap'); endCoach(null, ci === 2); };
 function afterCoach(dated, skippedDate) {
-	const p = target(), lab = p ? esc(p.label) : '1-1';
-	miaSay(dated ? `日子记下了。前 3 关是<b>练手关</b>，答错不扣心。现在打 <b>${lab}</b>，点亮第一天火苗。`
-		: skippedDate ? `没事，想好了点上面的「<b>设考试日期</b>」。先打 <b>${lab} 练手关</b>，错了不扣心。`
-			: `先打 <b>${lab} 练手关</b>，3 道题热身，错了不扣心。`);
+	const p = target(), lab = p ? esc(p.label) : '第一关', pr = !!p?.practice;
+	miaSay(dated ? `日子记下了。${pr ? '这关是<b>练手关</b>，答错不扣心。' : ''}现在打 <b>${lab}</b>，点亮第一天火苗。`
+		: skippedDate ? `没事，想好了点上面的「<b>设考试日期</b>」。先打 <b>${lab}${pr ? ' 练手关' : ''}</b>${pr ? '，错了不扣心' : ''}。`
+			: `先打 <b>${lab}${pr ? ' 练手关' : ''}</b>${pr ? '，错了不扣心' : ''}。`);
 	gsap.fromTo('#go', { scale: 1 }, { scale: 1.06, duration: 0.35, yoyo: true, repeat: 3, ease: 'sine.inOut', delay: 0.6 });
 	// 第一次来的人从锦囊或 Mia 的链接（?level= / ?book=）进来：引导走完再打开那一关或那本书
 	if (QUERY.level || QUERY.book) setTimeout(handleQuery, 900);
@@ -2201,8 +2212,6 @@ function afterCoach(dated, skippedDate) {
 
 /* ================= 考试日期：引导第 3 步和改日期抽屉共用 ================= */
 const DAY = 864e5, WK = '日一二三四五六';
-const dayD = v => new Date(v + 'T00:00:00');
-const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const todayStr = () => D?.day ?? ymd(new Date());
 const daysTo = v => Math.round((dayD(v) - dayD(todayStr())) / DAY);
 function examHTML(cur) {
@@ -2399,7 +2408,7 @@ const STATES = [
 	['listen', '听力', '按顺序播几段录音'],
 	['retest', '回测', '3 题 · 不扣心 · 对 2 题重新点亮'],
 	['pass', '过关', '盖章 → 宝箱 → 火苗'],
-	['fail', '没过', 'Vibi 推荐的锦囊 · 装备 · 错题折叠'],
+	['fail', '没过', 'Momo 推荐的锦囊 · 装备 · 错题折叠'],
 	['pfail', '练手关没过', '不扣心 · 装备小字不提补心'],
 	['boss', 'Boss 门前', '备战三件齐了'],
 	['bosswin', '打赢 Boss', '徽章 + 彩纸'],
@@ -2451,7 +2460,7 @@ const FAKE = (() => {
 		if (app === 'grammar') return { app, path: `/grammar/${stop}`, zh: `语法线 ${stop} 站`, givesHeart: false };
 		if (app === 'wordbook') return { app, path: '/wordbook', zh: '生词本', givesHeart: true };
 		return { app: 'dictation', path: '/dictation', zh: '听写', givesHeart: true }; };
-	const BOOKS = [{"no": 1, "slug": "ielts-know-test-yourself", "spine": "合上书考自己", "title": "背单词多看几遍，不如合上书考自己", "summary": "「再看一遍」练的是认得它，「合上书考自己」练的是到考场上把它想出来。同样的时间，多考自己，少看。", "color": "#2340A3", "kind": "反常识", "evidence": "研究", "app": {"id": "wordbook", "zh": "生词本", "path": "/wordbook"}, "quiz": [{"q": "背完一组单词，还剩 5 分钟。哪种做法更能让你在考场上想起它们？", "o": ["把这组词从头再看一遍", "遮住英文，看着中文自己拼一遍"]}, {"q": "一个词你每次见到都认得，听写时却拼不出来。这说明什么？", "o": ["你只练过「认得它」，没练过「把它想出来」", "还没见够次数，再多看几遍就好"]}, {"q": "拼写卡上一个词拼错了，看了答案。接下来怎么做最好？", "o": ["反正答案看过了，跳过它", "过一会儿合上答案，再考自己一次"]}]}, {"no": 2, "slug": "ielts-know-spacing", "spine": "隔几天见一次才记得住", "title": "一口气背完的单词，过几天就还回去了；隔几天见一次才记得住", "summary": "一口气背完马上测，确实都记得，可过几天就忘了一大半。同样复习几次，隔开几天做，过后还记得的更多。", "color": "#3E9E7A", "kind": "通用规律", "evidence": "研究", "app": {"id": "wordbook", "zh": "生词本", "path": "/wordbook"}, "quiz": [{"q": "今天背了 50 个新词，晚上马上自测，全对。这能说明什么？", "o": ["已经记牢了，这批词可以不用再管", "只说明现在记得，过几天还得再见一次"]}, {"q": "同一批词都复习 3 次，哪种安排一周后记得更多？", "o": ["今天、后天、下周各复习 1 次", "今天一口气连着复习 3 遍"]}, {"q": "生词本里今天有 30 个词到期，另外 200 个还没到期。今天怎么做？", "o": ["趁有空，把 230 个一起刷一遍", "做完 30 个到期的就停"]}]}, {"no": 3, "slug": "ielts-know-read-easy-first", "spine": "先读得懂才读得多", "title": "4–5 分别急着刷剑桥真题：先读得懂，才读得多", "summary": "读顺一篇文章，大概要认识 98% 的词。生词一半的真题，读一篇累一篇。先读几乎不用查词典的文章，才读得多、记得住。", "color": "#ECB637", "kind": "反常识", "evidence": "研究", "app": {"id": "graded-reading", "zh": "分级阅读", "path": "https://vibes.college/read/artisan/"}, "quiz": [{"q": "一篇文章每行都有两三个生词，查了半天才读完。对 4–5 分的你，这篇算哪种材料？", "o": ["太难了，这样读不了几篇就会放弃", "正合适，越难进步越快"]}, {"q": "为什么说「先读得懂，才读得多」？", "o": ["读得懂的文章词汇简单，考试不考", "一个词要见很多次才记得住，只有读得懂的文章你才读得下去、读得多"]}, {"q": "那剑桥真题什么时候做？", "o": ["先把简单文章读顺，再拿来练题型和时间", "永远别做，只读简单的"]}]}, {"no": 4, "slug": "ielts-know-hear-known-words", "spine": "认识的词没听出来", "title": "听不懂，往往不是没学过这个词，是认识的词没听出来", "summary": "听不懂，第一反应是再去背新词。可很多时候卡住的是你早就认识的词：一连读、一说快，就认不出来了。", "color": "#E8603F", "kind": "反常识", "evidence": "研究 + 单人经验", "app": {"id": "dictation", "zh": "听写", "path": "/dictation"}, "quiz": [{"q": "听写时没写出 vegetable，可一看原文，你明明认识它。最可能的原因是？", "o": ["词汇量不够，要多背新词", "你认识它写出来的样子，没认出它读出来的样子"]}, {"q": "对 4–5 分的人，听力先补哪一块更划算？", "o": ["把已经认识的词和它真实的读音对上", "先背完一本新的词汇书"]}, {"q": "做完一组听写，哪种对答案的方法最有用？", "o": ["只看对了几题，记个分数", "把写错的词找出来，对着原文再听那一句"]}]}]; // 前 4 本锦囊的公开部分（题目答案只在服务器上，预览里交卷一律算对）
+	const BOOKS = [{"no": 1, "slug": "example-book-1", "spine": "示例书脊 1", "title": "示例锦囊 1：真书在数据库里，预览只用示例", "summary": "示例简介。真锦囊的书名、简介和小验证在数据库里（content-import.mjs 导入），不放进公开的代码。", "color": "#2340A3", "kind": "示例", "evidence": "示例", "app": {"id": "wordbook", "zh": "生词本", "path": "/wordbook"}, "quiz": [{"q": "示例题 1：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 2：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 3：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}]}, {"no": 2, "slug": "example-book-2", "spine": "示例书脊 2", "title": "示例锦囊 2：真书在数据库里，预览只用示例", "summary": "示例简介。真锦囊的书名、简介和小验证在数据库里（content-import.mjs 导入），不放进公开的代码。", "color": "#3E9E7A", "kind": "示例", "evidence": "示例", "app": {"id": "wordbook", "zh": "生词本", "path": "/wordbook"}, "quiz": [{"q": "示例题 1：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 2：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 3：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}]}, {"no": 3, "slug": "example-book-3", "spine": "示例书脊 3", "title": "示例锦囊 3：真书在数据库里，预览只用示例", "summary": "示例简介。真锦囊的书名、简介和小验证在数据库里（content-import.mjs 导入），不放进公开的代码。", "color": "#ECB637", "kind": "示例", "evidence": "示例", "app": {"id": "graded-reading", "zh": "分级阅读", "path": "https://vibes.college/read/artisan/"}, "quiz": [{"q": "示例题 1：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 2：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 3：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}]}, {"no": 4, "slug": "example-book-4", "spine": "示例书脊 4", "title": "示例锦囊 4：真书在数据库里，预览只用示例", "summary": "示例简介。真锦囊的书名、简介和小验证在数据库里（content-import.mjs 导入），不放进公开的代码。", "color": "#E8603F", "kind": "示例", "evidence": "示例", "app": {"id": "dictation", "zh": "听写", "path": "/dictation"}, "quiz": [{"q": "示例题 1：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 2：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}, {"q": "示例题 3：这是哪一种？", "o": ["示例选项 A", "示例选项 B"]}]}]; // 预览用的 4 本示例书（2026-11-17 起真锦囊在数据库里，不进公开代码；预览里交卷一律算对）
 	const Q = {
 		gap1: { id: 'pv-gap-1', type: 'gap', skill: 'listening', passage: null, question: 'Surname: ______', limit: { words: 1 }, audio: true, ans: 'Hartley', acc: ['hartley'], why: '一个字母一个字母地听：H-A-R-T-L-E-Y。', evidence: 'Can I take your surname, please? Yes, it\'s Hartley. H, A, R, T, L, E, Y.', lines: [['Woman', 'Can I take your surname, please?'], ['Man', 'Yes, it\'s Hartley. H, A, R, T, L, E, Y.']] },
 		gap2: { id: 'pv-gap-2', type: 'gap', skill: 'listening', passage: null, question: 'Address: 22 ______ Road', limit: { words: 1 }, audio: true, ans: 'Wexford', acc: ['wexford'], why: 'X 读作 /eks/，别听成 S。', evidence: 'And which road do you live on? Wexford Road. That\'s W, E, X, F, O, R, D.', lines: [['Woman', 'And which road do you live on?'], ['Man', 'Wexford Road. That\'s W, E, X, F, O, R, D.']] },
@@ -2593,20 +2602,6 @@ function fakeApi(ep, p) {
    接口：开测 placement-paper → 交第一段 placement-first（服务器留着第一段）→ 交第二段 placement-finish。中途退出不叫服务器。 */
 const PL = { paper: null, T: null, tick: null, speakId: 0, spoken: true, reels: [], busy: false };
 const READ_SEC = 20;
-const plWords = s => String(s).split(/\s+/).filter(Boolean).length;
-const plDur = (s, part) => plWords(s) / 2.4 / (part.rate || 1);
-const plCues = part => { let t = 0; return part.script.map(l => { const c = t; t += plDur(l, part); return c; }); };
-const plLen = part => Math.max(5, Math.ceil(part.script.reduce((n, l) => n + plDur(l, part), 0)));
-const plLineAt = (part, t) => { const c = plCues(part); let i = 0; while (i + 1 < c.length && c[i + 1] <= t + 0.01) i++; return i; };
-// 接着放：倒回这句开头；这句刚开头不到 1 秒就再倒一句
-function plResumePoint(part, at) {
-	const c = plCues(part); if (!c.length) return Math.max(0, at - 3);
-	let i = 0; while (i + 1 < c.length && c[i + 1] <= at) i++;
-	if (at - c[i] < 1 && i > 0) i--;
-	return c[i];
-}
-const plFmt = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-const bjMD = iso => { const d = new Date(Date.parse(iso) + 8 * 3600e3); return `${d.getUTCMonth() + 1} 月 ${d.getUTCDate()} 日`; };
 
 /* ---- 横条：倒数那行下面；地图内容从横条下沿往下排。下沿现场量（字换行、字体大小都会变），不写死 ---- */
 const pbarOn = () => !!D?.placement?.banner && !inTrial() && !PREVIEW && $('#ptest').style.display !== 'flex';
@@ -2826,15 +2821,19 @@ $('#psubmit').onclick = () => {
 /* ---- 收卷 → 定位尺 → 结果卡 ---- */
 const PL_STOPS = ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', 'Boss', '2-4'];
 const plStopOf = r => r.card2 ? 7 : r.from === 'boss' ? 6 : Math.max(0, PL_STOPS.indexOf(r.from));
-function plRuler(i0) {
+// 尺子和结果卡上写关名（词1、听4…），不写格子编号；章名用地图上的（基础关、专项关）
+const plNodes = q => [...(q?.chapter?.nodes ?? []), ...(q?.chapters ?? []).flatMap(c => c.nodes ?? [])];
+const plLab = (q, id) => id === 'Boss' ? 'Boss' : plNodes(q).find(n => n.id === id)?.label ?? NODE[id]?.label ?? id;
+const plCh = (q, no) => { const c = (q?.chapters ?? []).find(x => x.no === no) ?? chap(no); return c ? chWord(c) : (no === 1 ? '这一章' : '下一章'); };
+function plRuler(i0, q) {
 	const x = i => 22 + i * 44.3;
 	let s = `<path d="M${x(0)} 70 H${x(6) + 6}" stroke="#141E52" stroke-width="2.2"/><path d="M${x(6) + 6} 70 H${x(7)}" stroke="#141E52" stroke-width="2" stroke-dasharray="3 5"/>`;
 	PL_STOPS.forEach((l, i) => {
 		const boss = l === 'Boss', ch2 = l === '2-4';
 		s += `<g transform="translate(${x(i)} 70)">` + (boss ? '<path d="M-11 9 V-4 Q-11 -13 0 -13 Q11 -13 11 -4 V9Z" fill="#141E52"/>' : `<circle r="9" fill="${ch2 ? '#E9F0E2' : '#FFFDF8'}" stroke="#141E52" stroke-width="1.8" ${ch2 ? 'stroke-dasharray="3 3"' : ''}/>`) +
-			`<text y="30" text-anchor="middle" font-size="12" font-weight="800" fill="${ch2 ? '#3E9E7A' : '#141E52'}" font-family="PingFang SC,sans-serif">${l}</text></g>`;
+			`<text y="30" text-anchor="middle" font-size="12" font-weight="800" fill="${ch2 ? '#3E9E7A' : '#141E52'}" font-family="PingFang SC,sans-serif">${esc(plLab(q, l))}</text></g>`;
 	});
-	s += `<text x="${x(7)}" y="116" text-anchor="middle" font-size="10.5" font-weight="800" fill="#3E9E7A" font-family="PingFang SC,sans-serif">第二章</text>`;
+	s += `<text x="${x(7)}" y="116" text-anchor="middle" font-size="10.5" font-weight="800" fill="#3E9E7A" font-family="PingFang SC,sans-serif">${esc(plCh(q, 2))}</text>`;
 	s += `<g id="rPin" transform="translate(${x(0)} 50)"><path d="M0 -26 c-6 -10 -20 -6 -16 6 c2 6 10 11 16 16 c6 -5 14 -10 16 -16 c4 -12 -10 -16 -16 -6z" fill="#E8603F" stroke="#141E52" stroke-width="1.8" stroke-linejoin="round"/></g>`;
 	$('#pruler').innerHTML = s;
 	return x(i0);
@@ -2842,7 +2841,7 @@ function plRuler(i0) {
 function plLocate(r) {
 	clearInterval(PL.tick); plHush(); plSpin(false);
 	show('#plocate', 'flex'); play('latch', 0.5);
-	const i0 = plStopOf(r), tx = plRuler(i0);
+	const i0 = plStopOf(r), tx = plRuler(i0, r.quest);
 	const rp = { x: 22 }, set = () => $('#rPin').setAttribute('transform', `translate(${rp.x} 50)`);
 	if (RM) { rp.x = tx; set(); setTimeout(() => plResult(r), 900); return; }
 	gsap.timeline()
@@ -2857,16 +2856,17 @@ function plResult(r) {
 	let html;
 	if (r.card2) {
 		// 品牌策略 结果卡 2：只有一个按钮；不写价格、不写会员、不放「开门时叫我」
-		html = `<div class="pl"><h2>建议你从 2-4 开始。</h2>
-			<p>第二章「换挡」正在修路。先去打第一章 Boss，打赢了拿通关徽章和 Boss 宝箱。</p>
-			<button class="sbtn" data-a="go">先打第一章 Boss</button>
+		const c1 = esc(plCh(q, 1)), c2 = esc(plCh(q, 2));
+		html = `<div class="pl"><h2>建议你从 ${esc(plLab(q, '2-4'))} 开始。</h2>
+			<p>${c2}正在修路。先去打${c1} Boss，打赢了拿通关徽章和 Boss 宝箱。</p>
+			<button class="sbtn" data-a="go">先打${c1} Boss</button>
 			<div class="fine">这是练习定级，不是雅思分数。</div></div>`;
 	} else {
 		const n = q.chapter.nodes.find(x => x.id === r.from), isBoss = r.from === 'boss';
 		const plate = isBoss ? `<div class="plate"><div class="n boss">BOSS</div><div class="t"><b>Boss · ${esc(bossName)}</b><span>第一次挑战不用先备战</span></div></div>`
 			: `<div class="plate"><div class="n">${esc(n?.label ?? r.from)}</div><div class="t"><b>${esc(n?.name ?? '')}</b><span>${esc(n?.zh ?? '')}</span></div></div>`;
 		const lit = r.lit.map(id => q.chapter.nodes.find(x => x.id === id)?.label ?? id);
-		html = `<div class="pl"><h2>建议你从 ${isBoss ? `第一章 Boss「${esc(bossName)}」` : esc(n?.label ?? r.from)} 开始。</h2>${plate}
+		html = `<div class="pl"><h2>建议你从 ${isBoss ? `${esc(plCh(q, 1))} Boss「${esc(bossName)}」` : esc(n?.label ?? r.from)} 开始。</h2>${plate}
 			${lit.length ? `<p style="margin-bottom:6px">前面这几关先帮你点亮了，各 1 星。随时回去打一遍，经验照样全拿：</p><div class="lit-row">${lit.map(l => `<span>${esc(l)}<b>★</b></span>`).join('')}</div>` : '<p>前面没有要跳过的关，接着打就行。</p>'}
 			<button class="sbtn" data-a="go">去 ${isBoss ? 'Boss' : esc(n?.label ?? r.from)}</button>
 			<div class="fine">这是练习定级，不是雅思分数。</div></div>`;
@@ -2924,17 +2924,21 @@ function plBossPulse() {
 /* ---- 第二章门口 卡 1（品牌策略 第二章门口卡 最新版）：打赢 Boss 以后点第二章。没有通知按钮，不写价格、不写会员 ---- */
 function doorCard1() {
 	if (!D || inTrial()) return;
-	openSheet(`<div class="pl"><h2>第一章，打通了。</h2>
-		<p>第二章「换挡」正在修路：从听懂一句，到听懂一段。</p>
-		<p>第一章免费，心不卖。</p>
-		<button class="sbtn navy" data-a="ok">先回第一章逛逛</button>
-		<div class="fine">第一章随时回来重打，不收钱。关卡是练习，不代表雅思分数。</div></div>`, b => { b.querySelector('[data-a="ok"]').onclick = () => closeSheet(); });
+	// 章名跟着地图走：新地图是「基础关 / 专项关」，没有副标题；旧地图是「第一章 / 第二章「换挡」」
+	const c1 = chap(1), c2 = chap(2), w1 = esc(c1 ? chWord(c1) : '这一章'), w2 = esc(c2 ? chWord(c2) : '下一章');
+	const road = c2 && chSub(c2) ? `${w2}「${esc(chSub(c2))}」正在修路：从听懂一句，到听懂一段。` : `${w2}正在修路。`;
+	openSheet(`<div class="pl"><h2>${w1}，打通了。</h2>
+		<p>${road}</p>
+		<p>${w1}免费，心不卖。</p>
+		<button class="sbtn navy" data-a="ok">先回${w1}逛逛</button>
+		<div class="fine">${w1}随时回来重打，不收钱。关卡是练习，不代表雅思分数。</div></div>`, b => { b.querySelector('[data-a="ok"]').onclick = () => closeSheet(); });
 }
 
 /* ================= 开始 ================= */
 if (PREVIEW && SP === 'error') { $('#errP').innerHTML = '网卡了一下，或者我们这边出了点小问题。<br>你的进度、连胜和心都存着，不会丢。'; $('#errCode').textContent = '错误码 NETWORK · 一直这样，就截图发到公会'; show('#errScr'); }
 else if (PREVIEW && SP === 'loading') showLoader();
 else { showLoader(); refreshQuiet(); }
+loadMomo();
 
 /* 跟社区的约定（社区那边的 Vue 页面照这个实现）：放在装这个页面的 iframe 元素上（iframe.__vibesQuest），
    旧写法 window.__vibesQuest（父页面上）也认：

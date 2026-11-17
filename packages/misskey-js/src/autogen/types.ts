@@ -2946,6 +2946,15 @@ export type paths = {
          */
         post: operations['lojo___admin___boot-report'];
     };
+    '/lojo/agent/bridge': {
+        /**
+         * lojo/agent/bridge
+         * @description Send to my computer (Vibi drafts, the learner sends it to their own Paseo): whether it is switched on for me, and whether I said a computer is connected. Pass connected to change the latter; the pairing itself never comes to the server.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___agent___bridge'];
+    };
     '/lojo/agent/english': {
         /**
          * lojo/agent/english
@@ -2963,6 +2972,15 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['lojo___agent___prompt'];
+    };
+    '/lojo/apps/learner': {
+        /**
+         * lojo/apps/learner
+         * @description For the profile mini app: per-day counts (summary index + passed quest levels, Beijing days), passed levels, join date and birthday of one learner. Needs the mini app service key.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___apps___learner'];
     };
     '/lojo/apps/list': {
         /**
@@ -3017,6 +3035,42 @@ export type paths = {
          *     **Credential required**: *No*
          */
         post: operations['lojo___conn-report'];
+    };
+    '/lojo/content/import': {
+        /**
+         * lojo/content/import
+         * @description Import private content of one kind (e.g. "quest-books": the 锦囊书屋 books and their quizzes) as a new version and use it at once, without a restart. Sent by apps/community/scripts/content-import.mjs in the Vibes workspace; the content is kept out of the public source. Everything is checked first: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/content/rollback.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___content___import'];
+    };
+    '/lojo/content/pack': {
+        /**
+         * lojo/content/pack
+         * @description The version in use of a public content kind (a course route pack, kind course-<id>). Without data when `have` is its hash.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['lojo___content___pack'];
+    };
+    '/lojo/content/rollback': {
+        /**
+         * lojo/content/rollback
+         * @description Go back to the version of this content kind before the one in use (or to the one given), at once, without a restart. The version is checked again first. The newer version is kept, so it can be put back the same way.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___content___rollback'];
+    };
+    '/lojo/content/versions': {
+        /**
+         * lojo/content/versions
+         * @description The imported versions of one content kind, newest first (the last 30), and which one this process is using now.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:meta*
+         */
+        post: operations['lojo___content___versions'];
     };
     '/lojo/create/copy': {
         /**
@@ -3333,6 +3387,105 @@ export type paths = {
          */
         post: operations['lojo___notes___list'];
     };
+    '/lojo/plan/list-import': {
+        /**
+         * lojo/plan/list-import
+         * @description Replace the exam task list the plans are made from (攻略's ielts-tasks.json). Sent by apps/community/scripts/plan-import.mjs in the Vibes workspace; the list is kept out of the public source.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___plan___list-import'];
+    };
+    '/lojo/plan/replan': {
+        /**
+         * lojo/plan/replan
+         * @description Plan again from today: the stages are worked out anew and what the learner has not touched is replaced.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___replan'];
+    };
+    '/lojo/plan/settings': {
+        /**
+         * lojo/plan/settings
+         * @description The plan's page settings: the learner's time zone and whether Vibi says so when next week is planned.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___settings'];
+    };
+    '/lojo/plan/setup': {
+        /**
+         * lojo/plan/setup
+         * @description Make or remake the exam plan from the exam date, minutes per day, target and current score. Returns ok false with a reason when it cannot.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___setup'];
+    };
+    '/lojo/plan/show': {
+        /**
+         * lojo/plan/show
+         * @description The signed-in learner's exam plan for the task tab of the chat with Vibi: the week (Monday to Sunday) with each day's tasks and check-ins, the stages, streak and recent changes. Moves unfinished tasks to today and fills this week from the list first.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___plan___show'];
+    };
+    '/lojo/plan/sync': {
+        /**
+         * lojo/plan/sync
+         * @description After the task tab shows: reads today's dictation and vocab answers (at most 1.5 s) and ticks what is done. Returns what it ticked, 「今天答了 x / N」 per open thing, and the 「勾上这件吗？」 questions. autoCheck is skipped when a mini app did not answer.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___sync'];
+    };
+    '/lojo/plan/task/create': {
+        /**
+         * lojo/plan/task/create
+         * @description Add one task (or a daily check-in) to the plan. Returns ok false with a reason when the day is full or past.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___task___create'];
+    };
+    '/lojo/plan/task/move': {
+        /**
+         * lojo/plan/task/move
+         * @description Move one task to another day.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___task___move'];
+    };
+    '/lojo/plan/task/status': {
+        /**
+         * lojo/plan/task/status
+         * @description Tick or untick a task, or a check-in on one day (today by default); removed takes it out.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___task___status'];
+    };
+    '/lojo/plan/undo': {
+        /**
+         * lojo/plan/undo
+         * @description Undo one change to the plan (within 30 days).
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___undo'];
+    };
+    '/lojo/plan/week': {
+        /**
+         * lojo/plan/week
+         * @description Plan one week from the list (next week by default), replacing what the program planned there and the learner has not touched.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___week'];
+    };
     '/lojo/quest/answer': {
         /**
          * lojo/quest/answer
@@ -3381,7 +3534,7 @@ export type paths = {
     '/lojo/quest/content-import': {
         /**
          * lojo/quest/content-import
-         * @description Import the 闯关 chapters (map, levels, questions) as a new version and use it at once, without a restart. Sent by apps/community/scripts/quest-import.mjs in the Vibes workspace; the questions hold the answers, so they are kept out of the public source. Every chapter is checked first, and a batch that drops a level a learner has progress on is refused: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/quest/content-rollback.
+         * @description Import the 闯关 chapters (map, levels, questions) as a new version and use it at once, without a restart. Sent by apps/community/scripts/quest-import.mjs in the Vibes workspace; the questions hold the answers, so they are kept out of the public source. With route (route.json) the map becomes the three-stage route (base, focus, sprint). Every chapter is checked first, and a batch that drops a level a learner has progress on is refused: if anything fails, nothing is imported and the error lists it. The version before stays, for lojo/quest/content-rollback.
          *
          *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
          */
@@ -3459,10 +3612,19 @@ export type paths = {
          */
         post: operations['lojo___quest___refill'];
     };
+    '/lojo/quest/run': {
+        /**
+         * lojo/quest/run
+         * @description Start a whole timed set (SR-5, SL-5) or the mock (MOCK) of the three-stage route: one old gate per part, done in order on the gate page (the gate picked for each part is in route.run). cancel drops the run in hand. Returns the same as lojo/quest/show.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___quest___run'];
+    };
     '/lojo/quest/settings': {
         /**
          * lojo/quest/settings
-         * @description Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it) and whether the first-time walkthrough is done. Returns the same as lojo/quest/show.
+         * @description Sets the exam date (YYYY-MM-DD, after today and within two years; null clears it), whether the first-time walkthrough is done, and the target band (4.0–9.0; ≥ 7 makes the advanced route stations required). Returns the same as lojo/quest/show.
          *
          *     **Credential required**: *Yes* / **Permission**: *write:account*
          */
@@ -3576,14 +3738,41 @@ export type paths = {
          */
         post: operations['lojo___tutor___ids'];
     };
+    '/lojo/tutor/persona/show': {
+        /**
+         * lojo/tutor/persona/show
+         * @description My own Momo (the AI 学搭子): the face (seed for /lojo-head/<seed>) and the name I gave it, the default ones until I pick.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___tutor___persona___show'];
+    };
+    '/lojo/tutor/persona/update': {
+        /**
+         * lojo/tutor/persona/update
+         * @description Pick the face and the name of my own Momo (the AI 学搭子). Leave one out to keep it. The name: at most 10 characters, nothing that pretends to be staff, a teacher or a real person, and none of the site's prohibited words for names. greet (the sign-up step): my Momo then says hello in a chat with no messages yet.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___tutor___persona___update'];
+    };
     '/lojo/tutor/pilot-tool': {
         /**
          * lojo/tutor/pilot-tool
-         * @description Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, and the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12). Needs the shared secret, or an admin.
+         * @description Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). Needs the shared secret, or an admin.
          *
          *     **Credential required**: *No*
          */
         post: operations['lojo___tutor___pilot-tool'];
+    };
+    '/lojo/tutor/plan-poke': {
+        /**
+         * lojo/tutor/plan-poke
+         * @description Have the AI tutor send one of the study-plan messages to a learner now (for trying it out).
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:meta*
+         */
+        post: operations['lojo___tutor___plan-poke'];
     };
     '/lojo/tutor/poke': {
         /**
@@ -4884,6 +5073,8 @@ export type components = {
             autoSensitive: boolean;
             carefulBot: boolean;
             autoAcceptFollowed: boolean;
+            followApprovalLocalSeconds: number | null;
+            followApprovalRemoteSeconds: number | null;
             noCrawle: boolean;
             preventAiLearning: boolean;
             isExplorable: boolean;
@@ -7427,6 +7618,8 @@ export interface operations {
                      * @default null
                      */
                     userId?: string | null;
+                    /** @default null */
+                    autoArchiveAt?: number | null;
                 };
             };
         };
@@ -7609,6 +7802,8 @@ export interface operations {
                         /** @enum {string} */
                         display: 'normal' | 'banner' | 'dialog';
                         isActive: boolean;
+                        /** Format: date-time */
+                        autoArchiveAt: string | null;
                         forExistingUsers: boolean;
                         silence: boolean;
                         needConfirmationToRead: boolean;
@@ -7682,6 +7877,7 @@ export interface operations {
                     silence?: boolean;
                     needConfirmationToRead?: boolean;
                     isActive?: boolean;
+                    autoArchiveAt?: number | null;
                 };
             };
         };
@@ -25513,7 +25709,6 @@ export interface operations {
                 };
                 content: {
                     'application/json': {
-                        qr: string;
                         url: string;
                         secret: string;
                         label: string;
@@ -28627,6 +28822,8 @@ export interface operations {
                     publicReactions?: boolean;
                     carefulBot?: boolean;
                     autoAcceptFollowed?: boolean;
+                    followApprovalLocalSeconds?: number | null;
+                    followApprovalRemoteSeconds?: number | null;
                     noCrawle?: boolean;
                     preventAiLearning?: boolean;
                     requireSigninToViewContents?: boolean;
@@ -29685,6 +29882,83 @@ export interface operations {
             };
         };
     };
+    lojo___agent___bridge: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    connected?: boolean | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        enabled: boolean;
+                        connected: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___agent___english: {
         requestBody: {
             content: {
@@ -29789,6 +30063,84 @@ export interface operations {
                         }[];
                         questions: string[];
                     };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___apps___learner: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    serviceKey: string;
+                    /** Format: misskey:id */
+                    userId: string;
+                    /** @default 371 */
+                    days?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
                 };
             };
             /** @description Client error */
@@ -30266,6 +30618,310 @@ export interface operations {
             };
             /** @description Too many requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___content___import: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    kind: string;
+                    version: string;
+                    data: Record<string, never>;
+                    /** @default  */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: number;
+                        kind: string;
+                        version: string;
+                        from: number | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___content___pack: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    kind: string;
+                    have?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        kind: string;
+                        version: string;
+                        hash: string;
+                        data?: Record<string, never>;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___content___rollback: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    kind: string;
+                    /** @default null */
+                    to?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        id: number;
+                        kind: string;
+                        version: string;
+                        from: number | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___content___versions: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    kind: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        inUse: {
+                            id: number | null;
+                            version: string | null;
+                        };
+                        versions: {
+                            id: number;
+                            version: string;
+                            active: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            note: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -31792,6 +32448,7 @@ export interface operations {
                 'application/json': {
                     course: string;
                     station: string;
+                    sets?: string[];
                 };
             };
         };
@@ -33597,6 +34254,744 @@ export interface operations {
             };
         };
     };
+    'lojo___plan___list-import': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    list: Record<string, never>;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___replan: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___settings: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    tz?: string | null;
+                    notifyWeekly?: boolean | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___setup: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    examDate: string;
+                    dailyMinutes: number;
+                    target: string;
+                    current: string;
+                    restDay?: number | null;
+                    focus?: string | null;
+                    tz?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___show: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    tz?: string | null;
+                    weekOf?: string | null;
+                    /** @default false */
+                    seen?: boolean;
+                    /** @default false */
+                    board?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___sync: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    tz?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___task___create: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    title: string;
+                    date?: string | null;
+                    minutes: number;
+                    /**
+                     * @default task
+                     * @enum {string}
+                     */
+                    kind?: 'task' | 'checkin';
+                    app?: string | null;
+                    ref?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___task___move: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    taskId: string;
+                    toDate: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___task___status: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    taskId: string;
+                    /** @enum {string} */
+                    status: 'todo' | 'doing' | 'done' | 'removed';
+                    date?: string | null;
+                    /** @enum {string|null} */
+                    via?: 'ask' | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___undo: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    changeId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___plan___week: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    weekStart?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___quest___answer: {
         requestBody: {
             content: {
@@ -33974,6 +35369,7 @@ export interface operations {
                     chapters: Record<string, never>[];
                     /** @default  */
                     note?: string;
+                    route?: Record<string, never> | null;
                 };
             };
         };
@@ -33989,6 +35385,7 @@ export interface operations {
                         version: string;
                         chapters: number;
                         questions: number;
+                        route: number | null;
                     };
                 };
             };
@@ -34615,12 +36012,89 @@ export interface operations {
             };
         };
     };
+    lojo___quest___run: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    station: string;
+                    /** @default false */
+                    cancel?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___quest___settings: {
         requestBody: {
             content: {
                 'application/json': {
                     examDate?: string | null;
                     onboarded?: boolean;
+                    target?: number | null;
                 };
             };
         };
@@ -35573,12 +37047,156 @@ export interface operations {
             };
         };
     };
+    lojo___tutor___persona___show: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        seed: string;
+                        name: string;
+                        chosen: boolean;
+                        defaultName: string;
+                        nameMax: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___tutor___persona___update: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    seed?: string;
+                    name?: string;
+                    greet?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        seed: string;
+                        name: string;
+                        chosen: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'lojo___tutor___pilot-tool': {
         requestBody: {
             content: {
                 'application/json': {
                     /** @enum {string} */
-                    tool: 'prompt' | 'progress' | 'searchChat' | 'wordbook' | 'levelMistakes' | 'listApps' | 'appSpec' | 'appCall' | 'recentActivity';
+                    tool: 'prompt' | 'progress' | 'searchChat' | 'wordbook' | 'levelMistakes' | 'listApps' | 'appSpec' | 'appCall' | 'recentActivity' | 'plan' | 'setPlan' | 'addTask' | 'moveTask' | 'setStatus' | 'planWeek' | 'replanFromToday' | 'undo' | 'draftAgentTask';
                     secret?: string | null;
                     /** Format: misskey:id */
                     learnerId: string;
@@ -35593,6 +37211,27 @@ export interface operations {
                     params?: Record<string, never> | null;
                     /** @default 7 */
                     days?: number;
+                    turnToken?: string | null;
+                    examDate?: string | null;
+                    dailyMinutes?: number | null;
+                    target?: number | null;
+                    current?: number | null;
+                    /** @enum {string|null} */
+                    restDay?: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' | null;
+                    title?: string | null;
+                    date?: string | null;
+                    minutes?: number | null;
+                    /** @enum {string|null} */
+                    kind?: 'task' | 'checkin' | null;
+                    ref?: string | null;
+                    autoDone?: Record<string, never> | null;
+                    taskId?: string | null;
+                    toDate?: string | null;
+                    /** @enum {string|null} */
+                    status?: 'todo' | 'doing' | 'done' | 'removed' | null;
+                    weekStart?: string | null;
+                    changeId?: string | null;
+                    instruction?: string | null;
                 };
             };
         };
@@ -35604,6 +37243,77 @@ export interface operations {
                 };
                 content: {
                     'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'lojo___tutor___plan-poke': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId: string;
+                    /** @enum {string} */
+                    kind: 'weekPlanned' | 'overdue' | 'replanOffer';
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        sent: boolean;
+                        reason: string;
+                    };
                 };
             };
             /** @description Client error */

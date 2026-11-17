@@ -18,6 +18,8 @@ import * as sound from '@/utility/sound.js';
 import * as os from '@/os.js';
 import { reactionPicker } from '@/utility/reaction-picker.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
+import { isEnabledUrlPreview } from '@/utility/url-preview.js';
+import { hideTrailingPreviewUrl } from '@/lojo/link-cards.js';
 import { loadNoteMenus, noteMenusNow } from '@/lojo/later-ui.js';
 import { noteEvents, useNoteCapture } from '@/composables/use-note-capture.js';
 import { deepClone } from '@/utility/clone.js';
@@ -33,7 +35,7 @@ import { globalEvents, useGlobalEvent } from '@/events.js';
 import MkUsersTooltip from '@/components/MkUsersTooltip.vue';
 import MkReactionsViewerDetails from '@/components/MkReactionsViewer.details.vue';
 import MkRippleEffect from '@/components/MkRippleEffect.vue';
-import { notePage } from '@/filters/note.js';
+import { notePage } from '@@/js/note.js';
 import type { DI as DIType } from '@/di.js';
 import type { ExtractInjectedType } from '@/types/misc.js';
 import type { MenuItem } from '@/types/menu.js';
@@ -156,8 +158,10 @@ export function useNote(
 	// 導出値
 	// rawNote / appearNote / $i.id / prefer.s は変化しないので一度だけ計算する
 	const isMyRenote = $i != null && ($i.id === rawNote.userId);
-	const parsed = appearNote.text ? mfm.parse(appearNote.text) : null;
-	const urls = parsed ? extractUrlFromMfm(parsed).filter((url) => appearNote.renote?.url !== url && appearNote.renote?.uri !== url) : null;
+	const fullParsed = appearNote.text ? mfm.parse(appearNote.text) : null;
+	const urls = fullParsed ? extractUrlFromMfm(fullParsed).filter((url) => appearNote.renote?.url !== url && appearNote.renote?.uri !== url) : null;
+	// Vibes（2026-11-16）：末尾那行链接已经显示成下面的卡片时，正文里不再重复显示（像 X 一样）
+	const parsed = fullParsed && urls && isEnabledUrlPreview.value ? hideTrailingPreviewUrl(fullParsed, urls) : fullParsed;
 	const isLong = shouldCollapsed(appearNote, urls ?? []);
 	const collapsed = ref(appearNote.cw == null && isLong);
 	const canRenote = ['public', 'home'].includes(appearNote.visibility) || (appearNote.visibility === 'followers' && appearNote.userId === $i?.id);

@@ -9,8 +9,9 @@ import { isGuideSlug } from '@/lojo/guides/api.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 // The first start of a set can take ~40 s: the server synthesizes the recording, once for everyone.
-export function startGate(course: string, station: string): Promise<GateAttempt> {
-	return misskeyApi('lojo/gates/start', { course, station });
+// sets: which question sets to draw from (the quest's sprint stations pass theirs; empty = any set)
+export function startGate(course: string, station: string, sets: string[] = []): Promise<GateAttempt> {
+	return misskeyApi('lojo/gates/start', sets.length > 0 ? { course, station, sets } : { course, station });
 }
 
 // A line's placement test: its first part, or (after the first part was handed in) the second part it leads to.

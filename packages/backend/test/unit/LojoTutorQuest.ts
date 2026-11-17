@@ -4,8 +4,9 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { defaultTutorCard, emptyMemory, normalizeTutorReply, tutorSystemPrompt } from '@/misc/lojo-tutor.js';
+import { emptyMemory, normalizeTutorReply, tutorSystemPrompt } from '@/misc/lojo-tutor.js';
 import { normalizeQuestKnowledge, normalizeQuestTry, pickQuestKnowledge, questChapterNo, questAwayMessage, questKnowledgeSection, questNextLine, questPromptSection, questTrySection } from '@/misc/lojo-tutor-quest.js';
+import { testPrompts } from '../misc/lojo-tutor-prompts.js';
 
 // Sample data (示例), shaped like 闯关上线/Mia接入.md section 2.
 const sampleTry = {
@@ -46,24 +47,26 @@ describe('Vibes AI tutor in the quest map', () => {
 	});
 
 	test('the prompt has the rules, this cause only, ids without URLs', () => {
-		const section = questPromptSection(normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!);
+		const section = questPromptSection(testPrompts, normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!);
 		expect(section).toContain('QUEST MODE. Test rules.');
 		expect(section).toContain('same-word: 找一模一样的词. Technique: Think of two other ways');
 		expect(section).not.toContain('Wordbook.');
-		expect(section).toContain('- guide:j5: 锦囊 5 · 一字不差的多半不是答案 (recommended)');
+		expect(section).toContain('NEXT:\n- guide:j5: 锦囊 5 · 一字不差的多半不是答案 (recommended)');
 		expect(section).toContain('"picked":"TRUE"');
 		expect(section).not.toContain('/guides/j5');
-		const prompt = tutorSystemPrompt(defaultTutorCard, emptyMemory(), { questKnowledge: questKnowledgeSection(normalizeQuestKnowledge(knowledge)!) });
+		const prompt = tutorSystemPrompt(testPrompts, testPrompts.card, emptyMemory(), { questKnowledge: questKnowledgeSection(normalizeQuestKnowledge(knowledge)!) });
 		expect(prompt).toContain('"next"');
 		expect(prompt).toContain('QUEST MODE. Test rules.');
 		expect(prompt).not.toContain('"picked":"TRUE"');
-		expect(questTrySection(normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!)).toContain('"picked":"TRUE"');
-		const plain = tutorSystemPrompt(defaultTutorCard, emptyMemory(), {});
+		expect(questTrySection(testPrompts, normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!)).toContain('"picked":"TRUE"');
+		const plain = tutorSystemPrompt(testPrompts, testPrompts.card, emptyMemory(), {});
 		expect(plain).not.toContain('QUEST MODE');
 		expect(plain).not.toContain('"next"');
-		expect(section).not.toContain('Do not repeat the hearts');
-		const followUp = questPromptSection(normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!, true);
-		expect(followUp).toContain('Do not repeat the hearts');
+		expect(section).not.toContain('FOLLOW UP');
+		const followUp = questPromptSection(testPrompts, normalizeQuestKnowledge(knowledge)!, normalizeQuestTry(sampleTry)!, true);
+		expect(followUp.endsWith('\n\nFOLLOW UP')).toBe(true);
+		const none = questTrySection(testPrompts, normalizeQuestKnowledge(knowledge)!, { ...normalizeQuestTry(sampleTry)!, next: [] });
+		expect(none).toContain('NEXT:\n- NEXT NONE\n\nThis try: ');
 	});
 
 	test('the app writes the link for the chosen step; unknown steps are dropped', () => {
@@ -81,7 +84,7 @@ describe('Vibes AI tutor in the quest map', () => {
 		const t = normalizeQuestTry(sampleTry)!;
 		const full = questAwayMessage(k, t);
 		expect(full.messages).toHaveLength(1);
-		expect(full.messages[0]).toMatch(/^Vibi 这会儿不在线/);
+		expect(full.messages[0]).toMatch(/^我这会儿不在线/);
 		expect(full.messages[0]).not.toMatch(/FALSE|402|余额|出错/);
 		expect(full.next).toBe('retry');
 		expect(full.messages[0]).toContain('先想两种别的说法');

@@ -17,7 +17,8 @@ import isChromatic from 'chromatic/isChromatic';
 import { computed } from 'vue';
 import { i18n } from '@/i18n.js';
 import { dateTimeFormat } from '@@/js/intl-const.js';
-import { useLowresTime } from '@/composables/use-lowres-time.js';
+import { parseTime } from '@@/js/relative-time.js';
+import { useLowresTime } from '@@/js/use-lowres-time.js';
 
 const props = withDefaults(defineProps<{
 	time: Date | string | number | null;
@@ -29,33 +30,19 @@ const props = withDefaults(defineProps<{
 	mode: 'relative',
 });
 
-function getDateSafe(n: Date | string | number) {
-	try {
-		if (n instanceof Date) {
-			return n;
-		}
-		return new Date(n);
-	} catch (err) {
-		return {
-			getTime: () => NaN,
-		};
-	}
-}
-
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const _time = props.time == null ? NaN : getDateSafe(props.time).getTime();
-const invalid = Number.isNaN(_time);
-const absolute = !invalid ? dateTimeFormat.format(_time) : i18n.ts._ago.invalid;
+const _time = computed(() => parseTime(props.time));
+const invalid = computed(() => Number.isNaN(_time.value));
+const absolute = computed(() => (!invalid.value ? dateTimeFormat.format(_time.value) : i18n.ts._ago.invalid));
 
 const actualNow = useLowresTime();
 const now = computed(() => (props.origin ? props.origin.getTime() : actualNow.value));
 
-// eslint-disable-next-line vue/no-setup-props-reactivity-loss
-const ago = computed(() => (now.value - _time) / 1000/*ms*/);
+const ago = computed(() => (now.value - _time.value) / 1000/*ms*/);
 
 const relative = computed<string>(() => {
 	if (props.mode === 'absolute') return ''; // absoluteではrelativeを使わないので計算しない
-	if (invalid) return i18n.ts._ago.invalid;
+	if (invalid.value) return i18n.ts._ago.invalid;
 
 	// Vibes: relative times are always in Chinese, like the rest of the site. Phones set to English got the boot
 	// loader's en-US and showed "34s ago" under Chinese messages (founder, 2026-11-11).

@@ -29,12 +29,37 @@ import { createClock } from '@/lojo/typing/clock.js';
 import { parseSpell, toTypingContent } from '@/lojo/typing/content.js';
 import type { Device, MockStop } from '@/lojo/typing/content.js';
 import { markText } from '@/lojo/dictation/mark.js';
-import { TYPING } from '@/lojo/route/courses/ielts/typing.js';
 
 const GOAL = { wpm: 20, acc: 95 };
 const IDS = ['numbers', 'spelling', 'listening', 'sentences', 'mock'];
 const best = (pass: boolean, acc: number, wpm: number, score: number | null = null, total: number | null = null): Best => ({ pass, score, total, acc, wpm });
 const tried = (stop: string, pass: boolean, b: Best, device: Device = 'desktop', ms = 1000): TryRecord => ({ stop, pass, ms, device, best: b });
+
+// 示例题目. The real line (courses/english/ielts/typing.js) is in the site's database since 2026-11-17 (kind typing-ielts);
+// content-import.mjs checks it before it goes in: the ids above still there, the hard letters marked, no apostrophes
+// in the sentences, every gap's answer marked right, the mock about 100 words and typed in time.
+const MOCK_TEXT = 'Some people think that cities should spend more on parks. Others believe that roads matter more. This essay looks at both views.';
+const EXAMPLE = () => ({
+	line: { n: 0, zh: '示例线', en: 'Example line', color: '#B4457E' },
+	goal: { wpm: 20, acc: 95 },
+	stops: [
+		{ id: 'numbers', kind: 'copy', zh: '示例数字', en: 'Example numbers', minutes: 2, need: 2, items: [
+			{ kind: { zh: '日期', en: 'Date' }, field: 'Date of arrival', target: '14 March' },
+			{ kind: { zh: '价格', en: 'Price' }, field: 'Price', prefix: '£', target: '68.50' },
+			{ field: 'Postcode', target: 'NW3 7QT' },
+		] },
+		{ id: 'spelling', kind: 'spell', zh: '示例拼写', en: 'Example spelling', need: 1, items: [
+			{ spell: 'a[cc]o[mm]odation', zh: '住处', tip: '示例', sentence: 'The ___ is near the station.' },
+			{ spell: 'n[e]cessary', zh: '必要的', sentence: 'It is ___.' },
+		] },
+		{ id: 'listening', kind: 'listen', zh: '示例听打', en: 'Example listening', need: 2, title: 'Example', rows: [
+			{ say: 'It costs forty-two pounds.', note: 'Cost: £___', answer: ['42'] },
+			{ say: 'On Tuesday.', note: 'Day: ___', answer: ['Tuesday', 'Tue'] },
+		] },
+		{ id: 'sentences', kind: 'copy', zh: '示例句子', en: 'Example sentences', items: [{ target: 'This is an example sentence.' }] },
+		{ id: 'mock', kind: 'mock', zh: '示例模拟', en: 'Example mock', text: `  ${MOCK_TEXT}\n`, seconds: 360, phone: { sentences: 2, seconds: 270 } },
+	] as Record<string, unknown>[],
+});
 
 describe('speed, accuracy and word count', () => {
 	test('speed: 5 characters make a word, only correct ones count', () => {
@@ -172,20 +197,15 @@ describe('pass rules on a computer and on a phone', () => {
 		expect(judgeMock(scoreMock(text, 'The cat sit on the mat.', 1000, false), GOAL).pass).toBe(false);
 	});
 
-	test('stop 5 is the whole text in 6 minutes on a computer, its first two sentences in 4:30 on a phone', () => {
-		const mock = toTypingContent(TYPING).stops.find((s): s is MockStop => s.kind === 'mock');
+	test('stop 5 is the whole text on a computer, its first sentences in their own time on a phone', () => {
+		const mock = toTypingContent(EXAMPLE()).stops.find((s): s is MockStop => s.kind === 'mock');
 		expect(mock).toBeDefined();
 		if (mock == null) return;
-		const desktop = mockPlan(mock, 'desktop');
+		expect(mockPlan(mock, 'desktop')).toEqual({ text: MOCK_TEXT, seconds: 360 });
 		const phone = mockPlan(mock, 'phone');
-		expect(desktop).toEqual({ text: mock.text, seconds: 360 });
-		expect(phone.seconds).toBe(270);
-		expect(sentencesOf(phone.text)).toEqual(sentencesOf(mock.text).slice(0, 2));
-		// about 100 words; at the target speed it fits the time, and the phone's part at 12 words a minute
-		expect(wordCount(desktop.text)).toBeGreaterThanOrEqual(90);
-		expect(wordCount(desktop.text)).toBeLessThanOrEqual(110);
-		expect(desktop.text.length / 5 / GOAL.wpm * 60).toBeLessThanOrEqual(desktop.seconds);
-		expect(phone.text.length / 5 / 12 * 60).toBeLessThanOrEqual(phone.seconds);
+		expect(phone).toEqual({ text: 'Some people think that cities should spend more on parks. Others believe that roads matter more.', seconds: 270 });
+		expect(sentencesOf(phone.text)).toEqual(sentencesOf(MOCK_TEXT).slice(0, 2));
+		expect(wordCount(phone.text)).toBe(16);
 	});
 });
 
@@ -296,48 +316,68 @@ describe('a stop\'s clock', () => {
 	});
 });
 
-describe('the course file (courses/english/ielts/typing.js)', () => {
-	const content = toTypingContent(TYPING);
+describe('reading a typing line (示例题目)', () => {
+	const content = toTypingContent(EXAMPLE());
 
-	test('five stops in order, ids as the progress keeps them', () => {
+	test('stops in line order, numbered from 1, with the line and the goal', () => {
 		expect(content.stops.map(s => s.id)).toEqual(IDS);
-		expect(content.stops.map(s => s.kind)).toEqual(['copy', 'spell', 'listen', 'copy', 'mock']);
-		expect(content.line).toMatchObject({ n: 0, color: '#B4457E' });
+		expect(content.stops.map(s => [s.n, s.kind])).toEqual([[1, 'copy'], [2, 'spell'], [3, 'listen'], [4, 'copy'], [5, 'mock']]);
+		expect(content.line).toEqual({ n: 0, name: { zh: '示例线', en: 'Example line' }, color: '#B4457E' });
 		expect(content.goal).toEqual(GOAL);
+		// a stop without a short name or a blurb uses its name, and an empty blurb
+		expect(content.stops[0]).toMatchObject({ short: { zh: '示例数字', en: 'Example numbers' }, blurb: { zh: '', en: '' }, minutes: 2 });
 	});
 
-	test('pass counts: 11 of 12 numbers, 8 of 10 words and gaps', () => {
-		const [numbers, spelling, listening, sentences] = content.stops;
-		expect(numbers.kind === 'copy' && [numbers.need, numbers.items.length]).toEqual([11, 12]);
-		expect(spelling.kind === 'spell' && [spelling.need, spelling.items.length]).toEqual([8, 10]);
-		expect(listening.kind === 'listen' && [listening.need, listening.rows.length]).toEqual([8, 10]);
+	test('nothing read yet (or not a line): no stops, the line\'s defaults', () => {
+		for (const raw of [null, undefined, 'x', [], { stops: 'x' }]) {
+			expect(toTypingContent(raw)).toEqual({ line: { n: 0, name: { zh: '机考打字', en: 'Typing' }, color: '#B4457E' }, goal: GOAL, stops: [] });
+		}
+	});
+
+	test('pass counts: no more than there are; a sentences stop passes on accuracy and speed', () => {
+		const raw = EXAMPLE();
+		raw.stops[0].need = 9;
+		const [numbers, spelling, listening, sentences] = toTypingContent(raw).stops;
+		expect(numbers.kind === 'copy' && [numbers.need, numbers.items.length]).toEqual([3, 3]);
+		expect(spelling.kind === 'spell' && [spelling.need, spelling.items.length]).toEqual([1, 2]);
+		expect(listening.kind === 'listen' && [listening.need, listening.rows.length]).toEqual([2, 2]);
 		expect(sentences.kind === 'copy' && sentences.need).toBeNull();
+		const numbersItems = content.stops[0].kind === 'copy' ? content.stops[0].items : [];
+		expect(numbersItems.map(i => i.prefix)).toEqual([null, '£', null]);
 	});
 
 	test('the hard letters of a word are marked in brackets', () => {
 		expect(parseSpell('a[cc]o[mm]odation')).toEqual({ word: 'accommodation', hard: [1, 2, 4, 5] });
+		expect(parseSpell('plain')).toEqual({ word: 'plain', hard: [] });
 		const spelling = content.stops[1];
 		if (spelling.kind !== 'spell') throw new Error('stop 2 is the spelling stop');
-		for (const w of spelling.items) {
-			expect(w.hard.every(i => i >= 0 && i < w.word.length), w.word).toBe(true);
-			expect(w.sentence).toContain('___');
-		}
+		expect(spelling.items.map(w => [w.word, w.hard, w.tip])).toEqual([['accommodation', [1, 2, 4, 5], '示例'], ['necessary', [1], '']]);
 	});
 
-	test('the sentences have no apostrophes: a phone would curl them', () => {
-		const sentences = content.stops[3];
-		if (sentences.kind !== 'copy') throw new Error('stop 4 copies sentences');
-		for (const it of sentences.items) expect(it.target).not.toMatch(/['‘’]/);
+	test('what is malformed is left out: an item, a row, a stop, an id seen before', () => {
+		const raw = EXAMPLE();
+		(raw.stops[0].items as unknown[]).push({ field: 'no target' });
+		(raw.stops[1].items as unknown[]).push({ spell: 'w[o]rd', zh: '词', sentence: 'no gap' });
+		(raw.stops[2].rows as unknown[]).push({ say: 'x', note: 'y', answer: [] });
+		raw.stops.push({ id: 'draw', kind: 'draw', zh: '示例', en: 'Example' }, { id: 'numbers', kind: 'copy', zh: '又一次', en: 'Again', items: [{ target: 'x' }] }, { id: 'empty', kind: 'copy', zh: '示例', en: 'Example', items: [] });
+		const c = toTypingContent(raw);
+		expect(c.stops.map(s => s.id)).toEqual(IDS);
+		expect(c.stops.map(s => (s.kind === 'listen' ? s.rows.length : s.kind === 'mock' ? 0 : s.items.length))).toEqual([3, 2, 2, 1, 0]);
 	});
 
-	test('every gap of the recording takes its own answer, as a gate would mark it', () => {
+	test('the listening stop: its settings, with defaults where the file leaves them out', () => {
 		const listening = content.stops[2];
 		if (listening.kind !== 'listen') throw new Error('stop 3 is the listening stop');
-		for (const r of listening.rows) {
-			for (const a of r.answer) expect(markText({ answer: r.answer, ignoreSpaces: false, limit: null }, { words: 1, number: true }, a).correct, a).toBe(true);
-		}
-		// the £ is printed on the notes, so writing it too is fine
-		const cost = listening.rows.find(r => r.answer.includes('42'));
-		expect(cost && markText({ answer: cost.answer, ignoreSpaces: false, limit: null }, { words: 1, number: true }, '£42').correct).toBe(true);
+		expect(listening).toMatchObject({ title: 'Example', intro: '', lookSeconds: 5, gapSeconds: { desktop: 6, phone: 8 }, instructions: { en: 'Write ONE WORD AND/OR A NUMBER for each answer.', zh: '每空填一个词或一个数字。' } });
+		expect(listening.rows[1]).toEqual({ say: 'On Tuesday.', note: 'Day: ___', after: null, answer: ['Tuesday', 'Tue'], hl: null });
+	});
+
+	test('every gap takes its own answer, as a gate would mark it; a printed £ may be written too', () => {
+		const listening = content.stops[2];
+		if (listening.kind !== 'listen') throw new Error('stop 3 is the listening stop');
+		const mark = (answer: string[], typed: string) => markText({ answer, ignoreSpaces: false, limit: null }, { words: 1, number: true }, typed).correct;
+		for (const r of listening.rows) for (const a of r.answer) expect(mark(r.answer, a), a).toBe(true);
+		expect(mark(['42'], '£42')).toBe(true);
+		expect(mark(['Tuesday', 'Tue'], 'next Tuesday')).toBe(false);
 	});
 });

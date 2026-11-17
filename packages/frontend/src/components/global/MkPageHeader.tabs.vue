@@ -33,6 +33,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				>
 					<div v-show="t.key === tab" :class="[$style.tabTitle, $style.animate]">{{ t.title }}</div>
 				</Transition>
+				<!-- Vibes: a small mustard dot for something new on this tab (the task tab on first open) -->
+				<span v-if="t.dot" :class="$style.tabDot"></span>
 			</div>
 		</button>
 	</div>
@@ -50,6 +52,7 @@ export type Tab = {
 	iconOnly?: boolean;
 	title: string;
 	icon?: string;
+	dot?: boolean;
 };
 </script>
 
@@ -250,6 +253,15 @@ onUnmounted(() => {
 
 .tabIcon + .tabTitle {
 	padding-left: 4px;
+}
+
+.tabDot {
+	width: 6px;
+	height: 6px;
+	margin: 0 0 8px 3px;
+	border-radius: 50%;
+	background: #F2C14E;
+	flex: none;
 }
 
 .tabTitle {

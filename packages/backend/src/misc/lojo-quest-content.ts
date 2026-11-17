@@ -12,16 +12,42 @@
 
 import { ApiError } from '@/server/api/error.js';
 import type { QuestChapter, QuestNode, QuestQuestion } from '@/misc/lojo-quest-types.js';
+import { ROUTE_SKILLS, hardSet } from '@/misc/lojo-quest-route.js';
+import type { QuestRoute } from '@/misc/lojo-quest-route.js';
 
 export const questNoContent = { message: 'The quest levels have not been imported on this site yet.', code: 'QUEST_NO_CONTENT', id: '5b0b7d1e-6c2e-4b8f-9f3a-2d7e4c1a9e10' } as const;
 
-type Content = { id: number; version: string; chapters: QuestChapter[]; nodes: Map<string, QuestNode> };
+type Content = { id: number; version: string; chapters: QuestChapter[]; nodes: Map<string, QuestNode>; route: QuestRoute | null; hard: Set<string> };
 let content: Content | null = null;
 
-export function setQuestContent(id: number, version: string, chapters: QuestChapter[]): void {
-	const sorted = [...chapters].sort((a, b) => a.no - b.no);
-	content = { id, version, chapters: sorted, nodes: new Map(sorted.flatMap(c => c.nodes.map(n => [n.id, n] as const))) };
+// a question by id in any level (not the Boss pools, which repeat ids across chapters)
+function findQuestion(chapters: QuestChapter[], qid: string): QuestQuestion | undefined {
+	for (const c of chapters) for (const n of c.nodes) if (n.kind === 'level') { const q = n.pool?.find(x => x.id === qid); if (q) return q; }
+	return undefined;
 }
+
+// 三段闯关的摸底 (R0, L0): a level of its own that is never on the map and never saved in a learner's levels
+function probeNodes(route: QuestRoute, chapters: QuestChapter[]): QuestNode[] {
+	const first = chapters[0].nodes.find(n => n.kind === 'level');
+	if (!first) return [];
+	return ROUTE_SKILLS.map(skill => {
+		const pr = route.stages[1].skills[skill].placement;
+		const pool = pr.questions.map(x => findQuestion(chapters, x.question)).filter((q): q is QuestQuestion => q != null);
+		return { ...first, id: pr.id, label: pr.id, name: null, zh: pr.zh, kind: 'level', ch: chapters[0].no, pool, sets: ['P'], heartCost: 0, retest: false, timed: null, keepOrder: true, practice: true, gear: null, probe: true };
+	});
+}
+
+export function setQuestContent(id: number, version: string, chapters: QuestChapter[], route: QuestRoute | null = null): void {
+	const sorted = [...chapters].sort((a, b) => a.no - b.no);
+	const nodes = new Map(sorted.flatMap(c => c.nodes.map(n => [n.id, n] as const)));
+	if (route) for (const n of probeNodes(route, sorted)) nodes.set(n.id, n);
+	content = { id, version, chapters: sorted, nodes, route, hard: hardSet(route) };
+}
+
+// 三段闯关 (null = the old map)
+export const questRoute = (): QuestRoute | null => content?.route ?? null;
+export const questIsHard = (levelId: string, qid: string): boolean => content?.hard.has(`${levelId}/${qid}`) ?? false;
+export const questFindQuestion = (qid: string): QuestQuestion | undefined => (content ? findQuestion(content.chapters, qid) : undefined);
 
 export function clearQuestContent(): void {
 	content = null;
@@ -73,6 +99,14 @@ function questionProblems(q: unknown, where: string): string[] {
 	return p;
 }
 
+// 这关要对几题才过：普通关 rules.level.need，Boss rules.boss.hp；摸底和规则没写全的章不算（后者另外报）
+function needOf(rules: unknown, n: Record<string, unknown>): number | null {
+	if (!isObj(rules) || n.probe === true) return null;
+	const r = n.kind === 'boss' ? rules.boss : rules.level;
+	const need = isObj(r) ? (n.kind === 'boss' ? r.hp : r.need) : null;
+	return isInt(need) ? need : null;
+}
+
 function chapterProblems(c: unknown, i: number): string[] {
 	if (!isObj(c)) return [`第 ${i + 1} 份: 不是一章`];
 	const p: string[] = [];
@@ -102,6 +136,10 @@ function chapterProblems(c: unknown, i: number): string[] {
 					qids.add(q.id);
 				}
 			}
+			// 题比「对几题过」还少，这关永远过不了（普通关看 rules.level.need，Boss 看 rules.boss.hp；摸底不分过不过，不看）
+			const need = needOf(c.rules, n);
+			const size = (n.pool as unknown[]).length;
+			if (need != null && size < need) p.push(`${at} ${n.id}: 只有 ${size} 题，比「对 ${need} 题过」还少，这关永远过不了`);
 		}
 	}
 	if (isStr(c.bossId) && !ids.has(c.bossId)) p.push(`${at}: Boss ${c.bossId} 不在点里`);

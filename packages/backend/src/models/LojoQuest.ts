@@ -5,6 +5,7 @@
 
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import type { QuestChapter } from '@/misc/lojo-quest-types.js';
+import type { MiLojoQuestRoute, QuestRoute } from '@/misc/lojo-quest-route.js';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
 
@@ -13,6 +14,8 @@ export type MiLojoQuestLevel = {
 	stars?: number; setsUsed?: string[]; lastQs?: string[];
 	// lit by the placement test (1 star, 0 XP): the first real pass still counts as a first pass
 	placed?: boolean;
+	// 三段闯关 (2026-11-13): the last two formal results (true = passed), perfect runs in total, the last pass
+	recent?: boolean[]; perfects?: number; lastPassAt?: string;
 };
 
 // 闯关定级: the last test (placedAt, station, path, total right, startAt), the first part handed in on a test not yet
@@ -101,6 +104,10 @@ export class MiLojoQuest {
 	// 闯关定级 (冲刺1111), null until the banner is closed or a test is handed in
 	@Column('jsonb', { nullable: true })
 	public placement: MiLojoQuestPlacement | null;
+
+	// 三段闯关 (2026-11-13): stations ever opened, 摸底, sprint stars, 回炉. null until the route first shows
+	@Column('jsonb', { nullable: true })
+	public route: MiLojoQuestRoute | null;
 
 	@Column('timestamp with time zone')
 	public createdAt: Date;
@@ -206,6 +213,10 @@ export class MiLojoQuestContent {
 
 	@Column('jsonb')
 	public chapters: QuestChapter[];
+
+	// 三段闯关 route.json (2026-11-13); null = the old map
+	@Column('jsonb', { nullable: true })
+	public route: QuestRoute | null;
 
 	@Index('IDX_lojo_quest_content_active')
 	@Column('boolean', { default: false })

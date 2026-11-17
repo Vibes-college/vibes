@@ -39,7 +39,7 @@ import { computed, onActivated, onMounted, onUnmounted, ref, useTemplateRef, wat
 import type { PageMetadata } from '@/page.js';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import { i18n } from '@/i18n.js';
-import { agentLabels } from '@/lojo/agent/labels.js';
+import { vibiLabels } from '@/lojo/agent/labels.js';
 import { createLabels } from '@/lojo/create/labels.js';
 import { GUILD_RULES_PATH } from '@/lojo/guild-rules.js';
 import MkInfo from '@/components/MkInfo.vue';
@@ -161,8 +161,8 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/settings/account-data',
 		active: currentPage.value?.route.name === 'account-data',
 	}, {
-		icon: 'ti ti-robot',
-		text: agentLabels.settingsTitle,
+		icon: 'ti ti-sparkles',
+		text: vibiLabels.settingsTitle,
 		to: '/settings/agent',
 		active: currentPage.value?.route.name === 'agent',
 	}, {

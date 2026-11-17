@@ -21,6 +21,8 @@ type Intro = { what: string; tips: (string | null)[] };
 
 const zh = {
 	lineName: (n: number, name: string) => `${n} 号线 · ${name}`,
+	stopsFailed: '打字题没读出来，看看网络再试。',
+	retry: '再试一次',
 	progressFailed: '进度没读出来，先按没练过显示。练完一站会再试着存。',
 	saveFailed: '刚才的成绩还没存上，练完下一站会一起存。',
 	savedNote: '进度存在你的账号里，换设备也在。',
@@ -294,6 +296,8 @@ const zh = {
 
 const en: typeof zh = {
 	lineName: (n, name) => `Line ${n} · ${name}`,
+	stopsFailed: 'The typing practice didn’t load. Check your connection and try again.',
+	retry: 'Try again',
 	progressFailed: 'Your progress didn’t load, so the line shows as new. It will be saved again after your next stop.',
 	saveFailed: 'Your last result isn’t saved yet. It goes with the next stop you finish.',
 	savedNote: 'Your progress is saved to your account, on every device.',

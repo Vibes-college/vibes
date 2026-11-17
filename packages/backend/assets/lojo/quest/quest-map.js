@@ -110,7 +110,7 @@ function door1(y, sign, works) {
 		<g class="dL"><rect x="162" y="${y - 34}" width="33" height="70" fill="#D9A066" stroke="#141E52" stroke-width="1.5"/><path d="M170 ${y - 34} v70 M178 ${y - 34} v70 M186 ${y - 34} v70" stroke="#a8743f" stroke-width="1"/><path d="M162 ${y - 12} h33 M162 ${y + 18} h33" stroke="#141E52" stroke-width="1.5"/></g>
 		<g class="dR"><rect x="195" y="${y - 34}" width="33" height="70" fill="#D9A066" stroke="#141E52" stroke-width="1.5"/><path d="M203 ${y - 34} v70 M211 ${y - 34} v70 M219 ${y - 34} v70" stroke="#a8743f" stroke-width="1"/><path d="M195 ${y - 12} h33 M195 ${y + 18} h33" stroke="#141E52" stroke-width="1.5"/></g>
 		<g><rect x="138" y="${y - 60}" width="114" height="22" rx="4" fill="#FFFDF8" stroke="#141E52" stroke-width="1.6"/><text x="195" y="${y - 44}" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="13" fill="#141E52">${sign}</text></g>
-		<g class="dseal" transform="translate(195 ${y})"><path d="M0 -11 A11 11 0 0 0 0 11Z" fill="#E8603F" stroke="#B9472C" stroke-width="1.2"/><path d="M0 -11 A11 11 0 0 1 0 11Z" fill="#E8603F" stroke="#B9472C" stroke-width="1.2"/><text y="4.5" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="12" fill="#FFFDF8">二</text></g>
+		<g class="dseal" transform="translate(195 ${y})"><path d="M0 -11 A11 11 0 0 0 0 11Z" fill="#E8603F" stroke="#B9472C" stroke-width="1.2"/><path d="M0 -11 A11 11 0 0 1 0 11Z" fill="#E8603F" stroke="#B9472C" stroke-width="1.2"/><text y="4.5" text-anchor="middle" font-family="Songti SC,serif" font-weight="900" font-size="12" fill="#FFFDF8">专</text></g>
 		${works ? `<g>
 			<g transform="translate(195 ${y + 47})"><path d="M-30 12 L-24 -6 M-18 12 L-24 -6 M18 12 L24 -6 M30 12 L24 -6" stroke="#141E52" stroke-width="2" stroke-linecap="round"/><rect x="-36" y="-11" width="72" height="9" rx="2" fill="#FFFDF8" stroke="#141E52" stroke-width="1.5"/>${[-30, -14, 2, 18].map(x => `<path d="M${x} -11 h8 l-5 9 h-8z" fill="#E8603F"/>`).join('')}</g>
 			<g transform="translate(286 ${y + 4})"><line x1="0" y1="2" x2="0" y2="30" stroke="#141E52" stroke-width="2"/><rect x="-30" y="-16" width="60" height="22" rx="3" fill="#ECB637" stroke="#141E52" stroke-width="1.5"/><text y="-1" text-anchor="middle" font-size="11.5" font-weight="900" fill="#141E52" font-family="PingFang SC,sans-serif">正在修路</text></g>
@@ -156,7 +156,7 @@ function parkTram(root) {
 	});
 }
 
-const SEALS = { 2: '三', 3: '四' };
+const SEALS = { 3: '冲' };
 window.QuestArt = {
 	STYLE,
 	land: no => (LAND[no] ? LAND[no]() : ''),

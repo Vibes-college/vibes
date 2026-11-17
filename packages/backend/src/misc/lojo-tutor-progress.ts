@@ -11,6 +11,8 @@
 //   searchTerms).
 // Both are also served to the Mastra pilot as tools (endpoint lojo/tutor/pilot-tool).
 
+import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
+
 export type QuestProgressFacts = {
 	chapter: { no: number; title: string };
 	passed: number;
@@ -72,9 +74,6 @@ function section(title: string, lines: string[]): string {
 	return [`${title}:`, ...lines.filter(l => l.trim() !== '').slice(0, LINES_PER_PART).map(l => `- ${l.slice(0, 300)}`)].join('\n');
 }
 
-// Shown before the card in the last message; the system prompt (and its cache) stays as it is.
-export const PROGRESS_CARD_INTRO = 'Their progress on Vibes, read from the app just now (more reliable than the chat or your notes). If they ask where they are, answer from this, in your own words, and never say you cannot see it. Otherwise do not bring it up yourself, and never push a part they have not started:';
-
 /* ---------- chat search ---------- */
 
 const STOP_EN = new Set('the a an and or but is are was were be been am do does did have has had i you me my your we our it its this that these those to of in on at for with from as by about what which who when where why how can could would should will just not no yes ok okay please thanks thank hi hello mia so if then than there here they them their he she his her do don dont really very too also more most some any one all get got like know think want need'.split(' '));
@@ -108,11 +107,12 @@ export function hitScore(text: string, terms: { en: string[]; zh: string[] }): n
 
 export const RECALL_MIN_SCORE = 2;
 
-export function recallText(hits: ChatHit[]): string | null {
+// The hits between her private head and foot lines (TutorPrompts recallHead, recallFoot).
+export function recallText(hits: ChatHit[], prompts: Pick<TutorPrompts, 'recallHead' | 'recallFoot'>): string | null {
 	if (hits.length === 0) return null;
 	return [
-		'Older messages in this chat that may be relevant (found by keyword just now; older than the chat above):',
+		prompts.recallHead,
 		...hits.map(h => `- ${h.at.slice(0, 10)} ${h.who === 'learner' ? 'they said' : 'you said'}: ${h.text.replace(/\s+/g, ' ').slice(0, 200)}`),
-		'Use them only if they answer what they are asking; they may be out of date, and anything they asked you to forget stays forgotten.',
+		prompts.recallFoot,
 	].join('\n');
 }

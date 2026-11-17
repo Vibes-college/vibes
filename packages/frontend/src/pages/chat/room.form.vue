@@ -63,6 +63,7 @@ const props = defineProps<{
 	user?: Misskey.entities.UserDetailed | null;
 	room?: Misskey.entities.ChatRoom | null;
 	placeholder?: string; // Vibes: "跟 Vibi 说点什么…" in a chat with Vibi
+	prefill?: string; // Vibes: the task tab's 「和 Vibi 说」 puts a sentence in the box (never sent by itself)
 }>();
 
 const textareaEl = shallowRef<HTMLTextAreaElement>();
@@ -339,6 +340,10 @@ onMounted(() => {
 	if (draft) {
 		text.value = draft.data.text;
 		file.value = draft.data.file;
+	}
+	if (props.prefill) {
+		text.value = props.prefill;
+		nextTick(() => textareaEl.value?.focus());
 	}
 	nextTick(fitHeight);
 });

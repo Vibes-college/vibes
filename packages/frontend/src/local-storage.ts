@@ -45,6 +45,7 @@ export type Keys = (
 	`lojoGuideDraft:${string}` |
 	'vibesInstallPrompt' |
 	'vibesInstalledWelcomed' |
+	'vibesPageCache8' |
 	`idbfallback::${string}`
 );
 

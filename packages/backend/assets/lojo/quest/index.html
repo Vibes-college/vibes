@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>闯关 · Vibes</title>
 <!-- 动画：GSAP 3.12.5 本地副本（GSAP 标准免费许可，见 vendor/GSAP-LICENSE.txt）。音效：Kenney，CC0，见 sounds/ 里的许可文件。 -->
-<link rel="stylesheet" href="./quest.css?v=6">
+<link rel="stylesheet" href="./quest.css?v=12">
 <script src="./vendor/gsap.min.js?v=3.12.5"></script>
 </head>
 <body>
@@ -69,12 +69,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <div class="dock">
     <div id="mia">
-      <svg class="mia-face" id="miaFace" viewBox="0 0 46 46">
-        <rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/>
-        <path id="miaHeart" d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/>
-        <rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/>
-        <g id="miaEyes"><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></g>
-      </svg>
+      <!-- 学员自己那只 Momo 的头（quest.js loadMomo 填 src） -->
+      <img class="mia-face momo" id="miaFace" alt="" draggable="false">
       <div class="bubble" id="miaSay"></div>
     </div>
     <div class="today"><h3 id="todayH"></h3><span id="todayS"></span></div>
@@ -143,7 +139,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <p id="failP"></p>
     <div class="review" id="failReview"></div>
     <button class="btn2 coral" id="failShelf">去书屋</button>
-    <div class="duo"><button class="btn2 line" id="failMia">问 Vibi<small>她看得到你错在哪</small></button><button class="btn2 line" id="failGear">去装备练一组</button></div>
+    <div class="duo"><button class="btn2 line" id="failMia">问 <span class="momoName">Momo</span><small>TA 看得到你错在哪</small></button><button class="btn2 line" id="failGear">去装备练一组</button></div>
     <div class="links"><button id="failRetry">再打一次</button><button id="failMap">回地图</button></div>
   </div>
 
@@ -175,7 +171,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <h4 id="bossLoseH">Boss 赢了这一局</h4>
     <p id="bossLoseP"></p>
     <div class="review" id="bossReview"></div>
-    <button class="btn2 coral" id="bossMia">问 Vibi<small>她看得到你错在哪</small></button>
+    <button class="btn2 coral" id="bossMia">问 <span class="momoName">Momo</span><small>TA 看得到你错在哪</small></button>
     <button class="btn2" id="bossRetry">再打一次</button>
     <button class="btn3" id="bossQuit">回地图</button>
   </div>
@@ -188,10 +184,10 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div class="shelfhead"><div class="crumb"><button id="shelfBack">‹ 回去</button><u>社区</u> · <u>攻略</u></div><h2>锦囊书屋</h2><p id="shelfSub"></p></div>
     <div class="rowlab" style="top:128px" id="row1Lab">第一章</div>
     <div class="row" id="row1" style="top:144px"></div>
-    <div class="rowlab" style="top:380px">第二章 · 还在写</div>
+    <div class="rowlab" style="top:380px">专项关 · 还在写</div>
     <div class="row" id="row2" style="top:394px;height:150px"></div>
     <div id="shelfMia">
-      <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
+      <img class="mia-face momo" alt="" draggable="false">
       <div class="bubble" id="shelfSay"></div>
     </div>
     <div id="bag">
@@ -322,7 +318,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <!-- 第一次进来：3 步引导 -->
   <div id="coach"><div id="coachHole"></div>
     <div id="coachCard"><div class="row1">
-      <svg class="mia-face" viewBox="0 0 46 46"><rect x="2" y="4" width="42" height="40" rx="12" fill="#141E52"/><path d="M23 10 c-2 -4 -8 -3 -7 2 c1 3 4 5 7 7 c3 -2 6 -4 7 -7 c1 -5 -5 -6 -7 -2z" fill="#E8603F"/><rect x="20" y="22" width="6" height="15" rx="3" fill="#F6F1E7"/><circle cx="14" cy="26" r="2.4" fill="#F6F1E7"/><circle cx="32" cy="26" r="2.4" fill="#F6F1E7"/></svg>
+      <img class="mia-face momo" alt="" draggable="false">
       <div id="coachT"></div></div><div id="coachX"></div>
       <div class="ft"><span class="dots"><i></i><i></i><i></i></span><button id="coachSkip">跳过</button><button id="coachNext">下一步</button></div>
     </div>
@@ -356,7 +352,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
   <div class="toast" id="toast"></div>
 </div>
-<script src="./quest-map.js?v=6"></script>
-<script src="./quest.js?v=6"></script>
+<script src="./quest-map.js?v=12"></script>
+<script src="./quest-kit.js?v=1"></script>
+<script src="./quest.js?v=13"></script>
 </body>
 </html>

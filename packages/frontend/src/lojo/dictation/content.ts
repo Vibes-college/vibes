@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 听写's questions: the course file (courses/english/ielts/dictation.js in the Vibes workspace, synced to
-// lojo/route/courses/ielts/dictation.js) as typed items, and a gate's missed gaps (carry.ts) as items of the same shape.
+// 听写's questions: the course's dictation sets (courses/english/ielts/dictation.js in the Vibes workspace, imported into
+// the site's database as kind dictation-ielts and read by the 听写 mini app) as typed items, and a gate's missed gaps
+// (carry.ts) as items of the same shape.
 import type { Carry, CarriedGap } from './carry.js';
 import type { DictLimit, Markable, Verdict } from './mark.js';
 import type { WordbookItem } from '@/lojo/english/wordbook.js';
@@ -109,7 +110,7 @@ function toItem(raw: unknown, set: Omit<DictSet, 'items'>): DictItem | null {
 	};
 }
 
-// The course file's DICTATION; anything malformed is left out (the unit test checks the file itself).
+// The course's DICTATION (the content pack); anything malformed is left out (content-import.mjs checks the file itself).
 export function toContent(raw: unknown): DictContent {
 	const d = isObj(raw) ? raw : {};
 	const sets: DictSet[] = [];

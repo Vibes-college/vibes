@@ -23,18 +23,23 @@ import { LojoGateService } from '@/core/LojoGateService.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
 import { LojoUsageService, fuseNews, tutorBudgetKey, tutorDailyLimit, type ModelUsage } from '@/core/LojoUsageService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { UtilityService } from '@/core/UtilityService.js';
+import type { MiMeta } from '@/models/Meta.js';
+import { defaultPersona, normalizePersona, PERSONA_KEY, personaHello } from '@/misc/lojo-tutor-persona.js';
+import type { TutorPersona } from '@/misc/lojo-tutor-persona.js';
+import { LojoPlanService } from '@/core/LojoPlanService.js';
+import type { PlanEvent } from '@/core/LojoPlanService.js';
+import { hourIn, todayIn } from '@/misc/lojo-plan.js';
+import { randomBytes } from 'node:crypto';
 import type { MiLocalUser } from '@/models/User.js';
 import type Logger from '@/logger.js';
 import type { Config } from '@/config.js';
 import { looksEnglish } from '@/misc/lojo-english.js';
 import {
 	applyMemoryUpdate,
-	defaultTutorCard,
 	emptyMemory,
 	localDay,
-	localHour,
 	lojoTutorIds,
-	memoryUpdateSystemPrompt,
 	normalizeMemory,
 	normalizeMemoryUpdate,
 	normalizeTutorCard,
@@ -42,15 +47,36 @@ import {
 	NOTES_EVERY,
 	asksToRememberOrForget,
 	proactiveDecision,
+	proactivePerDay,
+	proactiveSentToday,
 	tutorContextMessage,
+	tutorFixedPrompt,
 	tutorSystemPrompt,
 	tutorPublic,
 } from '@/misc/lojo-tutor.js';
+import { normalizeTutorPrompts, PROMPTS_KEY } from '@/misc/lojo-tutor-prompts.js';
+import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
-import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, isTutorAwayText, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
-import { hitScore, progressCardText, RECALL_MIN_SCORE, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
+import { progressCardText, RECALL_MIN_SCORE, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
 import type { ChatHit, QuestMistakes, QuestProgressFacts, WordbookFacts } from '@/misc/lojo-tutor-progress.js';
+import {
+	chatSearchFilter,
+	chatSearchHits,
+	mastraFreshMessages,
+	mastraReportedUsage,
+	tutorChatTurns,
+	tutorFuseText,
+	tutorListHas,
+	tutorModelDownReason as modelDownReason,
+	tutorNowText,
+	tutorOpenerReason,
+	tutorProactiveState,
+	tutorUnanswered,
+	tutorUsageMeter,
+} from '@/misc/lojo-tutor-chat.js';
+import type { TutorChatTurn as ChatTurn } from '@/misc/lojo-tutor-chat.js';
 
 const SCOPE = ['lojo', 'tutor'];
 const HISTORY = 30;
@@ -75,17 +101,28 @@ export type QuestAskResult = 'sent' | 'already' | 'limit' | 'off' | 'away';
 // Mia on Mastra (prototypes/mia-mastra): who gets her. "all", or user ids separated by commas; empty or missing = nobody.
 // Read on every reply, so switching is one redis command and needs no restart (see apps/community/deploy/mia-mastra.sh).
 const MASTRA_KEY = 'lojoTutor:mastra';
+// 私信任务标签: how long the turn token sent with /chat and /event lets Vibi's task tools write.
+const TURN_TOKEN_SECONDS = 10 * 60;
+// The marker message for one change Vibi made (the chat page draws it as a card; lojo/plan/changeCard.ts reads it).
+export const planChangeText = (summary: string, changeId: string) => `【任务改动】${summary}（改动号 ${changeId}，可以在「任务」页撤销）`;
+// 发到我的电脑 (2026-11-15): Vibi drafts an instruction for the learner's own coding agent; the chat page draws the marker
+// message as a card the learner edits and sends from their own browser through Paseo (lojo/agent/DraftCard.vue). Who has
+// it: "all", or user ids separated by commas, in redis like MASTRA_KEY; empty or missing = nobody (the default).
+const AGENT_BRIDGE_KEY = 'lojoAgent:users';
+const AGENT_DRAFT_MAX = 1500;
+export const agentDraftText = (draftId: string, text: string) => `【给电脑的指令】（草稿号 ${draftId}）\n${text}`;
 const DOWN_KEY = 'lojoTutor:down';
 const DOWN_TTL_SECONDS = 30 * 60;
 const PENDING_KEY = 'lojoTutor:pending';
 const AWAY_NOTE_TTL_SECONDS = 6 * 60 * 60;
 const CATCH_UP_PER_ROUND = 30;
-const modelDownReason = (err: unknown): string | null => /^HTTP (401|402)\b/.exec(err instanceof Error ? err.message : '')?.[1] ?? null;
-
-type ChatTurn = { role: 'user' | 'assistant' | 'system'; content: string };
+// The newest learner message an answer was written for (see tutorUnanswered); kept as long as her Mastra mark.
+const ANSWERED_TTL_SECONDS = 90 * 24 * 60 * 60;
 
 // The AI tutor in direct messages: replies with memory, sometimes as a voice message, and writes first at most once a day.
 // Phase 1 of docs/research/ai-dm-companion.md. Tutor accounts are listed in LOJO_TUTOR_IDS.
+// The calculations that touch neither the database nor redis are in misc/lojo-tutor-chat.ts; the methods of the same
+// name here only call them.
 @Injectable()
 export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	private readonly tutors = lojoTutorIds();
@@ -96,7 +133,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	// tutorDailyLimit). Each learner's own allowance is in LojoUsageService (5 hours + a week, counted in money).
 	private readonly dailyLimit = tutorDailyLimit();
 	// Who gets a notification when the fuse is half used and when it blows (besides the warning in the log): these
-	// usernames, or by default the site's root admin (vibes_admin on app.vibes.college).
+	// usernames, or by default the site's root admin.
 	private readonly fuseNotify = (process.env.LOJO_TUTOR_FUSE_NOTIFY ?? '').split(',').map(x => x.trim()).filter(x => x !== '');
 	private readonly mastraUrl = (process.env.LOJO_TUTOR_MASTRA_URL ?? '').replace(/\/$/, '');
 	private readonly mastraSecret = process.env.LOJO_TUTOR_MASTRA_SECRET ?? '';
@@ -120,6 +157,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private userProfilesRepository: UserProfilesRepository,
 		@Inject(DI.notesRepository)
 		private notesRepository: NotesRepository,
+		@Inject(DI.meta)
+		private meta: MiMeta,
 		private chatService: ChatService,
 		private globalEventService: GlobalEventService,
 		private registryApiService: RegistryApiService,
@@ -131,6 +170,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private lojoWordService: LojoWordService,
 		private lojoUsageService: LojoUsageService,
 		private notificationService: NotificationService,
+		private lojoPlanService: LojoPlanService,
+		private utilityService: UtilityService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-tutor');
 	}
@@ -199,6 +240,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			if (attempt < 4) setTimeout(() => this.reply(tutorId, learnerId, attempt + 1).catch(err => this.logger.warn(`reply failed: ${err}`)), 10000);
 			return;
 		}
+		const started = Date.now();
 		try {
 			const [tutor, learner] = await Promise.all([
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
@@ -219,19 +261,25 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				});
 				if (done) return;
 			}
-			const [card, memory, history, progress, quest] = await Promise.all([
-				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId),
+			const [{ card, prompts }, memory, history, progress, quest, persona, recent] = await Promise.all([
+				this.setup(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId), this.persona(learnerId), this.recentMessages(tutorId, learnerId),
 			]);
 			// Already answered (another attempt got there first).
-			if (history.length === 0 || history[history.length - 1].role === 'assistant') return;
-			const recall = await this.recall(tutorId, learnerId, history);
+			const newest = await this.unanswered(tutorId, learnerId, recent);
+			if (history.length === 0 || newest == null) return;
+			// Without her words (misc/lojo-tutor-prompts.ts) she does not use the model: the away line, answered later.
+			if (prompts == null) {
+				await this.sayAway(tutor, learner);
+				return;
+			}
+			const recall = await this.recall(tutorId, learnerId, history, prompts);
 			if (!(await this.spendBudget())) return;
 			// In the two hours after "Ask Vibi" she answers follow-ups with the try at hand, but with the hearts as of now and
 			// without the 👉 link again: a link only goes out for a step not linked yet for this try (AI tutor, 2026-11-10:
 			// repeating "0 hearts… read guide 7" and the link under every answer read like an ad).
 			const questTry = quest && await this.withFreshHearts(learnerId, quest.questTry);
-			const system = tutorSystemPrompt(card, memory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage({ now: this.nowText(), learnerName: this.nameOf(learner), progress, recall, quest: quest && questTry && questTrySection(quest.knowledge, questTry, true) });
+			const system = tutorSystemPrompt(prompts, card, memory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) });
+			const context = tutorContextMessage(prompts, { now: this.nowText(), learnerName: this.nameOf(learner), tutorName: persona.name, progress, recall, quest: quest && questTry && questTrySection(prompts, quest.knowledge, questTry, true) });
 			let answer: TutorReply;
 			const usage = this.usageMeter();
 			try {
@@ -244,17 +292,41 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				await this.chargeLearner(learnerId, 'tutor.reply', usage.total());
 			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, questTry ?? undefined), answer.voice, card.extensions.vibes?.voice);
+			await this.markAnswered(tutorId, learnerId, newest.id);
 			const lastLearner = history.findLast(turn => turn.role === 'user')?.content ?? '';
 			this.maybeUpdateMemory(tutorId, learnerId, asksToRememberOrForget(lastLearner)).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
 			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${learnerId}`);
+			await this.answerAgainIfWrote(tutorId, learnerId, started);
 		}
+	}
+
+	// The learner wrote again while this answer was being written: answer that too, even when the tries that message
+	// started gave up waiting for this one (a slow answer). An attempt that finds it answered already does nothing.
+	private async answerAgainIfWrote(tutorId: string, learnerId: string, since: number): Promise<void> {
+		const wroteAt = Number(await this.redisClient.hget(this.stateKey(tutorId, learnerId), 'lastLearnerAt').catch(() => null) ?? 0);
+		if (wroteAt > since) setTimeout(() => this.reply(tutorId, learnerId).catch(err => this.logger.warn(`reply failed: ${err}`)), 3000);
+	}
+
+	// The last messages of this chat, oldest first, for tutorUnanswered.
+	private async recentMessages(tutorId: string, learnerId: string): Promise<MiChatMessage[]> {
+		return (await this.chatService.userTimeline(tutorId, learnerId, HISTORY)).reverse();
+	}
+
+	// The learner's newest message if no answer was written for it yet. fallback: Mastra's own mark, until this one is set.
+	private async unanswered(tutorId: string, learnerId: string, messages: MiChatMessage[], fallback: string | null = null): Promise<MiChatMessage | null> {
+		const answered = await this.redisClient.get(`lojoTutor:answered:${tutorId}:${learnerId}`).catch(() => null);
+		return tutorUnanswered(messages, tutorId, answered ?? fallback);
+	}
+
+	private async markAnswered(tutorId: string, learnerId: string, messageId: string | undefined): Promise<void> {
+		if (messageId == null) return;
+		await this.redisClient.set(`lojoTutor:answered:${tutorId}:${learnerId}`, messageId, 'EX', ANSWERED_TTL_SECONDS);
 	}
 
 	private async onMastra(learnerId: string): Promise<boolean> {
 		if (this.mastraUrl === '' || this.mastraSecret.length < 16) return false;
-		const who = (await this.redisClient.get(MASTRA_KEY).catch(() => null))?.trim() ?? '';
-		return who === 'all' || who.split(',').map(x => x.trim()).includes(learnerId);
+		return tutorListHas(await this.redisClient.get(MASTRA_KEY).catch(() => null), learnerId);
 	}
 
 	// Mia on Mastra keeps her own memory of this chat, so she is sent only what she has not seen: the messages after the
@@ -265,57 +337,201 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	private async replyWithMastra(tutor: MiUser, learner: MiUser): Promise<boolean> {
 		const key = `lojoTutor:mastraSeen:${tutor.id}:${learner.id}`;
 		const seen = await this.redisClient.get(key);
-		const seenId = seen?.split('|')[0] ?? null;
-		const seenSent = Number(seen?.split('|')[1] ?? 0);
 		const messages = (await this.chatService.userTimeline(tutor.id, learner.id, HISTORY)).reverse();
-		const lastLearner = messages.findLast(m => m.fromUserId === learner.id);
-		if (lastLearner == null || messages[messages.length - 1].fromUserId === tutor.id) return true; // already answered
-		let fresh: MiChatMessage[];
-		const at = seenId != null ? messages.findIndex(m => m.id === seenId) : -1;
-		if (at !== -1) {
-			let skip = seenSent;
-			fresh = messages.slice(at + 1).filter(m => !(m.fromUserId === tutor.id && skip-- > 0));
-		} else {
-			fresh = messages.slice(messages.findLastIndex(m => m.fromUserId === tutor.id) + 1);
-		}
-		const turns = this.toTurns(tutor.id, fresh);
+		const lastLearner = await this.unanswered(tutor.id, learner.id, messages, seen?.split('|')[0] ?? null);
+		if (lastLearner == null) return true; // already answered
+		const turns = this.toTurns(tutor.id, mastraFreshMessages(messages, tutor.id, seen));
 		const quest = await this.questContext(tutor.id, learner.id);
 		const questTry = quest && await this.withFreshHearts(learner.id, quest.questTry);
-		const card = await this.card(tutor.id);
+		const [{ card, prompts }, persona] = await Promise.all([this.setup(tutor.id), this.persona(learner.id)]);
+		// The quest lines need her words; without them the usual Mia answers (with the away line).
+		if (quest && questTry && prompts == null) throw new Error(`no prompts on the tutor account (registry ${PROMPTS_KEY})`);
 		if (!(await this.spendBudget())) return true;
 		const started = Date.now();
-		const res = await this.whileTyping(learner.id, tutor.id, async () => {
-			const r = await fetch(`${this.mastraUrl}/chat`, {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({
-					secret: this.mastraSecret, learnerId: learner.id, turns, now: this.nowText(), name: this.nameOf(learner),
-					extra: quest && questTry ? questTrySection(quest.knowledge, questTry, true).replace(/\s*\n\s*/g, ' ') : undefined,
-				}),
-				signal: AbortSignal.timeout(90 * 1000),
-			});
-			if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
-			return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown; usage?: unknown };
-		});
-		// Charged by the tokens it reports (mia-mastra v0.3.2+: every DeepSeek call for this learner since the last reply,
-		// Observer and Reflector included). If it reports none, or some calls' usage was lost, the fixed estimate
-		// (lojoUsage:config mastraReply) is charged instead and logged.
-		const u = res.usage as { hit?: unknown; miss?: unknown; out?: unknown; unreported?: unknown } | undefined;
-		const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x >= 0 ? Math.floor(x) : null);
-		const reported = u && n(u.hit) != null && n(u.miss) != null && n(u.out) != null && !(n(u.unreported) ?? 0)
-			? { hit: n(u.hit)!, miss: n(u.miss)!, out: n(u.out)! } : null;
-		if (reported) {
-			await this.chargeLearner(learner.id, 'mastra.reply', reported);
-		} else {
-			this.logger.warn(`mastra usage not reported learner=${learner.id}; charged the estimate`);
-			await this.chargeLearner(learner.id, 'mastra.est', null, (await this.lojoUsageService.config()).mastraReply);
-		}
+		// you: the name this learner gave her (mia-mastra v0.7.8+ puts it in the bracket line; older ones ignore it)
+		const res = await this.whileTyping(learner.id, tutor.id, () => this.postMastra('/chat', learner.id, {
+			turns, now: this.nowText(), name: this.nameOf(learner), you: persona.name,
+			extra: quest && questTry && prompts ? questTrySection(prompts, quest.knowledge, questTry, true).replace(/\s*\n\s*/g, ' ') : undefined,
+		}));
+		await this.chargeMastra(learner.id, res);
 		const answer = normalizeTutorReply(res);
 		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
-		const out = await this.withNextLink(tutor.id, answer, questTry ?? undefined);
+		const out = [...await this.withNextLink(tutor.id, answer, questTry ?? undefined), ...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id)];
 		await this.redisClient.set(key, `${lastLearner.id}|${out.length}`, 'EX', 90 * 24 * 60 * 60);
 		await this.send(tutor, learner, out, answer.voice, card.extensions.vibes?.voice);
+		await this.markAnswered(tutor.id, learner.id, lastLearner.id);
 		return true;
+	}
+
+	// Charged by the tokens it reports (mia-mastra v0.3.2+: every DeepSeek call for this learner since the last reply,
+	// Observer and Reflector included). If it reports none, or some calls' usage was lost, the fixed estimate
+	// (lojoUsage:config mastraReply) is charged instead and logged.
+	private async chargeMastra(learnerId: string, res: { usage?: unknown }): Promise<void> {
+		const reported = mastraReportedUsage(res.usage);
+		if (reported) {
+			await this.chargeLearner(learnerId, 'mastra.reply', reported);
+		} else {
+			this.logger.warn(`mastra usage not reported learner=${learnerId}; charged the estimate`);
+			await this.chargeLearner(learnerId, 'mastra.est', null, (await this.lojoUsageService.config()).mastraReply);
+		}
+	}
+
+	// Vibi on Mastra: /chat or /event, with this conversation's turn token (her task tools hand it back on writes).
+	private async postMastra(path: '/chat' | '/event', learnerId: string, body: Record<string, unknown>) {
+		const turnToken = await this.issueTurnToken(learnerId);
+		const r = await fetch(`${this.mastraUrl}${path}`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ secret: this.mastraSecret, learnerId, turnToken, ...body }),
+			signal: AbortSignal.timeout(90 * 1000),
+		});
+		if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
+		return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown; usage?: unknown };
+	}
+
+	// ---------- 私信任务标签 (2026-11-15): the turn token, the change cards, and Vibi writing first about the plan ----------
+
+	// Good for 10 minutes and for this learner only. Kept in redis, so a leaked shared secret alone changes nobody's plan.
+	private async issueTurnToken(learnerId: string): Promise<string> {
+		const token = randomBytes(32).toString('base64url');
+		await this.redisClient.set(`lojoPlan:turn:${token}`, learnerId, 'EX', TURN_TOKEN_SECONDS);
+		return token;
+	}
+
+	// null when the write may go ahead; otherwise why not (said to Vibi, and logged).
+	public async checkTurnToken(token: string | null, learnerId: string): Promise<string | null> {
+		const owner = token ? await this.redisClient.get(`lojoPlan:turn:${token}`) : null;
+		const why = token == null || token === '' ? 'no token'
+			: owner == null ? 'expired'
+			: owner !== learnerId ? 'other learner'
+			: !(await this.onMastra(learnerId)) ? 'not talking with Vibi' : null;
+		if (why == null) return null;
+		this.logger.warn(`plan write refused learner=${learnerId}: ${why}`);
+		return why === 'other learner' ? '这次对话的凭证不是这个学员的' : '这次对话的凭证过期了，请学员再发一句';
+	}
+
+	// One marker message per change Vibi made in this reply. The chat page draws it as a card with 「撤销」
+	// (lojo/plan/ChangeCard.vue); other clients see a plain sentence.
+	private async changeCards(learnerId: string, since: Date): Promise<string[]> {
+		const changes = await this.lojoPlanService.changesSince(learnerId, 'vibi', since).catch(() => []);
+		return changes.map(c => planChangeText(c.summary, c.id));
+	}
+
+	// ---------- 发到我的电脑 (2026-11-15) ----------
+
+	private async agentBridgeOn(userId: string): Promise<boolean> {
+		return tutorListHas(await this.redisClient.get(AGENT_BRIDGE_KEY).catch(() => null), userId);
+	}
+
+	// connected is only the learner's own yes/no from their browser; the pairing never comes to the server.
+	public async agentBridgeState(userId: string, connected: boolean | null): Promise<{ enabled: boolean; connected: boolean }> {
+		const enabled = await this.agentBridgeOn(userId);
+		const key = `lojoAgent:connected:${userId}`;
+		if (connected === true && enabled) await this.redisClient.set(key, '1');
+		if (connected === false) await this.redisClient.del(key);
+		return { enabled, connected: enabled && await this.redisClient.exists(key) === 1 };
+	}
+
+	// Vibi's draftAgentTask: keeps the draft until her reply is sent, then it goes out as a card under it. Nothing is sent
+	// to any computer from here; only the learner's tap in their own browser does that.
+	public async draftAgentTask(learnerId: string, instruction: string): Promise<{ ok: boolean; draftId?: string; reason?: string }> {
+		const text = instruction.trim();
+		if (!(await this.agentBridgeOn(learnerId))) return { ok: false, reason: 'not available for this learner yet' };
+		if (await this.redisClient.exists(`lojoAgent:connected:${learnerId}`) !== 1) return { ok: false, reason: 'their computer is not connected (they can connect it in settings: 连接我的电脑)' };
+		if (text === '') return { ok: false, reason: 'the instruction is empty' };
+		if (text.length > AGENT_DRAFT_MAX) return { ok: false, reason: `too long (${text.length} characters, at most ${AGENT_DRAFT_MAX}); make it shorter` };
+		const draftId = randomBytes(5).toString('hex');
+		const key = `lojoAgent:drafts:${learnerId}`;
+		await this.redisClient.rpush(key, JSON.stringify({ id: draftId, text }));
+		await this.redisClient.expire(key, 10 * 60);
+		this.logger.info(`agent draft learner=${learnerId} draft=${draftId} chars=${text.length}`);
+		return { ok: true, draftId };
+	}
+
+	private async agentDraftCards(learnerId: string): Promise<string[]> {
+		const key = `lojoAgent:drafts:${learnerId}`;
+		const raw = await this.redisClient.lrange(key, 0, 4).catch(() => [] as string[]);
+		await this.redisClient.del(key).catch(() => {});
+		return raw.flatMap(r => {
+			try {
+				const d = JSON.parse(r) as { id: string; text: string };
+				return [agentDraftText(d.id, d.text)];
+			} catch {
+				return [];
+			}
+		});
+	}
+
+	// Once an hour (from the 15-minute round): the plan's own work, and Vibi writing first about it when allowed —
+	// in the learner's waking hours (LOJO_TUTOR_HOURS, their time zone), at most LOJO_TUTOR_PROACTIVE_PER_DAY (5) first
+	// messages a day together with the daily check-in, only to learners on Vibi-on-Mastra, each late task or missed visit
+	// asked about once, and none at all when LOJO_TUTOR_PROACTIVE=0.
+	private async planHourly(): Promise<void> {
+		const hourKey = new Date().toISOString().slice(0, 13);
+		if (await this.redisClient.set(`lojoPlan:hourly:${hourKey}`, '1', 'EX', 3 * 60 * 60, 'NX') !== 'OK') return;
+		const events = await this.lojoPlanService.hourly();
+		const tutorId = this.tutors[0];
+		let sent = 0;
+		for (const ev of events) {
+			try {
+				if (await this.planEvent(tutorId, ev) === 'sent') sent++;
+			} catch (err) {
+				if (await this.markDownOn(err)) break;
+				this.logger.warn(`plan event ${ev.kind} to ${ev.userId} failed: ${err}`);
+			}
+		}
+		if (events.length > 0) this.logger.info(`plan hourly: ${events.length} event(s), ${sent} written`);
+	}
+
+	// force (the admin endpoint lojo/tutor/plan-poke, for trying it out): also outside waking hours, when muted or switched
+	// off, and about a task or missed visit already asked about. The day's limit holds even then.
+	public async planEvent(tutorId: string, ev: PlanEvent, opts: { force?: boolean } = {}): Promise<string> {
+		if (!this.proactive && !opts.force) return 'switched off';
+		if (!(await this.onMastra(ev.userId))) return 'not on Mastra';
+		const state = await this.proactiveState(tutorId, ev.userId);
+		if (state.muted && !opts.force) return 'muted';
+		const plan = await this.lojoPlanService.vibiPlan(ev.userId);
+		const tz = 'tz' in plan && typeof plan.tz === 'string' ? plan.tz : this.tz;
+		const hour = hourIn(tz);
+		if (!opts.force && (hour < this.hours[0] || hour >= this.hours[1])) return 'quiet hours';
+		if (proactiveSentToday(state.proactiveTimes, new Date(), tz) >= proactivePerDay()) return 'daily limit';
+		let tasks = ev.tasks;
+		if (ev.kind === 'overdue' && !opts.force) {
+			const asked = await Promise.all(tasks.map(t => this.redisClient.exists(`lojoPlan:overdueAsked:${t.id}`)));
+			tasks = tasks.filter((_, i) => asked[i] === 0);
+			if (tasks.length === 0) return 'already asked';
+		}
+		if (ev.kind === 'replanOffer' && !opts.force) {
+			if (await this.redisClient.get(`lojoPlan:replanOffered:${ev.userId}`) === ev.seenAt) return 'already asked';
+			if (state.lastLearnerAt != null && Date.now() - state.lastLearnerAt < 3 * DAY) return 'chatting recently';
+		}
+		if (await this.redisClient.set(`lojoTutor:replying:${tutorId}:${ev.userId}`, '1', 'EX', 120, 'NX') !== 'OK') return 'busy';
+		try {
+			if (!(await this.spendBudget())) return 'fuse';
+			const [tutor, learner] = await Promise.all([
+				this.usersRepository.findOneByOrFail({ id: tutorId }),
+				this.usersRepository.findOneByOrFail({ id: ev.userId }),
+			]);
+			const [card, persona] = await Promise.all([this.card(tutorId), this.persona(learner.id)]);
+			const res = await this.whileTyping(learner.id, tutor.id, () => this.postMastra('/event', learner.id, {
+				kind: ev.kind, summary: ev.summary, tasks, now: this.nowText(), name: this.nameOf(learner), you: persona.name,
+			}));
+			await this.chargeMastra(learner.id, res);
+			const answer = normalizeTutorReply(res);
+			const out = answer.messages.slice(0, 2);
+			await this.send(tutor, learner, out, answer.voice, card.extensions.vibes?.voice);
+			// She keeps her own memory of this: her next /chat skips these messages (see replyWithMastra).
+			const seenKey = `lojoTutor:mastraSeen:${tutor.id}:${learner.id}`;
+			const seen = await this.redisClient.get(seenKey);
+			if (seen != null) await this.redisClient.set(seenKey, `${seen.split('|')[0]}|${Number(seen.split('|')[1] ?? 0) + out.length}`, 'KEEPTTL');
+			await this.markWroteFirst(tutorId, learner.id, false);
+			if (ev.kind === 'overdue') for (const t of tasks) await this.redisClient.set(`lojoPlan:overdueAsked:${t.id}`, '1', 'EX', 60 * 24 * 60 * 60);
+			if (ev.kind === 'replanOffer' && ev.seenAt) await this.redisClient.set(`lojoPlan:replanOffered:${ev.userId}`, ev.seenAt, 'EX', 60 * 24 * 60 * 60);
+			this.logger.info(`plan event ${ev.kind} learner=${learner.id} messages=${out.length}${opts.force ? ' (forced)' : ''}`);
+			return 'sent';
+		} finally {
+			await this.redisClient.del(`lojoTutor:replying:${tutorId}:${ev.userId}`);
+		}
 	}
 
 	// Short typing pauses between messages, and the first short English message as a voice message when asked for.
@@ -368,19 +584,19 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const pending = Number(await this.redisClient.hget(this.stateKey(tutorId, learnerId), 'notesPending') ?? 0);
 		// The same start as Mia's replies (her prompt and this chat), so the cache that her last reply filled answers most of
 		// it; the notes task, the date and the current notes come last.
-		const [card, learner, sessionMemory, history, quest, memory] = await Promise.all([
-			this.card(tutorId), this.usersRepository.findOneBy({ id: learnerId }), this.sessionMemory(tutorId, learnerId),
+		const [{ card, prompts }, learner, sessionMemory, history, quest, memory] = await Promise.all([
+			this.setup(tutorId), this.usersRepository.findOneBy({ id: learnerId }), this.sessionMemory(tutorId, learnerId),
 			this.sessionHistory(tutorId, learnerId), this.questContext(tutorId, learnerId), this.memory(learnerId, tutorId),
 		]);
-		if (learner == null) return;
-		const task = memoryUpdateSystemPrompt + '\n\n' + JSON.stringify({
+		if (learner == null || prompts == null) return;
+		const task = prompts.notesTask + '\n\n' + JSON.stringify({
 			today: this.nowText(),
 			notes: { profile: memory.profile, facts: memory.facts.map(({ id, text }) => ({ id, text })), summary: memory.summary },
 		});
 		// The notes come from the learner's own chatting, so they count towards the learner's allowance too.
 		const usage = this.usageMeter();
 		const update = await this.lojoEnglishService.chatJson([
-			{ role: 'system', content: tutorSystemPrompt(card, sessionMemory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) }) },
+			{ role: 'system', content: tutorSystemPrompt(prompts, card, sessionMemory, { questKnowledge: quest && questKnowledgeSection(quest.knowledge) }) },
 			...history,
 			{ role: 'system', content: task },
 		], 0.2, 1200, normalizeMemoryUpdate, `tutor.notes learner=${learnerId}`, usage.add).finally(() => this.chargeLearner(learnerId, 'tutor.notes', usage.total()));
@@ -403,6 +619,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		}
 		await this.catchUp();
 		await this.notesAfterPause();
+		await this.planHourly().catch(err => this.logger.warn(`plan hourly failed: ${err}`));
 		if (!this.proactive) return;
 		const tutorId = this.tutors[0];
 		const query = this.usersRepository.createQueryBuilder('user')
@@ -418,7 +635,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		for (const learner of learners) {
 			if (sent >= 30) break;
 			const state = await this.proactiveState(tutorId, learner.id);
-			const decision = proactiveDecision(state, new Date(), { tz: this.tz, startHour: this.hours[0], endHour: this.hours[1] });
+			const decision = proactiveDecision(state, new Date(), { tz: this.tz, startHour: this.hours[0], endHour: this.hours[1], perDay: proactivePerDay() });
 			if (!decision.ok) continue;
 			try {
 				if (await this.writeFirst(tutorId, learner.id)) sent++;
@@ -440,29 +657,30 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [card, memory, history, recentPosts, progress] = await Promise.all([
-				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.recentPosts(), this.progressCard(learnerId),
+			const [{ card, prompts }, memory, history, recentPosts, progress, persona, recent] = await Promise.all([
+				this.setup(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.recentPosts(), this.progressCard(learnerId), this.persona(learnerId), this.recentMessages(tutorId, learnerId),
 			]);
+			if (prompts == null) return false;
 			// If the learner's last message is still unanswered, answer it instead of opening a new topic.
 			const unanswered = history.at(-1)?.role === 'user';
-			const system = tutorSystemPrompt(card, memory, {});
-			const context = tutorContextMessage({
+			const system = tutorSystemPrompt(prompts, card, memory, {});
+			const context = tutorContextMessage(prompts, {
 				now: this.nowText(),
 				learnerName: this.nameOf(learner),
-				opener: unanswered ? undefined : { reason: this.openerReason(memory, history), recentPosts },
+				tutorName: persona.name,
+				opener: unanswered ? undefined : { reason: this.openerReason(prompts, memory, history), recentPosts },
 				progress,
 			});
 			// The model answers the last turn. After the tutor's own messages that has to be a cue, not her last reply,
 			// or she repeats it; an empty chat starts from a neutral cue too.
-			const cue = history.length === 0 ? '(The learner has not written yet.)' : '(The learner has not replied yet. Write first now, as described above.)';
+			const cue = history.length === 0 ? prompts.cueEmpty : prompts.cueWriteFirst;
 			const turns: ChatTurn[] = unanswered ? history : [...history, { role: 'user', content: cue }];
 			const answer = await this.whileTyping(learnerId, tutorId, () => this.lojoEnglishService.chatJson([{ role: 'system', content: system }, ...turns, { role: 'system', content: context }], 0.9, 600, normalizeTutorReply, `tutor.first learner=${learnerId}`));
 			await this.send(tutor, learner, unanswered ? answer.messages : answer.messages.slice(0, 2), answer.voice, card.extensions.vibes?.voice);
 			if (!unanswered) {
-				const key = this.stateKey(tutorId, learnerId);
-				await this.redisClient.hset(key, { lastProactiveAt: Date.now() });
-				await this.redisClient.hincrby(key, 'unanswered', 1);
+				await this.markWroteFirst(tutorId, learnerId, true);
 			} else {
+				await this.markAnswered(tutorId, learnerId, recent.findLast(m => m.fromUserId === learnerId)?.id);
 				this.maybeUpdateMemory(tutorId, learnerId, false).catch(err => this.logger.warn(`notes update failed: ${err}`));
 			}
 			return true;
@@ -502,18 +720,19 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [card, memory, history, progress, quest] = await Promise.all([
-				this.card(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId),
+			const [{ card, prompts }, memory, history, progress, quest, persona, recent] = await Promise.all([
+				this.setup(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId), this.persona(learnerId), this.recentMessages(tutorId, learnerId),
 			]);
 			if (quest == null) return;
-			if (await this.isDown()) {
+			// Without her words, the same as when the model is away: where to go next, built from this try.
+			if (prompts == null || await this.isDown()) {
 				await this.sayAwayForQuest(tutor, learner, quest.knowledge, quest.questTry);
 				return;
 			}
-			const system = tutorSystemPrompt(card, memory, { questKnowledge: questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage({ now: this.nowText(), learnerName: this.nameOf(learner), progress, quest: questTrySection(quest.knowledge, quest.questTry) });
+			const system = tutorSystemPrompt(prompts, card, memory, { questKnowledge: questKnowledgeSection(quest.knowledge) });
+			const context = tutorContextMessage(prompts, { now: this.nowText(), learnerName: this.nameOf(learner), tutorName: persona.name, progress, quest: questTrySection(prompts, quest.knowledge, quest.questTry) });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
-			const cue = '(The learner just failed this level and tapped "Ask Vibi". Write first now, in quest mode as described above.)';
+			const cue = prompts.cueQuest;
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
 				? [...history.slice(0, -1), { role: 'user', content: `${history.at(-1)!.content}\n${cue}` }]
 				: [...history, { role: 'user', content: cue }];
@@ -527,6 +746,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				return;
 			}
 			await this.send(tutor, learner, await this.withNextLink(tutorId, answer, quest.questTry), answer.voice, card.extensions.vibes?.voice);
+			// It answered their unanswered message too (see the cue above).
+			if (history.at(-1)?.role === 'user') await this.markAnswered(tutorId, learnerId, recent.findLast(m => m.fromUserId === learnerId)?.id);
 			// A failed level is worth writing down now.
 			this.maybeUpdateMemory(tutorId, learnerId, true).catch(err => this.logger.warn(`notes update failed: ${err}`));
 		} finally {
@@ -552,7 +773,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		await this.redisClient.sadd(PENDING_KEY, `${tutor.id}:${learner.id}`);
 		if (await this.redisClient.set(`lojoTutor:awayNote:${tutor.id}:${learner.id}`, '1', 'EX', AWAY_NOTE_TTL_SECONDS, 'NX') !== 'OK') return;
 		const map = `${this.config.url.replace(/\/$/, '')}/quest`;
-		await this.send(tutor, learner, [`${TUTOR_AWAY_PREFIX}，你的消息她回来会先看 🙏 想先练的话，👉 闯关地图 ${map}`], false, undefined);
+		await this.send(tutor, learner, [`${TUTOR_AWAY_PREFIX}，你的消息我回来会先看 🙏 想先练的话，👉 闯关地图 ${map}`], false, undefined);
 	}
 
 	private async sayAwayForQuest(tutor: MiUser, learner: MiUser, knowledge: QuestKnowledge, questTry: QuestTry): Promise<void> {
@@ -674,56 +895,33 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	public async searchChat(tutorId: string, learnerId: string, query: string, opts: { beforeId?: string | null; limit?: number; minScore?: number } = {}): Promise<ChatHit[]> {
 		const terms = searchTerms(query);
 		if (terms.en.length === 0 && terms.zh.length === 0) return [];
-		const params: unknown[] = [tutorId, learnerId];
-		const conds: string[] = [];
-		if (terms.en.length > 0) {
-			params.push(terms.en.map(w => w.replace(/[^a-z-]/g, '')).filter(w => w !== '').join(' | '));
-			conds.push(`to_tsvector('simple', m."text") @@ to_tsquery('simple', $${params.length})`);
-		}
-		for (const z of terms.zh) {
-			params.push(`%${z}%`);
-			conds.push(`m."text" LIKE $${params.length}`);
-		}
-		let before = '';
-		if (opts.beforeId) {
-			params.push(opts.beforeId);
-			before = `AND m."id" < $${params.length}`;
-		}
+		const { params, match, before } = chatSearchFilter(tutorId, learnerId, terms, opts.beforeId);
 		const rows: { id: string; fromUserId: string; text: string }[] = await this.db.query(
 			`SELECT m."id", m."fromUserId", m."text" FROM "chat_message" m
 			WHERE ((m."fromUserId" = $1 AND m."toUserId" = $2) OR (m."fromUserId" = $2 AND m."toUserId" = $1))
-			AND m."text" IS NOT NULL ${before} AND (${conds.join(' OR ')})
+			AND m."text" IS NOT NULL ${before} AND (${match})
 			ORDER BY m."id" DESC LIMIT 200`,
 			params,
 		);
-		return rows
-			.filter(r => !(r.fromUserId === tutorId && isTutorAwayText(r.text)))
-			.map(r => ({ id: r.id, at: this.idService.parse(r.id).date.toISOString(), who: (r.fromUserId === tutorId ? 'tutor' : 'learner') as ChatHit['who'], text: r.text, score: hitScore(r.text, terms) }))
-			.filter(h => h.score >= (opts.minScore ?? 1))
-			.sort((a, b) => b.score - a.score || (a.id < b.id ? 1 : -1))
-			.slice(0, opts.limit ?? 5);
+		return chatSearchHits(rows, tutorId, terms, id => this.idService.parse(id).date, opts);
 	}
 
 	// Keyword recall for a reply: the learner's last turn, searched in the messages older than the chat in the prompt.
-	private async recall(tutorId: string, learnerId: string, history: ChatTurn[]): Promise<string | null> {
+	private async recall(tutorId: string, learnerId: string, history: ChatTurn[], prompts: TutorPrompts): Promise<string | null> {
 		try {
 			const from = await this.redisClient.hget(this.sessionKey(tutorId, learnerId), 'historyFrom');
 			if (from == null) return null;
 			const last = history.findLast(turn => turn.role === 'user')?.content ?? '';
 			const hits = await this.searchChat(tutorId, learnerId, last, { beforeId: from, limit: 3, minScore: RECALL_MIN_SCORE });
-			return recallText(hits);
+			return recallText(hits, prompts);
 		} catch (err) {
 			this.logger.warn(`chat recall failed: ${err}`);
 			return null;
 		}
 	}
 
-	private openerReason(memory: TutorMemory, history: ChatTurn[]): string {
-		if (history.length === 0) return 'first time: greet them, introduce yourself in one line, and ask what they are preparing for';
-		const examDate = memory.profile.examDate ? Date.parse(memory.profile.examDate) : NaN;
-		const daysToExam = Math.ceil((examDate - Date.now()) / DAY);
-		if (daysToExam > 0 && daysToExam <= 21) return `their exam is in ${daysToExam} days`;
-		return 'a friendly daily check-in';
+	private openerReason(prompts: TutorPrompts, memory: TutorMemory, history: ChatTurn[]): string {
+		return tutorOpenerReason(prompts, memory, history);
 	}
 
 	private async proactiveState(tutorId: string, learnerId: string): Promise<ProactiveState> {
@@ -731,19 +929,36 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			this.redisClient.hgetall(this.stateKey(tutorId, learnerId)),
 			this.registryApiService.getItem(learnerId, null, SCOPE, 'settings'),
 		]);
-		const num = (value: string | undefined) => (value != null && value !== '' ? Number(value) : null);
-		return {
-			muted: (settings?.value as { proactive?: boolean } | undefined)?.proactive === false,
-			lastProactiveAt: num(state.lastProactiveAt),
-			unanswered: num(state.unanswered) ?? 0,
-			lastLearnerAt: num(state.lastLearnerAt),
-			lastTutorAt: num(state.lastTutorAt),
-		};
+		return tutorProactiveState(state, settings?.value);
+	}
+
+	// She wrote first (a check-in or a plan message): counts toward the day's limit and the "waiting for a reply" rules.
+	private async markWroteFirst(tutorId: string, learnerId: string, checkIn: boolean): Promise<void> {
+		const key = this.stateKey(tutorId, learnerId);
+		const now = Date.now();
+		const times = (await this.redisClient.hget(key, 'proactiveTimes') ?? '').split(',').filter(x => x !== '');
+		await this.redisClient.hset(key, {
+			lastProactiveAt: now,
+			proactiveTimes: [...times, String(now)].slice(-12).join(','),
+			...(checkIn ? { lastCheckInAt: now } : {}),
+		});
+		await this.redisClient.hincrby(key, 'unanswered', 1);
 	}
 
 	private async card(tutorId: string): Promise<TutorCard> {
-		const item = await this.registryApiService.getItem(tutorId, null, SCOPE, 'card');
-		return item ? normalizeTutorCard(item.value) : defaultTutorCard;
+		return (await this.setup(tutorId)).card;
+	}
+
+	// The tutor account's card (key card) and her words (key prompts, misc/lojo-tutor-prompts.ts), both in its own
+	// registry. prompts is null when they are missing or broken: then she does not use the model.
+	private async setup(tutorId: string): Promise<{ card: TutorCard; prompts: TutorPrompts | null }> {
+		const [cardItem, promptsItem] = await Promise.all([
+			this.registryApiService.getItem(tutorId, null, SCOPE, 'card'),
+			this.registryApiService.getItem(tutorId, null, SCOPE, PROMPTS_KEY),
+		]);
+		const prompts = promptsItem ? normalizeTutorPrompts(promptsItem.value) : null;
+		if (prompts == null) this.logger.warn(`tutor ${tutorId} has no usable prompts (registry ${SCOPE.join('/')} ${PROMPTS_KEY})`);
+		return { card: normalizeTutorCard(cardItem?.value, prompts?.card), prompts };
 	}
 
 	private async memory(learnerId: string, tutorId: string): Promise<TutorMemory> {
@@ -794,21 +1009,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	private toTurns(tutorId: string, messages: MiChatMessage[]): ChatTurn[] {
-		const turns: { role: 'user' | 'assistant'; texts: string[] }[] = [];
-		for (const message of messages) {
-			// The 👉 line under a quest answer is added by the app, not written by her: left out, so she does not copy it.
-			// The fixed "away" messages are not hers either, and left out so she does not copy them once she is back.
-			if (message.fromUserId === tutorId && isTutorAwayText(message.text)) continue;
-			const text = (message.text ?? (message.fileId ? '(sent a file)' : '')).split('\n').filter(line => !line.startsWith('👉 ')).join('\n').trim();
-			if (text === '') continue;
-			const role = message.fromUserId === tutorId ? 'assistant' : 'user';
-			if (turns.at(-1)?.role === role) turns.at(-1)!.texts.push(text);
-			else turns.push({ role, texts: [text] });
-		}
-		return turns.map(turn => ({
-			role: turn.role,
-			content: turn.role === 'assistant' ? JSON.stringify({ messages: turn.texts, voice: false }) : turn.texts.join('\n'),
-		}));
+		return tutorChatTurns(tutorId, messages);
 	}
 
 	// Three recent English posts on the site, something specific to bring up when writing first.
@@ -850,20 +1051,16 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	}
 
 	private async tellFuse(news: 'half' | 'full', used: number): Promise<void> {
-		const line = news === 'half'
-			? `tutor daily fuse 50%: ${used} of ${this.dailyLimit} model calls used today (UTC)`
-			: `tutor daily fuse blown: ${this.dailyLimit} model calls used today (UTC); Vibi answers no one until 00:00 UTC`;
-		this.logger.warn(line);
+		const text = tutorFuseText(news, used, this.dailyLimit);
+		this.logger.warn(text.log);
 		const ids = this.fuseNotify.length > 0
 			? (await this.usersRepository.findBy(this.fuseNotify.map(username => ({ usernameLower: username.toLowerCase(), host: IsNull() })))).map(u => u.id)
 			: (await this.db.query(`SELECT "rootUserId" FROM "meta" WHERE "rootUserId" IS NOT NULL LIMIT 1`) as { rootUserId: string }[]).map(r => r.rootUserId);
 		for (const id of ids) {
 			this.notificationService.createNotification(id, 'app', {
 				appAccessTokenId: null,
-				customHeader: news === 'half' ? 'Vibi 全站保险丝：今天已用一半' : 'Vibi 全站保险丝：今天已拉断',
-				customBody: news === 'half'
-					? `今天（UTC）Vibi 已调用模型 ${used} 次，上限 ${this.dailyLimit}。到上限后所有人都暂停回复，北京时间早上 8 点恢复。上限可用 LOJO_TUTOR_DAILY_LIMIT 改。`
-					: `今天（UTC）Vibi 已到上限 ${this.dailyLimit} 次，所有人暂停回复，北京时间早上 8 点恢复。用户聊天页底部会看到提示。`,
+				customHeader: text.header,
+				customBody: text.body,
 				customIcon: null,
 			});
 		}
@@ -871,11 +1068,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// Adds up the tokens of the calls behind one answer (retries included), to charge them as one.
 	private usageMeter(): { add: (u: ModelUsage) => void; total: () => ModelUsage | null } {
-		let sum: ModelUsage | null = null;
-		return {
-			add: u => { sum = { hit: (sum?.hit ?? 0) + u.hit, miss: (sum?.miss ?? 0) + u.miss, out: (sum?.out ?? 0) + u.out }; },
-			total: () => sum,
-		};
+		return tutorUsageMeter();
 	}
 
 	// What Vibi's answer cost, off the learner's allowance (then gems). Messages she writes first are not charged.
@@ -896,11 +1089,41 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// For the Mastra pilot (endpoint lojo/tutor/pilot-tool): Mia's fixed system prompt word for word, without her notes
 	// (the pilot keeps its own working memory), and the "Now:" line and name of the last message.
-	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string }> {
-		const [card, learner] = await Promise.all([this.card(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId })]);
-		const full = tutorSystemPrompt(card, emptyMemory(), {});
-		const cut = full.lastIndexOf('\nWhat you know about ');
-		return { system: cut === -1 ? full : full.slice(0, cut).trimEnd(), now: this.nowText(), name: this.nameOf(learner) };
+	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string; you: string }> {
+		const [{ card, prompts }, learner, persona] = await Promise.all([this.setup(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId }), this.persona(learnerId)]);
+		// (the pilot keeps the prompt it read last when this fails)
+		if (prompts == null) throw new Error(`no prompts on the tutor account (registry ${PROMPTS_KEY})`);
+		return { system: tutorFixedPrompt(prompts, card).trimEnd(), now: this.nowText(), name: this.nameOf(learner), you: persona.name };
+	}
+
+	// 每个学员自己的 Momo (misc/lojo-tutor-persona.ts): the face and name the learner picked, checked again on every read
+	// (a learner can write their own registry directly).
+	public async persona(learnerId: string): Promise<TutorPersona> {
+		const item = await this.registryApiService.getItem(learnerId, null, SCOPE, PERSONA_KEY);
+		return item == null ? defaultPersona(learnerId) : normalizePersona(item.value, learnerId, this.isProhibitedName);
+	}
+
+	public async setPersona(learnerId: string, persona: { seed: string; name: string }): Promise<TutorPersona> {
+		await this.registryApiService.set(learnerId, null, SCOPE, PERSONA_KEY, { seed: persona.seed, name: persona.name });
+		return this.persona(learnerId);
+	}
+
+	// After the sign-up step 「认识你的 Momo」: the learner's Momo says hello under its new name, so the chat it opens is not
+	// empty. Only into a chat with no messages yet, so it never repeats.
+	public async greet(learner: MiUser, name: string): Promise<boolean> {
+		const tutorId = this.tutors[0];
+		if (tutorId == null || tutorId === learner.id) return false;
+		if ((await this.chatService.userTimeline(tutorId, learner.id, 1)).length > 0) return false;
+		const tutor = await this.usersRepository.findOneBy({ id: tutorId });
+		if (tutor == null) return false;
+		await this.send(tutor, learner, [personaHello(name)], false, undefined);
+		return true;
+	}
+
+	// The site's prohibited words for user names (admin › moderation) apply to the name too.
+	@bindThis
+	public isProhibitedName(name: string): boolean {
+		return this.utilityService.isKeyWordIncluded(name, this.meta.prohibitedWordsForNameOfUser);
 	}
 
 	private nameOf(user: MiUser): string {
@@ -909,10 +1132,6 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// To the day and part of the day: Mia needs no more, and a time to the minute would change the prompt every call.
 	private nowText(): string {
-		const now = new Date();
-		const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: this.tz, weekday: 'long' }).format(now);
-		const hour = localHour(now, this.tz);
-		const part = hour < 5 ? 'late at night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : hour < 23 ? 'evening' : 'late at night';
-		return `${localDay(now, this.tz)} ${weekday} ${part} (${this.tz === 'Asia/Shanghai' ? 'Beijing time' : this.tz})`;
+		return tutorNowText(this.tz);
 	}
 }

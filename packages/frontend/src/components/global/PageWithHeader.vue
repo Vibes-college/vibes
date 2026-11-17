@@ -14,7 +14,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@wheel.passive="armScroll"
 	@keydown="onKeydown"
 >
-	<MkStickyContainer :hideHeader="chromeHidden && !reversed" :hideFooter="chromeHidden && !reversed">
+	<!-- Vibes: with the folded bar (collapsedNavigation) the title and the tabs stay on every tab, not only on the
+	     messages: without them 任务 and 搜索 had no way back (founder 11-16). -->
+	<MkStickyContainer :hideHeader="chromeHidden && !reversed && !collapsedMode" :hideFooter="chromeHidden && !reversed && !collapsedMode">
 		<template #header>
 			<MkPageHeader v-if="prefer.s.showPageTabBarBottom && (props.tabs?.length ?? 0) > 0" :class="{ [$style.solidHeader]: reversed }" v-bind="pageHeaderPropsWithoutTabs"/>
 			<MkPageHeader v-else v-model:tab="tab" :class="{ [$style.solidHeader]: reversed }" v-bind="pageHeaderProps"/>

@@ -289,7 +289,8 @@ export const PREF_DEF = definePreferences({
 		default: true,
 	},
 	numberOfPageCache: {
-		default: 3,
+		// Vibes（2026-11-16）：3 → 8。返回时更常直接回到原来的页面和位置（不重新加载、不跳回顶部）
+		default: 8,
 	},
 	pollingInterval: {
 		// 1 ... 低
@@ -344,6 +345,9 @@ export const PREF_DEF = definePreferences({
 			disableUrlPreview: false,
 			code: false,
 		} as DataSaverStore,
+	},
+	autoplayEmbededPlayerOfUrlPreview: {
+		default: true,
 	},
 	hemisphere: {
 		default: hemisphere as 'N' | 'S',

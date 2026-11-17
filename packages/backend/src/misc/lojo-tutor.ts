@@ -3,11 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// Vibes AI tutor: persona card, the learner notes it keeps, when it may write first, and its prompts.
+// Vibes AI tutor: persona card, the learner notes it keeps, when it may write first, and how its prompts are put
+// together. The words of the prompts are not here: they are private and read from the tutor account's registry
+// (misc/lojo-tutor-prompts.ts, founder 2026-11-17 02:49 PT).
 // The notes follow mem0's open-source memory design (read the latest exchange, then add, update or delete what is
 // known), https://github.com/mem0ai/mem0 (Apache-2.0), rewritten around a learner's goals and progress.
 
-import { PROGRESS_CARD_INTRO } from '@/misc/lojo-tutor-progress.js';
+import { DEFAULT_VOICE, fillPrompt } from '@/misc/lojo-tutor-prompts.js';
+import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 
 export class LojoTutorInvalidResponse extends Error {}
 
@@ -23,18 +26,20 @@ export function isLojoTutor(userId: string): boolean {
 	return tutorIds.includes(userId);
 }
 
-// AI 学搭子对外的名字、头衔、简介：全站只在这里改（创始人 2026-11-11 16:50 定名 Vibi，原来叫 Mia）。
-// - name：账号显示名，也是提示词里的自称。网站每次启动时写进账号（LojoTutorService.applyPublicProfile）。
-//   @tutor_mia 这个用户名改不了，也不用改；代码里的 mia 字样是内部标识，用户看不到。
-// - title：私信页顶部名字后面那段，写成「Vibi · 学搭子」。只在中文界面显示，英文界面只写 Vibi（创始人原话：不要 study buddy）。
+// AI 学搭子对外的名字、头衔、简介：全站只在这里改（2026-11-11 定名 Vibi，原来叫 Mia；创始人 2026-11-17 00:13 PT
+// 改成 Momo，取小红书等社区里「momo」这个梗）。
+// - name：默认名字。公开的 @tutor_mia 账号显示这个，网站每次启动时写进账号（LojoTutorService.applyPublicProfile）。
+//   每个学员可以给自己那只另起名字、另挑脸（misc/lojo-tutor-persona.ts），学员自己看到的地方和她的自称都用学员起的。
+//   @tutor_mia 这个用户名改不了，也不用改；代码里的 mia、vibi 字样是内部标识，用户看不到。
+// - title：私信页顶部名字后面那段，写成「Momo · 学搭子」。只在中文界面显示，英文界面只写名字（创始人原话：不要 study buddy）。
 //   名字旁边另有一个「AI」小标签，不算头衔，一直显示。前端从 lojo/tutor/public 读，改这里不用改前端。
 // - bio：个人资料上的简介，启动时写进账号。要写明是 AI、不是真人。
-// 闯关地图上的自我介绍在 assets/lojo/quest/quest.js，跟着改。
+// 闯关地图上的名字跟着学员起的走（assets/lojo/quest/quest.js 从 lojo/tutor/persona/show 读）。
 // 守《广告法》：不写「最」，不承诺分数，不提别家。
 export const tutorPublic = {
-	name: 'Vibi',
+	name: 'Momo',
 	title: '学搭子',
-	bio: '我是 Vibi，Vibes 上的 AI 学搭子（不是真人）。你在各个板块学到哪了我都知道，可以陪你练、给你出题、帮你看看哪里还能更好，再告诉你下一步去哪。想聊什么，直接发消息给我就行。',
+	bio: '我是 Momo，Vibes 上的 AI 学搭子（不是真人）。每个人的 Momo 长得都不一样，名字也可以自己起。你在各个板块学到哪了我都知道，可以陪你练、给你出题、帮你看看哪里还能更好，再告诉你下一步去哪。想聊什么，直接发消息给我就行。',
 };
 
 // The Character Card V3 fields the tutor uses (https://github.com/kwaroran/character-card-spec-v3, MIT).
@@ -49,22 +54,18 @@ export type TutorCard = {
 	extensions: { vibes?: { voice?: string } };
 };
 
-export const defaultTutorCard: TutorCard = {
-	name: 'Vibi',
-	description: 'Vibi is the AI on Vibes and every learner\'s 学搭子: a learning buddy who learns alongside them, whatever they are into (English, fitness, writing, reading and more). Talks like a friend on their side, not like a teacher.',
-	personality: 'Encouraging, curious and a little playful. Notices small wins. Never preachy. Uses an emoji now and then.',
-	scenario: 'Vibi chats with learners in direct messages and keeps them company in whatever they are learning: practises with them, quizzes them, gives honest feedback and points them to their next step on Vibes. Practising English in the chat is one way to help (most learners are on English right now): Vibi rephrases mistakes naturally, offers a better word and keeps them talking. Vibi remembers their goals and checks in on them.',
-	first_mes: 'Hi! I\'m Vibi, the AI on Vibes 👋 (an AI, not a person). Whatever you\'re learning, I\'m here to practise with you. What are you working on at the moment?',
-	system_prompt: '',
-	post_history_instructions: '',
-	extensions: { vibes: { voice: 'uk-brit' } },
+// No persona text of its own: the fallback card comes with her private words (TutorPrompts.card).
+const blankCard: TutorCard = {
+	name: '', description: '', personality: '', scenario: '', first_mes: '', system_prompt: '', post_history_instructions: '',
+	extensions: { vibes: { voice: DEFAULT_VOICE } },
 };
 
 const str = (value: unknown, max: number): string => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 
-export function normalizeTutorCard(raw: unknown): TutorCard {
+// The tutor account's card (registry key card); fields it leaves empty come from fallback.
+export function normalizeTutorCard(raw: unknown, fallback: TutorCard = blankCard): TutorCard {
 	const card = (raw != null && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-	const pick = (key: keyof TutorCard, max: number) => str(card[key], max) || (defaultTutorCard[key] as string);
+	const pick = (key: keyof TutorCard, max: number) => str(card[key], max) || (fallback[key] as string);
 	const vibes = ((card.extensions as Record<string, unknown> | undefined)?.vibes ?? {}) as Record<string, unknown>;
 	return {
 		name: pick('name', 40),
@@ -74,7 +75,7 @@ export function normalizeTutorCard(raw: unknown): TutorCard {
 		first_mes: pick('first_mes', 600),
 		system_prompt: str(card.system_prompt, 2000),
 		post_history_instructions: str(card.post_history_instructions, 1000),
-		extensions: { vibes: { voice: str(vibes.voice, 40) || defaultTutorCard.extensions.vibes!.voice } },
+		extensions: { vibes: { voice: str(vibes.voice, 40) || fallback.extensions.vibes?.voice || DEFAULT_VOICE } },
 	};
 }
 
@@ -188,7 +189,9 @@ export function normalizeTutorReply(raw: unknown): TutorReply {
 // When the tutor may write first. Times are milliseconds since the epoch.
 export type ProactiveState = {
 	muted: boolean;
-	lastProactiveAt: number | null;
+	lastProactiveAt: number | null; // the last message she wrote first, of any kind
+	lastCheckInAt: number | null; // the last daily check-in (writeFirst), at most one a day
+	proactiveTimes: number[]; // when she wrote first lately (check-ins and plan messages), newest last
 	unanswered: number; // first messages sent since the learner last wrote
 	lastLearnerAt: number | null;
 	lastTutorAt: number | null;
@@ -204,11 +207,26 @@ export function localHour(date: Date, tz: string): number {
 	return Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).format(date));
 }
 
-export function proactiveDecision(state: ProactiveState, now: Date, opts: { tz: string; startHour: number; endHour: number }): { ok: boolean; reason: string } {
+// Messages she writes first, all kinds together (the daily check-in and the three plan messages: next week planned, a
+// task three days late, three days without opening the task tab), per learner per day in the given time zone.
+// Founder 2026-11-15: 「每天 1 条不至于，可以改为每天最多 5 条」. LOJO_TUTOR_PROACTIVE_PER_DAY changes it.
+export function proactivePerDay(): number {
+	const n = Number(process.env.LOJO_TUTOR_PROACTIVE_PER_DAY);
+	return Number.isInteger(n) && n >= 0 ? n : 5;
+}
+
+export function proactiveSentToday(times: number[], now: Date, tz: string): number {
+	const today = localDay(now, tz);
+	return times.filter(t => localDay(new Date(t), tz) === today).length;
+}
+
+export function proactiveDecision(state: ProactiveState, now: Date, opts: { tz: string; startHour: number; endHour: number; perDay?: number }): { ok: boolean; reason: string } {
 	if (state.muted) return { ok: false, reason: 'muted' };
 	const hour = localHour(now, opts.tz);
 	if (hour < opts.startHour || hour >= opts.endHour) return { ok: false, reason: 'quiet hours' };
-	if (state.lastProactiveAt != null && localDay(new Date(state.lastProactiveAt), opts.tz) === localDay(now, opts.tz)) return { ok: false, reason: 'already today' };
+	if (proactiveSentToday(state.proactiveTimes, now, opts.tz) >= (opts.perDay ?? proactivePerDay())) return { ok: false, reason: 'daily limit' };
+	// The check-in itself stays once a day; the rest of the day's allowance is for the plan messages.
+	if (state.lastCheckInAt != null && localDay(new Date(state.lastCheckInAt), opts.tz) === localDay(now, opts.tz)) return { ok: false, reason: 'already today' };
 	const lastChat = Math.max(state.lastLearnerAt ?? 0, state.lastTutorAt ?? 0);
 	if (now.getTime() - lastChat < 2 * HOUR) return { ok: false, reason: 'chatting recently' };
 	if (state.unanswered >= 3) return { ok: false, reason: 'stopped after 3 unanswered' };
@@ -216,7 +234,7 @@ export function proactiveDecision(state: ProactiveState, now: Date, opts: { tz: 
 	return { ok: true, reason: 'ok' };
 }
 
-function describeMemory(memory: TutorMemory): string {
+function describeMemory(memory: TutorMemory, empty: string): string {
 	const p = memory.profile;
 	const lines = [
 		p.goal && `Goal: ${p.goal}`,
@@ -229,7 +247,7 @@ function describeMemory(memory: TutorMemory): string {
 		...memory.facts.map(f => `- ${f.text}`),
 		memory.summary && `Where you left off: ${memory.summary}`,
 	].filter(Boolean);
-	return lines.length > 0 ? lines.join('\n') : 'Nothing yet: this is the start of your chats.';
+	return lines.length > 0 ? lines.join('\n') : empty;
 }
 
 // The prompt is split for DeepSeek's prefix cache (only an identical start of the request is billed at the cache price,
@@ -245,6 +263,8 @@ export type TutorPromptContext = {
 	now: string; // to the day and part of day, e.g. "2026-10-25 Sunday afternoon (Beijing time)"
 	// the learner's display name: here, not in tutorSystemPrompt, so every learner shares the same start of the prompt
 	learnerName?: string;
+	// the name this learner gave her (misc/lojo-tutor-persona.ts; Momo by default), here for the same reason
+	tutorName?: string;
 	opener?: { reason: string; recentPosts: string[] };
 	// where they are on the route maps with gates (IELTS listening 1.3 …), from LojoGateService.profileText
 	gates?: string | null;
@@ -256,57 +276,44 @@ export type TutorPromptContext = {
 	recall?: string | null;
 };
 
-export function tutorSystemPrompt(card: TutorCard, memory: TutorMemory, ctx: TutorStableContext): string {
+// The fixed start (prompts.system with the card filled in), then the chapter's quest knowledge, then the notes.
+// The default name comes from tutorPublic (one place), not the card, and is the same for every learner (prompt cache);
+// the name this learner gave her is in tutorContextMessage.
+export function tutorSystemPrompt(prompts: TutorPrompts, card: TutorCard, memory: TutorMemory, ctx: TutorStableContext): string {
 	return [
-		// The name comes from tutorPublic (one place), not the card, and is the same for every learner (prompt cache).
-		`You are ${tutorPublic.name}, the AI on Vibes, a social app where Chinese young adults learn whatever they care about through content they enjoy. You are each learner's 学搭子 (a learning buddy who learns alongside them), not a teacher or mentor. You know where each learner is across Vibes, practise with them, quiz them, give feedback and point them to their next step. Most learners are working on English right now.`,
-		card.description,
-		`Personality: ${card.personality}`,
-		`How you help: ${card.scenario}`,
-		card.system_prompt,
-		'',
-		'Rules:',
-		'- You are an AI. Never claim to be human or describe real-world experiences of your own. If asked whether you are a real person, say you are Vibes\' AI, not a person.',
-		`- Call yourself ${tutorPublic.name}. In Chinese you may call yourself their 学搭子; in English just ${tutorPublic.name} or "the AI on Vibes" (not "study buddy"). Never call yourself a tutor, teacher, mentor, 老师, 助教 or 导师. Be a friend on their side: no lecturing, no telling them what they should or must do.`,
-		'- Write like a messaging app: one to three short messages, each one or two sentences. No lists, headings or markdown.',
-		'- Answer in the language of the learner\'s latest message: a message in Chinese gets a reply in Chinese (English words or sentences you are teaching stay in English); a message in English gets simple English that matches their level.',
-		'- If they made a real mistake, fix at most one, naturally (for example "You mean: ...?"), never as a lecture. If there is no mistake, do not restate what they said.',
-		'- Use what you know about the learner below; if you do not know their goal yet, find out (exam, date, target score, interests).',
-		'- Usually end with one easy question that keeps them talking.',
-		'- Do not promise scores, admission or results. No romance or flirting. No medical, legal or financial advice.',
-		'- If the learner seems to be in crisis or mentions hurting themselves, reply with care, encourage them to talk to someone they trust, and suggest calling emergency services (120 or 110 in mainland China).',
-		'- Set "voice" to true when one of your messages is a short English sentence worth hearing (under 200 characters) or the learner asks to hear something; that message is read aloud.',
-		'- The last system message after the chat says what day it is and anything new (route map gates, a level they just failed, whether you are writing first). Go by it.',
-		card.post_history_instructions,
-		'',
-		ctx.questKnowledge ? 'Answer in JSON: {"messages": ["..."], "voice": false, "next": "<one id from the list, or leave it out>"}' : 'Answer in JSON: {"messages": ["..."], "voice": false}',
+		tutorFixedPrompt(prompts, card, ctx.questKnowledge ? prompts.formatQuest : prompts.formatPlain),
 		...(ctx.questKnowledge ? ['', ctx.questKnowledge] : []),
 		'',
-		'What you know about this learner (your notes from earlier chats; anything they said in this chat is newer):',
-		describeMemory(memory),
-	].filter(line => line !== undefined).join('\n');
+		prompts.notesHead,
+		describeMemory(memory, prompts.notesEmpty),
+	].join('\n');
+}
+
+// The start of the prompt without the quest knowledge and the notes (the Mastra pilot's "prompt" tool).
+export function tutorFixedPrompt(prompts: TutorPrompts, card: TutorCard, format = prompts.formatPlain): string {
+	return fillPrompt(prompts.system, {
+		name: tutorPublic.name,
+		description: card.description,
+		personality: card.personality,
+		scenario: card.scenario,
+		system_prompt: card.system_prompt,
+		post_history_instructions: card.post_history_instructions,
+		format,
+	});
 }
 
 // Sent as the last message, after the chat history: the parts of the prompt that change from one reply to the next.
-export function tutorContextMessage(ctx: TutorPromptContext): string {
+export function tutorContextMessage(prompts: TutorPrompts, ctx: TutorPromptContext): string {
 	return [
-		`Now: ${ctx.now}.`,
-		...(ctx.learnerName ? [`The learner's name on Vibes: ${ctx.learnerName}.`] : []),
-		...(ctx.progress ? [
-			'',
-			PROGRESS_CARD_INTRO,
-			ctx.progress,
-			'If they passed a level or gate in the last few days, a short well done is nice, once. If a recent one went badly, you may offer a little practice on what they missed, once in this chat, without nagging. Never quote test answers.',
-		] : ctx.gates ? [
-			'',
-			'Their gates on the Vibes route map (short tests at one band level; a practice level, not an official score):',
-			ctx.gates,
-			'If they passed a gate in the last few days, a short well done is nice. If a recent gate went badly, you may offer a little practice on what they missed, once, without nagging. Never quote the test\'s answers.',
-		] : []),
+		fillPrompt(prompts.now, { now: ctx.now }),
+		...(ctx.learnerName ? [fillPrompt(prompts.learnerName, { name: ctx.learnerName })] : []),
+		...(ctx.tutorName ? [fillPrompt(prompts.tutorName, { name: ctx.tutorName })] : []),
+		...(ctx.progress ? ['', prompts.progressIntro, ctx.progress, prompts.progressAfter]
+		: ctx.gates ? ['', prompts.gatesIntro, ctx.gates, prompts.gatesAfter] : []),
 		...(ctx.opener ? [
 			'',
-			`You are writing first to start a conversation (${ctx.opener.reason}). Send one or two short messages that mention something specific: their goal, where you left off, a gate they just took on the route map, or one of these recent posts on Vibes. Never repeat something you already said in this chat. End with an easy question.`,
-			...ctx.opener.recentPosts.map(post => `Recent post: ${post}`),
+			fillPrompt(prompts.opener, { reason: ctx.opener.reason }),
+			...ctx.opener.recentPosts.map(post => fillPrompt(prompts.recentPost, { post })),
 		] : []),
 		...(ctx.recall ? ['', ctx.recall] : []),
 		...(ctx.quest ? ['', ctx.quest] : []),
@@ -319,12 +326,3 @@ export const NOTES_EVERY = 6;
 export function asksToRememberOrForget(text: string): boolean {
 	return /\b(remember|forget|don'?t forget)\s+(this|that|it|me|my|i|about)\b|记住|记一下|记得我|忘掉|忘了这|别记|不要记/i.test(text);
 }
-
-export const memoryUpdateSystemPrompt = `This time do not reply to the learner. Your task now is to update your notes about them from the chat above. Below are today's date (and part of the day) and your current notes (as JSON). Resolve dates like "December 12" or "next Friday" against today's date. Answer in JSON:
-{"profile": {}, "facts": [{"op": "add", "text": "..."}, {"op": "update", "id": "...", "text": "..."}, {"op": "delete", "id": "..."}], "summary": "..."}
-
-- profile: only fields that are new or changed, from: goal (why they learn English), exam (e.g. "IELTS Academic"), examDate (YYYY-MM-DD), targetScore, level (CEFR guess A1-C2), interests (list), weakPoints (list of recurring mistakes), routine (when they like to study or chat), preferences (e.g. likes voice messages, wants Chinese explanations).
-- facts: short third-person sentences worth remembering for later chats (plans, events, how they feel about learning, progress). Add new ones; update a fact (by id) when it changed; delete facts (by id) that are no longer true. Keep it short; skip small talk.
-- Never store sensitive details: ID numbers, phone numbers, addresses, passwords, health or financial details.
-- summary: one to three sentences on where the conversation stands, so the next chat can pick it up.
-- Use only what the learner said or clearly implied. If nothing changed: {"profile": {}, "facts": [], "summary": ""}.`;

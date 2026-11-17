@@ -30,9 +30,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:aria-hidden="timelineChromeHidden || keyboardOpen || undefined"
 				data-timeline-navigation
 			/>
-			<!-- Vibes: with the agent summoned, its button takes this corner instead (lojo/agent/LojoAgent.vue). -->
+			<!-- Vibes: with Momo shown (on by default), its button takes this corner instead (lojo/agent/LojoAgent.vue). -->
 			<button
-				v-if="timelineChromeEnabled && isRoot && !agentState.summoned && !keyboardOpen"
+				v-if="timelineChromeEnabled && isRoot && !vibiShown && !keyboardOpen"
 				type="button"
 				class="_button _buttonGradate"
 				:class="[$style.floatingPost, { [$style.floatingPostVisible]: timelineChromeHidden, [$style.noAnimation]: !prefer.s.animation }]"
@@ -79,7 +79,7 @@ import { prefer } from '@/preferences.js';
 import { shouldSuggestRestoreBackup } from '@/preferences/utility.js';
 import { DI } from '@/di.js';
 import { shouldSuggestReload } from '@/utility/reload-suggest.js';
-import { agentState } from '@/lojo/agent/state.js';
+import { vibiShown } from '@/lojo/agent/state.js';
 import { keyboardOpen, watchKeyboard } from '@/lojo/keyboard.js';
 
 const XWidgets = defineAsyncComponent(() => import('./_common_/widgets.vue'));

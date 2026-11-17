@@ -4,23 +4,25 @@
  */
 
 // 5 号线 · 词汇 on the gate's result page: the words missed in a vocabulary paper, with their meaning, phonetics and
-// example from the course pack's word lists (VOCAB in courses/english/ielts/vocab.js), ready for the 生词本.
+// example from the course's word lists, ready for the 生词本. The lists are in the site's database since 2026-11-17
+// (kind vocab-<course>, imported with apps/community/scripts/content-import.mjs) and read through lojo/content-pack.ts.
 import { splitWhy } from './answers.js';
 import type { GateAttempt, GateResult } from './player.js';
 import type { WordbookItem } from '@/lojo/english/wordbook.js';
 
-// The parts of vocab.js read here. alt: other spellings that also count (American ones).
+// The parts of the word lists read here. alt: other spellings that also count (American ones).
 export type VocabWord = { w: string; alt?: string[]; ipa?: string; pos?: string; zh: string; ex?: string };
 export type VocabPack = { stops: { id: string; groups: { label: string; words: VocabWord[] }[] }[] };
 
 const norm = (s: string) => s.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 
-// The word lists ship with the IELTS pack only. Loaded when a result needs them, once.
+// Only IELTS has word lists. Loaded when a result needs them, once; without them the page still lists the missed words
+// (with the meaning from the question's why).
 let loading: Promise<VocabPack | null> | null = null;
 export function loadVocab(course: string): Promise<VocabPack | null> {
 	if (course !== 'ielts') return Promise.resolve(null);
-	loading ??= import('@/lojo/route/courses/ielts/vocab.js').then(
-		mod => (mod as unknown as { VOCAB?: VocabPack }).VOCAB ?? null,
+	loading ??= import('@/lojo/content-pack.js').then(m => m.loadPack('vocab-ielts')).then(
+		pack => (Array.isArray((pack as Partial<VocabPack>).stops) ? pack as unknown as VocabPack : null),
 		() => {
 			loading = null;
 			return null;

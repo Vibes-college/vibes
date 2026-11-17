@@ -50,6 +50,9 @@ button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer
 .dock{position:absolute;left:0;right:0;bottom:0;z-index:30;padding:0 14px 8px;background:linear-gradient(180deg,rgba(246,241,231,0),var(--cream) 18%)}
 #mia{display:flex;align-items:flex-end;gap:8px;margin-bottom:8px;min-height:50px}
 .mia-face{width:44px;height:44px;flex:none;cursor:pointer}
+/* 学员自己那只 Momo 的头（202×196，带白边）：宽度不变，不放大；在米色纸上靠一点阴影把白边托出来（闯关体验设计 11-17：38px 也要看得清轮廓） */
+img.mia-face.momo{height:auto;aspect-ratio:202/196;object-fit:contain;filter:drop-shadow(0 1px 1.5px rgba(20,30,82,.4));-webkit-user-drag:none;user-select:none}
+img.mia-face.momo:not([src]){visibility:hidden}
 .bubble{flex:1;background:var(--paper);border:1.5px solid var(--navy);border-radius:14px 14px 14px 4px;padding:7px 10px;font-size:12.5px;line-height:1.45;box-shadow:3px 3px 0 var(--navy)}
 .bubble b{color:var(--coral)}
 /* 气泡最多 2 行，矮屏 1 行，点开看全文（创始人 11-10） */
@@ -441,6 +444,7 @@ html,body{background:#E9E1D2}
 #coachCard{position:absolute;left:14px;right:14px;background:var(--paper);border:1.5px solid var(--navy);border-radius:18px;box-shadow:4px 5px 0 var(--navy);padding:12px 14px 12px}
 #coachCard .row1{display:flex;gap:10px;align-items:flex-start}
 #coachCard .mia-face{width:38px;height:38px}
+#coachCard img.mia-face.momo{height:auto}
 #coachT{font-size:13.5px;line-height:1.55;flex:1}
 #coachT b{color:var(--coral)}
 #coachCard .ft{display:flex;align-items:center;gap:8px;margin-top:10px}
@@ -647,3 +651,6 @@ html,body{background:#E9E1D2}
 .qtop #tWrap{display:flex;align-items:center;gap:8px}
 .qtop .late30{position:static;transform:none}
 @media (max-width:370px){.qtop .late30{font-size:11.5px;padding:2px 7px}}
+
+/* 原地图三章 v2（2026-11-16）：toast 挪到底栏上方，quest.js 里按底栏高度设 bottom */
+.toast{top:auto!important;white-space:normal!important;max-width:calc(100% - 40px);width:max-content;text-align:center;line-height:1.45}

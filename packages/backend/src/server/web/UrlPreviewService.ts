@@ -17,6 +17,8 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { bindThis } from '@/decorators.js';
 import { ApiError } from '@/server/api/error.js';
 import { MiMeta } from '@/models/Meta.js';
+import { getYouTubeStartSeconds, getYouTubeVideoId, summaryFromYouTubeOEmbed, youTubeOEmbedUrl } from '@/misc/lojo-youtube.js';
+import type { YouTubeOEmbed } from '@/misc/lojo-youtube.js';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
 @Injectable()
@@ -85,7 +87,8 @@ export class UrlPreviewService implements OnApplicationShutdown {
 
 		try {
 			const fetcher = async () => {
-				const result = await (
+				// Vibes：YouTube 视频先问 oEmbed（服务器 IP 抓页面只拿到空壳页），拿不到再照旧走 summaly
+				const result = await this.fetchYouTubeSummary(url) ?? await (
 					this.meta.urlPreviewSummaryProxyUrl
 					? this.fetchSummaryFromProxy(url, lang)
 					: this.fetchSummary(url, lang)
@@ -133,6 +136,27 @@ export class UrlPreviewService implements OnApplicationShutdown {
 					id: '09d01cb5-53b9-4856-82e5-38a50c290a3b',
 				}),
 			};
+		}
+	}
+
+	/** Vibes：YouTube 视频链接用官方 oEmbed 接口拿标题、封面和播放器（见 misc/lojo-youtube.ts）；不是 YouTube 视频或出错时返回 null。 */
+	@bindThis
+	private async fetchYouTubeSummary(url: string): Promise<SummalyResult | null> {
+		let parsed: URL;
+		try {
+			parsed = new URL(url);
+		} catch {
+			return null;
+		}
+		const videoId = getYouTubeVideoId(parsed);
+		if (videoId == null) return null;
+
+		try {
+			const oembed = await this.httpRequestService.getJson<YouTubeOEmbed>(youTubeOEmbedUrl(videoId));
+			return summaryFromYouTubeOEmbed(url, videoId, getYouTubeStartSeconds(parsed), oembed ?? {});
+		} catch (err) {
+			this.logger.warn(`YouTube oEmbed failed for ${url}, falling back to summaly: ${err}`);
+			return null;
 		}
 	}
 

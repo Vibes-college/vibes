@@ -19,6 +19,8 @@ import baseCss from './route.css?inline';
 import css from './gate-map.css?inline';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// The course pack comes from the database (2026-11-17), as JSON, so a caption that takes values is text with {0}, {1}…
+const fill = (t, ...v) => String(t).replace(/\{(\d)\}/g, (m, i) => v[i] ?? m);
 // band labels: offset from the stop and text-anchor, per side
 const LAB = { n: [0, -32, 'middle'], s: [0, 52, 'middle'], e: [32, 9, 'start'], w: [-32, 9, 'end'], ne: [24, -24, 'start'], nw: [-24, -24, 'end'], se: [24, 44, 'start'], sw: [-24, 44, 'end'] };
 // interchange labels are two lines, the band and then the name; this is where the band line sits
@@ -577,8 +579,8 @@ export async function mount(shadow, bridge, course, catalog = []) {
 	// what to do after the tour: a newcomer's first step, else the placement test, else back to their stop
 	function nextStep() {
 		const me = pinStop() || FIRST, fresh = !LAST && !passedN(), pt = placeTest(NODES[me].n);
-		const goLabel = fresh ? T('startAt')(band(me)) : X.go(T('stTitle')(L(NODES[me].line), band(me)));
-		if (WARMUP && fresh && !WP?.done) return { text: X.endNew(WARMUP.minutes, !!pt), acts: [['warm', X.warm], pt ? ['place', X.place] : ['go', goLabel]] };
+		const goLabel = fresh ? T('startAt')(band(me)) : fill(X.go, T('stTitle')(L(NODES[me].line), band(me)));
+		if (WARMUP && fresh && !WP?.done) return { text: fill(X.endNew, WARMUP.minutes, pt ? X.endNewPlace : X.endNewStart), acts: [['warm', X.warm], pt ? ['place', X.place] : ['go', goLabel]] };
 		if (pt) return { text: X.endPlace, acts: [['place', X.place], ['go', goLabel]] };
 		return { text: X.endBack, acts: [['go', goLabel], ['again', X.again]] };
 	}

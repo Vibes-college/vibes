@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { BroadcastChannel } from 'broadcast-channel';
 import { createVisibilityAwareInterval } from '@@/js/interval.js';
 import type { StorageProvider } from '@/preferences/manager.js';
 import { cloudBackup } from '@/preferences/utility.js';
@@ -11,6 +10,7 @@ import { miLocalStorage } from '@/local-storage.js';
 import { isSameScope, PreferencesManager } from '@/preferences/manager.js';
 import { store } from '@/store.js';
 import { $i } from '@/i.js';
+import { TypedBroadcastChannel as BroadcastChannel } from '@/utility/typed-broadcast-channel.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { TAB_ID } from '@/tab-id.js';
 
@@ -101,6 +101,13 @@ const io: StorageProvider = {
 
 export const prefer = new PreferencesManager(io, $i);
 
+// Vibes（2026-11-16）：页面缓存默认从 3 页改成 8 页（def.ts）。存过设置的设备里存的还是旧默认 3，
+// 这里一次性换成 8；自己改成别的数的不动。
+if (miLocalStorage.getItem('vibesPageCache8') == null) {
+	if (prefer.s.numberOfPageCache === 3) prefer.commit('numberOfPageCache', 8);
+	miLocalStorage.setItem('vibesPageCache8', '1');
+}
+
 //#region タブ間同期
 let latestPreferencesUpdate: {
 	tabId: string;
@@ -125,7 +132,8 @@ prefer.on('committed', () => {
 	});
 });
 
-preferencesChannel.addEventListener('message', (msg) => {
+preferencesChannel.addEventListener('message', (ev) => {
+	const msg = ev.data;
 	if (msg.type === 'preferencesUpdate') {
 		if (msg.tabId === TAB_ID) return;
 		if (latestPreferencesUpdate != null) {

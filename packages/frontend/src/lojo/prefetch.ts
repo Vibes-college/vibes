@@ -21,7 +21,9 @@ const signedInPages = [
 	// the bottom bar's two tabs: the route map with the IELTS map (route.vue loads these two), and the guides
 	() => import('@/pages/lojo/route.vue'),
 	() => import('@/lojo/route/gate-map.js'),
-	() => import('@/lojo/route/courses/ielts/index.js'),
+	// the IELTS route pack comes from the server since 2026-11-17 (lojo/content-pack.ts): fetch it and keep a copy, so the
+	// first gate page draws without waiting (with a copy already kept, this only checks it is still the version in use)
+	() => import('@/lojo/content-pack.js').then(m => m.loadCourse('ielts')),
 	() => import('@/pages/lojo/guides/index.vue'),
 	() => import('@/pages/lojo/guides/detail.vue'),
 ];

@@ -21,16 +21,16 @@ lends it the community login (api) and the community router (go) through window.
 			<path d="M150 60 Q230 70 300 45" fill="none" stroke="#c9bda4" stroke-width="2" stroke-dasharray="1 6" stroke-linecap="round"/>
 			<path d="M0 95 Q100 80 200 98 T390 88" fill="none" stroke="#d6e0e6" stroke-width="10" stroke-linecap="round"/>
 			<g font-family="sans-serif" font-size="11" font-weight="800" text-anchor="middle" fill="#141E52">
-				<circle cx="120" cy="100" r="14" fill="#FFFDF8" stroke="#141E52" stroke-width="1.8"/><text x="120" y="104">1-1</text>
-				<circle cx="150" cy="60" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="150" y="64">1-2</text>
-				<circle cx="300" cy="45" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="300" y="49">1-7</text>
+				<circle cx="120" cy="100" r="14" fill="#FFFDF8" stroke="#141E52" stroke-width="1.8"/><text x="120" y="104">词1</text>
+				<circle cx="150" cy="60" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="150" y="64">语1</text>
+				<circle cx="300" cy="45" r="14" fill="#F6F1E7" stroke="#141E52" stroke-width="1.8" stroke-dasharray="3 3"/><text x="300" y="49">词4</text>
 				<path d="M195 4 l-7 7 h4 v8 h6 v-8 h4z" fill="#E8603F"/>
 			</g>
 		</svg>
 		<div :class="$style.card">
-			<div :class="$style.kicker">闯关 · 雅思第一章</div>
+			<div :class="$style.kicker">闯关 · 雅思基础关</div>
 			<h1 :class="$style.title">用闯关的方式，让你沉迷学习</h1>
-			<p :class="$style.text">一关一关，打到考场。第一关：听人报名字、地址，一个字母一个字母拼出来。</p>
+			<p :class="$style.text">一关一关，打到考场。第一关：听一个单词，把它拼出来。</p>
 			<div :class="$style.actions">
 				<button :class="[$style.btn, $style.primary]" type="button" :disabled="opening != null" @click="startTrial()">先打一关，不用注册</button>
 				<button :class="$style.btn" type="button" :disabled="opening != null" @click="signin()">{{ opening === 'signin' ? '正在打开…' : '已有账号？登录' }}</button>
@@ -51,6 +51,7 @@ import { saveLogin } from '@/accounts.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
 import { markFromQuest } from '@/lojo/quest-refill.js';
+import { loadPersona, myTutorName, myTutorSeed } from '@/lojo/tutor/persona.js';
 import { DI } from '@/di.js';
 
 const props = defineProps<{
@@ -223,8 +224,10 @@ type Bridge = {
 	chrome?: (hidden: boolean) => boolean;
 	// 游戏放上来：底栏收起或回来（包括社区自己叫回，比如转屏）时告诉它
 	onChrome?: (hidden: boolean) => void;
-	// 打开「召唤 Agent」的对话面板；没召唤就返回 false
+	// 打开右下角学搭子的对话面板；没打开「在首页显示」就返回 false
 	agent?: () => boolean;
+	// 学员自己那只 Momo 的名字和脸（创始人 11-17，lojo/tutor/persona.ts）；游客拿到的是默认的
+	momo?: () => Promise<{ name: string; seed: string }>;
 	// 试玩（游客）才有：存档 = 建号并在这一页登录；登录名能不能用；要不要内测码（测试站注册是关的）；改用登录
 	save?: (p: SaveParams) => Promise<{ ok: true } | { ok: false; code: string }>;
 	available?: (username: string) => Promise<boolean | null>;
@@ -296,6 +299,10 @@ const bridge: Bridge = {
 		if (chrome == null || !chrome.enabled.value || chrome.blocked.value) return false;
 		chrome.hidden.value = hidden;
 		return true;
+	},
+	async momo() {
+		await loadPersona();
+		return { name: myTutorName.value, seed: myTutorSeed.value };
 	},
 	agent() {
 		const ev = new CustomEvent('vibes:agent-open', { cancelable: true });

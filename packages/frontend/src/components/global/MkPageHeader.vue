@@ -6,7 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="show" ref="el" :class="[$style.root, { [$style.tabsStart]: tabsAlign === 'start' }]">
 	<div :class="[$style.upper, { [$style.slim]: narrow, [$style.thin]: thin_ }]">
-		<div v-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
+		<!-- Vibes: a back arrow in place of the empty left slot (the chat with Vibi, founder 11-16). -->
+		<div v-if="back" :class="$style.buttons">
+			<button class="_button" :class="$style.button" :aria-label="i18n.ts.goBack" data-page-back @click.stop="back" @touchstart="preventDrag"><i class="ti ti-chevron-left"></i></button>
+		</div>
+		<div v-else-if="!thin_ && (narrow || deviceKind === 'smartphone') && props.displayMyAvatar && $i" class="_button" @click="openAccountMenu">
 			<MkAvatar :class="$style.avatar" :user="$i"/>
 		</div>
 		<div v-else-if="!thin_ && narrow && !hideTitle" :class="$style.buttons"></div>
@@ -59,6 +63,8 @@ export type PageHeaderProps = {
 	tabsAlign?: 'start' | 'center';
 	canOmitTitle?: boolean;
 	displayMyAvatar?: boolean;
+	// Vibes: shows a back arrow at the left end of the title row.
+	back?: () => void;
 };
 </script>
 
@@ -70,6 +76,7 @@ import { getAccountMenu } from '@/accounts.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import { $i } from '@/i.js';
 import { DI } from '@/di.js';
+import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 
 const props = withDefaults(defineProps<PageHeaderProps>(), {

@@ -4,8 +4,10 @@
  */
 
 // The usage line under a chat with Vibi (founder, 2026-11-11): how much of the 5-hour and weekly allowance is used and
-// when it comes back; when it is used up, whether gems are in use. Only this line talks about it: Vibi never does.
+// when it comes back; when it is used up, whether gems are in use. Only this line talks about it: the AI tutor never does.
 // There is no way to buy gems yet, so there is no buy button.
+
+import { DEFAULT_TUTOR_NAME } from './persona-rules.js';
 
 export type VibiUsage = {
 	fivePct: number; fiveResetAt: string | null;
@@ -35,19 +37,20 @@ export function gemsText(milli: number): string {
 	return milli >= 10000 ? String(Math.floor(milli / 1000)) : String(Math.floor(milli / 100) / 10);
 }
 
-export function usageText(u: VibiUsage, now: Date, zh: boolean): string {
+// name: what the learner calls their Momo (lojo/tutor/persona.ts myTutorName).
+export function usageText(u: VibiUsage, now: Date, zh: boolean, name = DEFAULT_TUTOR_NAME): string {
 	// The whole-site fuse (a daily cap for everyone together) comes before the learner's own allowance.
 	if (u.siteFullUntil) {
 		const at = whenText(u.siteFullUntil, now, zh);
 		return zh
-			? `今天找 Vibi 的人太多，全站暂停回复，${at} 恢复。没扣你的额度。`
-			: `Vibi is too busy today and is pausing for everyone. Back ${at}; nothing was taken from your allowance.`;
+			? `今天全站聊天的人太多，${name} 先暂停回复，${at} 恢复。没扣你的额度。`
+			: `Too many people are chatting today, so ${name} is pausing. Back ${at}; nothing was taken from your allowance.`;
 	}
 	const back = u.backAt ? whenText(u.backAt, now, zh) : null;
 	if (u.state === 'out') {
 		return zh
-			? `额度用完了，${back ?? '稍后'}恢复。在那之前 Vibi 先不回复。`
-			: `You've used up your allowance. It's back ${back ?? 'soon'}; Vibi won't reply until then.`;
+			? `额度用完了，${back ?? '稍后'}恢复。在那之前 ${name} 先不回复。`
+			: `You've used up your allowance. It's back ${back ?? 'soon'}; ${name} won't reply until then.`;
 	}
 	if (u.state === 'gems') {
 		return zh

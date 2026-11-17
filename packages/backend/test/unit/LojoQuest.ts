@@ -12,7 +12,8 @@ import {
 import { QUEST_NUMBERS } from '@/misc/lojo-quest-numbers.js';
 import { questContentProblems } from '@/misc/lojo-quest-content.js';
 import type { QuestChapter, QuestQuestion } from '@/misc/lojo-quest-types.js';
-import { QUEST_BOOKS } from '@/misc/lojo-quest-books.js';
+import { questBooksProblems } from '@/misc/lojo-quest-books.js';
+import type { QuestBook, QuestBooksFile } from '@/misc/lojo-quest-books.js';
 import { lojoVoiceIds } from '@/misc/lojo-voices.js';
 
 const q = (over: Partial<QuestQuestion>): QuestQuestion => ({
@@ -30,6 +31,10 @@ const CONTENT: QuestChapter[] | null = existsSync(`${CONTENT_DIR}/ch1.json`)
 	: null;
 const [QUEST_CH1, QUEST_CH2, QUEST_CH3, QUEST_CH4] = CONTENT ?? [];
 const noContent = CONTENT == null;
+// 锦囊书屋的书（2026-11-17 起也不在代码里，books.json 导入数据库 lojo_content）
+const BOOKS_FILE: QuestBooksFile | null = existsSync(`${CONTENT_DIR}/books.json`)
+	? JSON.parse(readFileSync(`${CONTENT_DIR}/books.json`, 'utf8')) as QuestBooksFile
+	: null;
 
 const bj = (s: string) => new Date(`${s}+08:00`);
 
@@ -120,11 +125,13 @@ describe('闯关 rules', () => {
 		for (const c of ch.causeOrder) expect(typeof c).toBe('string');
 	});
 
-	test('books', () => {
-		expect(QUEST_BOOKS.length).toBe(10);
-		for (const b of QUEST_BOOKS) expect(b.quiz).toHaveLength(3);
+	test.skipIf(BOOKS_FILE == null)('books (books.json passes the import check and fills chapter 1\'s shelves)', () => {
+		const books = BOOKS_FILE!.books;
+		expect(questBooksProblems(BOOKS_FILE)).toEqual([]);
+		expect(books.length).toBe(10);
+		for (const b of books) expect(b.quiz).toHaveLength(3);
 		if (noContent) return;
-		for (const n of QUEST_CH1.nodes) for (const r of n.shelf) expect(QUEST_BOOKS.some(b => b.ref === r)).toBe(true);
+		for (const n of QUEST_CH1.nodes) for (const r of n.shelf) expect(books.some(b => b.ref === r)).toBe(true);
 	});
 
 	test('选两个: both right, one right is half, none right is wrong', () => {
@@ -220,13 +227,14 @@ describe('闯关 rules', () => {
 	});
 
 	test('book gear: level gear, wordbook fallback, no graded reading on low hearts', () => {
-		const j5 = QUEST_BOOKS.find(b => b.ref === 'j5')!;
-		const j7 = QUEST_BOOKS.find(b => b.ref === 'j7')!;
-		expect(bookGear(j7, 'dictation', { wordbookLow: false, hearts: 5 })).toBe('dictation');
-		if (j5.gear === 'wordbook') {
-			expect(bookGear(j5, null, { wordbookLow: false, hearts: 5 })).toBe('wordbook');
-			expect(bookGear(j5, null, { wordbookLow: true, hearts: 5 })).toBe('vocab:5.4');
-		}
+		// 示例书（真书在 books.json 里）：只有装备那几格要紧
+		const book = (gear: string | null, fallbackGear: string | null) => ({ gear, fallbackGear }) as QuestBook;
+		expect(bookGear(book('level', null), 'dictation', { wordbookLow: false, hearts: 5 })).toBe('dictation');
+		expect(bookGear(book('level', null), null, { wordbookLow: false, hearts: 5 })).toBe('dictation');
+		expect(bookGear(book('wordbook', 'vocab:5.4'), null, { wordbookLow: false, hearts: 5 })).toBe('wordbook');
+		expect(bookGear(book('wordbook', 'vocab:5.4'), null, { wordbookLow: true, hearts: 5 })).toBe('vocab:5.4');
+		expect(bookGear(book('graded-reading', null), null, { wordbookLow: false, hearts: 2 })).toBe('vocab:5.3');
+		expect(bookGear(book('graded-reading', null), null, { wordbookLow: false, hearts: 3 })).toBe('graded-reading');
 		expect(gearPath('graded-reading').givesHeart).toBe(false);
 		expect(gearPath('vocab:5.4').path).toBe('/apps/vocab/5.4?tab=practice&scope=all');
 	});

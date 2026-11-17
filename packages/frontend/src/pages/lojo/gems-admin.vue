@@ -116,7 +116,7 @@ import type { VibiUsage } from '@/lojo/tutor/usage-text.js';
 const zh = lang.startsWith('zh');
 const TEXT = {
 	zh: {
-		title: 'Vibi 用量和宝石', user: '用户名或 id', look: '查看', five: '5 小时额度', week: '周额度', resets: '恢复于', gems: '宝石',
+		title: 'AI tutor 用量和宝石', user: '用户名或 id', look: '查看', five: '5 小时额度', week: '周额度', resets: '恢复于', gems: '宝石',
 		state: '状态', states: { ok: '额度内', gems: '额度用完，在用宝石', out: '额度用完，没有宝石' },
 		amount: '宝石数（负数是扣）', minutes: '多少分钟后过期（测试用，留空 = 6 个月）', note: '备注', paid: '算作买的宝石（永不过期）',
 		adjust: '加 / 扣宝石', reset: '额度从头算', inviter: '邀请人（用户名或 id），给他和上面这位各发邀请奖励', invite: '发邀请奖励',
@@ -126,7 +126,7 @@ const TEXT = {
 		kinds: { invite: '邀请赠送', contribution: '贡献赠送', purchase: '购买', spend: '消费', expire: '过期', refund: '退款', admin: '管理员调整' } as Record<string, string>,
 	},
 	en: {
-		title: 'Vibi usage & gems', user: 'Username or id', look: 'Look up', five: '5-hour allowance', week: 'Weekly allowance', resets: 'resets', gems: 'Gems',
+		title: 'AI tutor usage & gems', user: 'Username or id', look: 'Look up', five: '5-hour allowance', week: 'Weekly allowance', resets: 'resets', gems: 'Gems',
 		state: 'State', states: { ok: 'Within allowance', gems: 'Allowance used up, using gems', out: 'Allowance used up, no gems' },
 		amount: 'Gems (negative takes)', minutes: 'Expires in minutes (testing; empty = 6 months)', note: 'Note', paid: 'Count as bought (never expires)',
 		adjust: 'Add / take gems', reset: 'Restart allowance', inviter: 'Inviter (username or id): invite reward to them and the user above', invite: 'Give invite reward',

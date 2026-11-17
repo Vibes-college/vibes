@@ -6,6 +6,7 @@
 import { describe, expect, test } from 'vitest';
 import { hitScore, progressCardText, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
 import { tutorContextMessage } from '@/misc/lojo-tutor.js';
+import { testPrompts } from '../misc/lojo-tutor-prompts.js';
 
 describe('progress card', () => {
 	const card = progressCardText({
@@ -40,12 +41,10 @@ describe('progress card', () => {
 	});
 
 	test('goes in the last message, not the gates text', () => {
-		const msg = tutorContextMessage({ now: '2026-11-11 Wednesday morning (Beijing time)', progress: card, gates: 'old gates', recall: 'Older messages …' });
-		expect(msg).toContain('never say you cannot see it');
-		expect(msg).toContain('never push a part they have not started');
-		expect(msg).toContain(card);
+		const msg = tutorContextMessage(testPrompts, { now: '2026-11-11 Wednesday morning (Beijing time)', progress: card, gates: 'old gates', recall: 'RECALL: …' });
+		expect(msg).toBe(`NOW 2026-11-11 Wednesday morning (Beijing time)\n\nPROGRESS:\n${card}\nPROGRESS END\n\nRECALL: …`);
 		expect(msg).not.toContain('old gates');
-		expect(msg).toContain('Older messages …');
+		expect(tutorContextMessage(testPrompts, { now: 'x', gates: 'G' })).toBe('NOW x\n\nGATES:\nG\nGATES END');
 	});
 });
 
@@ -65,7 +64,7 @@ describe('chat search terms', () => {
 		const terms = searchTerms('my cat Mochi 雅思');
 		expect(hitScore('My cat is called Mochi', terms)).toBe(4);
 		expect(hitScore('我在准备雅思', terms)).toBe(1);
-		expect(recallText([])).toBeNull();
-		expect(recallText([{ id: 'a', at: '2026-11-01T00:00:00.000Z', who: 'learner', text: 'My cat is Mochi', score: 4 }])).toContain('2026-11-01 they said: My cat is Mochi');
+		expect(recallText([], testPrompts)).toBeNull();
+		expect(recallText([{ id: 'a', at: '2026-11-01T00:00:00.000Z', who: 'learner', text: 'My cat is Mochi', score: 4 }], testPrompts)).toBe('RECALL:\n- 2026-11-01 they said: My cat is Mochi\nRECALL END');
 	});
 });

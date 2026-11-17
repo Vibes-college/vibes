@@ -3,18 +3,19 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// 6 号线 · 语法's lessons: the course file (courses/english/ielts/grammar.js in the Vibes workspace, synced to
-// lojo/route/courses/ielts/grammar.js) as typed stops and lessons, with the examples already parsed. Anything malformed
-// is left out; the unit test checks the file. The line's name and each stop's question types come from content.js.
-// The gates themselves are on the server (gates/6.x-A.js); their tags point back at a lesson's sections.
+// 6 号线 · 语法's lessons as typed stops and lessons, with the examples already parsed. Anything malformed is left out.
+// The lessons are not in the code since 2026-11-17: courses/english/ielts/grammar.js in the Vibes workspace is imported
+// into the site's database (kind grammar-<course>, content-import.mjs, which checks them and their marks first) and the
+// 语法课 mini app reads them from lojo/content/pack (lojo/grammar/load.ts there). The line's name and each stop's
+// question types come from the route lines (the course's route pack, LINES).
+// The gates themselves are on the server; their tags point back at a lesson's sections.
+// This file is the same in the community (packages/frontend, with the unit tests) and in miniapps/grammar.
 import { inlineParts, keysUsed, parseExample, plainText, writingText } from './marks.js';
 import type { InlinePart, LegendKey, Segment } from './marks.js';
-import { GRAMMAR } from '@/lojo/route/courses/ielts/grammar.js';
-import { LINES } from '@/lojo/route/courses/ielts/content.js';
 
 export type Bilingual = { zh: string; en: string };
 
-// types: the question types of its gate (连词成句、选择…), when content.js has them
+// types: the question types of its gate (连词成句、选择…), when the route lines have them
 export type GrammarStop = { id: string; band: number; title: string; sub: string; focus: string; types: Bilingual | null };
 // say: the sentence without its markup, read aloud
 export type ExampleBlock = { kind: 'ex'; src: string; segments: Segment[]; say: string; zh: string };
@@ -142,8 +143,6 @@ export function toGrammarContent(raw: unknown, lines: unknown): GrammarContent {
 	};
 }
 
-export const grammarContent = toGrammarContent(GRAMMAR, LINES);
-
 // 4 → "4.0"
 export const bandText = (band: number): string => band.toFixed(1);
 
@@ -158,6 +157,7 @@ export function neighbours(content: GrammarContent, id: string): { prev: Grammar
 	return { prev: content.stops[at - 1] ?? null, next: content.stops[at + 1] ?? null };
 }
 
+// 语法课 2026-11-12 起是小程序 /apps/grammar/<站>（社区里的旧地址 /grammar/<站> 永久跳过来）。
 export const lessonPath = (id: string): string => `/apps/grammar/${id}`;
 export const gatePath = (id: string): string => `/gate/${GRAMMAR_COURSE}/${id}`;
 

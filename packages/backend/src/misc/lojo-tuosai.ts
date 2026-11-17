@@ -22,6 +22,7 @@ function rng(seed: string): Rng {
 	const next = () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 	return { f: next, i: n => Math.floor(next() * n), pick: arr => arr[Math.floor(next() * arr.length)], chance: p => next() < p, range: (lo, hi) => lo + next() * (hi - lo) };
 }
+
 const P = (d: string, s: string, w: number, x = '') => `<path d="${d}" fill="none" stroke="${s}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" ${x}/>`;
 const F = (d: string, f: string, x = '') => `<path d="${d}" fill="${f}" ${x}/>`;
 const C = (x: number, y: number, r: number, f: string, extra = '') => `<circle cx="${x}" cy="${y}" r="${r}" fill="${f}" ${extra}/>`;
@@ -57,20 +58,24 @@ function curly(c: string) {
 	for (let i = 0; i <= 10; i++) { const a = Math.PI * (1.02 + i * 0.096); s += C(n(104 + 58 * Math.cos(a)), n(84 + 50 * Math.sin(a)), 15, c); }
 	return s + C(50, 104, 13, c) + C(158, 104, 13, c);
 }
+
 function beanie(c: string, band: string) {
 	return F('M50 86 Q50 24 104 24 Q158 24 158 86Z', c) + `<rect x="46" y="74" width="116" height="18" rx="9" fill="${band}"/>` + C(104, 20, 10, band);
 }
-function eyes(look: number[], kind: string) {
+
+// white and pupil default to the flat full avatar; the head only (tuosaiHead) passes shaded ones.
+function eyes(look: number[], kind: string, white = CREAM, pupil = (x: number, y: number, r: number) => C(x, y, r, INK)) {
 	let s = '';
 	for (const x of [88, 130]) {
 		const ry = kind === 'tall' ? 17 : 15;
-		s += `<ellipse cx="${x}" cy="96" rx="15" ry="${ry}" fill="${CREAM}" stroke="${INK}" stroke-width="6"/>`;
+		s += `<ellipse cx="${x}" cy="96" rx="15" ry="${ry}" fill="${white}" stroke="${INK}" stroke-width="6"/>`;
 		if (kind === 'smile') s += P(`M${x - 7} 99 Q${x} 89 ${x + 7} 99`, INK, 4.5);
-		else if (kind === 'sleepy') s += `<clipPath id="lid${x}"><ellipse cx="${x}" cy="96" rx="15" ry="${ry}"/></clipPath><rect x="${x - 17}" y="78" width="34" height="17" fill="${INK}" clip-path="url(#lid${x})"/>` + C(n(x + look[0] * 0.6), 101, 4.5, INK);
-		else s += C(n(x + look[0]), n(96 + look[1]), kind === 'small' ? 4.5 : 6, INK);
+		else if (kind === 'sleepy') s += `<clipPath id="lid${x}"><ellipse cx="${x}" cy="96" rx="15" ry="${ry}"/></clipPath><rect x="${x - 17}" y="78" width="34" height="17" fill="${INK}" clip-path="url(#lid${x})"/>` + pupil(n(x + look[0] * 0.6), 101, 4.5);
+		else s += pupil(n(x + look[0]), n(96 + look[1]), kind === 'small' ? 4.5 : 6);
 	}
 	return s;
 }
+
 function mouth(kind: string, curve: number) {
 	const x1 = 110, y1 = 140, x2 = 128, y2 = 136, mx = 119, my = 138;
 	switch (kind) {
@@ -83,6 +88,7 @@ function mouth(kind: string, curve: number) {
 		default: return P(`M${x1} ${y1} Q${mx} ${my + 6} ${x2} ${y2}`, INK, 5);
 	}
 }
+
 const BUBBLE_ICONS: Record<string, string> = {
 	pin: F('M180 34 C176 29 172 26 172 21 A8 8 0 1 1 188 21 C188 26 184 29 180 34Z', CORAL) + C(180, 21, 3, CREAM),
 	heart: F('M180 32 C171 25 173 16 180 20 C187 16 189 25 180 32Z', CORAL),
@@ -122,6 +128,42 @@ export function tuosaiTraits(seed: string): TuosaiTraits {
 	return { skin, hair, hairColor, look, eyeKind, brow, mouthKind, smileCurve, clothes, sleeve, beanieColor, glasses, freckles, blush, earring, bubble, bg };
 }
 
+const J_NOSE = 'M109 80 L109 120 Q109 132 96 130';
+const FACE = (fill: string) => `<ellipse cx="105" cy="108" rx="46" ry="52" fill="${fill}"/>`;
+
+function brows(t: TuosaiTraits) {
+	if (t.brow == null) return '';
+	const browColor = lum(t.hairColor) > 0.55 ? '#5A3A24' : t.hairColor;
+	let s = '';
+	for (const x of [88, 130]) s += P(`M${x - 11} ${n(73 - t.brow * 0.5)} L${x + 9} ${n(73 + t.brow * 0.5)}`, browColor, 5);
+	return s;
+}
+
+function glasses(t: TuosaiTraits) {
+	const g = lum(t.skin) < 0.3 ? MUSTARD : INK;
+	return `<circle cx="88" cy="96" r="21" fill="none" stroke="${g}" stroke-width="3.5"/><circle cx="130" cy="96" r="21" fill="none" stroke="${g}" stroke-width="3.5"/>` + P('M67 92 L58 88 M151 92 L156 88', g, 3.5);
+}
+
+const freckles = () => [[136, 116], [142, 120], [130, 120], [80, 118], [74, 122]].map(([x, y]) => C(x, y, 1.8, '#8A4E2E', 'opacity=".55"')).join('');
+
+// From the face outline to the freckles, flat, for the full avatar. tuosaiHead draws the same shapes, shaded.
+function face(t: TuosaiTraits) {
+	const h = HAIR[t.hair] ?? HAIR.bob;
+	let s = FACE(t.skin);
+	if (h.curly) s += curly(t.hairColor);
+	else if (h.beanie) s += beanie(t.beanieColor, t.beanieColor === NIGHT ? MUSTARD : NIGHT) + F('M56 92 L56 112 L62 112 L64 92Z', t.hairColor) + F('M150 92 L152 112 L158 112 L156 92Z', t.hairColor);
+	else if (h.front) s += F(h.front, t.hairColor);
+	if (t.earring) s += C(152, 132, 4.5, MUSTARD, `stroke="${INK}" stroke-width="2"`);
+	s += brows(t);
+	s += eyes(t.look, t.eyeKind);
+	if (t.glasses) s += glasses(t);
+	s += P(J_NOSE, CORAL, 7); // the J nose
+	s += mouth(t.mouthKind, t.smileCurve);
+	if (t.blush) s += '<ellipse cx="78" cy="124" rx="9" ry="5" fill="#FF8FA3" opacity=".6"/><ellipse cx="140" cy="122" rx="8" ry="5" fill="#FF8FA3" opacity=".6"/>';
+	if (t.freckles) s += freckles();
+	return s;
+}
+
 function draw(t: TuosaiTraits, background: boolean) {
 	const h = HAIR[t.hair] ?? HAIR.bob;
 	const bubbleRing = lum(t.bg) < 0.25 ? '' : `stroke="${INK}" stroke-width="2"`;
@@ -130,24 +172,7 @@ function draw(t: TuosaiTraits, background: boolean) {
 	s += F('M58 210 Q60 172 106 168 Q150 172 156 210Z', t.clothes); // shoulders
 	if (h.back) s += F(h.back, t.hairColor);
 	s += `<rect x="94" y="148" width="22" height="22" fill="${t.skin}"/>`; // neck
-	s += `<ellipse cx="105" cy="108" rx="46" ry="52" fill="${t.skin}"/>`;
-	if (h.curly) s += curly(t.hairColor);
-	else if (h.beanie) s += beanie(t.beanieColor, t.beanieColor === NIGHT ? MUSTARD : NIGHT) + F('M56 92 L56 112 L62 112 L64 92Z', t.hairColor) + F('M150 92 L152 112 L158 112 L156 92Z', t.hairColor);
-	else if (h.front) s += F(h.front, t.hairColor);
-	if (t.earring) s += C(152, 132, 4.5, MUSTARD, `stroke="${INK}" stroke-width="2"`);
-	if (t.brow != null) {
-		const browColor = lum(t.hairColor) > 0.55 ? '#5A3A24' : t.hairColor;
-		for (const x of [88, 130]) s += P(`M${x - 11} ${n(73 - t.brow * 0.5)} L${x + 9} ${n(73 + t.brow * 0.5)}`, browColor, 5);
-	}
-	s += eyes(t.look, t.eyeKind);
-	if (t.glasses) {
-		const g = lum(t.skin) < 0.3 ? MUSTARD : INK;
-		s += `<circle cx="88" cy="96" r="21" fill="none" stroke="${g}" stroke-width="3.5"/><circle cx="130" cy="96" r="21" fill="none" stroke="${g}" stroke-width="3.5"/>` + P('M67 92 L58 88 M151 92 L156 88', g, 3.5);
-	}
-	s += P('M109 80 L109 120 Q109 132 96 130', CORAL, 7); // the J nose
-	s += mouth(t.mouthKind, t.smileCurve);
-	if (t.blush) s += '<ellipse cx="78" cy="124" rx="9" ry="5" fill="#FF8FA3" opacity=".6"/><ellipse cx="140" cy="122" rx="8" ry="5" fill="#FF8FA3" opacity=".6"/>';
-	if (t.freckles) s += [[136, 116], [142, 120], [130, 120], [80, 118], [74, 122]].map(([x, y]) => C(x, y, 1.8, '#8A4E2E', 'opacity=".55"')).join('');
+	s += face(t);
 	s += F('M36 210 L48 166 L92 166 L84 210Z', t.sleeve); // sleeve
 	s += P('M62 104 L62 156 Q62 164 70 164 L120 164', INK, 17) + P('M62 104 L62 156 Q62 164 70 164 L120 164', t.skin, 11); // the L hand
 	if (t.bubble) s += '<g transform="translate(166 36) scale(.78) translate(-180 -25)">' + C(180, 25, 13, CREAM, bubbleRing) + C(168, 47, 5, CREAM) + C(165, 60, 2.6, CREAM) + BUBBLE_ICONS[t.bubble] + '</g>';
@@ -158,4 +183,74 @@ export function tuosai(seed: string, opts: { size?: number; background?: boolean
 	const t = { ...tuosaiTraits(seed), ...opts.traits };
 	const size = opts.size ?? 200;
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="${size}" height="${size}">${draw(t, opts.background ?? true)}</svg>`;
+}
+
+// Long hair in the head only stops just under the chin, with rounded ends, instead of running off the bottom.
+const HEAD_LONG_BACK = 'M42 96 Q40 28 104 28 Q168 28 164 96 L166 158 Q166 176 148 176 L60 176 Q40 176 40 158Z';
+
+// a + (b - a) * k for two #RRGGBB colours
+const mix = (a: string, b: string, k: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - k) + parseInt(b.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('');
+
+// The hair (or hat) over the forehead, in one colour, or shaded when color is null.
+function headFront(t: TuosaiTraits, color: string | null): string {
+	const h = HAIR[t.hair] ?? HAIR.bob;
+	const hc = color ?? 'url(#mHair)';
+	if (h.curly) return curly(color ?? 'url(#mCurl)');
+	if (h.beanie) {
+		const sides = F('M56 92 L56 112 L62 112 L64 92Z', hc) + F('M150 92 L152 112 L158 112 L156 92Z', hc);
+		return sides + (color != null ? beanie(color, color) : beanie('url(#mHat)', t.beanieColor === NIGHT ? MUSTARD : NIGHT));
+	}
+	return h.front ? F(h.front, hc) : '';
+}
+
+/**
+ * The head only (Momo, every learner's AI 学搭子; founder 2026-11-16/17): no background, shoulders, neck, sleeve,
+ * propping hand or thought bubble. The same seed gives the same face as tuosai(), with the same shapes, but shaded so
+ * it looks round and not like paper (founder 2026-11-17 02:55): light from the top left on skin and hair, the hair's
+ * shadow on the forehead, catchlights in the eyes, soft cheeks, a lit edge on the nose. sticker adds a white outline
+ * and a faint drop shadow. Both are drawn as wide strokes around the shapes, not with an SVG filter: Safari draws
+ * filtered SVG at low resolution, which made the head blurry. The viewBox is centred on the face, with room for the
+ * bun and the outline. Served as an <img> (/lojo-head/<seed>), so the ids inside never meet another picture's.
+ */
+export function tuosaiHead(seed: string, opts: { size?: number; sticker?: boolean } = {}): string {
+	const t = tuosaiTraits(seed);
+	const size = opts.size ?? 200;
+	const h = HAIR[t.hair] ?? HAIR.bob;
+	const hc = t.hairColor, sk = t.skin;
+	const dark = lum(hc) < 0.2;
+	const hairLit = (k: number) => mix(hc, dark ? '#8C96B4' : '#FFFFFF', k); // near-black hair lights up bluish grey, not white
+	const back = t.hair === 'long' ? HEAD_LONG_BACK : h.back;
+	const outline = (back ? F(back, 'inherit') : '') + FACE('inherit') + headFront(t, 'inherit') + (t.earring ? C(152, 132, 4.5, 'inherit') : '');
+	const shade = (c: string, k: number) => mix(c, '#000000', k);
+	let s = '<defs>'
+		+ `<radialGradient id="mSkin" gradientUnits="userSpaceOnUse" cx="92" cy="88" fx="84" fy="80" r="78"><stop offset="0" stop-color="${mix(sk, '#FFFFFF', 0.24)}"/><stop offset=".48" stop-color="${sk}"/><stop offset=".85" stop-color="${mix(sk, '#4A2416', 0.2)}"/><stop offset="1" stop-color="${mix(sk, '#4A2416', 0.34)}"/></radialGradient>`
+		+ `<radialGradient id="mHair" gradientUnits="userSpaceOnUse" cx="86" cy="36" r="130"><stop offset="0" stop-color="${hairLit(dark ? 0.32 : 0.24)}"/><stop offset=".42" stop-color="${hc}"/><stop offset="1" stop-color="${shade(hc, 0.28)}"/></radialGradient>`
+		+ `<radialGradient id="mHairB" gradientUnits="userSpaceOnUse" cx="96" cy="40" r="150"><stop offset="0" stop-color="${hc}"/><stop offset="1" stop-color="${shade(hc, 0.5)}"/></radialGradient>`
+		+ `<radialGradient id="mCurl" cx=".36" cy=".3" r=".75"><stop offset="0" stop-color="${hairLit(dark ? 0.3 : 0.22)}"/><stop offset=".6" stop-color="${hc}"/><stop offset="1" stop-color="${shade(hc, 0.3)}"/></radialGradient>`
+		+ `<radialGradient id="mHat" gradientUnits="userSpaceOnUse" cx="86" cy="30" r="90"><stop offset="0" stop-color="${mix(t.beanieColor, '#FFFFFF', 0.25)}"/><stop offset=".5" stop-color="${t.beanieColor}"/><stop offset="1" stop-color="${shade(t.beanieColor, 0.3)}"/></radialGradient>`
+		+ '<radialGradient id="mGloss"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
+		+ '<radialGradient id="mShine"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>'
+		+ `<radialGradient id="mBlush"><stop offset="0" stop-color="#FF7A90" stop-opacity="${t.blush ? 0.7 : 0.3}"/><stop offset="1" stop-color="#FF7A90" stop-opacity="0"/></radialGradient>`
+		+ `<linearGradient id="mEye" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(CREAM, '#6B5A4A', 0.22)}"/><stop offset=".5" stop-color="${CREAM}"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>`
+		+ `<clipPath id="mFace"><ellipse cx="105" cy="108" rx="46" ry="52"/></clipPath><clipPath id="mFront">${headFront(t, '#000000')}</clipPath>`
+		+ '</defs>';
+	if (opts.sticker) {
+		s += `<g fill="${INK}" stroke="${INK}" stroke-width="12" stroke-linejoin="round" opacity=".13" transform="translate(0 3)">${outline}</g>`;
+		s += `<g fill="#fff" stroke="#fff" stroke-width="12" stroke-linejoin="round">${outline}</g>`;
+	}
+	if (back) s += F(back, 'url(#mHairB)');
+	s += FACE('url(#mSkin)');
+	s += '<ellipse cx="86" cy="110" rx="17" ry="12" fill="url(#mGloss)"/>';
+	s += '<ellipse cx="77" cy="124" rx="13" ry="8" fill="url(#mBlush)"/><ellipse cx="139" cy="122" rx="12" ry="8" fill="url(#mBlush)"/>';
+	s += `<g clip-path="url(#mFace)" opacity=".3"><g transform="translate(1.5 6)">${headFront(t, mix(sk, '#3A1A10', 0.6))}</g></g>`; // the hair's shadow
+	s += headFront(t, null);
+	if (!h.curly) s += '<g clip-path="url(#mFront)"><ellipse cx="80" cy="44" rx="38" ry="12" transform="rotate(-20 80 44)" fill="url(#mShine)"/></g>';
+	if (t.earring) s += C(152, 132, 4.5, MUSTARD, `stroke="${INK}" stroke-width="2"`) + C(150.6, 130.6, 1.4, '#fff', 'opacity=".8"');
+	s += brows(t);
+	s += eyes(t.look, t.eyeKind, 'url(#mEye)', (x, y, r) => C(x, y, r, INK) + C(n(x - r * 0.32), n(y - r * 0.36), n(r * 0.42), '#fff') + C(n(x + r * 0.38), n(y + r * 0.34), n(r * 0.17), '#fff', 'opacity=".85"'));
+	if (t.glasses) s += glasses(t) + [88, 130].map(x => P(`M${x - 13} 90 Q${x - 11} 81 ${x - 3} 78`, '#fff', 3, 'opacity=".6"')).join('');
+	s += P(J_NOSE, CORAL, 7) + P(J_NOSE, mix(CORAL, '#FFFFFF', 0.45), 2.2, 'transform="translate(-1.7 -1.2)" opacity=".85"');
+	s += mouth(t.mouthKind, t.smileCurve);
+	if (t.freckles) s += freckles();
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 -6 202 196" width="${size}" height="${n(size * 196 / 202)}">${s}</svg>`;
 }

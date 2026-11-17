@@ -55,7 +55,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { defineAsyncComponent, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import { instanceName } from '@@/js/config.js';
-import type { MenuItem } from '@/types/menu.js';
 import MkButton from '@/components/MkButton.vue';
 import MkStreamingNotesTimeline from '@/components/MkStreamingNotesTimeline.vue';
 import MkInfo from '@/components/MkInfo.vue';
@@ -80,16 +79,16 @@ if (instance.clientOptions.showActivitiesForVisitor !== false) {
 	});
 }
 
-function signin() {
-	const { dispose } = os.popup(XSigninDialog, {
+async function signin() {
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkSigninDialog.vue').then((x) => x.default), {
 		autoSet: true,
 	}, {
 		closed: () => dispose(),
 	});
 }
 
-function signup() {
-	const { dispose } = os.popup(XSignupDialog, {
+async function signup() {
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkSignupDialog.vue').then((x) => x.default), {
 		autoSet: true,
 	}, {
 		closed: () => dispose(),
