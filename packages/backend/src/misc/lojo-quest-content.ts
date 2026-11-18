@@ -99,6 +99,14 @@ function questionProblems(q: unknown, where: string): string[] {
 	return p;
 }
 
+// 这关要对几题才过：普通关 rules.level.need，Boss rules.boss.hp；摸底和规则没写全的章不算（后者另外报）
+function needOf(rules: unknown, n: Record<string, unknown>): number | null {
+	if (!isObj(rules) || n.probe === true) return null;
+	const r = n.kind === 'boss' ? rules.boss : rules.level;
+	const need = isObj(r) ? (n.kind === 'boss' ? r.hp : r.need) : null;
+	return isInt(need) ? need : null;
+}
+
 function chapterProblems(c: unknown, i: number): string[] {
 	if (!isObj(c)) return [`第 ${i + 1} 份: 不是一章`];
 	const p: string[] = [];
@@ -128,6 +136,10 @@ function chapterProblems(c: unknown, i: number): string[] {
 					qids.add(q.id);
 				}
 			}
+			// 题比「对几题过」还少，这关永远过不了（普通关看 rules.level.need，Boss 看 rules.boss.hp；摸底不分过不过，不看）
+			const need = needOf(c.rules, n);
+			const size = (n.pool as unknown[]).length;
+			if (need != null && size < need) p.push(`${at} ${n.id}: 只有 ${size} 题，比「对 ${need} 题过」还少，这关永远过不了`);
 		}
 	}
 	if (isStr(c.bossId) && !ids.has(c.bossId)) p.push(`${at}: Boss ${c.bossId} 不在点里`);

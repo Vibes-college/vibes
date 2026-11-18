@@ -59,10 +59,10 @@ export function questAfterAnswer(a: { mode: QuestMode; rules: QuestTryRules; gra
 	return { heartLost, hearts, right, wrong, outOfHearts, ended };
 }
 
-// 全对：三段闯关是「一局一题没错」（对够就结束，所以不看题数）；旧地图照旧要整套都对
-export function questPerfect(routeOn: boolean, answers: readonly Answer[], passed: boolean, total: number): boolean {
-	if (routeOn) return routePerfect(answers, passed);
-	return passed && answers.filter(x => x.correct).length === total && answers.every(x => x.correct);
+// 全对：过了，而且一局一题没错（对够就收卷，所以不看题数）。三段闯关、原地图、回测、Boss 都一样：原来旧地图要
+// 「对的题数 = 整套题数」，可对够就收卷，这个数永远到不了（bug A，2026-11-16 照 11-13 三段闯关的修法对齐）
+export function questPerfect(answers: readonly Answer[], passed: boolean): boolean {
+	return routePerfect(answers, passed);
 }
 
 // 限时关时间到，扣几颗心：普通关合起来扣 timeoutHeartCost 颗；Boss 没答的每题扣 heartPerUnanswered 颗，连同这局已经
