@@ -11,6 +11,7 @@ import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { lojoLabels } from '@/lojo/labels.js';
+import { vibesInstanceMenuItems } from '@/lojo/instance-menu.js';
 
 function toolsMenuItems(): MenuItem[] {
 	const items: MenuItem[] = [{
@@ -51,7 +52,15 @@ function toolsMenuItems(): MenuItem[] {
 	return items;
 }
 
+// Vibes (2026-11-17): the logo menu is only 关于 Vibes and 联系我们, see lojo/instance-menu.ts. Misskey's own menu stays
+// below as openMisskeyInstanceMenu, not shown anywhere.
 export function openInstanceMenu(ev: PointerEvent) {
+	os.popupMenu(vibesInstanceMenuItems(), ev.currentTarget ?? ev.target, {
+		align: 'left',
+	});
+}
+
+export function openMisskeyInstanceMenu(ev: PointerEvent) {
 	const menuItems: MenuItem[] = [];
 
 	menuItems.push({

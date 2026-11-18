@@ -10,6 +10,7 @@ import {
 } from '@/lojo/plan/planView.js';
 import type { PCheckin, PDay, PShow, PStage, PTask } from '@/lojo/plan/planView.js';
 import { planAppNames, planStrings as S } from '@/lojo/plan/strings.js';
+import { rosterApps, setMiniApps } from '@/lojo/miniapps/roster.js';
 
 const TODAY = '2026-11-18'; // a Wednesday
 const task = (id: string, o: Partial<PTask> = {}): PTask => ({
@@ -52,6 +53,9 @@ describe('dates, colors and mini apps', () => {
 		expect(appName('dictation')).toBe(planAppNames.dictation);
 		expect(appName('zzz')).toBe('zzz');
 		expect(appName(null)).toBe('');
+		// before the 小程序 roster is read, an app opens at its home
+		expect(appHref('vocab', null)).toBe('/apps/vocab/');
+		setMiniApps(rosterApps({ apps: [{ id: 'vocab', name: '示例', icon: 'ti ti-vocabulary', href: '/apps/vocab/5.1', intro: { summary: '示例', audience: '示例', steps: ['示例'], caveats: [] } }] })!);
 		expect(appHref('vocab', 'a b/c')).toBe('/apps/vocab/a%20b%2Fc');
 		expect(appHref('vocab', null)).toBe('/apps/vocab/5.1');
 		expect(appHref('dictation', 'x')).toBe('/apps/dictation/');

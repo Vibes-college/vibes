@@ -8,7 +8,7 @@
 // lojo/plan/show and lojo/plan/sync, dates, colors, mini app names and links, 「勾上这件吗？」, each stage's lists,
 // 「今天多了 N 件」, the 7 days of 「挪到哪天」 and what Vibi says. The page calls these.
 
-import { miniApps } from '@/lojo/miniapps/manifest.js';
+import { miniAppHref } from '@/lojo/miniapps/roster.js';
 import { planAppNames, planStrings as S } from '@/lojo/plan/strings.js';
 
 export type PTask = {
@@ -62,8 +62,8 @@ export function appName(app: string | null) {
 
 export function appHref(app: string, ref: string | null) {
 	if (app === 'vocab' && ref) return `/apps/vocab/${encodeURIComponent(ref)}`;
-	const def = miniApps.find(a => a.id === app);
-	return def?.link.kind === 'external' ? def.link.href : def?.link.kind === 'route' ? def.link.to : `/apps/${app}/`;
+	// where the 小程序 roster opens it (vocab and grammar open their first stop); before the roster is read, the app's home
+	return miniAppHref(app) ?? `/apps/${app}/`;
 }
 
 // 「大概」 minutes: to the nearest 5 past 10

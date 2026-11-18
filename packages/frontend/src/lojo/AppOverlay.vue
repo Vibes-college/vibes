@@ -35,7 +35,7 @@ Vibes（2026-11-16）：小程序的全屏浮层。社区留在下面不动，�
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue';
 import { appOverlay, appOverlayLoading, leaveAppOverlayTo, registerAppOverlayFrame } from '@/lojo/app-overlay.js';
-import { miniApps } from '@/lojo/miniapps/manifest.js';
+import { miniAppNameAt } from '@/lojo/miniapps/roster.js';
 import { claimZIndex } from '@/os.js';
 import { mainRouter } from '@/router.js';
 
@@ -45,8 +45,7 @@ const pageTitle = ref('');
 const frameTitle = computed(() => {
 	if (pageTitle.value !== '') return pageTitle.value;
 	const src = appOverlay.value?.src ?? '';
-	const app = miniApps.find(m => m.link.kind === 'external' && src.startsWith(m.link.href));
-	return app?.name ?? 'Vibes';
+	return miniAppNameAt(src) ?? 'Vibes';
 });
 // 只在浮层打开时才挂上（common.vue 里 v-if），每次打开要一个新的层级，盖在社区和它的弹窗上面
 const zIndex = claimZIndex('middle');

@@ -48,9 +48,7 @@ const current = router.current;
 const currentPageComponent = shallowRef('component' in current.route ? current.route.component : MkLoadingPage);
 const currentPageProps = ref(current.props);
 let currentRoutePath = current.route.path;
-// Route map pages navigate with the URL hash; keep one instance per page instead of one per hash.
-const hashRoutes = ['/map', '/map/:course'];
-const key = ref(hashRoutes.includes(current.route.path) ? current.route.path : router.getCurrentFullPath());
+const key = ref(router.getCurrentFullPath());
 
 router.useListener('change', ({ resolved }) => {
 	if (resolved == null || 'redirect' in resolved.route) return;
@@ -58,7 +56,7 @@ router.useListener('change', ({ resolved }) => {
 
 	currentPageComponent.value = resolved.route.component;
 	currentPageProps.value = resolved.props;
-	key.value = hashRoutes.includes(resolved.route.path) ? resolved.route.path : router.getCurrentFullPath();
+	key.value = router.getCurrentFullPath();
 	currentRoutePath = resolved.route.path;
 });
 </script>

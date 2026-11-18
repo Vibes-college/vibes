@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <!-- Vibes: the private-message 「任务」 tab, only in the chat with Vibi (2026-11-15). The plan is made and changed by
 Vibi's tools and by the learner here; both go through LojoPlanService, so the rules are the same. Looks like the quest
-map's notebook (lojo/route/route.css tokens): paper, dot grid, white cards, coral only for the one main button.
+map's notebook (the old route map's colours): paper, dot grid, white cards, coral only for the one main button.
 Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md §九 (Vibes workspace). -->
 <template>
 <div ref="rootEl" :class="$style.root" data-plan-tab>
@@ -275,6 +275,7 @@ import * as os from '@/os.js';
 import { planStrings as S } from '@/lojo/plan/strings.js';
 import { addDays, appHref, appName, lineColor, planAsk, planMoveOptions, planOverCount, planStageLists, ringClass, vibiAll, vibiToday, vibiWeek } from '@/lojo/plan/planView.js';
 import type { PBoard, PCheckin, PDay, PShow, PSync, PTask, PView, VibiHooks, VibiSay } from '@/lojo/plan/planView.js';
+import { refreshMiniApps } from '@/lojo/miniapps/roster.js';
 import XMomoHead from '@/lojo/tutor/MomoHead.vue';
 import { myTutorName } from '@/lojo/tutor/persona.js';
 
@@ -317,6 +318,8 @@ const rootEl = ref<HTMLElement | null>(null);
 // the messages tab is scrolled to the bottom; start this one at the top, with the page header in view
 onMounted(async () => {
 	nextTick(() => { if (rootEl.value) scrollToTop(rootEl.value, { behavior: 'instant' }); });
+	// the task links open where the 小程序 roster says (appHref); the list on the device is used until the answer comes
+	void refreshMiniApps();
 	await load({ seen: true });
 	sync();
 	window.document.addEventListener('visibilitychange', onVisible);
@@ -597,7 +600,7 @@ async function doMove(toDate: string) {
 
 <style lang="scss" module>
 .root {
-	// the quest map's tokens (lojo/route/route.css), following the live theme so dark mode is right by itself
+	// the old route map's colours, following the live theme so dark mode is right by itself
 	--bg: var(--MI_THEME-bg, #F6F1E7);
 	--panel: var(--MI_THEME-panel, #FFFDF8);
 	--fg: var(--MI_THEME-fg, #4A4E63);

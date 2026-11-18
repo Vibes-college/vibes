@@ -14,7 +14,6 @@ import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
-import { lojoLabels } from '@/lojo/labels.js';
 
 export const navbarItemDef = reactive<{
 	[key: string]: {
@@ -27,10 +26,11 @@ export const navbarItemDef = reactive<{
 		action?: (ev: PointerEvent) => void;
 	};
 }>({
+	// 线路图 page removed 2026-11-17: the key stays (saved menus may list it) and now opens 闯关.
 	lojo: {
-		title: lojoLabels.map,
-		icon: 'ti ti-road',
-		to: '/map',
+		title: '闯关',
+		icon: 'ti ti-flag-3',
+		to: '/quest',
 	},
 	lojoGuides: {
 		title: '攻略',

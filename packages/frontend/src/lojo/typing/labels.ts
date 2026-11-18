@@ -301,7 +301,7 @@ const en: typeof zh = {
 	progressFailed: 'Your progress didn’t load, so the line shows as new. It will be saved again after your next stop.',
 	saveFailed: 'Your last result isn’t saved yet. It goes with the next stop you finish.',
 	savedNote: 'Your progress is saved to your account, on every device.',
-	toMap: 'IELTS route map',
+	toMap: 'Back to the quest',
 
 	limit: seconds => {
 		const { m, s } = minSec(seconds);
@@ -549,9 +549,9 @@ const en: typeof zh = {
 	placementBody: 'The first time, take the placement test, about 10 minutes. It puts you at the stop that suits you, and the ones before it light up.',
 	placement: 'Take the placement test',
 	backListening: 'Back to the listening line',
-	placedBody: 'You’re already on the listening line: back to the map, and on from your stop.',
+	placedBody: 'You’re already on the listening line: back to the quest, and on from your stop.',
 	placeAgain: 'Take the placement test again',
-	toListeningMap: 'Back to the map',
+	toListeningMap: 'Back to the quest',
 	alsoLabel: 'Or: ',
 	alsoBody: 'take the words and numbers you got wrong here to dictation practice.',
 	toDictation: 'Dictation',

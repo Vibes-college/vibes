@@ -46,6 +46,7 @@ export type Keys = (
 	'vibesInstallPrompt' |
 	'vibesInstalledWelcomed' |
 	'vibesPageCache8' |
+	'vibesMenu1117' |
 	`idbfallback::${string}`
 );
 

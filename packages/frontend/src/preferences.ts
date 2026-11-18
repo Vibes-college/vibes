@@ -13,6 +13,7 @@ import { $i } from '@/i.js';
 import { TypedBroadcastChannel as BroadcastChannel } from '@/utility/typed-broadcast-channel.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { TAB_ID } from '@/tab-id.js';
+import { isMisskeyMenuDefault, VIBES_MENU_DEFAULT } from '@/lojo/menu-default.js';
 
 // クラウド同期用グループ名
 const syncGroup = 'default';
@@ -106,6 +107,12 @@ export const prefer = new PreferencesManager(io, $i);
 if (miLocalStorage.getItem('vibesPageCache8') == null) {
 	if (prefer.s.numberOfPageCache === 3) prefer.commit('numberOfPageCache', 8);
 	miLocalStorage.setItem('vibesPageCache8', '1');
+}
+
+// Vibes（2026-11-17）：默认菜单只留通知、消息、搜索（def.ts）。存的还是 Misskey 旧默认的，一次性换成新的；自己改过的不动。
+if (miLocalStorage.getItem('vibesMenu1117') == null) {
+	if (isMisskeyMenuDefault(prefer.s.menu)) prefer.commit('menu', [...VIBES_MENU_DEFAULT]);
+	miLocalStorage.setItem('vibesMenu1117', '1');
 }
 
 //#region タブ間同期

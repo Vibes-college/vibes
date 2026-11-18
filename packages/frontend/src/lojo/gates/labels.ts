@@ -18,7 +18,7 @@ const zh = {
 	loadFailed: '这一站没加载出来。',
 	noStation: '没有找到这一站。',
 	notOpen: (line: string) => `${line}线还没开放，先去闯别的线吧。`,
-	backToMap: '回线路图',
+	backToMap: '回闯关',
 	retry: '重试',
 
 	// intro
@@ -260,7 +260,7 @@ const en: typeof zh = {
 	loadFailed: 'This stop didn’t load.',
 	noStation: 'We couldn’t find this stop.',
 	notOpen: line => `The ${line} line isn’t open yet. Try another line for now.`,
-	backToMap: 'Back to the map',
+	backToMap: 'Back to the quest',
 	retry: 'Try again',
 
 	part: 'Like the real test',

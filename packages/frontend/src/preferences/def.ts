@@ -186,19 +186,11 @@ export const PREF_DEF = definePreferences({
 		default: true,
 	},
 	menu: {
+		// Vibes (2026-11-17): only 通知, 消息, 搜索 by default, see lojo/menu-default.ts (Misskey's default is listed there)
 		default: [
 			'notifications',
-			'clips',
-			'drive',
-			'followRequests',
 			'chat',
-			'-',
-			'explore',
-			'announcements',
-			'channels',
 			'search',
-			'-',
-			'ui',
 		],
 	},
 	statusbars: {

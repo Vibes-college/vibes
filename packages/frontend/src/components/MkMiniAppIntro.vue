@@ -35,12 +35,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { useTemplateRef } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
-import { openMiniAppLink } from '@/lojo/miniapps/manifest.js';
-import type { MiniAppDef } from '@/lojo/miniapps/manifest.js';
+import { openMiniApp } from '@/lojo/miniapps/roster.js';
+import type { MiniAppDef } from '@/lojo/miniapps/roster.js';
 import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
 import { markMiniAppSeen } from '@/lojo/miniapps/state.js';
 import { deviceKind } from '@/utility/device-kind.js';
-import { useRouter } from '@/router.js';
 
 const props = withDefaults(defineProps<{
 	app: MiniAppDef;
@@ -60,12 +59,11 @@ const preferedModalType = (deviceKind === 'desktop' && props.anchorElement != nu
 	'dialog';
 
 const modal = useTemplateRef('modal');
-const router = useRouter();
 
 async function open(): Promise<void> {
 	// A failed write just means the intro shows again next time; still open the app now.
 	await markMiniAppSeen(props.app.id).catch(() => {});
-	openMiniAppLink(props.app.link, router);
+	openMiniApp(props.app);
 	modal.value?.close();
 }
 </script>

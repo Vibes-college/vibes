@@ -13,7 +13,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { keep, readKept } from '@/lojo/kept.js';
 
 type Bilingual = { zh: string; en: string };
-/** The parts every page reads; the rest (LINES, POS, TOUR…) is read by the page that needs it (gates/player.ts, gate-map.js). */
+/** The parts every page reads; the rest (LINES, POS, TOUR…) is read by the page that needs it (gates/player.ts). */
 export type CoursePack = {
 	META: { id: string; kind: string; storeKey: string; tag?: string; group: Bilingual };
 	TEXT: Record<'zh' | 'en', { title: string; legal: string }>;

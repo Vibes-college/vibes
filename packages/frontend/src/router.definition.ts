@@ -49,11 +49,9 @@ export const ROUTE_DEF = [{
 	path: '/install',
 	component: page(() => import('@/pages/lojo/install.vue')),
 }, {
-	// All route maps: every course grouped by subject, with search and "my maps".
-	name: 'lojo',
+	// 「全部线路图」页 11-17 删了（创始人：首页已经不显示线路图了），旧地址到闯关。
 	path: '/maps',
-	component: page(() => import('@/pages/lojo/maps.vue')),
-	loginRequired: true,
+	redirect: () => '/quest',
 }, {
 	// 闯关: the chapter map game (map, levels, 书屋, hearts, Boss). ?book=<slug> opens a book, ?level=<id> a level.
 	name: 'lojo-quest',
@@ -118,7 +116,7 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 路线图下线（11-10）：/map 跳到闯关。旧的站号链接（/map#2.1）对得上某一关就打开那一关，对不上就到地图。
-	// /map/<course>、/maps、/gate/… 不动（AP 线路图 11-17 删了）。
+	// 线路图页（/map/<course>、/maps）11-17 删了，都到闯关；答题页 /gate/… 还在用（闯关、语法、词汇进关卡）。
 	path: '/map',
 	hash: 'station',
 	redirect: props => questUrlForStation(props.get('station')),
@@ -128,11 +126,9 @@ export const ROUTE_DEF = [{
 	hash: 'station',
 	redirect: props => questUrlForStation(props.get('station')),
 }, {
-	// One route map per course: /map/<course>#2.2. Station hashes are kept by RouterView. Only gate maps are left
-	// (the AP topic maps were removed 2026-11-17); a course with no map goes back to /map.
-	name: 'lojo',
+	// 其余课程的线路图（/map/toefl…）从没做好，页面 11-17 删了；旧链接到闯关，丢掉 #站号。
 	path: '/map/:course',
-	component: page(() => import('@/pages/lojo/route.vue')),
+	redirect: () => '/quest',
 }, {
 	// One gate (闯关) on a route map with gates: /gate/ielts/1.3. The paper, its recording and the mark.
 	name: 'lojo-gate',

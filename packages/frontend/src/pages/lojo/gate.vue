@@ -209,7 +209,7 @@ import XTimer from './gate.timer.vue';
 import { getScrollPosition, scrollInContainer } from '@@/js/scroll.js';
 import MkButton from '@/components/MkButton.vue';
 import { CATALOG } from '@/lojo/route/courses/index.js';
-import { coursePath } from '@/lojo/route/my-maps.js';
+import { questUrlForStation } from '@/lojo/quest-links.js';
 import { gateErrorCode, gateErrorText, startGate, startPlacement, submitGate } from '@/lojo/gates/api.js';
 import { DEFAULT_PLAYS } from '@/lojo/gates/answers.js';
 import { gateLabels, gateLang } from '@/lojo/gates/labels.js';
@@ -497,11 +497,12 @@ async function handIn(timeUp = false) {
 	}
 }
 
-// Back to the map at this station; after a placement test, at the station it put the learner at.
+// Back to 闯关: the level this gate was opened from; otherwise the level for this station (after a placement test, the
+// station it put the learner at), or the 闯关 map. The route-map page this used to go back to was removed 2026-11-17.
 function toMap() {
 	if (questStation) { router.pushByPath(`/quest?level=${encodeURIComponent(questStation)}&from=gate`); return; }
 	const at = placement.value != null ? result.value?.placement?.placedAt ?? null : props.station;
-	router.pushByPath(at ? `${coursePath(props.course)}#${encodeURIComponent(at)}` : coursePath(props.course));
+	router.pushByPath(questUrlForStation(at));
 }
 
 function go(station: string) {

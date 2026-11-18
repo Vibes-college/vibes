@@ -13,6 +13,7 @@ import { VOCAB_PACK_KINDS, vocabPackProblems } from '@/misc/lojo-vocab-pack.js';
 import { GRAMMAR_PACK_KINDS, grammarPackProblems } from '@/misc/lojo-grammar-pack.js';
 import { TYPING_PACK_KINDS, typingPackProblems } from '@/misc/lojo-typing-pack.js';
 import { DICTATION_PACK_KINDS, dictationPackProblems } from '@/misc/lojo-dictation-pack.js';
+import { APPS_ROSTER_KIND, appsRosterProblems, appsRosterPublic } from '@/misc/lojo-apps-roster.js';
 
 // 内容进数据库 (2026-11-17): private content that changes fast (first the 锦囊书屋 books and quizzes, later course
 // content) is imported by an admin instead of being written into the open-source code. Each kind is registered by
@@ -60,6 +61,8 @@ export class LojoContentService implements OnModuleInit, OnApplicationShutdown {
 		for (const kind of GRAMMAR_PACK_KINDS) this.register(kind, served(grammarPackProblems));
 		for (const kind of TYPING_PACK_KINDS) this.register(kind, served(typingPackProblems));
 		for (const kind of DICTATION_PACK_KINDS) this.register(kind, served(dictationPackProblems));
+		// the 小程序 launcher's roster: anyone may read the entries that are on (lojo-apps-roster.ts)
+		this.register(APPS_ROSTER_KIND, { problems: appsRosterProblems, apply: () => {}, publicPart: appsRosterPublic });
 	}
 
 	/** Call from the constructor of the service that uses the kind. */

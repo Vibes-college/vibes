@@ -24,6 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.text">{{ app.name }}</div>
 			</button>
 		</div>
+		<div v-if="miniApps.length === 0" :class="$style.note">{{ miniAppsState === 'loading' ? miniAppsLabels.loading : miniAppsState === 'failed' ? miniAppsLabels.failed : miniAppsLabels.empty }}</div>
 	</div>
 </MkModal>
 </template>
@@ -31,14 +32,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { useTemplateRef } from 'vue';
 import MkModal from '@/components/MkModal.vue';
-import { miniApps, openMiniAppLink } from '@/lojo/miniapps/manifest.js';
-import type { MiniAppDef } from '@/lojo/miniapps/manifest.js';
+import { miniApps, miniAppsState, refreshMiniApps } from '@/lojo/miniapps/roster.js';
+import type { MiniAppDef } from '@/lojo/miniapps/roster.js';
 import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
-import { hasSeenMiniApp, loadMiniAppsSeen } from '@/lojo/miniapps/state.js';
+import { loadMiniAppsSeen } from '@/lojo/miniapps/state.js';
+import { launchMiniApp, showMiniAppIntro } from '@/lojo/miniapps/launch.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
-import { useRouter } from '@/router.js';
-import * as os from '@/os.js';
 
 const props = withDefaults(defineProps<{
 	anchorElement?: HTMLElement | null;
@@ -57,10 +57,12 @@ const preferedModalType = (deviceKind === 'desktop' && props.anchorElement != nu
 	'dialog';
 
 const modal = useTemplateRef('modal');
-const router = useRouter();
 
 // Read once as the panel opens; a stale read just means the intro shows once more than it needs to.
 const seenLoaded = loadMiniAppsSeen();
+// The list on the device shows at once; the server is asked in the background whether it changed (an entry turned off
+// in the roster is gone from the next open, or from this one if the answer comes back while it is open).
+void refreshMiniApps();
 
 const LONG_PRESS_MS = 550;
 let pressTimer: number | null = null;
@@ -83,27 +85,22 @@ function onPointerDown(app: MiniAppDef, ev: PointerEvent): void {
 	}, LONG_PRESS_MS);
 }
 
+// Opening goes through launch.ts, the same as the sidebar's 常用小程序 icons (MiniAppDock.vue).
 async function onTap(app: MiniAppDef, ev: PointerEvent): Promise<void> {
 	if (suppressClick) {
 		suppressClick = false;
 		return;
 	}
+	const target = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	await seenLoaded;
-	if (hasSeenMiniApp(app.id)) {
-		openMiniAppLink(app.link, router);
-		close();
-		return;
-	}
-	showIntro(app, ev);
+	close();
+	await launchMiniApp(app, target);
 }
 
 function showIntro(app: MiniAppDef, ev: Event): void {
 	const target = getHTMLElementOrNull(ev.currentTarget ?? ev.target);
 	close();
-	os.popupAsyncWithDialog(import('@/components/MkMiniAppIntro.vue').then(x => x.default), {
-		app,
-		anchorElement: target,
-	}, {});
+	void showMiniAppIntro(app, target);
 }
 
 function close(): void {
@@ -170,6 +167,13 @@ function close(): void {
 		color: var(--MI_THEME-accent);
 		background: var(--MI_THEME-accentedBg);
 	}
+}
+
+.note {
+	padding: 24px 8px;
+	text-align: center;
+	opacity: 0.7;
+	font-size: 0.9em;
 }
 
 .icon {
