@@ -63,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.preview">
 			<img :src="personaHeadUrl(seed)" alt="" draggable="false">
 			<div :class="$style.previewText">
-				<div><b>{{ cleanPersonaName(name) }}</b> · {{ L.previewSuffix }}</div>
+				<div><b>{{ cleanPersonaName(name) }}</b><template v-if="L.previewSuffix !== ''"> · {{ L.previewSuffix }}</template></div>
 				<small>{{ L.previewCaption }}</small>
 			</div>
 		</div>
@@ -90,7 +90,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
-import { momoLabels as L } from './momo-labels.js';
+import { momoText as L } from '@/lojo/locales/momo.js';
 import {
 	DEFAULT_TUTOR_NAME,
 	PERSONA_NAME_IDEAS,

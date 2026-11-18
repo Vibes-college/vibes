@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<button
 		class="_buttonPrimary"
 		:class="$style.play"
-		:aria-label="chatLabels.voicePlay"
+		:aria-label="vt.chat.voicePlay"
 		:aria-pressed="playing"
 		@click="toggle"
 	>
@@ -37,7 +37,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onDeactivated, ref, useTemplateRef } from 'vue';
 import type * as Misskey from 'misskey-js';
-import { chatLabels } from '@/lojo/english/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { estimatedVoiceSeconds, playedRatio, releaseAudioFocus, takeAudioFocus, voiceTimeText } from '@/lojo/audio.js';
 import { prefer } from '@/preferences.js';
 import * as os from '@/os.js';
@@ -71,7 +71,7 @@ function toggle() {
 		if (err instanceof DOMException && err.name === 'AbortError') return;
 		playing.value = false;
 		releaseAudioFocus(el);
-		os.toast(chatLabels.voiceFailed);
+		os.toast(vt.chat.voiceFailed);
 	});
 }
 

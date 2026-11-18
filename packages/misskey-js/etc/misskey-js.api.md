@@ -2038,8 +2038,6 @@ declare namespace entities {
         LojoAgentEnglishResponse,
         LojoAgentPromptRequest,
         LojoAgentPromptResponse,
-        LojoAppsLearnerRequest,
-        LojoAppsLearnerResponse,
         LojoAppsListResponse,
         LojoAppsRecentRequest,
         LojoAppsRecentResponse,
@@ -2050,8 +2048,6 @@ declare namespace entities {
         LojoConnReportRequest,
         LojoContentImportRequest,
         LojoContentImportResponse,
-        LojoContentPackRequest,
-        LojoContentPackResponse,
         LojoContentRollbackRequest,
         LojoContentRollbackResponse,
         LojoContentVersionsRequest,
@@ -3064,12 +3060,6 @@ type LojoAgentPromptRequest = operations['lojo___agent___prompt']['requestBody']
 type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
-type LojoAppsLearnerRequest = operations['lojo___apps___learner']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoAppsLearnerResponse = operations['lojo___apps___learner']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
 type LojoAppsListResponse = operations['lojo___apps___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
@@ -3098,12 +3088,6 @@ type LojoContentImportRequest = operations['lojo___content___import']['requestBo
 
 // @public (undocumented)
 type LojoContentImportResponse = operations['lojo___content___import']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoContentPackRequest = operations['lojo___content___pack']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoContentPackResponse = operations['lojo___content___pack']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoContentRollbackRequest = operations['lojo___content___rollback']['requestBody']['content']['application/json'];

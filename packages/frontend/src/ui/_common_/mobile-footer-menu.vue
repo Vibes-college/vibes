@@ -18,13 +18,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</MkA>
 
 	<!-- 一行 5 格：菜单 · 首页 · 闯关 · 攻略 · 发帖。闯关放正中间，顶替路线图（创始人 11-10） -->
-	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/quest" aria-label="闯关" :aria-current="routeName === 'lojo-quest' ? 'page' : undefined">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/quest" :aria-label="vt.nav.quest" :aria-current="routeName === 'lojo-quest' ? 'page' : undefined">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-flag-3"></i>
 		</div>
 	</MkA>
 
-	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/guides" aria-label="攻略" :aria-current="routeName === 'lojo-guides' ? 'page' : undefined">
+	<MkA :class="$style.item" :activeClass="$style.active" class="_button" to="/guides" :aria-label="vt.nav.guides" :aria-current="routeName === 'lojo-guides' ? 'page' : undefined">
 		<div :class="$style.itemInner">
 			<i :class="$style.itemIcon" class="ti ti-book"></i>
 		</div>
@@ -44,6 +44,7 @@ import * as os from '@/os.js';
 import { mainRouter } from '@/router.js';
 import { navbarItemDef } from '@/navbar.js';
 import { i18n } from '@/i18n.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const drawerMenuShowing = defineModel<boolean>('drawerMenuShowing');
 const widgetsShowing = defineModel<boolean>('widgetsShowing');

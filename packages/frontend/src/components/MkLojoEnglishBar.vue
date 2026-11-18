@@ -8,34 +8,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.actions">
 		<button v-if="canSpeak" class="_button" :class="[$style.action, { [$style.active]: speakingKey === `${uid}:post` }]" :aria-pressed="speakingKey === `${uid}:post`" @click="speakPost">
 			<i :class="[speakIcon(`${uid}:post`), { [$style.spin]: loadingKey === `${uid}:post` }]"></i>
-			{{ loadingKey === `${uid}:post` ? englishLabels.loadingVoice : speakingKey === `${uid}:post` ? englishLabels.stop : englishLabels.listen }}
+			{{ loadingKey === `${uid}:post` ? vt.post.loadingVoice : speakingKey === `${uid}:post` ? vt.post.stop : vt.post.listen }}
 		</button>
 		<!-- Chats keep the row short: the voice picked on the timeline is used there too. -->
-		<button v-if="canSpeak && note" class="_button" :class="$style.action" :aria-label="englishLabels.voiceTitle" @click="openVoiceMenu">
+		<button v-if="canSpeak && note" class="_button" :class="$style.action" :aria-label="vt.post.voiceTitle" @click="openVoiceMenu">
 			<i class="ti ti-microphone"></i>
-			{{ currentVoice?.name ?? englishLabels.voice }}
+			{{ currentVoice?.name ?? vt.post.voice }}
 		</button>
 		<button v-if="englishStatus.available && !createMode && (note != null || hasEnglish(sourceText))" class="_button" :class="[$style.action, { [$style.active]: panelOpen }]" :aria-expanded="panelOpen" @click="toggle">
 			<i class="ti ti-language"></i>
-			{{ panelOpen ? englishLabels.hide : englishLabels.explain }}
+			{{ panelOpen ? vt.post.hide : vt.post.explain }}
 		</button>
 		<!-- 生产者视角: under one's own posts and the editors', 翻译讲解 becomes 创作讲解 (pages/lojo/create.vue). -->
 		<MkA v-if="createMode && noteId != null" :to="`/create/${noteId}`" :class="[$style.action, $style.create]">
 			<i class="ti ti-bulb"></i>
-			{{ createLabels.button }}
+			{{ vt.post.creatorNotes }}
 		</MkA>
 	</div>
 	<div v-if="panelOpen" :class="$style.panel">
 		<MkLoading v-if="loading" mini role="status"/>
 		<div v-else-if="error != null" :class="$style.error" role="alert">
 			{{ error }}
-			<button class="_textButton" @click="load">{{ englishLabels.retry }}</button>
+			<button class="_textButton" @click="load">{{ vt.post.retry }}</button>
 		</div>
 		<template v-else-if="data">
 			<section :class="$style.translation">
 				<div :class="$style.label">
-					{{ data.sourceLang === 'en' ? englishLabels.translationZh : englishLabels.translationEn }}
-					<button v-if="data.sourceLang !== 'en' && speechSupported" class="_button" :class="$style.miniSpeak" :aria-label="speakingKey === `${uid}:translation` ? englishLabels.stop : englishLabels.listen" :aria-pressed="speakingKey === `${uid}:translation`" @click="toggleSpeak(`${uid}:translation`, data.translation)">
+					{{ data.sourceLang === 'en' ? vt.post.translationZh : vt.post.translationEn }}
+					<button v-if="data.sourceLang !== 'en' && speechSupported" class="_button" :class="$style.miniSpeak" :aria-label="speakingKey === `${uid}:translation` ? vt.post.stop : vt.post.listen" :aria-pressed="speakingKey === `${uid}:translation`" @click="toggleSpeak(`${uid}:translation`, data.translation)">
 						<i :class="[speakIcon(`${uid}:translation`), { [$style.spin]: loadingKey === `${uid}:translation` }]"></i>
 					</button>
 				</div>
@@ -43,20 +43,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-if="data.tone" :class="$style.tone">{{ data.tone }}</div>
 			</section>
 			<section v-if="data.items.length > 0">
-				<div :class="$style.label">{{ englishLabels.worthLearning }}</div>
+				<div :class="$style.label">{{ vt.post.worthLearning }}</div>
 				<ul :class="$style.items">
 					<li v-for="(item, i) in data.items" :key="i" :class="$style.item">
 						<div :class="$style.itemHead">
 							<b class="_selectable" :class="$style.phrase">{{ item.text }}</b>
-							<span :class="$style.kind">{{ englishLabels.kinds[item.kind] }}</span>
-							<button v-if="speechSupported" class="_button" :class="$style.miniSpeak" :aria-label="speakingKey === `${uid}:item:${i}` ? englishLabels.stop : englishLabels.listen" :aria-pressed="speakingKey === `${uid}:item:${i}`" @click="toggleSpeak(`${uid}:item:${i}`, item.text)">
+							<span :class="$style.kind">{{ vt.post.kinds[item.kind] }}</span>
+							<button v-if="speechSupported" class="_button" :class="$style.miniSpeak" :aria-label="speakingKey === `${uid}:item:${i}` ? vt.post.stop : vt.post.listen" :aria-pressed="speakingKey === `${uid}:item:${i}`" @click="toggleSpeak(`${uid}:item:${i}`, item.text)">
 								<i :class="[speakIcon(`${uid}:item:${i}`), { [$style.spin]: loadingKey === `${uid}:item:${i}` }]"></i>
 							</button>
 							<span class="_selectable" :class="$style.meaning">{{ item.meaning }}</span>
 							<button
 								class="_button"
 								:class="[$style.miniSpeak, $style.save]"
-								:aria-label="isSaved(item.text) ? englishLabels.unsave : englishLabels.save"
+								:aria-label="isSaved(item.text) ? vt.post.unsave : vt.post.save"
 								:aria-pressed="isSaved(item.text)"
 								@click="toggleSave(item)"
 							>
@@ -65,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div v-if="item.usage" class="_selectable" :class="$style.usage">{{ item.usage }}</div>
 						<div v-if="item.example" :class="$style.example">
-							<button v-if="speechSupported" class="_button" :class="$style.miniSpeak" :aria-label="speakingKey === `${uid}:example:${i}` ? englishLabels.stop : englishLabels.listen" :aria-pressed="speakingKey === `${uid}:example:${i}`" @click="toggleSpeak(`${uid}:example:${i}`, item.example)">
+							<button v-if="speechSupported" class="_button" :class="$style.miniSpeak" :aria-label="speakingKey === `${uid}:example:${i}` ? vt.post.stop : vt.post.listen" :aria-pressed="speakingKey === `${uid}:example:${i}`" @click="toggleSpeak(`${uid}:example:${i}`, item.example)">
 								<i :class="[speakIcon(`${uid}:example:${i}`), { [$style.spin]: loadingKey === `${uid}:example:${i}` }]"></i>
 							</button>
 							<span class="_selectable">{{ item.example }}</span>
@@ -74,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</li>
 				</ul>
 			</section>
-			<p :class="$style.foot">{{ englishLabels.byAi }}</p>
+			<p :class="$style.foot">{{ vt.post.byAi }}</p>
 		</template>
 	</div>
 </div>
@@ -85,12 +85,11 @@ import { computed, inject, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import type * as Misskey from 'misskey-js';
 import type { EnglishExplanation } from '@/lojo/english/api.js';
 import { DI } from '@/di.js';
-import { englishLabels } from '@/lojo/english/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { englishErrorText, englishStatus, explainNote, explainText, loadEnglishStatus } from '@/lojo/english/api.js';
 import { currentVoice, loadingKey, openVoiceMenu, speakingKey, speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
 import { hasEnglish, looksEnglish, speechText } from '@/lojo/english/text.js';
 import { isSaved, loadWordbook, reloadWordbook, toggleWord } from '@/lojo/english/wordbook.js';
-import { createLabels } from '@/lojo/create/labels.js';
 import { canCreateFrom, loadCreateState } from '@/lojo/create/state.js';
 import * as os from '@/os.js';
 
@@ -156,9 +155,9 @@ function toggle() {
 
 async function toggleSave(item: EnglishExplanation['items'][number]) {
 	try {
-		os.toast(await toggleWord(item, noteId.value) ? englishLabels.saved : englishLabels.removed);
+		os.toast(await toggleWord(item, noteId.value) ? vt.post.saved : vt.post.removed);
 	} catch {
-		os.toast(englishLabels.saveFailed);
+		os.toast(vt.post.saveFailed);
 		reloadWordbook();
 	}
 }

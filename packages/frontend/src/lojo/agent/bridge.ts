@@ -15,6 +15,7 @@ import { buildWorkLog, stepsSummary } from './worklog.js';
 import type { Step, TimelineItem } from './worklog.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { myTutorName } from '@/lojo/tutor/persona.js';
+import { agentText as L } from '@/lojo/locales/agent.js';
 
 const STORE = 'vibes.agentBridge.v1';
 const SENT = 'vibes.agentBridge.sent.v1';
@@ -322,10 +323,10 @@ export type Live = {
 function permissionOf(p: any): Permission {
 	const d = p?.detail ?? {};
 	const command = d.type === 'shell' ? String(d.command ?? '') : (d.type === 'edit' || d.type === 'write') ? String(d.filePath ?? '') : null;
-	const fallback = p?.name === 'Bash' || d.type === 'shell' ? '运行命令' : (d.type === 'edit' || d.type === 'write') ? '改文件' : (p?.title || p?.name || '一个操作');
+	const fallback = p?.name === 'Bash' || d.type === 'shell' ? L.runCommand : (d.type === 'edit' || d.type === 'write') ? L.editFile : (p?.title || p?.name || L.anAction);
 	const actions = Array.isArray(p?.actions) && p.actions.length > 0
 		? p.actions.map((a: any) => ({ id: a.id, label: String(a.label ?? ''), behavior: a.behavior === 'deny' ? 'deny' : 'allow' }))
-		: [{ label: '允许', behavior: 'allow' }, { label: '拒绝', behavior: 'deny' }];
+		: [{ label: L.allow, behavior: 'allow' }, { label: L.deny, behavior: 'deny' }];
 	return { id: String(p.id), title: p?.title && p.title !== p.name ? String(p.title) : fallback, command: command || (p?.description ? String(p.description) : null), actions };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -473,10 +474,10 @@ export function handBackText(draftId: string, st: SentState): string {
 	let did = stepsSummary({ steps: st.steps ?? [], files: st.files ?? [] });
 	if (did.length > 300) did = did.slice(0, 299) + '…';
 	const head = (cut: boolean) => `${RESULT_HEAD} · draft ${draftId} · ${st.status === 'done' ? 'finished' : st.status}${took != null ? ` · ${took}s` : ''}${cut ? ' · cut short' : ''}]`;
-	const didLine = did ? `做了什么：${did}\n\n` : '';
+	const didLine = did ? `做了什么：${did}\n\n` : ''; // vibes-i18n-keep: the marker draftCard.ts reads back
 	const room = HAND_BACK_MAX - head(true).length - 1 - didLine.length;
 	if (body.length <= room) return `${head(false)}\n${didLine}${body}`;
-	const gap = '\n\n…（中间省略）…\n\n';
+	const gap = '\n\n…（中间省略）…\n\n'; // vibes-i18n-keep: inside the message to Momo, which reads Chinese
 	const end = Math.floor((room - gap.length) * 0.35);
 	const start = room - gap.length - end;
 	return `${head(true)}\n${didLine}${body.slice(0, start).trimEnd()}${gap}${body.slice(body.length - end).trimStart()}`;

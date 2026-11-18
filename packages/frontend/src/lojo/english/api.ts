@@ -4,7 +4,7 @@
  */
 
 import { ref } from 'vue';
-import { englishLabels } from './labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import type * as Misskey from 'misskey-js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { miLocalStorage } from '@/local-storage.js';
@@ -81,8 +81,8 @@ export async function speechUrl(source: { noteId: string } | { text: string }, v
 
 export function englishErrorText(err: unknown): string {
 	const code = (err as { code?: string } | null)?.code;
-	if (code === 'LOJO_ENGLISH_UNAVAILABLE') return englishLabels.unavailable;
-	if (code === 'RATE_LIMIT_EXCEEDED') return englishLabels.rateLimited;
-	if (code === 'LOJO_ENGLISH_QUOTA_EXCEEDED') return englishLabels.quota;
-	return englishLabels.failed;
+	if (code === 'LOJO_ENGLISH_UNAVAILABLE') return vt.post.unavailable;
+	if (code === 'RATE_LIMIT_EXCEEDED') return vt.post.rateLimited;
+	if (code === 'LOJO_ENGLISH_QUOTA_EXCEEDED') return vt.post.quota;
+	return vt.post.failed;
 }

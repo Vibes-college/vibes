@@ -7,31 +7,52 @@ SPDX-License-Identifier: AGPL-3.0-only
 The learner's Momo in the corner (2026-11-16; until then 「召唤 Agent」, Paseo in an iframe). Mounted by
 ui/_common_/common.vue only when 「在首页显示 …」 is on for this device (settings › AI tutor), so the site loads none of
 this by default.
-Since 11-17 (founder picked A, the peek): only the head, peeking in from the right edge of the screen, the learner's own
+Since 11-17 (founder picked A, the peek): only the head, peeking in from the edge of the screen, the learner's own
 face and name (lojo/tutor/persona.ts). No 「AI」 tag here: the corner is only a way in; the chat list, the chat header's
 「学搭子」, the profile and the first message say it is an AI. When today's plan still has tasks, it says so once a day.
 The head opens a small panel with the learner's chat with the AI tutor: the same chat page as /chat/user/<id>, run by
 its own router inside the panel (like MkPageWindow), so whatever page is underneath stays where it is. Links that
 lead anywhere else open in the main page.
+Since 11-17 20:53 PT (founder: 「挡住东西了就能移动开」) the head can be dragged with a finger or a mouse to the other side
+or another height; this device remembers where (./dock.ts).
 -->
 
 <template>
 <div :class="$style.root">
-	<button
+	<!-- The head and its bubble move together. Dragged (founder 11-17 20:53 PT), it goes to the nearer side on release. -->
+	<div
 		v-show="!panelOpen && !hiddenHere"
-		ref="fabEl"
-		class="_button"
-		:class="[$style.fab, { [$style.arrive]: arriving, [$style.inCorner]: barHidden }]"
-		:title="L.open(myTutorName)"
-		:aria-label="L.open(myTutorName)"
-		aria-haspopup="dialog"
-		data-vibi-fab
-		@click="openPanel"
-		@animationend="arriving = false"
+		ref="dockEl"
+		:class="[$style.dock, {
+			[$style.left]: side === 'left',
+			[$style.inCorner]: barHidden,
+			[$style.placed]: spot != null && dragAt == null,
+			[$style.dragging]: dragging,
+			[$style.settling]: settling,
+		}]"
+		:style="dockStyle"
+		data-vibi-dock
+		:data-side="side"
 	>
-		<img :class="$style.peekHead" :src="headUrl" alt="" draggable="false">
-	</button>
-	<div v-if="bubble && !panelOpen && !hiddenHere" :class="[$style.bubble, { [$style.inCorner]: barHidden }]" role="status" @click="openPanel">{{ bubble }}</div>
+		<button
+			ref="fabEl"
+			class="_button"
+			:class="[$style.fab, { [$style.arrive]: arriving }]"
+			:title="L.open(myTutorName)"
+			:aria-label="L.open(myTutorName)"
+			aria-haspopup="dialog"
+			data-vibi-fab
+			@click="onFabClick"
+			@pointerdown="onPointerDown"
+			@pointermove="onPointerMove"
+			@pointerup="onPointerUp"
+			@pointercancel="onPointerUp"
+			@animationend="arriving = false"
+		>
+			<img :class="$style.peekHead" :src="headUrl" alt="" draggable="false">
+		</button>
+		<div v-if="bubble" :class="$style.bubble" role="status" @click="openPanel">{{ bubble }}</div>
+	</div>
 
 	<section
 		v-show="panelOpen"
@@ -68,8 +89,10 @@ lead anywhere else open in the main page.
 <script lang="ts" setup>
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import XVibiChat from './VibiChat.vue';
-import { vibiLabels as L } from './labels.js';
+import { vibiText as L } from '@/lojo/locales/vibi.js';
 import { markSaid, peekLine, saidToday } from './peek.js';
+import { clampDrag, isDrag, loadSpot, saveSpot, sideFor, TOP_GAP } from './dock.js';
+import type { Side, Spot } from './dock.js';
 import { cornerHeldBack, forgetPanelOpen, justShown, rememberPanelOpen, setShowVibi, shouldReopenPanel } from './state.js';
 import { personaHeadUrl } from '@/lojo/tutor/persona-rules.js';
 import { loadTutorIds, myTutorName, myTutorSeed } from '@/lojo/tutor/persona.js';
@@ -93,8 +116,105 @@ const hiddenHere = computed(() => {
 	return path === '/quest' || cornerHeldBack.value > 0 || (chatPath.value != null && mainRouter.getCurrentFullPath().startsWith(chatPath.value));
 });
 
+const dockEl = useTemplateRef('dockEl');
 const fabEl = useTemplateRef('fabEl');
 const minimizeEl = useTemplateRef('minimizeEl');
+
+// ---------- Moving the head (./dock.ts) ----------
+// Where the learner left it on this device; null: never moved, the default corner.
+const spot = ref<Spot | null>(loadSpot());
+const side = ref<Side>(spot.value?.side ?? 'right');
+// While dragged, and while it glides to the side after release: where the head is, in px from the top left.
+const dragAt = ref<{ left: number; top: number } | null>(null);
+const dragging = ref(false);
+const settling = ref(false);
+let settleTimer: number | null = null;
+// A drag ends with a click on the head; that one does not open the chat.
+let noClickUntil = 0;
+
+type Limits = { width: number; height: number; minTop: number; minBottom: number; insetLeft: number; insetRight: number };
+let press: { id: number; x: number; y: number; left: number; top: number; size: { width: number; height: number }; limits: Limits | null } | null = null;
+
+const dockStyle = computed(() => {
+	if (dragAt.value) return { left: `${dragAt.value.left}px`, top: `${dragAt.value.top}px`, right: 'auto', bottom: 'auto' };
+	if (spot.value) return { '--vibi-y': `${spot.value.y}px` };
+	return {};
+});
+
+// A CSS length (safe areas, the bottom bar's height) in px, measured as it is right now.
+function cssPx(expr: string): number {
+	const probe = window.document.createElement('div');
+	probe.style.cssText = `position:fixed;left:0;top:0;width:0;visibility:hidden;pointer-events:none;height:${expr}`;
+	window.document.body.appendChild(probe);
+	const px = probe.getBoundingClientRect().height;
+	probe.remove();
+	return px;
+}
+
+function limits(): Limits {
+	return {
+		width: window.document.documentElement.clientWidth,
+		height: window.document.documentElement.clientHeight,
+		minTop: TOP_GAP + cssPx('env(safe-area-inset-top, 0px)'),
+		// Never over the phone's bottom bar: the same margins as the default corner (see .dock below).
+		minBottom: cssPx(barHidden.value ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : 'calc(var(--MI-minBottomSpacing, 0px) + 16px)'),
+		insetLeft: cssPx('env(safe-area-inset-left, 0px)'),
+		insetRight: cssPx('env(safe-area-inset-right, 0px)'),
+	};
+}
+
+function onPointerDown(ev: PointerEvent) {
+	if (!ev.isPrimary || ev.button !== 0 || settling.value) return;
+	const r = dockEl.value?.getBoundingClientRect();
+	if (!r) return;
+	press = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, left: r.left, top: r.top, size: { width: r.width, height: r.height }, limits: null };
+	(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+	// A mouse would start selecting the text underneath.
+	if (ev.pointerType === 'mouse') ev.preventDefault();
+}
+
+function onPointerMove(ev: PointerEvent) {
+	if (press == null || ev.pointerId !== press.id) return;
+	const dx = ev.clientX - press.x;
+	const dy = ev.clientY - press.y;
+	if (press.limits == null) {
+		// Moved less than a few px: still a tap.
+		if (!isDrag(dx, dy)) return;
+		press.limits = limits();
+		dragging.value = true;
+	}
+	ev.preventDefault();
+	const at = clampDrag({ left: press.left + dx, top: press.top + dy }, press.size, press.limits);
+	dragAt.value = at;
+	side.value = sideFor(at.left + press.size.width / 2, press.limits.width);
+}
+
+function onPointerUp(ev: PointerEvent) {
+	if (press == null || ev.pointerId !== press.id) return;
+	const { size, limits: lim } = press;
+	press = null;
+	// A tap: the click that follows opens the chat.
+	if (lim == null || dragAt.value == null) return;
+	noClickUntil = performance.now() + 400;
+	dragging.value = false;
+	// Glide to the side, then hand over to the stylesheet, which keeps it on the screen when the window changes size.
+	const top = dragAt.value.top;
+	spot.value = { side: side.value, y: lim.height - top - size.height };
+	saveSpot(spot.value);
+	settling.value = true;
+	dragAt.value = { left: side.value === 'left' ? lim.insetLeft : lim.width - lim.insetRight - size.width, top };
+	if (settleTimer != null) window.clearTimeout(settleTimer);
+	settleTimer = window.setTimeout(() => {
+		settleTimer = null;
+		settling.value = false;
+		dragAt.value = null;
+	}, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 260);
+}
+
+function onFabClick() {
+	if (performance.now() < noClickUntil) return;
+	void openPanel();
+}
 
 const panelOpen = ref(false);
 const big = ref(false);
@@ -246,6 +366,7 @@ onBeforeUnmount(() => {
 	window.visualViewport?.removeEventListener('scroll', fitViewport);
 	phoneQuery.removeEventListener('change', onPhoneChange);
 	if (bubbleTimer != null) window.clearTimeout(bubbleTimer);
+	if (settleTimer != null) window.clearTimeout(settleTimer);
 });
 </script>
 
@@ -255,21 +376,66 @@ onBeforeUnmount(() => {
 }
 
 // Above the page and the phone's bottom bar, below the drawer menu (1001) and Misskey's popups (claimZIndex).
-// The peek (founder 11-17, mockup A): the head, tilted, partly past the right edge of the screen, where the floating
-// post button used to be.
-.fab {
+// The peek (founder 11-17, mockup A): the head, tilted, partly past the edge of the screen. By default on the right,
+// where the floating post button used to be. The head can be dragged (founder 11-17 20:53 PT; script above and
+// ./dock.ts): on release it goes to the nearer side, at the height where it was let go (--vibi-y, from the bottom).
+.dock {
+	// The lowest it may sit: above the phone's bottom bar, or in the corner while scrolling hides the bar.
+	--vibi-min: calc(var(--MI-minBottomSpacing, 0px) + 16px);
 	position: fixed;
 	right: env(safe-area-inset-right, 0px);
-	bottom: calc(var(--MI-minBottomSpacing, 0px) + 16px);
+	bottom: var(--vibi-min);
 	z-index: 1000;
 	width: 52px;
 	height: 78px;
-	// The keyboard focus ring: around the part that shows.
-	border-radius: 16px 0 0 16px;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-touch-callout: none;
 	transition: bottom 200ms ease;
 
 	&.inCorner {
-		bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+		--vibi-min: calc(16px + env(safe-area-inset-bottom, 0px));
+	}
+
+	&.left {
+		right: auto;
+		left: env(safe-area-inset-left, 0px);
+	}
+
+	// Moved by the learner. Still on the screen when the window gets smaller or the phone turns, never over the bottom
+	// bar, and room above for the bubble (TOP_GAP in ./dock.ts).
+	&.placed {
+		bottom: clamp(var(--vibi-min), var(--vibi-y), calc(100dvh - 78px - 40px - env(safe-area-inset-top, 0px)));
+	}
+
+	&.dragging {
+		transition: none;
+		cursor: grabbing;
+	}
+
+	&.settling {
+		transition: left 0.25s ease, top 0.25s ease;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		&, &.settling {
+			transition: none;
+		}
+	}
+}
+
+.fab {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	// The keyboard focus ring: around the part that shows.
+	border-radius: 16px 0 0 16px;
+	// The finger moves the head, not the page.
+	touch-action: none;
+
+	.left > & {
+		border-radius: 0 16px 16px 0;
 	}
 
 	&:hover > .peekHead,
@@ -277,8 +443,9 @@ onBeforeUnmount(() => {
 		transform: translateX(-6px) rotate(-10deg);
 	}
 
-	@media (prefers-reduced-motion: reduce) {
-		transition: none;
+	.left > &:hover > .peekHead,
+	.left > &:focus-visible > .peekHead {
+		transform: scaleX(-1) translateX(-6px) rotate(-10deg);
 	}
 }
 
@@ -295,6 +462,22 @@ onBeforeUnmount(() => {
 	pointer-events: none;
 	user-select: none;
 
+	// On the left side: the mirror image, peeking in from the left edge.
+	.left & {
+		left: auto;
+		right: 0;
+		transform: scaleX(-1) rotate(-16deg);
+	}
+
+	// Picked up: stands a little straighter and bigger.
+	.dragging > .fab > & {
+		transform: rotate(-6deg) scale(1.06);
+	}
+
+	.left.dragging > .fab > & {
+		transform: scaleX(-1) rotate(-6deg) scale(1.06);
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		transition: none;
 	}
@@ -303,6 +486,10 @@ onBeforeUnmount(() => {
 // Switched on in settings: it slides in from the edge.
 .arrive > .peekHead {
 	animation: arrive 0.7s cubic-bezier(0.2, 1.4, 0.4, 1);
+
+	.left > & {
+		animation-name: arriveLeft;
+	}
 
 	@media (prefers-reduced-motion: reduce) {
 		animation: none;
@@ -314,12 +501,17 @@ onBeforeUnmount(() => {
 	to { transform: rotate(-16deg); }
 }
 
-// Next to the head, at the height of its face. A tap opens the chat.
+@keyframes arriveLeft {
+	from { transform: scaleX(-1) translateX(80px) rotate(10deg); }
+	to { transform: scaleX(-1) rotate(-16deg); }
+}
+
+// Next to the head, at the height of its face, toward the middle of the screen. A tap opens the chat.
 .bubble {
-	position: fixed;
-	right: calc(env(safe-area-inset-right, 0px) + 62px);
-	bottom: calc(var(--MI-minBottomSpacing, 0px) + 46px);
-	z-index: 1000;
+	position: absolute;
+	right: 62px;
+	bottom: 30px;
+	width: max-content;
 	max-width: 230px;
 	background: var(--MI_THEME-panel);
 	color: var(--MI_THEME-fg);
@@ -331,15 +523,16 @@ onBeforeUnmount(() => {
 	cursor: pointer;
 	animation: bubbleIn 0.3s cubic-bezier(0.3, 1.4, 0.5, 1);
 	transform-origin: 100% 100%;
-	transition: bottom 200ms ease;
 
-	&.inCorner {
-		bottom: calc(46px + env(safe-area-inset-bottom, 0px));
+	.left > & {
+		right: auto;
+		left: 62px;
+		border-radius: 14px 14px 14px 4px;
+		transform-origin: 0 100%;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		animation: none;
-		transition: none;
 	}
 }
 

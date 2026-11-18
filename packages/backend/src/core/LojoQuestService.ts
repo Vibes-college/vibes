@@ -698,8 +698,8 @@ export class LojoQuestService implements OnModuleInit, OnApplicationShutdown {
 		// a level lit by the placement test: its first real pass is a first pass (定级规则 firstRealPassOnLitLevel)
 		const firstPass = passed && !retest && (prev.passedAt == null || !!prev.placed);
 		const route = questRoute();
-		// 全对：过了，而且一局一题没错（三段闯关和旧地图一样，misc/lojo-quest-play.ts）
-		const perfect = questPerfect(at.answers, passed);
+		// 全对：三段闯关是「一局一题没错」；旧地图照旧要整套都对（misc/lojo-quest-play.ts）
+		const perfect = questPerfect(route != null, at.answers, passed, at.questionIds.length);
 		if (mode === 'probe') return this.finishProbe(row, at, node, now, route);
 		let level: MiLojoQuestLevel;
 		if (route != null) {

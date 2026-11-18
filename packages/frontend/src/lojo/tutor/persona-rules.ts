@@ -5,14 +5,16 @@
 
 // 每个学员自己的 Momo（创始人 2026-11-16 23:35 / 23:54、11-17 00:13 PT）：名字的规矩和头像网址，不碰 Vue，方便测。
 // 规矩跟后台一样（packages/backend/src/misc/lojo-tutor-persona.ts），这里只为了边打字边提示；后台还会再查一遍，
-// 另外拦站点设置里的「用户名禁用词」。
+// 另外拦站点设置里的「用户名禁用词」。提示的字中英两份，在 lojo/locales/momo.ts。
+
+import { momoText } from '@/lojo/locales/momo.js';
 
 export const DEFAULT_TUTOR_NAME = 'Momo';
 export const PERSONA_NAME_MAX = 10;
 // Pretending to be staff, a teacher or a real person (拟人化互动办法: the learner must always know it is an AI).
-export const PERSONA_BANNED_WORDS = ['老师', '客服', '官方', '管理员', '真人', '人工', '教授', '助教', 'teacher', 'official', 'admin'];
+export const PERSONA_BANNED_WORDS = ['老师', '客服', '官方', '管理员', '真人', '人工', '教授', '助教', 'teacher', 'official', 'admin']; // vibes-i18n-keep: words checked in any language
 // Names to try in the 「起名」 step (made up, any will do).
-export const PERSONA_NAME_IDEAS = ['Momo', 'Leo', 'Kiki', 'Nova', '豆豆', '阿布'];
+export const PERSONA_NAME_IDEAS: readonly string[] = momoText.nameIdeaList;
 
 // Spaces at both ends trimmed, runs of spaces made one, control characters (new lines too) taken out.
 export function cleanPersonaName(raw: string): string {
@@ -23,11 +25,11 @@ export function cleanPersonaName(raw: string): string {
 // What is wrong with a name, in words for the learner; null when it is fine.
 export function personaNameWarning(raw: string): string | null {
 	const name = cleanPersonaName(raw);
-	if (name === '') return `起个名字吧，不想起就用 ${DEFAULT_TUTOR_NAME}`;
-	if ([...name].length > PERSONA_NAME_MAX) return `最多 ${PERSONA_NAME_MAX} 个字`;
+	if (name === '') return momoText.nameEmpty(DEFAULT_TUTOR_NAME);
+	if ([...name].length > PERSONA_NAME_MAX) return momoText.nameTooLong(PERSONA_NAME_MAX);
 	const lower = name.toLowerCase();
 	const bad = PERSONA_BANNED_WORDS.find(word => lower.includes(word));
-	if (bad != null) return `「${bad}」容易让人以为是真人或官方，换一个吧`;
+	if (bad != null) return momoText.nameBanned(bad);
 	return null;
 }
 
@@ -56,5 +58,5 @@ export function randomPersonaSeed(random: (n: number) => Uint8Array = n => crypt
 
 // The first thing the learner's Momo says once named (the 「打招呼」 step). It says it is an AI in the first sentence.
 export function personaHello(name: string): string {
-	return `嗨，我是 ${name}，你的学搭子。我是 AI，不是真人，陪你练英语、排每天的任务。先说说，你在准备什么？`;
+	return momoText.hello(name);
 }

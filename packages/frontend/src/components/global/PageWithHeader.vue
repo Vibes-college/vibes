@@ -35,7 +35,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				type="button"
 				class="_button"
 				:class="$style.navHandle"
-				aria-label="叫出底栏"
+				:aria-label="vt.nav.showFooter"
 				@click="barShown = true"
 				@touchstart.passive="onHandleTouchStart"
 				@touchmove.passive="onHandleTouchMove"
@@ -63,6 +63,7 @@ import MkTabs from '@/components/MkTabs.vue';
 import { DI } from '@/di.js';
 import { createScrollChromeTracker } from '@/utility/scroll-chrome.js';
 import { keyboardOpen } from '@/lojo/keyboard.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const props = withDefaults(defineProps<PageHeaderProps & {
 	reversed?: boolean;

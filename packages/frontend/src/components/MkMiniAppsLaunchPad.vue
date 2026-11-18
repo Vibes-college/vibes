@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <MkModal ref="modal" v-slot="{ type, maxHeight }" :preferType="preferedModalType" :anchor="anchor" :transparentBg="true" :anchorElement="anchorElement" @click="modal?.close()" @closed="emit('closed')" @esc="modal?.close()">
 	<div class="_popup _shadow" :class="[$style.root, { [$style.asDrawer]: type === 'drawer' }]" :style="{ maxHeight: maxHeight ? maxHeight + 'px' : '' }">
-		<div :class="$style.title">{{ miniAppsLabels.panelTitle }}</div>
+		<div :class="$style.title">{{ vt.miniapps.panelTitle }}</div>
 		<div :class="$style.main">
 			<button
 				v-for="app in miniApps"
@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.text">{{ app.name }}</div>
 			</button>
 		</div>
-		<div v-if="miniApps.length === 0" :class="$style.note">{{ miniAppsState === 'loading' ? miniAppsLabels.loading : miniAppsState === 'failed' ? miniAppsLabels.failed : miniAppsLabels.empty }}</div>
+		<div v-if="miniApps.length === 0" :class="$style.note">{{ miniAppsState === 'loading' ? vt.miniapps.loading : miniAppsState === 'failed' ? vt.miniapps.failed : vt.miniapps.empty }}</div>
 	</div>
 </MkModal>
 </template>
@@ -34,7 +34,7 @@ import { useTemplateRef } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import { miniApps, miniAppsState, refreshMiniApps } from '@/lojo/miniapps/roster.js';
 import type { MiniAppDef } from '@/lojo/miniapps/roster.js';
-import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { loadMiniAppsSeen } from '@/lojo/miniapps/state.js';
 import { launchMiniApp, showMiniAppIntro } from '@/lojo/miniapps/launch.js';
 import { deviceKind } from '@/utility/device-kind.js';

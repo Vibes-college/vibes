@@ -8,6 +8,8 @@ import { buildWorkLog, elapsed, stepsSummary, thoughtLine } from '@/lojo/agent/w
 import type { TimelineItem } from '@/lojo/agent/worklog.js';
 
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: vi.fn() }));
+// These lines are checked in Chinese (zh-CN UI); the English ones are in vibes-i18n.test.ts.
+vi.mock('@@/js/config.js', async (orig) => ({ ...(await orig<typeof import('@@/js/config.js')>()), lang: 'zh-CN' }));
 
 const CWD = '/Users/me/app';
 const read = (f: string): TimelineItem => ({ type: 'tool_call', name: 'Read', status: 'completed', detail: { type: 'read', filePath: `${CWD}/${f}` } });

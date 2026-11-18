@@ -5,7 +5,7 @@
 
 import { computed, ref } from 'vue';
 import { englishErrorText, englishStatus, speechUrl } from './api.js';
-import { englishLabels } from './labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import type { EnglishVoice } from './api.js';
 import type { MenuItem } from '@/types/menu.js';
 import * as os from '@/os.js';
@@ -76,7 +76,7 @@ export async function toggleSpeak(key: string, text: string, source?: { noteId: 
 		if (myRun !== run) return;
 		speakingKey.value = null;
 		loadingKey.value = null;
-		os.toast((err as { code?: string } | null)?.code ? englishErrorText(err) : englishLabels.speechFailed);
+		os.toast((err as { code?: string } | null)?.code ? englishErrorText(err) : vt.post.speechFailed);
 	}
 }
 
@@ -91,7 +91,7 @@ export function openVoiceMenu(ev: MouseEvent): void {
 	for (const accent of ['us', 'uk', 'au'] as const) {
 		const group = englishStatus.value.voices.filter(v => v.accent === accent);
 		if (group.length === 0) continue;
-		items.push({ type: 'label', text: englishLabels.accents[accent] });
+		items.push({ type: 'label', text: vt.post.accents[accent] });
 		for (const v of group) {
 			items.push({
 				text: v.name,
@@ -101,8 +101,8 @@ export function openVoiceMenu(ev: MouseEvent): void {
 				action: () => {
 					voiceId.value = v.id;
 					localStorage.setItem(VOICE_KEY, v.id);
-					os.toast(englishLabels.voiceChanged(v.name));
-					toggleSpeak(`voice-greeting:${v.id}`, englishLabels.voiceGreeting(v.name));
+					os.toast(vt.post.voiceChanged(v.name));
+					toggleSpeak(`voice-greeting:${v.id}`, vt.post.voiceGreeting(v.name));
 				},
 			});
 		}

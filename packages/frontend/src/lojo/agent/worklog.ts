@@ -9,6 +9,8 @@
 // folded into one ("读了 3 个文件"), a live line for what it is thinking now, and the final answer kept apart.
 // Everything here is plain text from the learner's own computer; it is only ever shown as text, never as HTML.
 
+import { agentText as L } from '@/lojo/locales/agent.js';
+
 export type StepKind = 'read' | 'edit' | 'shell' | 'search' | 'web' | 'agent' | 'plan' | 'tool' | 'note' | 'error';
 
 export type Step = {
@@ -105,26 +107,26 @@ function toolStep(item: { name: string; status: string; detail?: ToolDetail }, c
 
 function oneLabel(s: One): string {
 	switch (s.kind) {
-		case 'read': return `读 ${baseName(s.name)}`;
-		case 'edit': return `${s.created ? '新建' : '改'} ${baseName(s.name)}`;
-		case 'shell': return `运行 ${s.name}`;
-		case 'search': return `搜索「${s.name}」`;
-		case 'web': return `上网查 ${s.name}`;
-		case 'agent': return `派出子任务：${s.name}`;
-		case 'plan': return '写了计划';
-		default: return `用工具 ${s.name}`;
+		case 'read': return L.stepRead(baseName(s.name));
+		case 'edit': return s.created ? L.stepCreate(baseName(s.name)) : L.stepEdit(baseName(s.name));
+		case 'shell': return L.stepShell(s.name);
+		case 'search': return L.stepSearch(s.name);
+		case 'web': return L.stepWeb(s.name);
+		case 'agent': return L.stepAgent(s.name);
+		case 'plan': return L.stepPlan;
+		default: return L.stepTool(s.name);
 	}
 }
 
 function groupLabel(kind: StepKind, n: number): string {
 	switch (kind) {
-		case 'read': return `读了 ${n} 个文件`;
-		case 'edit': return `改了 ${n} 个文件`;
-		case 'shell': return `运行了 ${n} 条命令`;
-		case 'search': return `搜索了 ${n} 次`;
-		case 'web': return `上网查了 ${n} 次`;
-		case 'agent': return `派出 ${n} 个子任务`;
-		default: return `用了 ${n} 次工具`;
+		case 'read': return L.groupRead(n);
+		case 'edit': return L.groupEdit(n);
+		case 'shell': return L.groupShell(n);
+		case 'search': return L.groupSearch(n);
+		case 'web': return L.groupWeb(n);
+		case 'agent': return L.groupAgent(n);
+		default: return L.groupTool(n);
 	}
 }
 
@@ -188,7 +190,7 @@ export function buildWorkLog(items: TimelineItem[], cwd?: string | null, working
 				flush();
 				const todo = (it as { items: { text: string; completed: boolean }[] }).items;
 				const done = todo.filter(t => t.completed).length;
-				const step: Step = { kind: 'plan', label: `计划 ${done}/${todo.length}`, items: todo.map(t => `${t.completed ? '✓' : '·'} ${short(t.text, 70)}`), state: done === todo.length ? 'done' : 'running' };
+				const step: Step = { kind: 'plan', label: L.plan(done, todo.length), items: todo.map(t => `${t.completed ? '✓' : '·'} ${short(t.text, 70)}`), state: done === todo.length ? 'done' : 'running' };
 				// Only the latest plan stays, where it was last updated.
 				if (todoAt >= 0) steps.splice(todoAt, 1);
 				todoAt = steps.length;
@@ -223,10 +225,10 @@ export function buildWorkLog(items: TimelineItem[], cwd?: string | null, working
 // Ticking time, compact as in T3 Code (AgentElapsed.tsx): 12 秒, 3 分 5 秒, 1.5 小时.
 export function elapsed(ms: number): string {
 	const s = Math.max(0, Math.floor(ms / 1000));
-	if (s < 60) return `${s} 秒`;
+	if (s < 60) return L.seconds(s);
 	const m = Math.floor(s / 60);
-	if (m < 60) return s % 60 === 0 ? `${m} 分` : `${m} 分 ${s % 60} 秒`;
-	return `${(m / 60).toFixed(1)} 小时`;
+	if (m < 60) return s % 60 === 0 ? L.minutes(m) : L.minutesSeconds(m, s % 60);
+	return L.hours((m / 60).toFixed(1));
 }
 
 // What the learner hands back to Vibi: the agent's whole answer (up to a cap) and a one-line list of what it did,
@@ -238,6 +240,6 @@ export function stepsSummary(log: Pick<WorkLog, 'steps' | 'files'>): string {
 		by.set(s.kind, (by.get(s.kind) ?? 0) + (s.items?.length || 1));
 	}
 	const parts = [...by.entries()].map(([k, n]) => groupLabel(k, n));
-	if (log.files.length > 0) parts.push(`改动的文件：${log.files.slice(0, 12).join('、')}${log.files.length > 12 ? ` 等 ${log.files.length} 个` : ''}`);
-	return parts.join('；');
+	if (log.files.length > 0) parts.push(L.filesChanged(log.files.slice(0, 12), log.files.length));
+	return parts.join(L.partsJoin);
 }

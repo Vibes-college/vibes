@@ -72,7 +72,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-if="youTubeId" :class="$style.action">
 			<MkButton :small="true" inline @click="openListeningPlayer()">
-				<i class="ti ti-headphones"></i> 精听播放器
+				<i class="ti ti-headphones"></i> {{ vt.nav.listenPlayer }}
 			</MkButton>
 		</div>
 		<div v-else-if="!playerEnabled && player.url" :class="$style.action">
@@ -102,6 +102,7 @@ import { prefer } from '@/preferences.js';
 import { maybeMakeRelative } from '@@/js/url.js';
 import { listeningPlayerUrl, youTubeVideoIdOf } from '@/lojo/link-cards.js';
 import { openAppOverlay } from '@/lojo/app-overlay.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const props = withDefaults(defineProps<{
 	url: string;

@@ -9,9 +9,9 @@ folder tasks run in, so the learner's Momo's draft cards can be sent with one ta
 which agent, which folder. The small print is folded away. Shown only to accounts it is switched on for. -->
 <template>
 <FormSection v-if="enabled">
-	<template #label>连接我的电脑</template>
+	<template #label>{{ S.connectTitle }}</template>
 	<div class="_gaps_m" data-agent-connect>
-		<p :class="$style.lead">{{ myTutorName }} 起草的指令，你点一下就能发到自己电脑上的 Claude Code 或 Codex 去做。</p>
+		<p :class="$style.lead">{{ S.connectLead(myTutorName) }}</p>
 
 		<!-- Connected and ready: the computer card -->
 		<div v-if="paired && paired.cwd && !picking" :class="$style.machine" data-agent-connected>
@@ -25,18 +25,18 @@ which agent, which folder. The small print is folded away. Shown only to account
 						<span>{{ agentName(computer?.config ?? paired.config) }}</span>
 					</div>
 				</div>
-				<button class="_button" :class="$style.iconButton" :title="'更多'" data-agent-menu @click="menu"><i class="ti ti-dots"></i></button>
+				<button class="_button" :class="$style.iconButton" :title="S.more" data-agent-menu @click="menu"><i class="ti ti-dots"></i></button>
 			</div>
 			<div :class="$style.machineRow">
 				<i class="ti ti-folder" :class="$style.rowIcon"></i>
 				<div :class="$style.rowText">
-					<div :class="$style.rowLabel">工作文件夹</div>
+					<div :class="$style.rowLabel">{{ S.folder }}</div>
 					<div :class="$style.rowValue" :title="paired.cwd">{{ nameOf(paired.cwd) }}<span :class="$style.path">{{ shortPath(paired.cwd) }}</span></div>
 				</div>
-				<MkButton small rounded data-agent-change-folder @click="startPicking">更换</MkButton>
+				<MkButton small rounded data-agent-change-folder @click="startPicking">{{ S.change }}</MkButton>
 			</div>
 			<div v-if="online === 'off'" :class="$style.offlineNote">
-				<i class="ti ti-info-circle"></i> 连不上：确认电脑开着、Paseo 在运行，再点右上角「⋯」里的「检查连接」。
+				<i class="ti ti-info-circle"></i> {{ S.offlineNote }}
 			</div>
 		</div>
 
@@ -45,18 +45,18 @@ which agent, which folder. The small print is folded away. Shown only to account
 			<li :class="[$style.step, paired ? $style.done : $style.active]">
 				<span :class="$style.dot"><i v-if="paired" class="ti ti-check"></i><template v-else>1</template></span>
 				<div :class="$style.stepBody">
-					<div :class="$style.stepTitle">在电脑上打开 Paseo</div>
-					<div v-if="!paired" :class="$style.stepSub">还没装？到 <a href="https://paseo.sh" target="_blank" rel="noopener noreferrer" class="_link">paseo.sh</a> 下载，免费、开源。</div>
+					<div :class="$style.stepTitle">{{ S.step1 }}</div>
+					<div v-if="!paired" :class="$style.stepSub">{{ S.step1Sub.before }}<a href="https://paseo.sh" target="_blank" rel="noopener noreferrer" class="_link">paseo.sh</a>{{ S.step1Sub.after }}</div>
 				</div>
 			</li>
 
 			<li :class="[$style.step, paired ? $style.done : $style.active]">
 				<span :class="$style.dot"><i v-if="paired" class="ti ti-check"></i><template v-else>2</template></span>
 				<div :class="$style.stepBody">
-					<div :class="$style.stepTitle">{{ paired ? `已连上 ${hostName}` : '复制配对链接，贴到这里' }}</div>
+					<div :class="$style.stepTitle">{{ paired ? S.connectedTo(hostName) : S.step2 }}</div>
 					<template v-if="!paired">
 						<div :class="$style.crumbs">
-							<span>Paseo</span><i class="ti ti-chevron-right"></i><span>设置</span><i class="ti ti-chevron-right"></i><span>配对设备</span><i class="ti ti-chevron-right"></i><span>复制链接</span>
+							<span>Paseo</span><template v-for="c in S.crumbs" :key="c"><i class="ti ti-chevron-right"></i><span>{{ c }}</span></template>
 						</div>
 						<div :class="$style.linkRow">
 							<input
@@ -68,7 +68,7 @@ which agent, which folder. The small print is folded away. Shown only to account
 								data-agent-connect-link
 								@keydown.enter.prevent="go"
 							>
-							<MkButton primary rounded :disabled="busy || link.trim() === ''" data-agent-connect-go @click="go">{{ busy ? '连接中…' : '连接' }}</MkButton>
+							<MkButton primary rounded :disabled="busy || link.trim() === ''" data-agent-connect-go @click="go">{{ busy ? S.connecting : S.connect }}</MkButton>
 						</div>
 						<div v-if="linkError" :class="$style.error" data-agent-connect-error><i class="ti ti-alert-circle"></i> {{ linkError }}</div>
 					</template>
@@ -78,11 +78,11 @@ which agent, which folder. The small print is folded away. Shown only to account
 			<li :class="[$style.step, paired ? $style.active : $style.upcoming]">
 				<span :class="$style.dot">3</span>
 				<div :class="$style.stepBody">
-					<div :class="$style.stepTitle">选一个工作文件夹</div>
-					<div v-if="!paired" :class="$style.stepSub">电脑上的 agent 会在这个文件夹里干活。</div>
+					<div :class="$style.stepTitle">{{ S.step3 }}</div>
+					<div v-if="!paired" :class="$style.stepSub">{{ S.step3Sub }}</div>
 					<template v-else>
-						<div :class="$style.stepSub">电脑上的 agent 会在这个文件夹里干活。以后可以换。</div>
-						<div v-if="loadingFolders" :class="$style.loading"><MkLoading :em="true"/> 正在读电脑上的文件夹…</div>
+						<div :class="$style.stepSub">{{ S.step3SubLater }}</div>
+						<div v-if="loadingFolders" :class="$style.loading"><MkLoading :em="true"/> {{ S.readingFolders }}</div>
 						<div v-else :class="$style.folders" role="radiogroup" data-agent-folders>
 							<button
 								v-for="f in folders" :key="f.path"
@@ -99,7 +99,7 @@ which agent, which folder. The small print is folded away. Shown only to account
 								<input
 									v-model="custom"
 									:class="$style.customInput"
-									:placeholder="folders.length ? '别的文件夹，比如 ~/Desktop/my-app' : '文件夹路径，比如 ~/Desktop/my-app'"
+									:placeholder="folders.length ? S.otherFolder : S.folderPath"
 									spellcheck="false" autocomplete="off"
 									data-agent-folder-custom
 									@focus="chosen = CUSTOM"
@@ -108,8 +108,8 @@ which agent, which folder. The small print is folded away. Shown only to account
 							</div>
 						</div>
 						<div :class="$style.actions">
-							<MkButton primary rounded :disabled="!folderValue" data-agent-folder-save @click="saveFolder">完成</MkButton>
-							<MkButton v-if="picking" rounded @click="picking = false">取消</MkButton>
+							<MkButton primary rounded :disabled="!folderValue" data-agent-folder-save @click="saveFolder">{{ S.done }}</MkButton>
+							<MkButton v-if="picking" rounded @click="picking = false">{{ S.cancel }}</MkButton>
 						</div>
 					</template>
 				</div>
@@ -117,12 +117,12 @@ which agent, which folder. The small print is folded away. Shown only to account
 		</ol>
 
 		<details :class="$style.how">
-			<summary>这是怎么工作的？</summary>
+			<summary>{{ S.howTitle }}</summary>
 			<ul>
-				<li>配对链接只存在这个浏览器里，不传到 Vibes 的服务器，也不写进日志。</li>
-				<li>消息走 Paseo 的端到端加密中继，中继看不到内容。</li>
-				<li>{{ myTutorName }} 只能起草，发不发每次都由你点；agent 要运行命令或改文件时，也会先在卡片上问你。</li>
-				<li>换浏览器、换手机要重新连一次。第一次连接要下载约 640 KB 的连接组件。</li>
+				<li>{{ S.how1 }}</li>
+				<li>{{ S.how2 }}</li>
+				<li>{{ S.how3(myTutorName) }}</li>
+				<li>{{ S.how4 }}</li>
 			</ul>
 		</details>
 	</div>
@@ -138,6 +138,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkLoading from '@/components/global/MkLoading.vue';
 import * as os from '@/os.js';
 import { myTutorName } from '@/lojo/tutor/persona.js';
+import { settingsText as S } from '@/lojo/locales/settings.js';
 
 const CUSTOM = '\u0000custom';
 
@@ -152,8 +153,8 @@ const picking = ref(false);
 const chosen = ref('');
 const custom = ref('');
 
-const hostName = computed(() => computer.value?.host ?? paired.value?.host ?? '我的电脑');
-const onlineText = computed(() => online.value === 'on' ? (computer.value?.ms != null ? `在线 · ${(computer.value.ms / 1000).toFixed(1)} 秒` : '在线') : online.value === 'off' ? '离线' : '正在检查…');
+const hostName = computed(() => computer.value?.host ?? paired.value?.host ?? S.myComputer);
+const onlineText = computed(() => online.value === 'on' ? (computer.value?.ms != null ? S.onlineMs((computer.value.ms / 1000).toFixed(1)) : S.online) : online.value === 'off' ? S.offline : S.checking);
 const folders = computed<Folder[]>(() => computer.value?.folders ?? []);
 const folderValue = computed(() => (chosen.value === CUSTOM ? custom.value.trim() : chosen.value));
 
@@ -168,8 +169,8 @@ function shortPath(path: string): string {
 
 function explain(err: unknown): string {
 	const m = err instanceof Error ? err.message : String(err);
-	if (m === 'bad-link') return '这不是 Paseo 的配对链接。它应该以 https://app.paseo.sh/#offer= 开头。';
-	return '没连上。确认电脑开着、Paseo 在运行，再试一次。';
+	if (m === 'bad-link') return S.badLink;
+	return S.connectFailed;
 }
 
 async function refresh() {
@@ -234,7 +235,7 @@ function saveFolder() {
 	if (!v) return;
 	setFolder(v);
 	picking.value = false;
-	os.toast(`好了，${myTutorName.value} 的指令会发到这个文件夹`);
+	os.toast(S.folderSaved(myTutorName.value));
 }
 
 async function startPicking() {
@@ -250,15 +251,15 @@ async function startPicking() {
 
 function menu(ev: MouseEvent) {
 	os.popupMenu([{
-		text: '检查连接',
+		text: S.checkConnection,
 		icon: 'ti ti-refresh',
 		action: () => { void refresh(); },
 	}, { type: 'divider' }, {
-		text: '断开这台电脑',
+		text: S.disconnect,
 		icon: 'ti ti-plug-connected-x',
 		danger: true,
 		action: async () => {
-			const { canceled } = await os.confirm({ type: 'warning', text: `断开后，这个浏览器会删掉配对链接，${myTutorName.value} 的指令就发不过去了。要再用得重新贴一次链接。`, okText: '断开' });
+			const { canceled } = await os.confirm({ type: 'warning', text: S.disconnectConfirm(myTutorName.value), okText: S.disconnectOk });
 			if (canceled) return;
 			await disconnect();
 			computer.value = null;

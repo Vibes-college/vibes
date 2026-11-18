@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			换成我们自己的《公会守则》；「同意」整行能点，不再二次确认。字见 冲刺1111/新手前三分钟/文案.md B 节 -->
 			<MkInfo v-if="instance.disableRegistration" warn>{{ i18n.ts.invitationRequiredToRegister }}</MkInfo>
 
-			<div style="text-align: center;">开打之前，看一眼公会守则。</div>
+			<div style="text-align: center;">{{ vt.signup.rulesLead }}</div>
 
 			<MkFolder v-if="availableServerRules" :defaultOpen="true">
 				<template #label>{{ i18n.ts.serverRules }}</template>
@@ -24,7 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<li v-for="item in instance.serverRules" :class="$style.rule"><div :class="$style.ruleText" v-html="item"></div></li>
 				</ol>
 
-				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeServerRules }]" @click="agreeServerRules = !agreeServerRules"><i :class="agreeServerRules ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
+				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeServerRules }]" @click="agreeServerRules = !agreeServerRules"><i :class="agreeServerRules ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>{{ vt.signup.agree }}</button>
 			</MkFolder>
 
 			<MkFolder v-if="availableTos || availablePrivacyPolicy" :defaultOpen="true">
@@ -35,26 +35,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div v-if="availablePrivacyPolicy"><a :href="instance.privacyPolicyUrl ?? undefined" class="_link" target="_blank">{{ i18n.ts.privacyPolicy }} <i class="ti ti-external-link"></i></a></div>
 				</div>
 
-				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeTosAndPrivacyPolicy }]" @click="agreeTosAndPrivacyPolicy = !agreeTosAndPrivacyPolicy"><i :class="agreeTosAndPrivacyPolicy ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
+				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeTosAndPrivacyPolicy }]" @click="agreeTosAndPrivacyPolicy = !agreeTosAndPrivacyPolicy"><i :class="agreeTosAndPrivacyPolicy ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>{{ vt.signup.agree }}</button>
 			</MkFolder>
 
 			<MkFolder :defaultOpen="true">
-				<template #label>公会守则</template>
+				<template #label>{{ vt.signup.guildRules }}</template>
 				<template #suffix><i v-if="agreeNote" class="ti ti-check" style="color: var(--MI_THEME-success)"></i></template>
 
 				<ol class="_gaps_s" :class="$style.guild">
 					<li v-for="r in GUILD_RULES" :key="r.head"><b>{{ r.head }}</b>{{ r.body }}</li>
 				</ol>
 
-				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeNote }]" data-testid="signup-rules-notes-agree" @click="agreeNote = !agreeNote"><i :class="agreeNote ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我看过了，同意</button>
+				<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeNote }]" data-testid="signup-rules-notes-agree" @click="agreeNote = !agreeNote"><i :class="agreeNote ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>{{ vt.signup.agree }}</button>
 			</MkFolder>
 
 			<!-- Vibes（2026-11-15，Dodo 审核）：只开放 18 岁以上注册，价格页、条款、隐私政策都这么写；不勾不能下一步 -->
-			<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeAge }]" data-testid="signup-rules-age-agree" @click="agreeAge = !agreeAge"><i :class="agreeAge ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>我已年满 18 岁 / I am 18 or older</button>
+			<button type="button" class="_button" :class="[$style.agree, { [$style.on]: agreeAge }]" data-testid="signup-rules-age-agree" @click="agreeAge = !agreeAge"><i :class="agreeAge ? 'ti ti-square-check-filled' : 'ti ti-square'"></i>{{ vt.signup.adult }}</button>
 
 			<div class="_buttonsCenter">
-				<MkButton inline rounded @click="emit('cancel')">算了</MkButton>
-				<MkButton inline primary rounded gradate :disabled="!agreed" data-testid="signup-rules-continue" @click="emit('done')">下一步 <i class="ti ti-arrow-right"></i></MkButton>
+				<MkButton inline rounded @click="emit('cancel')">{{ vt.signup.cancel }}</MkButton>
+				<MkButton inline primary rounded gradate :disabled="!agreed" data-testid="signup-rules-continue" @click="emit('done')">{{ vt.signup.next }} <i class="ti ti-arrow-right"></i></MkButton>
 			</div>
 		</div>
 	</div>
@@ -69,6 +69,7 @@ import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import { GUILD_RULES } from '@/lojo/guild-rules.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const availableServerRules = instance.serverRules.length > 0;
 const availableTos = instance.tosUrl != null && instance.tosUrl !== '';

@@ -31,7 +31,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { lang } from '@@/js/config.js';
 import { onActivated, onMounted, onUnmounted, provide, watch, ref, computed } from 'vue';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import type { PageMetadata } from '@/page.js';
@@ -47,6 +46,7 @@ import { definePage, provideMetadataReceiver, provideReactiveMetadata } from '@/
 import { useRouter } from '@/router.js';
 import { genSearchIndexes } from '@/utility/inapp-search.js';
 import { iAmAdmin } from '@/i.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const searchIndex = await import('search-index:admin').then(({ searchIndexes }) => genSearchIndexes(searchIndexes));
 
@@ -111,13 +111,13 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 	}, ...(iAmAdmin ? [{
 		// Vibes: the daily stability report (pages/lojo/stability.vue); admins only, like its API.
 		icon: 'ti ti-activity-heartbeat',
-		text: '稳定性日报',
+		text: vt.nav.adminStability,
 		to: '/admin/stability',
 		active: currentPage.value?.route.name === 'vibesStability',
 	}, {
 		// Vibes: anyone's Vibi allowance and gem ledger, add or take gems (pages/lojo/gems-admin.vue).
 		icon: 'ti ti-diamond',
-		text: lang.startsWith('zh') ? 'AI tutor 用量和宝石' : 'AI tutor usage & gems',
+		text: vt.nav.adminGems,
 		to: '/admin/gems',
 		active: currentPage.value?.route.name === 'vibesGems',
 	}] : []), {

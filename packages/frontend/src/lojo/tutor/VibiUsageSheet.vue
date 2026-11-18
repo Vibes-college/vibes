@@ -23,7 +23,7 @@ slides up from the bottom; on a computer it sits in the middle. No top-up button
 			</div>
 			<div v-if="usage.gems > 0" :class="$style.gems" data-gems>
 				<i class="ti ti-diamond"></i>
-				<span>{{ zh ? `宝石 ${gemsText(usage.gems)} 颗` : `${gemsText(usage.gems)} gems` }}</span>
+				<span>{{ vt.chat.gems(gemsText(usage.gems)) }}</span>
 			</div>
 			<div :class="$style.note">{{ t.note }}</div>
 		</template>
@@ -33,21 +33,19 @@ slides up from the bottom; on a computer it sits in the middle. No top-up button
 
 <script lang="ts" setup>
 import { computed, ref, useTemplateRef } from 'vue';
-import { lang } from '@@/js/config.js';
 import MkModal from '@/components/MkModal.vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import { fiveBackText, gemsText, weekBackText } from '@/lojo/tutor/usage-text.js';
+import { isZhUi, vt } from '@/lojo/locales/index.js';
 import type { VibiUsage } from '@/lojo/tutor/usage-text.js';
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
 
-const zh = lang.startsWith('zh');
-const t = zh
-	? { title: '用量', five: '5 小时额度', week: '本周额度', note: '额度按实际用量算，用完会自动恢复。', failed: '暂时没取到用量，稍后再看。' }
-	: { title: 'Usage', five: '5-hour allowance', week: 'Weekly allowance', note: 'Your allowance follows what you actually use, and comes back on its own.', failed: "Couldn't load your usage. Try again in a moment." };
+const zh = isZhUi;
+const t = { title: vt.chat.usage, five: vt.chat.usageFive, week: vt.chat.usageWeek, note: vt.chat.usageNote, failed: vt.chat.usageFailed };
 // A phone (or any narrow window) gets the sheet from the bottom; a computer gets it in the middle.
 const modalType = deviceKind === 'smartphone' || window.innerWidth < 600 ? 'drawer' : 'dialog';
 const modal = useTemplateRef('modal');

@@ -21,7 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</component>
 			</template>
 			<div :class="$style.divider"></div>
-			<button v-click-anime v-tooltip="miniAppsLabels.panelTitle" :class="$style.item" class="_button" @click="openMiniApps">
+			<button v-click-anime v-tooltip="vt.miniapps.panelTitle" :class="$style.item" class="_button" @click="openMiniApps">
 				<i :class="$style.itemIcon" class="ti ti-layout-grid ti-fw"></i>
 			</button>
 			<MkA v-if="$i && ($i.isAdmin || $i.isModerator)" v-click-anime v-tooltip="i18n.ts.controlPanel" class="item" :activeClass="$style.active" to="/admin" :behavior="settingsWindowed ? 'window' : null">
@@ -61,7 +61,7 @@ import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
 import { getHTMLElementOrNull } from '@/utility/get-dom-node-or-null.js';
-import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const WINDOW_THRESHOLD = 1400;
 

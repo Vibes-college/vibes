@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div :class="$style.root">
 	<header :class="$style.header">
 		<i :class="mode === 'compose' ? 'ti ti-language' : 'ti ti-bulb'"></i>
-		<span :class="$style.title">{{ mode === 'compose' ? englishLabels.composeTitle : englishLabels.ideasTitle }}</span>
+		<span :class="$style.title">{{ mode === 'compose' ? vt.post.composeTitle : vt.post.ideasTitle }}</span>
 		<div v-if="mode === 'compose' && draft" :class="$style.tabs">
 			<button
 				v-for="v in draft.versions"
@@ -17,22 +17,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:class="[$style.tab, { [$style.tabActive]: v.style === style }]"
 				@click="style = v.style"
 			>
-				{{ englishLabels.styles[v.style] }}
+				{{ vt.post.styles[v.style] }}
 			</button>
 		</div>
-		<button v-if="mode === 'ideas' && ideas && !loading" class="_button" :class="$style.headerButton" @click="load(true)"><i class="ti ti-refresh"></i> {{ englishLabels.ideasMore }}</button>
-		<button class="_button" :class="$style.close" :aria-label="englishLabels.closePanel" @click="emit('close')"><i class="ti ti-x"></i></button>
+		<button v-if="mode === 'ideas' && ideas && !loading" class="_button" :class="$style.headerButton" @click="load(true)"><i class="ti ti-refresh"></i> {{ vt.post.ideasMore }}</button>
+		<button class="_button" :class="$style.close" :aria-label="vt.post.closePanel" @click="emit('close')"><i class="ti ti-x"></i></button>
 	</header>
 
 	<MkLoading v-if="loading" mini role="status"/>
 	<div v-else-if="error != null" :class="$style.error" role="alert">
 		{{ error }}
-		<button class="_textButton" @click="load(false)">{{ englishLabels.retry }}</button>
+		<button class="_textButton" @click="load(false)">{{ vt.post.retry }}</button>
 	</div>
 
 	<template v-else-if="mode === 'compose' && draft && current">
 		<div v-if="draft.feedback" :class="$style.feedback">
-			<b>{{ englishLabels.feedback }}</b> {{ draft.feedback }}
+			<b>{{ vt.post.feedback }}</b> {{ draft.feedback }}
 		</div>
 		<div :class="$style.version">
 			<div class="_selectable" :class="$style.versionText">{{ current.text }}</div>
@@ -40,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				v-if="speechSupported"
 				class="_button"
 				:class="$style.speak"
-				:aria-label="speakingKey === `${uid}:${current.style}` ? englishLabels.stop : englishLabels.listen"
+				:aria-label="speakingKey === `${uid}:${current.style}` ? vt.post.stop : vt.post.listen"
 				:aria-pressed="speakingKey === `${uid}:${current.style}`"
 				@click="toggleSpeak(`${uid}:${current.style}`, current.text)"
 			>
@@ -48,15 +48,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</button>
 		</div>
 		<div v-if="current.notes.length > 0" :class="$style.notes">
-			<div :class="$style.label">{{ englishLabels.notes }}</div>
+			<div :class="$style.label">{{ vt.post.notes }}</div>
 			<div v-for="(n, i) in current.notes" :key="i" :class="$style.note">
 				<b class="_selectable">{{ n.phrase }}</b> <span class="_selectable">{{ n.explanation }}</span>
 			</div>
 		</div>
-		<div v-if="text.trim() !== sourceText" :class="$style.changed">{{ englishLabels.textChanged }}</div>
+		<div v-if="text.trim() !== sourceText" :class="$style.changed">{{ vt.post.textChanged }}</div>
 		<div :class="$style.buttons">
-			<MkButton primary small @click="emit('use', current.text)">{{ englishLabels.useThis }}</MkButton>
-			<MkButton small @click="load(false)"><i class="ti ti-refresh"></i> {{ englishLabels.regenerate }}</MkButton>
+			<MkButton primary small @click="emit('use', current.text)">{{ vt.post.useThis }}</MkButton>
+			<MkButton small @click="load(false)"><i class="ti ti-refresh"></i> {{ vt.post.regenerate }}</MkButton>
 		</div>
 	</template>
 
@@ -66,7 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span :class="$style.ideaText">{{ idea.text }}</span>
 			<span :class="$style.ideaZh">{{ idea.zh }}</span>
 		</button>
-		<p :class="$style.foot">{{ englishLabels.ideasPick }}</p>
+		<p :class="$style.foot">{{ vt.post.ideasPick }}</p>
 	</template>
 </div>
 </template>
@@ -75,7 +75,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue';
 import type { EnglishDraft, EnglishReplyIdeas } from '@/lojo/english/api.js';
 import MkButton from '@/components/MkButton.vue';
-import { englishLabels } from '@/lojo/english/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { composeEnglish, englishErrorText, replyIdeas } from '@/lojo/english/api.js';
 import { loadingKey, speakingKey, speechSupported, stopSpeaking, toggleSpeak } from '@/lojo/english/speech.js';
 

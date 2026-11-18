@@ -5,7 +5,7 @@
 
 // 右下角的探头（创始人 11-17 00:13 PT 选的 A）：有新任务的时候从旁边冒一句话。一天最多说一次，只对这台设备。
 
-import { vibiLabels as L } from './labels.js';
+import { vibiText as L } from '@/lojo/locales/vibi.js';
 
 type PlanDay = { date: string; rest: boolean; tasks: { status: string }[] };
 type PlanToday = {

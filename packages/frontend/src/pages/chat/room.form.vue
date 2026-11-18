@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.buttons">
 			<button class="_button" :class="$style.button" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
 			<button class="_button" :class="$style.button" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
-			<button v-if="englishStatus.available" v-tooltip="englishLabels.composeButton" class="_button" :class="[$style.button, { [$style.buttonActive]: englishPanel }]" :aria-label="englishLabels.composeButton" :aria-expanded="englishPanel" @click="toggleEnglish"><i class="ti ti-language"></i></button>
+			<button v-if="englishStatus.available" v-tooltip="vt.post.composeButton" class="_button" :class="[$style.button, { [$style.buttonActive]: englishPanel }]" :aria-label="vt.post.composeButton" :aria-expanded="englishPanel" @click="toggleEnglish"><i class="ti ti-language"></i></button>
 			<button class="_button" :class="$style.send" data-chat-send :disabled="!canSend || sending" :title="i18n.ts.send" :aria-label="i18n.ts.send" @click="send">
 				<template v-if="!sending"><i class="ti ti-arrow-up"></i></template><template v-if="sending"><MkLoading :em="true"/></template>
 			</button>
@@ -56,7 +56,7 @@ import { Autocomplete } from '@/utility/autocomplete.js';
 import { emojiPicker } from '@/utility/emoji-picker.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import MkLojoEnglishCompose from '@/components/MkLojoEnglishCompose.vue';
-import { englishLabels } from '@/lojo/english/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
 
 const props = defineProps<{
@@ -89,11 +89,11 @@ function toggleEnglish() {
 	}
 	const body = text.value.trim();
 	if (body === '') {
-		os.toast(englishLabels.composeEmpty);
+		os.toast(vt.post.composeEmpty);
 		return;
 	}
 	if (body.length > 1000) {
-		os.toast(englishLabels.composeTooLong);
+		os.toast(vt.post.composeTooLong);
 		return;
 	}
 	englishPanel.value = true;

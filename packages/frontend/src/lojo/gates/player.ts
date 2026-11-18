@@ -62,7 +62,7 @@ export type GateParagraph = GatePassage['paragraphs'][number];
 // What the student has put down so far: text or a letter per question number; a multi item's letters sit under its first number.
 export type GateAnswers = Record<number, string | string[] | undefined>;
 
-// The parts of a course pack (content-pack.ts loadCourse, from the site's database) this page reads.
+// The parts of a course pack (lojo/route/courses/<id>) this page reads.
 type Bilingual = { zh: string; en: string };
 // pace: speed and accents (listening); length: words and time limit (reading)
 export type PackStation = { id: string; band: number; part?: Bilingual; focus?: Bilingual; types?: Bilingual; pace?: Bilingual; length?: Bilingual };

@@ -2973,15 +2973,6 @@ export type paths = {
          */
         post: operations['lojo___agent___prompt'];
     };
-    '/lojo/apps/learner': {
-        /**
-         * lojo/apps/learner
-         * @description For the profile mini app: per-day counts (summary index + passed quest levels, Beijing days), passed levels, join date and birthday of one learner. Needs the mini app service key.
-         *
-         *     **Credential required**: *No*
-         */
-        post: operations['lojo___apps___learner'];
-    };
     '/lojo/apps/list': {
         /**
          * lojo/apps/list
@@ -30000,84 +29991,6 @@ export interface operations {
                         }[];
                         questions: string[];
                     };
-                };
-            };
-            /** @description Client error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Authentication error */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Forbidden error */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description I'm Ai */
-            418: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-        };
-    };
-    lojo___apps___learner: {
-        requestBody: {
-            content: {
-                'application/json': {
-                    serviceKey: string;
-                    /** Format: misskey:id */
-                    userId: string;
-                    /** @default 371 */
-                    days?: number;
-                };
-            };
-        };
-        responses: {
-            /** @description OK (with results) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': Record<string, never>;
                 };
             };
             /** @description Client error */

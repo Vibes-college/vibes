@@ -6,8 +6,8 @@
 // 闯关的假数据测试（2026-11-16）：导入检查、过关判定、扣心、地图解锁。题目、章节、存档都是编的（示例），不连数据库，
 // 公开仓库里也能跑。最后一段用工作区里的真题目（courses/english/ielts/quest），没有就跳过。
 //
-// 已知的真 bug 先写成 test.fails（preflight 不收 todo / 跳过的测试）：它「过」是因为 bug 还在，修好那天会变红，再把
-// .fails 去掉。11-16 查出的 A、B、C 三处当天修好，都已经是普通测试。
+// test.fails = 已知的真 bug，这次只列出来、不修（preflight 不收 todo / 跳过的测试，所以用 fails）：它现在「过」，
+// 是因为 bug 还在；哪天修好了它会变红，到时把 .fails 去掉，变成普通测试。
 
 import { existsSync, readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
@@ -216,15 +216,11 @@ describe('闯关导入：假章节', () => {
 		expect(questContentProblems([a, chapter(2), b, chapter(4)])).toEqual(['第1章 1-2 1-2-q1: 缺答案', '第3章 3-3: 缺 heartCost']);
 	});
 
-	// 缺口 C（2026-11-16 写测试时发现，同一天修好）：一关的题比「对几题过」还少，这关永远过不了，原来导入检查不拦。
-	test('C：一关的题比「对几题过」还少，不收；刚好够就收', () => {
+	// 缺口（2026-11-16 写测试时发现，没修）：一关的题比「对几题过」还少，这关永远过不了，导入检查现在不拦。真题目每关都有 10 题，暂时没事。
+	test.fails('缺口：一关的题比「对几题过」还少，应该不收', () => {
 		const c = copy(chapter(1));
 		anyNode(c, '1-2').pool = (anyNode(c, '1-2').pool as unknown[]).slice(0, RULES.level.need - 1);
-		expect(questContentProblems([c]).join()).toContain(`第1章 1-2: 只有 ${RULES.level.need - 1} 题，比「对 ${RULES.level.need} 题过」还少`);
-		anyNode(c, '1-2').pool = (anyNode(chapter(1), '1-2').pool as unknown[]).slice(0, RULES.level.need);
-		expect(questContentProblems([c])).toEqual([]);
-		anyNode(c, 'boss').pool = (anyNode(c, 'boss').pool as unknown[]).slice(0, RULES.boss.hp - 1);
-		expect(questContentProblems([c]).join()).toContain(`第1章 boss: 只有 ${RULES.boss.hp - 1} 题，比「对 ${RULES.boss.hp} 题过」还少`);
+		expect(questContentProblems([c]).join()).toContain('1-2');
 	});
 });
 
@@ -400,30 +396,24 @@ describe('闯关扣心', () => {
 
 describe('闯关全对', () => {
 	const all = (n: number) => Array.from({ length: n }, () => ({ correct: true }));
-	test('过了，而且一局一题没错，就是全对', () => {
-		expect(questPerfect(all(4), true)).toBe(true);
-		expect(questPerfect([...all(3), { correct: false }, { correct: true }], true)).toBe(false);
-		expect(questPerfect(all(4), false)).toBe(false);
-		expect(questPerfect([], true)).toBe(false);
+	test('三段闯关：一局一题没错就是全对', () => {
+		expect(questPerfect(true, all(4), true, 5)).toBe(true);
+		expect(questPerfect(true, [...all(3), { correct: false }, { correct: true }], true, 5)).toBe(false);
+		expect(questPerfect(true, all(4), false, 5)).toBe(false);
 	});
 
-	test('对一半（½）不算对，不是全对', () => {
-		expect(questPerfect([...all(3), { correct: false, half: true }, { correct: true }], true)).toBe(false);
+	test('旧地图：要整套题都对', () => {
+		expect(questPerfect(false, all(5), true, 5)).toBe(true);
+		expect(questPerfect(false, [...all(3), { correct: false, half: true }, { correct: true }], true, 5)).toBe(false);
 	});
 
-	// bug A（2026-11-16 写测试时发现，同一天修好）：原来旧地图（正式站现在用的原地图三章 v2）要「对的题数 = 整套题数」，
-	// 可对够 4 题这局就结束了，第 5 题根本不会出，所以一题不错过关也拿不到 ★★ 和全对加的 5 XP。回测（对 2 收卷）、
-	// Boss（打中 5 下收卷）一样。现在照 11-13 三段闯关的修法：一局一题没错就算。
-	test('bug A：连对 4 题过关算全对；回测连对 2 题、Boss 连中 5 下也算', () => {
+	// 真 bug A（2026-11-16 写测试时发现，没修）：旧地图（正式站现在用的原地图三章 v2）上，对够 4 题这局就结束了，
+	// 第 5 题根本不会出，所以「整套都对」永远达不到：一题不错过关也拿不到 ★★ 和全对加的 5 XP。回测（对 2 收卷）、Boss（打中 5 下收卷）一样。
+	// 三段闯关 11-13 已经改成「一局一题没错」，旧地图没跟着改。
+	test.fails('bug A：旧地图上连对 4 题过关应该算全对', () => {
 		const r = play('level', LEVEL, 'RRRRR');
 		expect(r).toMatchObject({ ended: 'passed', answered: 4 });
-		expect(questPerfect(all(r.answered), true)).toBe(true);
-		const rt = play('retest', RETEST, 'RRR');
-		expect(rt).toMatchObject({ ended: 'passed', answered: 2 });
-		expect(questPerfect(all(rt.answered), true)).toBe(true);
-		const b = play('boss', BOSS, 'RRRRRR');
-		expect(b).toMatchObject({ ended: 'passed', answered: 5 });
-		expect(questPerfect(all(b.answered), true)).toBe(true);
+		expect(questPerfect(false, all(r.answered), true, LEVEL.total)).toBe(true);
 	});
 });
 

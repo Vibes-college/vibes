@@ -98,8 +98,8 @@ const props = defineProps<{
 
 const isMe = computed(() => props.message.fromUserId === $i.id);
 // Vibes: only Vibi's own marker messages are drawn as change cards (anyone else typing the same words gets a bubble).
-if (props.message.text?.startsWith('【任务改动】')) loadPlanTutorIds();
-if (props.message.text?.startsWith('【给电脑的指令】')) loadPlanTutorIds();
+if (props.message.text?.startsWith('【任务改动】')) loadPlanTutorIds(); // vibes-i18n-keep: message protocol
+if (props.message.text?.startsWith('【给电脑的指令】')) loadPlanTutorIds(); // vibes-i18n-keep: message protocol
 const agentDraft = computed(() => (!isMe.value && planTutorIds.value.includes(props.message.fromUserId) ? parseAgentDraft(props.message.text) : null));
 const agentResult = computed(() => (isMe.value ? parseAgentResult(props.message.text) : null));
 const XAgentDraft = defineAsyncComponent(() => import('@/lojo/agent/DraftCard.vue'));

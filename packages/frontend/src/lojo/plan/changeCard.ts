@@ -9,7 +9,7 @@
 import { ref } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
-const MARK = /^【任务改动】([\s\S]+)（改动号 ([0-9a-z]+)，可以在「任务」页撤销）$/;
+const MARK = /^【任务改动】([\s\S]+)（改动号 ([0-9a-z]+)，可以在「任务」页撤销）$/; // vibes-i18n-keep: message protocol
 
 export function parsePlanChange(text: string | null | undefined): { summary: string; changeId: string } | null {
 	const m = text ? MARK.exec(text.trim()) : null;

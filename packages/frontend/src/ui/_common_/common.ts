@@ -10,7 +10,7 @@ import * as os from '@/os.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
-import { lojoLabels } from '@/lojo/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { vibesInstanceMenuItems } from '@/lojo/instance-menu.js';
 
 function toolsMenuItems(): MenuItem[] {
@@ -176,7 +176,7 @@ export function openMisskeyInstanceMenu(ev: PointerEvent) {
 
 	menuItems.push({
 		type: 'link',
-		text: lojoLabels.openSource,
+		text: vt.nav.openSource,
 		to: '/about-misskey',
 	});
 

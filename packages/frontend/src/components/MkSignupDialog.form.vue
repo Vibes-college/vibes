@@ -50,8 +50,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #prefix><i class="ti ti-lock"></i></template>
 				<template #caption>
 					<!-- Vibes（2026-11-11）：密码最少 8 位，服务器也查（SignupApiService） -->
-					<span v-if="password.length > 0 && password.length < PASSWORD_MIN" style="color: var(--MI_THEME-error)"><i class="ti ti-alert-triangle ti-fw"></i> 至少 {{ PASSWORD_MIN }} 位，现在 {{ password.length }} 位</span>
-					<span v-else-if="password.length === 0">至少 {{ PASSWORD_MIN }} 位，别和别的网站用同一个</span>
+					<span v-if="password.length > 0 && password.length < PASSWORD_MIN" style="color: var(--MI_THEME-error)"><i class="ti ti-alert-triangle ti-fw"></i> {{ vt.signup.passwordShort(PASSWORD_MIN, password.length) }}</span>
+					<span v-else-if="password.length === 0">{{ vt.signup.passwordHint(PASSWORD_MIN) }}</span>
 					<span v-if="password.length >= PASSWORD_MIN && passwordStrength == 'low'" style="color: var(--MI_THEME-error)"><i class="ti ti-alert-triangle ti-fw"></i> {{ i18n.ts.weakPassword }}</span>
 					<span v-if="password.length >= PASSWORD_MIN && passwordStrength == 'medium'" style="color: var(--MI_THEME-warn)"><i class="ti ti-check ti-fw"></i> {{ i18n.ts.normalPassword }}</span>
 					<span v-if="password.length >= PASSWORD_MIN && passwordStrength == 'high'" style="color: var(--MI_THEME-success)"><i class="ti ti-check ti-fw"></i> {{ i18n.ts.strongPassword }}</span>
@@ -95,6 +95,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { instance } from '@/instance.js';
 import { i18n } from '@/i18n.js';
 import { login } from '@/accounts.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const props = withDefaults(defineProps<{
 	autoSet?: boolean;

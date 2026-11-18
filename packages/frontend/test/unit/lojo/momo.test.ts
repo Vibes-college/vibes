@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { cleanPersonaName, DEFAULT_TUTOR_NAME, isSavableSeed, personaHeadUrl, personaHello, personaNameWarning, PERSONA_NAME_IDEAS, randomPersonaSeed } from '@/lojo/tutor/persona-rules.js';
 import { localDay, peekLine } from '@/lojo/agent/peek.js';
+
+// These lines are checked in Chinese (zh-CN UI); the English ones are in vibes-i18n.test.ts.
+vi.mock('@@/js/config.js', async (orig) => ({ ...(await orig<typeof import('@@/js/config.js')>()), lang: 'zh-CN' }));
 
 describe('the learner\'s own Momo: name rules', () => {
 	test('the default name is Momo', () => {

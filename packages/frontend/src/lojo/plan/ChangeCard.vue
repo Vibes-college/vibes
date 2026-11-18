@@ -41,7 +41,7 @@ async function undo() {
 	busy.value = true;
 	try {
 		const r = await misskeyApi('lojo/plan/undo', { changeId: props.changeId }) as unknown as { ok: boolean; reason?: string };
-		if (r.ok || r.reason === '这次改动已经撤销过了') {
+		if (r.ok || r.reason === '这次改动已经撤销过了') { // vibes-i18n-keep: the server's reason, compared as is
 			undone.value = true;
 			recentPlanChanges(true);
 		} else {

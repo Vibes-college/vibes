@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { useTemplateRef } from 'vue';
 import XMomoSetup from './MomoSetup.vue';
-import { momoLabels as L } from './momo-labels.js';
+import { momoText as L } from '@/lojo/locales/momo.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 
 const emit = defineEmits<{

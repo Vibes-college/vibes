@@ -118,7 +118,7 @@ what it is thinking, an allow / deny right in the card when it asks, and the ans
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import XAgentText from './AgentText.vue';
-import { draftLabels as L } from './draftCard.js';
+import { agentText as L } from '@/lojo/locales/agent.js';
 import { myTutorName } from '@/lojo/tutor/persona.js';
 import { agentName, answerPermission, handBackText, paired, send, sentState, setSentState, stopTask, watch } from './bridge.js';
 import { elapsed } from './worklog.js';
@@ -239,9 +239,9 @@ function toggleStep(i: number) {
 // Paseo's own action labels are English; the usual ones in plain Chinese.
 function actionLabel(a: Permission['actions'][number]): string {
 	const l = a.label.toLowerCase();
-	if (a.behavior === 'deny') return /deny|reject|no|拒绝/.test(l) || l === '' ? '拒绝' : a.label;
-	if (/always|don't ask|dont ask|session/.test(l)) return '这次任务都允许';
-	if (/^(allow|yes|approve|accept|allow once|ok)$/.test(l) || l === '') return '允许';
+	if (a.behavior === 'deny') return /deny|reject|no|拒绝/.test(l) || l === '' ? L.deny : a.label; // vibes-i18n-keep: matches what the agent sends
+	if (/always|don't ask|dont ask|session/.test(l)) return L.allowForTask;
+	if (/^(allow|yes|approve|accept|allow once|ok)$/.test(l) || l === '') return L.allow;
 	return a.label;
 }
 
@@ -290,7 +290,7 @@ async function go() {
 		follow();
 	} catch (err) {
 		const m = err instanceof Error ? err.message : String(err);
-		os.alert({ type: 'error', text: L.sendFailed + (m === 'no-folder' ? L.noFolder : `${m}。请确认电脑开着、Paseo 在运行。`) });
+		os.alert({ type: 'error', text: L.sendFailed + (m === 'no-folder' ? L.noFolder : L.checkComputer(m)) });
 	} finally {
 		sending.value = false;
 	}

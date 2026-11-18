@@ -3625,17 +3625,6 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * For the profile mini app: per-day counts (summary index + passed quest levels, Beijing days), passed levels, join date and birthday of one learner. Needs the mini app service key.
-     * 
-     * **Credential required**: *No*
-     */
-    request<E extends 'lojo/apps/learner', P extends Endpoints[E]['req']>(
-      endpoint: E,
-      params: P,
-      credential?: string | null,
-    ): Promise<SwitchCaseResponseType<E, P>>;
-
-    /**
      * The mini app directory.
      * 
      * **Credential required**: *No*

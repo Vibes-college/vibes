@@ -12,20 +12,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div :class="$style.headerName">{{ app.name }}</div>
 			</div>
 			<p :class="$style.summary">{{ app.intro.summary }}</p>
-			<p :class="$style.audience">{{ miniAppsLabels.audiencePrefix }}{{ app.intro.audience }}</p>
-			<div :class="$style.sectionTitle">{{ miniAppsLabels.stepsTitle }}</div>
+			<p :class="$style.audience">{{ vt.miniapps.audiencePrefix }}{{ app.intro.audience }}</p>
+			<div :class="$style.sectionTitle">{{ vt.miniapps.stepsTitle }}</div>
 			<ol :class="$style.steps">
 				<li v-for="(step, i) in app.intro.steps" :key="i">{{ step }}</li>
 			</ol>
 			<template v-if="app.intro.caveats.length > 0">
-				<div :class="$style.sectionTitle">{{ miniAppsLabels.caveatsTitle }}</div>
+				<div :class="$style.sectionTitle">{{ vt.miniapps.caveatsTitle }}</div>
 				<ul :class="$style.caveats">
 					<li v-for="(caveat, i) in app.intro.caveats" :key="i">{{ caveat }}</li>
 				</ul>
 			</template>
 		</div>
 		<div :class="$style.footer">
-			<MkButton primary rounded gradate full @click="open">{{ miniAppsLabels.openButton }}</MkButton>
+			<MkButton primary rounded gradate full @click="open">{{ vt.miniapps.openButton }}</MkButton>
 		</div>
 	</div>
 </MkModal>
@@ -37,7 +37,7 @@ import MkModal from '@/components/MkModal.vue';
 import MkButton from '@/components/MkButton.vue';
 import { openMiniApp } from '@/lojo/miniapps/roster.js';
 import type { MiniAppDef } from '@/lojo/miniapps/roster.js';
-import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { markMiniAppSeen } from '@/lojo/miniapps/state.js';
 import { deviceKind } from '@/utility/device-kind.js';
 

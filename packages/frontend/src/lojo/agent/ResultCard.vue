@@ -21,7 +21,7 @@ Folded to a few lines: Vibi's summary right below is what the learner reads. -->
 <script lang="ts" setup>
 import { ref } from 'vue';
 import XAgentText from './AgentText.vue';
-import { draftLabels as L } from './draftCard.js';
+import { agentText as L } from '@/lojo/locales/agent.js';
 import { myTutorName } from '@/lojo/tutor/persona.js';
 
 defineProps<{ did: string; body: string }>();

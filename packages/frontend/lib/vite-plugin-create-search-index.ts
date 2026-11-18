@@ -153,6 +153,8 @@ function findEndOfStartTagAttributes(node: ElementNode): number {
  */
 function generateJavaScriptCode(resolvedRootMarkers: SearchIndexItem[]): string {
 	return `import { i18n } from '@/i18n.js';\n`
+		// Vibes: our own settings pages label their markers from our own table (lojo/locales), like i18n.
+		+ `import { vt } from '@/lojo/locales/index.js';\n`
 		+ `export const searchIndexes = ${customStringify(resolvedRootMarkers)};\n`;
 }
 
@@ -407,7 +409,7 @@ function extractUsageInfoFromTemplateAst(
  * i18n はそのアクセスを保持するために propertyAccessProxy を使用しています。
  */
 function evalExpression(expr: string): unknown {
-	const rarResult = Function('i18n', `return ${expr}`)(i18nProxy);
+	const rarResult = Function('i18n', 'vt', `return ${expr}`)(i18nProxy, vtProxy);
 	// JSON.stringify を一回通すことで、 AccessProxy を文字列に変換する
 	// Walk してもいいんだけど横着してJSON.stringifyしてる。ビルド時にしか通らないのであんまりパフォーマンス気にする必要ないんで
 	return JSON.parse(JSON.stringify(rarResult));
@@ -460,6 +462,8 @@ function propertyAccessProxy(path: string[]): AccessProxy {
 }
 
 const i18nProxy = propertyAccessProxy(['i18n']);
+// Vibes: vt.<area>.<key> from lojo/locales, kept as a reference the same way.
+const vtProxy = propertyAccessProxy(['vt']);
 
 export function collectFileMarkers(id: string, code: string | RolldownMagicString | undefined): SearchIndexItem[] {
 	try {

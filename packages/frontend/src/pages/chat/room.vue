@@ -79,7 +79,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="tab === 'chat'" :class="$style.footer">
 			<!-- Vibes: the other side is writing a reply (an AI tutor sends this before it answers). -->
 			<div v-if="user" :class="$style.typing" role="status">
-				<span v-if="otherTyping" class="_acrylic" :class="$style.typingPill"><MkUserName :user="user"/> {{ chatLabels.typing }}<MkEllipsis :static="!prefer.s.animation"/></span>
+				<span v-if="otherTyping" class="_acrylic" :class="$style.typingPill"><MkUserName :user="user"/> {{ vt.chat.typing }}<MkEllipsis :static="!prefer.s.animation"/></span>
 			</div>
 			<div class="_gaps">
 				<Transition name="fade">
@@ -92,7 +92,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<!-- Vibes: in a chat with an AI tutor, a notice only when the allowance is used up or the whole site is paused;
 				the everyday usage is in the ⋯ menu (lojo/tutor/VibiUsageSheet.vue). -->
 				<XVibiUsage v-if="initialized && isTutorChat" :tick="messages.length"/>
-				<XForm v-if="initialized" :user="user" :room="room" :placeholder="isTutorChat ? (lang.startsWith('zh') ? `跟 ${myTutorName} 说点什么…` : `Message ${myTutorName}…`) : undefined" :prefill="prefill"/>
+				<XForm v-if="initialized" :user="user" :room="room" :placeholder="isTutorChat ? vt.chat.placeholder(myTutorName) : undefined" :prefill="prefill"/>
 			</div>
 		</div>
 	</template>
@@ -103,7 +103,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { ref, watch, useTemplateRef, computed, defineAsyncComponent, onMounted, onBeforeUnmount, onDeactivated, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { getScrollContainer } from '@@/js/scroll.js';
-import { lang } from '@@/js/config.js';
 import XMessage from './XMessage.vue';
 import XForm from './room.form.vue';
 import XSearch from './room.search.vue';
@@ -126,11 +125,9 @@ import { mainRouter, useRouter } from '@/router.js';
 import { useMutationObserver } from '@/composables/use-mutation-observer.js';
 import MkInfo from '@/components/MkInfo.vue';
 import { makeDateSeparatedTimelineComputedRef } from '@/utility/timeline-date-separate.js';
-import { chatLabels } from '@/lojo/english/labels.js';
+import { isZhUi, vt } from '@/lojo/locales/index.js';
 import { myTutorName, personaNameFor } from '@/lojo/tutor/persona.js';
-import { momoLabels } from '@/lojo/tutor/momo-labels.js';
 import { openMomoEdit } from '@/lojo/tutor/momo-setup.js';
-import { vibiLabels } from '@/lojo/agent/labels.js';
 import { vibiShown } from '@/lojo/agent/state.js';
 
 const $i = ensureSignin();
@@ -163,7 +160,7 @@ const tutorTitle = ref('');
 misskeyApi('lojo/tutor/public').then(res => { tutorIds.value = res.ids; tutorTitle.value = res.title; }, () => {});
 const isTutorChat = computed(() => user.value != null && tutorIds.value.includes(user.value.id));
 // The AI's title only in the Chinese UI; in other languages just the name (founder, 2026-11-11: English shows only "Vibi").
-const showTutorTitle = lang.startsWith('zh');
+const showTutorTitle = isZhUi;
 const room = ref<Misskey.entities.ChatRoom | null>(null);
 const connection = ref<Misskey.IChannelConnection<Misskey.Channels['chatUser']> | Misskey.IChannelConnection<Misskey.Channels['chatRoom']> | null>(null);
 const showIndicator = ref(false);
@@ -491,19 +488,19 @@ function showMenu(ev: PointerEvent) {
 	// from 设置 › AI tutor; lojo/agent/state.ts). Then its usage card (founder, 2026-11-11 23:29: in the ⋯ menu).
 	if (isTutorChat.value) {
 		menuItems.push({
-			text: momoLabels.editTitle,
+			text: vt.momo.editTitle,
 			icon: 'ti ti-mood-edit',
 			action: () => {
 				void openMomoEdit();
 			},
 		}, {
 			type: 'switch',
-			text: vibiLabels.showOnHome(myTutorName.value),
+			text: vt.vibi.showOnHome(myTutorName.value),
 			icon: 'ti ti-layout-sidebar-right',
 			ref: vibiShown,
 		});
 		menuItems.push({
-			text: lang.startsWith('zh') ? '用量' : 'Usage',
+			text: vt.chat.usage,
 			icon: 'ti ti-gauge',
 			action: () => {
 				const { dispose } = os.popup(defineAsyncComponent(() => import('@/lojo/tutor/VibiUsageSheet.vue')), {}, {

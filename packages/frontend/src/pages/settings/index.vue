@@ -39,8 +39,7 @@ import { computed, onActivated, onMounted, onUnmounted, ref, useTemplateRef, wat
 import type { PageMetadata } from '@/page.js';
 import type { SuperMenuDef } from '@/components/MkSuperMenu.vue';
 import { i18n } from '@/i18n.js';
-import { vibiLabels } from '@/lojo/agent/labels.js';
-import { createLabels } from '@/lojo/create/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { GUILD_RULES_PATH } from '@/lojo/guild-rules.js';
 import MkInfo from '@/components/MkInfo.vue';
 import MkSuperMenu from '@/components/MkSuperMenu.vue';
@@ -162,12 +161,12 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		active: currentPage.value?.route.name === 'account-data',
 	}, {
 		icon: 'ti ti-sparkles',
-		text: vibiLabels.settingsTitle,
+		text: vt.vibi.settingsTitle,
 		to: '/settings/agent',
 		active: currentPage.value?.route.name === 'agent',
 	}, {
 		icon: 'ti ti-bulb',
-		text: createLabels.settingsTitle,
+		text: vt.settings.creatorTitle,
 		to: '/settings/create',
 		active: currentPage.value?.route.name === 'create',
 	}, {
@@ -177,14 +176,14 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		active: currentPage.value?.route.name === 'other',
 	}],
 }, {
-	title: '关于',
+	title: i18n.ts.about,
 	items: [{
 		icon: 'ti ti-shield-check',
-		text: '公会守则',
+		text: vt.settings.guildRules,
 		to: GUILD_RULES_PATH,
 	}, {
 		icon: 'ti ti-code',
-		text: '基于 Misskey · 源代码',
+		text: vt.settings.builtOn,
 		to: '/about-misskey',
 	}],
 }, {

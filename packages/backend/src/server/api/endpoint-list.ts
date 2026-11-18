@@ -477,7 +477,6 @@ export * as 'lojo/tutor/pilot-tool' from './endpoints/lojo/tutor/pilot-tool.js';
 export * as 'lojo/apps/register' from './endpoints/lojo/apps/register.js';
 export * as 'lojo/apps/report' from './endpoints/lojo/apps/report.js';
 export * as 'lojo/apps/list' from './endpoints/lojo/apps/list.js';
-export * as 'lojo/apps/learner' from './endpoints/lojo/apps/learner.js';
 export * as 'lojo/apps/recent' from './endpoints/lojo/apps/recent.js';
 export * as 'lojo/tutor/quest-poke' from './endpoints/lojo/tutor/quest-poke.js';
 export * as 'lojo/tutor/persona/show' from './endpoints/lojo/tutor/persona/show.js';

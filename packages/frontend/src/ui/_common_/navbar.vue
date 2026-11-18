@@ -20,20 +20,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div :class="$style.middle">
 			<!-- 闯关顶替路线图（创始人 11-10）；/map 跳到 /quest，见 router.definition.ts。手机的 ☰ 菜单里不放这三行：底部标签栏已经有了（11-17） -->
-			<MkA v-if="!props.asDrawer" v-tooltip.noDelay.right="'闯关'" :class="$style.item" :activeClass="$style.active" aria-label="闯关" to="/quest">
-				<i :class="$style.itemIcon" class="ti ti-flag-3 ti-fw"></i><span :class="$style.itemText">闯关</span>
+			<MkA v-if="!props.asDrawer" v-tooltip.noDelay.right="vt.nav.quest" :class="$style.item" :activeClass="$style.active" :aria-label="vt.nav.quest" to="/quest">
+				<i :class="$style.itemIcon" class="ti ti-flag-3 ti-fw"></i><span :class="$style.itemText">{{ vt.nav.quest }}</span>
 			</MkA>
 			<MkA v-if="!props.asDrawer" v-tooltip.noDelay.right="i18n.ts.timeline" :class="$style.item" :activeClass="$style.active" to="/" exact>
 				<i :class="$style.itemIcon" class="ti ti-home ti-fw" style="view-transition-name: navbar-homeIcon;"></i><span :class="$style.itemText">{{ i18n.ts.timeline }}</span>
 			</MkA>
-			<MkA v-if="!props.asDrawer" v-tooltip.noDelay.right="'攻略'" :class="$style.item" :activeClass="$style.active" aria-label="攻略" to="/guides">
-				<i :class="$style.itemIcon" class="ti ti-book ti-fw"></i><span :class="$style.itemText">攻略</span>
+			<MkA v-if="!props.asDrawer" v-tooltip.noDelay.right="vt.nav.guides" :class="$style.item" :activeClass="$style.active" :aria-label="vt.nav.guides" to="/guides">
+				<i :class="$style.itemIcon" class="ti ti-book ti-fw"></i><span :class="$style.itemText">{{ vt.nav.guides }}</span>
 			</MkA>
 			<!-- 常用小程序 6 个图标（11-17）；生词本那一行撤了，生词本复习在这里面。窄窗口只剩图标时不放，照旧用下面的「小程序」 -->
 			<XMiniAppDock v-if="!iconOnly"/>
 			<!-- 创作台, once 生产者视角 is on (settings/create). -->
-			<MkA v-if="$i != null && creatorView" v-tooltip.noDelay.right="createLabels.studioTitle" :class="$style.item" :activeClass="$style.active" :aria-label="createLabels.studioTitle" to="/create">
-				<i :class="$style.itemIcon" class="ti ti-layout-dashboard ti-fw"></i><span :class="$style.itemText">{{ createLabels.studioTitle }}</span>
+			<MkA v-if="$i != null && creatorView" v-tooltip.noDelay.right="vt.nav.studio" :class="$style.item" :activeClass="$style.active" :aria-label="vt.nav.studio" to="/create">
+				<i :class="$style.itemIcon" class="ti ti-layout-dashboard ti-fw"></i><span :class="$style.itemText">{{ vt.nav.studio }}</span>
 			</MkA>
 			<template v-for="item in prefer.r.menu.value">
 				<div v-if="item === '-'" :class="$style.divider"></div>
@@ -56,7 +56,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 			<div :class="$style.divider"></div>
 			<button class="_button" :class="$style.item" @click="openMiniApps">
-				<i :class="$style.itemIcon" class="ti ti-layout-grid ti-fw"></i><span :class="$style.itemText">{{ miniAppsLabels.panelTitle }}</span>
+				<i :class="$style.itemIcon" class="ti ti-layout-grid ti-fw"></i><span :class="$style.itemText">{{ vt.miniapps.panelTitle }}</span>
 			</button>
 			<MkA v-if="$i != null && ($i.isAdmin || $i.isModerator)" v-tooltip.noDelay.right="i18n.ts.controlPanel" :class="$style.item" :activeClass="$style.active" to="/admin">
 				<i :class="$style.itemIcon" class="ti ti-dashboard ti-fw" style="view-transition-name: navbar-controlPanel;"></i><span :class="$style.itemText">{{ i18n.ts.controlPanel }}</span>
@@ -124,7 +124,7 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { openInstanceMenu } from './common.js';
 import * as os from '@/os.js';
 import { navbarItemDef } from '@/navbar.js';
-import { createLabels } from '@/lojo/create/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { creatorView, loadCreateState } from '@/lojo/create/state.js';
 import VibesLogo from '@/lojo/VibesLogo.vue';
 import { store } from '@/store.js';
@@ -135,7 +135,6 @@ import { useRouter } from '@/router.js';
 import { prefer } from '@/preferences.js';
 import { getAccountMenu } from '@/accounts.js';
 import { $i } from '@/i.js';
-import { miniAppsLabels } from '@/lojo/miniapps/labels.js';
 import XMiniAppDock from '@/lojo/miniapps/MiniAppDock.vue';
 
 loadCreateState();

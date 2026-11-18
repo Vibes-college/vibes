@@ -13,6 +13,7 @@ import { openInstanceMenu, openToolsMenu } from '@/ui/_common_/common.js';
 import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
+import { vt } from '@/lojo/locales/index.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 
 export const navbarItemDef = reactive<{
@@ -28,12 +29,12 @@ export const navbarItemDef = reactive<{
 }>({
 	// 线路图 page removed 2026-11-17: the key stays (saved menus may list it) and now opens 闯关.
 	lojo: {
-		title: '闯关',
+		title: vt.nav.quest,
 		icon: 'ti ti-flag-3',
 		to: '/quest',
 	},
 	lojoGuides: {
-		title: '攻略',
+		title: vt.nav.guides,
 		icon: 'ti ti-book',
 		to: '/guides',
 	},

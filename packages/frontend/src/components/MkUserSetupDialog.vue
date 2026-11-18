@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@close="close(true)"
 	@closed="emit('closed')"
 >
-	<template v-if="page === 0 && momoStep === true" #header><i class="ti ti-sparkles"></i> {{ momoLabels.stepTitle }}</template>
+	<template v-if="page === 0 && momoStep === true" #header><i class="ti ti-sparkles"></i> {{ vt.momo.stepTitle }}</template>
 	<template v-else-if="page === 1" #header><i class="ti ti-user-edit"></i> {{ i18n.ts._initialAccountSetting.profileSetting }}</template>
 	<template v-else-if="page === 2" #header><i class="ti ti-lock"></i> {{ i18n.ts._initialAccountSetting.privacySetting }}</template>
 	<template v-else-if="page === 3" #header><i class="ti ti-user-plus"></i> {{ i18n.ts.follow }}</template>
@@ -151,7 +151,7 @@ import MkPushNotificationAllowButton from '@/components/MkPushNotificationAllowB
 import { store } from '@/store.js';
 import * as os from '@/os.js';
 import XMomoSetup from '@/lojo/tutor/MomoSetup.vue';
-import { momoLabels } from '@/lojo/tutor/momo-labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { needsMomoStep } from '@/lojo/tutor/persona.js';
 
 const emit = defineEmits<{

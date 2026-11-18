@@ -90,8 +90,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<MkPollEditor v-if="poll" v-model="poll" @destroyed="poll = null"/>
 	<MkNotePreview v-if="showPreview" :class="$style.preview" :text="text" :files="files" :poll="poll ?? undefined" :useCw="useCw" :cw="cw" :user="postAccount ?? $i"/>
-	<button v-if="!mock && englishStatus.available && englishPanel == null && looksChinese(text)" class="_button" :class="$style.englishHint" @click="toggleEnglish('compose')"><i class="ti ti-language"></i> {{ englishLabels.composeHint }}</button>
-	<button v-else-if="!mock && englishStatus.available && englishPanel == null && replyTargetNote && splitMentions(text).body.trim() === ''" class="_button" :class="$style.englishHint" @click="toggleEnglish('ideas')"><i class="ti ti-bulb"></i> {{ englishLabels.ideasHint }}</button>
+	<button v-if="!mock && englishStatus.available && englishPanel == null && looksChinese(text)" class="_button" :class="$style.englishHint" @click="toggleEnglish('compose')"><i class="ti ti-language"></i> {{ vt.post.composeHint }}</button>
+	<button v-else-if="!mock && englishStatus.available && englishPanel == null && replyTargetNote && splitMentions(text).body.trim() === ''" class="_button" :class="$style.englishHint" @click="toggleEnglish('ideas')"><i class="ti ti-bulb"></i> {{ vt.post.ideasHint }}</button>
 	<MkLojoEnglishCompose v-if="englishPanel" :key="`${englishPanel}:${englishPanelKey}`" :mode="englishPanel" :text="splitMentions(text).body" :replyNoteId="replyTargetNote?.id" @use="useEnglish" @close="englishPanel = null"/>
 	<div v-if="showingOptions" style="padding: 8px 16px;">
 	</div>
@@ -103,7 +103,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" @click="useCw = !useCw"><i class="ti ti-eye-off"></i></button>
 			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
 			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" @click="insertMention"><i class="ti ti-at"></i></button>
-			<button v-if="!mock && englishStatus.available" v-tooltip="englishLabels.composeButton" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: englishPanel === 'compose' }]" :aria-label="englishLabels.composeButton" @click="toggleEnglish('compose')"><i class="ti ti-language"></i></button>
+			<button v-if="!mock && englishStatus.available" v-tooltip="vt.post.composeButton" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: englishPanel === 'compose' }]" :aria-label="vt.post.composeButton" @click="toggleEnglish('compose')"><i class="ti ti-language"></i></button>
 			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
 			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" @click="showActions"><i class="ti ti-plug"></i></button>
 		</div>
@@ -163,7 +163,7 @@ import { useUploader } from '@/composables/use-uploader.js';
 import { startTour } from '@/utility/tour.js';
 import { closeTip } from '@/tips.js';
 import MkLojoEnglishCompose from '@/components/MkLojoEnglishCompose.vue';
-import { englishLabels } from '@/lojo/english/labels.js';
+import { vt } from '@/lojo/locales/index.js';
 import { englishStatus, loadEnglishStatus } from '@/lojo/english/api.js';
 import { looksChinese, splitMentions } from '@/lojo/english/text.js';
 
@@ -251,11 +251,11 @@ function toggleEnglish(mode: 'compose' | 'ideas') {
 function openEnglish(mode: 'compose' | 'ideas') {
 	const body = splitMentions(text.value).body.trim();
 	if (mode === 'compose' && body === '') {
-		os.toast(englishLabels.composeEmpty);
+		os.toast(vt.post.composeEmpty);
 		return;
 	}
 	if (mode === 'compose' && body.length > 1000) {
-		os.toast(englishLabels.composeTooLong);
+		os.toast(vt.post.composeTooLong);
 		return;
 	}
 	englishPanel.value = mode;
@@ -1014,14 +1014,14 @@ async function post(ev?: PointerEvent) {
 	if (!props.mock && englishStatus.value.available && !postChineseAnyway.value && looksChinese(text.value)) {
 		const { canceled, result } = await os.actions({
 			type: 'question',
-			text: englishLabels.chineseDraftAsk,
+			text: vt.post.chineseDraftAsk,
 			actions: [{
 				value: 'translate',
-				text: englishLabels.chineseDraftTranslate,
+				text: vt.post.chineseDraftTranslate,
 				primary: true,
 			}, {
 				value: 'post',
-				text: englishLabels.chineseDraftPost,
+				text: vt.post.chineseDraftPost,
 			}],
 		});
 		if (canceled) return;

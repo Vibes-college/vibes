@@ -491,8 +491,6 @@ import type {
 	LojoAgentEnglishResponse,
 	LojoAgentPromptRequest,
 	LojoAgentPromptResponse,
-	LojoAppsLearnerRequest,
-	LojoAppsLearnerResponse,
 	LojoAppsListResponse,
 	LojoAppsRecentRequest,
 	LojoAppsRecentResponse,
@@ -1165,7 +1163,6 @@ export type Endpoints = {
 	'lojo/agent/bridge': { req: LojoAgentBridgeRequest; res: LojoAgentBridgeResponse };
 	'lojo/agent/english': { req: LojoAgentEnglishRequest; res: LojoAgentEnglishResponse };
 	'lojo/agent/prompt': { req: LojoAgentPromptRequest; res: LojoAgentPromptResponse };
-	'lojo/apps/learner': { req: LojoAppsLearnerRequest; res: LojoAppsLearnerResponse };
 	'lojo/apps/list': { req: EmptyRequest; res: LojoAppsListResponse };
 	'lojo/apps/recent': { req: LojoAppsRecentRequest; res: LojoAppsRecentResponse };
 	'lojo/apps/register': { req: LojoAppsRegisterRequest; res: LojoAppsRegisterResponse };

@@ -58,9 +58,7 @@ export class LojoAppsService {
 		const base = `/apps/${id}/`;
 		if (m.base != null && m.base !== base) throw new Error(`base must be ${base}`);
 		const internal = String(m.internal ?? '');
-		// 自己有容器的小程序是 http://typing:8080/；共用后台 hub 里的轻小程序多一段自己的 id：http://hub:8080/synonym/
-		const im = /^http:\/\/[a-z0-9.-]+(:\d{2,5})?\/(?:([a-z][a-z0-9-]{1,30})\/)?$/.exec(internal);
-		if (im == null || (im[2] != null && im[2] !== id)) throw new Error(`internal must be like http://typing:8080/ or http://hub:8080/${id}/`);
+		if (!/^http:\/\/[a-z0-9.-]+(:\d{2,5})?\/$/.test(internal)) throw new Error('internal must be like http://typing:8080/');
 		const kinds: Record<string, string> = {};
 		for (const [k, v] of Object.entries(m.kinds ?? {})) if (ID.test(k)) kinds[k] = String(v).slice(0, 200);
 		const grants: Record<string, string[]> = {};
@@ -209,44 +207,6 @@ export class LojoAppsService {
 			'INSERT INTO "lojo_app_activity" ("userId","app","what","right","total","note","at") VALUES ($1,$2,$3,$4,$5,$6,$7)',
 			[userId, appId, String(line.what ?? '').slice(0, 200), num(line.right), num(line.total), String(line.note ?? '').slice(0, 200), at],
 		);
-	}
-
-	// 个人主页小程序（/apps/works/，2026-11-12）要的几样，只读：
-	// - days：过去 N 天每天（北京时间）学了几次，按小程序分开数。读摘要索引，另外加上闯关过关（闯关不往摘要里报）；
-	// - levels：闯关过了哪些关、什么时候过的；
-	// - joinedAt、birthday：「哪一季加入」和判断是不是未成年人（没填生日按未成年人算）。
-	public async learner(userId: string, days: number) {
-		const since = new Date(Date.now() - days * 86400_000);
-		const [rows, quest, user] = await Promise.all([
-			this.db.query<{ day: string; app: string; n: number }[]>(
-				`SELECT to_char("at" AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD') AS "day", "app", count(*)::int AS "n"
-				 FROM "lojo_app_activity" WHERE "userId" = $1 AND "at" >= $2 GROUP BY 1, 2
-				 UNION ALL
-				 SELECT to_char(coalesce("endedAt", "createdAt") AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD'), 'quest', count(*)::int
-				 FROM "lojo_quest_attempt" WHERE "userId" = $1 AND "status" = 'passed' AND "createdAt" >= $2 GROUP BY 1, 2`,
-				[userId, since],
-			),
-			this.db.query<{ levels: Record<string, { passedAt?: string }> }[]>('SELECT "levels" FROM "lojo_quest" WHERE "userId" = $1', [userId]),
-			this.db.query<{ id: string; birthday: string | null }[]>(
-				'SELECT u."id", p."birthday" FROM "user" u LEFT JOIN "user_profile" p ON p."userId" = u."id" WHERE u."id" = $1', [userId],
-			),
-		]);
-		if (user.length === 0) return null;
-		const out = new Map<string, { day: string; n: number; apps: Record<string, number> }>();
-		for (const r of rows) {
-			const d = out.get(r.day) ?? { day: r.day, n: 0, apps: {} };
-			d.n += r.n; d.apps[r.app] = (d.apps[r.app] ?? 0) + r.n;
-			out.set(r.day, d);
-		}
-		const levels = Object.entries(quest[0]?.levels ?? {}).flatMap(([id, l]) => (l?.passedAt ? [{ id, at: l.passedAt }] : []));
-		// aidx：前 8 位是 2000-01-01 起的毫秒数（36 进制）
-		const joinedAt = new Date(parseInt(userId.slice(0, 8), 36) + 946684800000).toISOString();
-		return {
-			days: [...out.values()].sort((a, b) => a.day.localeCompare(b.day)),
-			levels: levels.sort((a, b) => a.at.localeCompare(b.at)),
-			joinedAt,
-			birthday: user[0].birthday,
-		};
 	}
 
 	public async recent(userId: string, opts: { since?: Date | null; app?: string | null; limit: number }) {

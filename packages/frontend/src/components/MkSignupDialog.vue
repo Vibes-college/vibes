@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@close="onClose"
 	@closed="emit('closed')"
 >
-	<template #header>注册</template>
+	<template #header>{{ vt.signup.title }}</template>
 
 	<div style="overflow-x: clip;">
 		<Transition
@@ -39,6 +39,7 @@ import XSignup from '@/components/MkSignupDialog.form.vue';
 import XServerRules from '@/components/MkSignupDialog.rules.vue';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import { i18n } from '@/i18n.js';
+import { vt } from '@/lojo/locales/index.js';
 
 const props = withDefaults(defineProps<{
 	autoSet?: boolean;

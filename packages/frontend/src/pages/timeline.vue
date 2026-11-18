@@ -45,6 +45,7 @@ import { miLocalStorage } from '@/local-storage.js';
 import { availableBasicTimelines, hasWithReplies, isAvailableBasicTimeline, isBasicTimeline, basicTimelineIconClass } from '@/timelines.js';
 import { prefer } from '@/preferences.js';
 import { useRouter } from '@/router.js';
+import { vt } from '@/lojo/locales/index.js';
 
 // Vibes: the fixed post form is off by default; downloading the whole post form on every first open cost ~40 KB.
 const MkPostForm = defineAsyncComponent(() => import('@/components/MkPostForm.vue'));
@@ -279,14 +280,14 @@ const headerActions = computed<PageHeaderItem[]>(() => {
 // pickers are off the top bar too; lists and antennas are still under ☰ → 更多 (/my/lists, /my/antennas), search is
 // in the ☰ menu. Only the tab list changes here; the social, list and antenna code paths stay, to keep merges with
 // Misskey upstream small.
-const VIBES_TL_TABS: Partial<Record<BasicTimelineType, string>> = { home: '关注', local: '全站' };
+const VIBES_TL_TABS: Partial<Record<BasicTimelineType, string>> = { home: vt.nav.tlFollowing, local: vt.nav.tlEveryone };
 const vibesTabs = () => [...availableBasicTimelines().filter(tl => tl in VIBES_TL_TABS).map(tl => ({
 	key: tl,
 	title: VIBES_TL_TABS[tl],
 	icon: basicTimelineIconClass(tl),
 })), {
 	icon: 'ti ti-device-tv',
-	title: '频道',
+	title: vt.nav.tlChannels,
 	onClick: () => router.push('/channels'),
 }] as Tab[];
 
