@@ -40,8 +40,9 @@ onMounted(async () => {
 async function undo() {
 	busy.value = true;
 	try {
-		const r = await misskeyApi('lojo/plan/undo', { changeId: props.changeId }) as unknown as { ok: boolean; reason?: string };
-		if (r.ok || r.reason === '这次改动已经撤销过了') { // vibes-i18n-keep: the server's reason, compared as is
+		const r = await misskeyApi('lojo/plan/undo', { changeId: props.changeId }) as unknown as { ok: boolean; reason?: string; code?: string };
+		// the reason is in the learner's interface language (界面语言第②批), so "already undone" is told by its code
+		if (r.ok || r.code === 'alreadyUndone') {
 			undone.value = true;
 			recentPlanChanges(true);
 		} else {

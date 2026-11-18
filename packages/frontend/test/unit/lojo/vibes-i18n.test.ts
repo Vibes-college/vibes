@@ -77,7 +77,7 @@ describe.each(Object.entries(TABLES))('the %s words', (_name, table) => {
 describe('English that needs care', () => {
 	test('Momo says it is an AI in the first two sentences, in English too', () => {
 		const hello = momoTable.en.hello('Pip');
-		expect(hello.startsWith('Hi, I\'m Pip,')).toBe(true);
+		expect(hello.startsWith('Hi, I\'m Pip.')).toBe(true);
 		expect(hello.split('. ').slice(0, 2).join('. ')).toContain('I\'m an AI, not a real person');
 	});
 	test('one file, two files', () => {

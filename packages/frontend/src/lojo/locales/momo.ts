@@ -48,6 +48,9 @@ const zh = {
 	nameBanned: (word: string) => `「${word}」容易让人以为是真人或官方，换一个吧`,
 	// The bubble on the last step. The server says the real first line (backend misc/lojo-tutor-persona.ts).
 	hello: (name: string) => `嗨，我是 ${name}，你的学搭子。我是 AI，不是真人，陪你练英语、排每天的任务。先说说，你在准备什么？`,
+	// Her bio on her profile page, with the name this learner gave her. The account's own bio (backend misc/lojo-tutor.ts
+	// tutorPublic.bio) says the same with the default name; keep the two alike.
+	profileBio: (name: string) => `我是 ${name}，Vibes 上的 AI 学搭子（不是真人）。每个人的 Momo 长得都不一样，名字也可以自己起。你在各个板块学到哪了我都知道，可以陪你练、给你出题、帮你看看哪里还能更好，再告诉你下一步去哪。想聊什么，直接发消息给我就行。`,
 };
 
 const en: typeof zh = {
@@ -56,8 +59,8 @@ const en: typeof zh = {
 	skip: 'Skip for now',
 
 	pickTitle: 'Pick a face you like',
-	pickLead: 'Your study buddy, just for you',
-	face: 'Your study buddy\'s face',
+	pickLead: 'Your own Momo, just for you',
+	face: 'Your Momo\'s face',
 	recent: 'Previous',
 	recentPick: 'Switch back',
 	shuffle: 'Another one',
@@ -86,7 +89,8 @@ const en: typeof zh = {
 	nameEmpty: (fallback: string) => `Pick a name, or keep ${fallback}`,
 	nameTooLong: (max: number) => `Up to ${max} characters`,
 	nameBanned: (word: string) => `“${word}” could make people think it's a real person or staff. Try another one.`,
-	hello: (name: string) => `Hi, I'm ${name}, your study buddy. I'm an AI, not a real person. I'll practise English with you and plan your days. So, what are you preparing for?`,
+	hello: (name: string) => `Hi, I'm ${name}. I'm an AI, not a real person. I'll practise English with you and plan your days. So, what are you preparing for?`,
+	profileBio: (name: string) => `I'm ${name}, an AI on Vibes (not a real person). Everyone's Momo looks different, and you can give yours its own name. I know how far you've got in each part of the site, so I can practise with you, set you questions, show you what could be better, and tell you where to go next. Want to talk? Just send me a message.`,
 };
 
 export const momoTable = { zh, en };

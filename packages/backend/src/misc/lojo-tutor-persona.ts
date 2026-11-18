@@ -10,6 +10,8 @@
 // 存在学员自己的 registry 里（scope lojo/tutor，key persona）。学员能直接改自己的 registry，所以每次读都再过一遍。
 // 公开的 @tutor_mia 账号照旧用默认名字和默认脸；只有学员自己看到的地方换成 TA 那只。
 
+import { tutorText } from '@/misc/lojo-tutor-text.js';
+import type { UiLang } from '@/misc/lojo-ui-lang.js';
 import { tutorPublic } from '@/misc/lojo-tutor.js';
 
 export const PERSONA_KEY = 'persona';
@@ -68,7 +70,7 @@ export function normalizePersona(raw: unknown, userId: string, isProhibited?: (n
 
 // The first thing the learner's Momo says, once named after signing up (lojo/tutor/persona/update with greet). A fixed
 // line, no model call; it says it is an AI in the first sentence (拟人化互动办法). The sign-up step shows the same words
-// (frontend lojo/tutor/persona-rules.ts personaHello).
-export function personaHello(name: string): string {
-	return `嗨，我是 ${name}，你的学搭子。我是 AI，不是真人，陪你练英语、排每天的任务。先说说，你在准备什么？`;
+// (frontend lojo/tutor/persona-rules.ts personaHello). In the learner's interface language (misc/lojo-tutor-text.ts).
+export function personaHello(name: string, lang: UiLang = 'zh'): string {
+	return tutorText(lang).hello(name);
 }

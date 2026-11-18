@@ -16,6 +16,14 @@ describe('Momo\'s private words (registry key prompts)', () => {
 		expect(normalizeTutorPrompts({ ...testPrompts, card: { ...testPrompts.card, name: '  Testy ', extensions: undefined } })?.card).toEqual({ ...testPrompts.card, extensions: { vibes: { voice: 'uk-brit' } } });
 	});
 
+	test('the interface-language cue is optional (界面语言第②批): kept when it is text, left out otherwise', () => {
+		expect(normalizeTutorPrompts({ ...testPrompts, uiLanguage: 'WRITE IN {{language}}' })?.uiLanguage).toBe('WRITE IN {{language}}');
+		expect(normalizeTutorPrompts(testPrompts)).not.toHaveProperty('uiLanguage');
+		expect(normalizeTutorPrompts({ ...testPrompts, uiLanguage: '' })).not.toHaveProperty('uiLanguage');
+		expect(normalizeTutorPrompts({ ...testPrompts, uiLanguage: 3 })).not.toHaveProperty('uiLanguage');
+		expect(normalizeTutorPrompts({ ...testPrompts, uiLanguage: 3 })).not.toBeNull();
+	});
+
 	test('none at all when a part is missing, empty or not text', () => {
 		expect(normalizeTutorPrompts(null)).toBeNull();
 		expect(normalizeTutorPrompts('x')).toBeNull();

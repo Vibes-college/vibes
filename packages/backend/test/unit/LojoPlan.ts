@@ -9,6 +9,7 @@ import {
 	addDays, autoCheck, computeStages, dayProblem, delayDays, fillDays, lastDayOfMonth, mondayOf, planListProblems, answerRefs, rollover, startOfDay, streak, todayIn, typingReport, weekday,
 } from '@/misc/lojo-plan.js';
 import type { PlanList, TaskRow } from '@/misc/lojo-plan.js';
+import { planText } from '@/misc/lojo-plan-text.js';
 
 // The list lives in the Vibes workspace (not in this repository); the tests that need it are skipped where it is not.
 const LIST_FILE = process.env.PLAN_LIST_FILE ?? new URL('../../../../../../../prototypes/mia-mastra/plans/ielts-tasks.json', import.meta.url).pathname;
@@ -118,6 +119,34 @@ describe('every day', () => {
 		expect(dayProblem(c, [task({ minutes: 50 })], '2026-11-16', '2026-11-16', 20, 'task')).toContain('超出');
 		expect(dayProblem(c, [...Array(5).keys()].map(i => task({ id: `t${i}`, minutes: 1 })), '2026-11-16', '2026-11-16', 1, 'task')).toContain('5 件');
 		expect(dayProblem(c, [], '2026-11-16', '2026-11-16', 20, 'task')).toBeNull();
+	});
+	test('day problems in English for an English interface (界面语言第②批)', () => {
+		expect(dayProblem(c, [], '2026-11-15', '2026-11-16', 20, 'task', undefined, 'en')).toBe('You cannot plan for a day that has passed');
+		expect(dayProblem(c, [], '2026-11-22', '2026-11-16', 20, 'task', undefined, 'en')).toBe('Sun is your rest day');
+		expect(dayProblem(c, [], '2026-12-06', '2026-11-16', 20, 'task', undefined, 'en')).toBe('Sun, Dec 6 is after the exam');
+		expect(dayProblem(c, [task({ minutes: 50 })], '2026-11-16', '2026-11-16', 20, 'task', undefined, 'en')).toBe('That day would come to 70 minutes, more than your 60 a day');
+		expect(dayProblem(c, [...Array(5).keys()].map(i => task({ id: `t${i}`, minutes: 1 })), '2026-11-16', '2026-11-16', 1, 'task', undefined, 'en')).toBe('Mon, Nov 16 already has 5 tasks');
+	});
+	test('the plan\'s own words: Chinese as before, English with no Chinese in it', () => {
+		const zh = planText('zh');
+		const en = planText('en');
+		expect(zh.date('2026-11-20')).toBe('11 月 20 日（周五）');
+		expect(en.date('2026-11-20')).toBe('Fri, Nov 20');
+		expect(en.date('2026-01-04')).toBe('Sun, Jan 4');
+		expect(zh.reason.alreadyUndone).toBe('这次改动已经撤销过了');
+		expect(en.reason.missing(['examDate', 'dailyMinutes'])).toBe('Still missing: examDate, dailyMinutes. All four are needed to make a plan');
+		expect(en.summary.week('Mon, Nov 16', 1)).toBe('Planned the week from Mon, Nov 16: 1 task');
+		expect(en.summary.replan(3, '')).toBe('Replanned 3 tasks from today');
+		expect(en.summary.status('removed', 'Read', true)).toBe('Removed check-in: Read');
+		const han = /[\u3400-\u9fff]/;
+		const leaves = (o: object): string[] => Object.values(o).flatMap(v => typeof v === 'string' ? [v]
+			: typeof v === 'function' ? [String((v as (...a: unknown[]) => unknown)('2026-11-20', 2, 3))]
+			: typeof v === 'object' && v != null ? leaves(v) : []);
+		const enWords = leaves({ reason: { ...en.reason, missing: en.reason.missing(['examDate']) }, summary: { ...en.summary, full: en.summary.full([{ name: 'Base', start: 'Mon, Nov 16' }], 'exam') } });
+		expect(enWords.length).toBeGreaterThan(40);
+		expect(enWords.filter(w => han.test(w))).toEqual([]);
+		expect(Object.keys(en.reason).sort()).toEqual(Object.keys(zh.reason).sort());
+		expect(Object.keys(en.summary).sort()).toEqual(Object.keys(zh.summary).sort());
 	});
 	test('rollover moves unfinished tasks to today, past the rest day', () => {
 		const ts = [task({ id: 'a', date: '2026-11-13' }), task({ id: 'b', date: '2026-11-13', status: 'done' })];

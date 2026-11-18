@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { vibesLang } from '@/lojo/locales/lang.js';
 
 // 小程序入口读服务器上的名册（2026-11-17 起）：手机上留一份，先用这份，后台问一句变没变；读不到也不出错。
 const api = vi.fn();
@@ -17,7 +18,8 @@ const app = (id: string, o: Record<string, unknown> = {}) => ({
 	id, name: `示例 ${id}`, icon: 'ti ti-camera', href: `/apps/${id}/`, type: 'server', visible: true,
 	intro: { summary: '示例', audience: '示例', steps: ['示例'], caveats: [] }, ...o,
 });
-const KEY = 'lojo:miniApps:roster';
+// the copy is kept per interface language (界面语言第②批); Chinese keeps the old key
+const KEY = vibesLang === 'zh' ? 'lojo:miniApps:roster' : `lojo:miniApps:roster:${vibesLang}`;
 
 async function fresh() {
 	vi.resetModules();
@@ -90,6 +92,33 @@ describe('the 小程序 launcher reads the roster from the server', () => {
 		expect(r.rosterApps({ apps: [app('example-a'), app('example-b', { intro: { summary: '示例' } }), { id: 'example-c' }, null] })!.map(a => a.id)).toEqual(['example-a']);
 		expect(r.rosterApps({})).toBeNull();
 		expect(r.rosterApps(null)).toBeNull();
+	});
+
+	it('界面语言第②批: an English interface gets the English name and intro, field by field, never a blank', async () => {
+		const r = await fresh();
+		const en = { name: 'Example A', intro: { summary: 'What it is', steps: ['Step one'] } };
+		const [a, b] = r.rosterApps({ apps: [app('example-a', { en }), app('example-b')] }, 'en')!;
+		expect(a.name).toBe('Example A');
+		expect(a.intro).toEqual({ summary: 'What it is', audience: '示例', steps: ['Step one'], caveats: [] });
+		// no English filled in: the Chinese
+		expect(b.name).toBe('示例 example-b');
+		expect(b.intro.summary).toBe('示例');
+		// a Chinese interface never reads the English
+		expect(r.rosterApps({ apps: [app('example-a', { en })] }, 'zh')![0].name).toBe('示例 example-a');
+		// an empty name or step list, or a part that is not text, falls back too
+		const [c] = r.rosterApps({ apps: [app('example-c', { en: { name: '', intro: { steps: [], audience: 3 } } })] }, 'en')!;
+		expect(c.name).toBe('示例 example-c');
+		expect(c.intro.steps).toEqual(['示例']);
+		expect(c.intro.audience).toBe('示例');
+		expect(r.rosterApps({ apps: [app('example-d', { en: 'Example D' })] }, 'en')![0].name).toBe('示例 example-d');
+	});
+
+	it('a confirm card names the app as the launcher does, old ids included', async () => {
+		const r = await fresh();
+		r.setMiniApps(r.rosterApps({ apps: [app('example-a', { formerIds: ['example-old'], en: { name: 'Example A' } })] }, 'en')!);
+		expect(r.miniAppName('example-a')).toBe('Example A');
+		expect(r.miniAppName('example-old')).toBe('Example A');
+		expect(r.miniAppName('zzz')).toBeNull();
 	});
 
 	it('opening, the intro seen under an old id, the plan links and the overlay title', async () => {

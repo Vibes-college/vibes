@@ -26,6 +26,9 @@ import { NoteDeleteService } from './NoteDeleteService.js';
 import { NotificationService } from './NotificationService.js';
 import { UserBlockingService } from './UserBlockingService.js';
 import { RoleService } from './RoleService.js';
+import { RegistryApiService } from './RegistryApiService.js';
+import { learnerUiLang } from '@/misc/lojo-ui-lang.js';
+import type { UiLang } from '@/misc/lojo-ui-lang.js';
 import { isSafeGuideUrl, LojoGuideValidationError, validateGuideAnchor, validateGuideBlocks } from './LojoGuideValidation.js';
 
 type Viewer = MiLocalUser | null;
@@ -45,6 +48,9 @@ type SaveInput = {
 	isDemo?: boolean;
 };
 
+// The title of the notice a guide's author gets for a new comment, in the author's interface language (界面语言第②批).
+const GUIDE_COMMENT_HEADER: Record<UiLang, string> = { zh: '攻略有新评论', en: 'New comment on your guide' };
+
 @Injectable()
 export class LojoGuideService {
 	constructor(
@@ -57,6 +63,7 @@ export class LojoGuideService {
 		private notificationService: NotificationService,
 		private userBlockingService: UserBlockingService,
 		private roleService: RoleService,
+		private registryApiService: RegistryApiService,
 	) {}
 
 	private validate<T>(fn: () => T): T {
@@ -343,9 +350,10 @@ export class LojoGuideService {
 			});
 			committed = true;
 			if (result.guide.authorId !== me.id && result.reply?.userId !== result.guide.authorId) {
+				const lang = await learnerUiLang(this.registryApiService, result.guide.authorId);
 				this.notificationService.createNotification(result.guide.authorId, 'app', {
 					appAccessTokenId: null,
-					customHeader: '攻略有新评论',
+					customHeader: GUIDE_COMMENT_HEADER[lang],
 					customBody: `[${result.guide.title.replace(/[\[\]\\]/gu, '')}](/lojo/guides/${result.guide.id})\n\n${text.slice(0, 500)}`,
 					customIcon: null,
 				}, me.id);

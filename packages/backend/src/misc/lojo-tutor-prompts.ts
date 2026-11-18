@@ -47,6 +47,9 @@ export type TutorPrompts = {
 	cueWriteFirst: string;
 	cueQuest: string;
 	notesTask: string;
+	// Optional (界面语言第②批, 2026-11-18): for what she writes first (writeFirst, the quest), a line saying which language
+	// the learner's interface is in. Gap: language ('English' or 'Chinese'). Not used for replies. Without it, nothing is added.
+	uiLanguage?: string;
 };
 
 const TEXT_KEYS = [
@@ -78,6 +81,7 @@ export function normalizeTutorPrompts(raw: unknown): TutorPrompts | null {
 	const voice = ((c.extensions as { vibes?: { voice?: unknown } } | undefined)?.vibes?.voice);
 	return {
 		...(text as Record<(typeof TEXT_KEYS)[number], string>),
+		...(typeof r.uiLanguage === 'string' && r.uiLanguage !== '' && r.uiLanguage.length <= MAX_TEXT ? { uiLanguage: r.uiLanguage } : {}),
 		version: typeof r.version === 'string' ? r.version.slice(0, 60) : '',
 		card: { ...(card as Omit<TutorCard, 'extensions'>), extensions: { vibes: { voice: typeof voice === 'string' && voice.trim() !== '' ? voice.trim() : DEFAULT_VOICE } } },
 	};

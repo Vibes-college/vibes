@@ -20,6 +20,7 @@ import type { NoteDeleteService } from '@/core/NoteDeleteService.js';
 import type { NotificationService } from '@/core/NotificationService.js';
 import type { UserBlockingService } from '@/core/UserBlockingService.js';
 import type { RoleService } from '@/core/RoleService.js';
+import type { RegistryApiService } from '@/core/RegistryApiService.js';
 
 const owner = { id: 'owner' } as MiLocalUser;
 const stranger = { id: 'stranger' } as MiLocalUser;
@@ -72,7 +73,7 @@ describe('LOJO guide access and comment integrity', () => {
 		noteDelete.delete.mockResolvedValue();
 		blocking = mockDeep<UserBlockingService>();
 		blocking.checkBlocked.mockResolvedValue(false);
-		service = new LojoGuideService(db, mockDeep<IdService>(), mockDeep<UserEntityService>(), mockDeep<NoteEntityService>(), noteCreate, noteDelete, mockDeep<NotificationService>(), blocking, mockDeep<RoleService>());
+		service = new LojoGuideService(db, mockDeep<IdService>(), mockDeep<UserEntityService>(), mockDeep<NoteEntityService>(), noteCreate, noteDelete, mockDeep<NotificationService>(), blocking, mockDeep<RoleService>(), mockDeep<RegistryApiService>());
 	});
 
 	test('anonymous and unrelated readers cannot open a private draft', async () => {

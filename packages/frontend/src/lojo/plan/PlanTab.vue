@@ -56,7 +56,7 @@ Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md §九 
 						:aria-label="S.dateLong(d.date)" :aria-pressed="d.date === selDate"
 						@click="selDate = d.date"
 					>
-						<span :class="$style.wd">{{ S.weekday(d.date).slice(-1) }}</span>
+						<span :class="$style.wd">{{ S.weekdayLetter(d.date) }}</span>
 						<span :class="[$style.ring, ringClass(d)]" :style="{ '--p': d.total ? d.done / d.total : 0 }"></span>
 						<span :class="$style.rest">{{ d.rest ? S.rest : '' }}</span>
 					</button>

@@ -9,6 +9,7 @@
 // The notes follow mem0's open-source memory design (read the latest exchange, then add, update or delete what is
 // known), https://github.com/mem0ai/mem0 (Apache-2.0), rewritten around a learner's goals and progress.
 
+import type { UiLang } from '@/misc/lojo-ui-lang.js';
 import { DEFAULT_VOICE, fillPrompt } from '@/misc/lojo-tutor-prompts.js';
 import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 
@@ -274,6 +275,8 @@ export type TutorPromptContext = {
 	progress?: string | null;
 	// older messages found by keyword (recallText)
 	recall?: string | null;
+	// the learner's interface language, only for what she writes first (prompts.uiLanguage; misc/lojo-ui-lang.ts)
+	uiLang?: UiLang;
 };
 
 // The fixed start (prompts.system with the card filled in), then the chapter's quest knowledge, then the notes.
@@ -317,6 +320,7 @@ export function tutorContextMessage(prompts: TutorPrompts, ctx: TutorPromptConte
 		] : []),
 		...(ctx.recall ? ['', ctx.recall] : []),
 		...(ctx.quest ? ['', ctx.quest] : []),
+		...(ctx.uiLang && prompts.uiLanguage ? ['', fillPrompt(prompts.uiLanguage, { language: ctx.uiLang === 'en' ? 'English' : 'Chinese' })] : []),
 	].join('\n');
 }
 

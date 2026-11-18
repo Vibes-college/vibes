@@ -8,6 +8,9 @@
 // each stage holds (攻略's ielts-tasks.json) is not in this repository: it is imported into the site's registry.
 // Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md in the Vibes workspace.
 
+import { planText } from '@/misc/lojo-plan-text.js';
+import type { UiLang } from '@/misc/lojo-ui-lang.js';
+
 export type PlanAutoDone = { answered?: number; report?: boolean } | null;
 
 export type PlanItem = {
@@ -97,10 +100,8 @@ export function startOfDay(d: string, tz: string): Date {
 	return new Date(guess);
 }
 
-const WEEK_CN = '日一二三四五六';
-// 「11 月 20 日（周四）」: how the learner reads a date (never 2026-11-20).
-export const cnDate = (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日（周${WEEK_CN[weekday(d)]}）`;
-export const cnDay = (d: string) => `周${WEEK_CN[weekday(d)]}`;
+// 「11 月 20 日（周四）」: how the learner reads a date (never 2026-11-20). English and the other words: misc/lojo-plan-text.ts.
+export const cnDate = planText('zh').date;
 
 // ---------- the list ----------
 
@@ -164,19 +165,21 @@ export const checkinsOn = (tasks: TaskRow[], d: string, restDay: number) =>
 	weekday(d) === restDay ? [] : tasks.filter(t => t.kind === 'checkin' && active(t) && t.date <= d && (t.endDate == null || d <= t.endDate));
 export const tasksOn = (tasks: TaskRow[], d: string) => tasks.filter(t => t.kind === 'task' && active(t) && t.date === d);
 
-// Why a task of `minutes` does not fit on day d (null = it fits). `except` is the task being moved.
-export function dayProblem(c: DayCtx, tasks: TaskRow[], d: string, today: string, minutes: number, kind: 'task' | 'checkin', except?: string): string | null {
-	if (d < today) return '不能排到已经过去的日子';
-	if (d > c.lastDay) return `${cnDate(d)}已经过了考试日`;
-	if (weekday(d) === c.restDay) return `${cnDay(d)}是休息日`;
-	const others = tasks.filter(t => t.id !== except);
+// Why a task of `minutes` does not fit on day d (null = it fits), in the learner's interface language. `except` is the
+// task being moved.
+export function dayProblem(c: DayCtx, tasks: TaskRow[], d: string, today: string, minutes: number, kind: 'task' | 'checkin', except?: string, lang: UiLang = 'zh'): string | null {
+	const t = planText(lang);
+	if (d < today) return t.reason.dayPast;
+	if (d > c.lastDay) return t.reason.afterExam(t.date(d));
+	if (weekday(d) === c.restDay) return t.reason.restDayOn(t.day(d));
+	const others = tasks.filter(x => x.id !== except);
 	if (kind === 'checkin') {
-		return checkinsOn(others, d, c.restDay).length >= MAX_CHECKINS_PER_DAY ? `打卡最多 ${MAX_CHECKINS_PER_DAY} 项，已经有 ${MAX_CHECKINS_PER_DAY} 项了` : null;
+		return checkinsOn(others, d, c.restDay).length >= MAX_CHECKINS_PER_DAY ? t.reason.checkinsFull(MAX_CHECKINS_PER_DAY) : null;
 	}
 	const day = tasksOn(others, d);
-	if (day.length >= MAX_TASKS_PER_DAY) return `${cnDate(d)}已经排满 ${MAX_TASKS_PER_DAY} 件了`;
-	const used = day.reduce((n, t) => n + t.minutes, 0) + checkinsOn(others, d, c.restDay).reduce((n, t) => n + t.minutes, 0);
-	if (used + minutes > c.dailyMinutes) return `这天已经 ${used + minutes} 分钟，超出你每天的 ${c.dailyMinutes} 分钟`;
+	if (day.length >= MAX_TASKS_PER_DAY) return t.reason.dayFull(t.date(d), MAX_TASKS_PER_DAY);
+	const used = day.reduce((n, x) => n + x.minutes, 0) + checkinsOn(others, d, c.restDay).reduce((n, x) => n + x.minutes, 0);
+	if (used + minutes > c.dailyMinutes) return t.reason.overMinutes(used + minutes, c.dailyMinutes);
 	return null;
 }
 

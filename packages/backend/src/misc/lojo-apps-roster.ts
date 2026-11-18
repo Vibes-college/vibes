@@ -40,11 +40,14 @@ export type AppsRosterEntry = {
 	/** words a learner might use for it, in Chinese and English (听写, dictation…); searched with the name and the intro */
 	tags?: string[];
 	intro: { summary: string; audience: string; steps: string[]; caveats: string[] };
+	/** 界面语言第②批 (2026-11-18): the name and intro for learners whose interface is not Chinese. Each field is optional;
+	 * the launcher falls back to the Chinese one, never to nothing. What is inside the app is content and not translated. */
+	en?: { name?: string; intro?: Partial<AppsRosterEntry['intro']> };
 };
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
 const ICON = /^ti ti-[a-z0-9-]+$/;
-const ENTRY_KEYS = ['id', 'name', 'icon', 'href', 'type', 'visible', 'formerIds', 'category', 'tags', 'intro'];
+const ENTRY_KEYS = ['id', 'name', 'icon', 'href', 'type', 'visible', 'formerIds', 'category', 'tags', 'intro', 'en'];
 const INTRO_KEYS = ['summary', 'audience', 'steps', 'caveats'];
 
 type Obj = Record<string, unknown>;
@@ -82,6 +85,7 @@ function entryProblems(v: unknown, where: string): string[] {
 	if (v.tags != null && !(Array.isArray(v.tags) && v.tags.length <= APPS_ROSTER_RULES.maxList && v.tags.every(t => isStr(t, APPS_ROSTER_RULES.maxTag)))) {
 		out.push(`${where}: tags（学员可能怎么叫它）要是词的列表，最多 ${APPS_ROSTER_RULES.maxList} 个、每个最多 ${APPS_ROSTER_RULES.maxTag} 字`);
 	}
+	out.push(...enProblems(v.en, where));
 	const intro = v.intro;
 	if (!isObj(intro)) {
 		out.push(`${where}: 要有 intro（第一次打开时的介绍）`);
@@ -93,6 +97,26 @@ function entryProblems(v: unknown, where: string): string[] {
 	if (!isStr(intro.audience, APPS_ROSTER_RULES.maxText)) out.push(`${where}: intro.audience（给谁用）不能空`);
 	if (!texts(intro.steps, 1)) out.push(`${where}: intro.steps（怎么用）要有 1 到 ${APPS_ROSTER_RULES.maxList} 步`);
 	if (!texts(intro.caveats, 0)) out.push(`${where}: intro.caveats（注意什么）要是列表，没有就写 []`);
+	return out;
+}
+
+// The English name and intro: every field may be left out (then the Chinese one is shown), but what is there must be right.
+function enProblems(en: unknown, where: string): string[] {
+	if (en == null) return [];
+	if (!isObj(en)) return [`${where}: en（英文名和英文介绍）要是 { name, intro }`];
+	const out: string[] = [];
+	const extra = Object.keys(en).filter(k => k !== 'name' && k !== 'intro');
+	if (extra.length > 0) out.push(`${where}: en 里不认识的字段 ${extra.join('、')}`);
+	if (en.name != null && !isStr(en.name, APPS_ROSTER_RULES.maxName)) out.push(`${where}: en.name（英文名）最多 ${APPS_ROSTER_RULES.maxName} 个字母，不能空`);
+	if (en.intro == null) return out;
+	if (!isObj(en.intro)) return [...out, `${where}: en.intro 要是 { summary, audience, steps, caveats }`];
+	const intro = en.intro;
+	const introExtra = Object.keys(intro).filter(k => !INTRO_KEYS.includes(k));
+	if (introExtra.length > 0) out.push(`${where}: en.intro 里不认识的字段 ${introExtra.join('、')}`);
+	if (intro.summary != null && !isStr(intro.summary, APPS_ROSTER_RULES.maxText)) out.push(`${where}: en.intro.summary 不能空，最多 ${APPS_ROSTER_RULES.maxText} 字`);
+	if (intro.audience != null && !isStr(intro.audience, APPS_ROSTER_RULES.maxText)) out.push(`${where}: en.intro.audience 不能空，最多 ${APPS_ROSTER_RULES.maxText} 字`);
+	if (intro.steps != null && !texts(intro.steps, 1)) out.push(`${where}: en.intro.steps 要有 1 到 ${APPS_ROSTER_RULES.maxList} 步`);
+	if (intro.caveats != null && !texts(intro.caveats, 0)) out.push(`${where}: en.intro.caveats 要是列表`);
 	return out;
 }
 

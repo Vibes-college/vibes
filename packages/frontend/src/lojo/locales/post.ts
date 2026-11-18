@@ -16,6 +16,8 @@ const zh = {
 	accents: { us: '美音', uk: '英音', au: '澳音' },
 	voiceChanged: (name: string) => `朗读音色换成了 ${name}`,
 	voiceGreeting: (name: string) => `Hi, I'm ${name}. I'll read posts out loud for you.`,
+	/** the line under a voice's name in the voice menu; the server sends it in Chinese (backend misc/lojo-voices.ts) */
+	voiceLabel: (_id: string, label: string) => label,
 	speechFailed: '这次没读出来，稍后再试。',
 	explain: '翻译讲解',
 	creatorNotes: '创作讲解',
@@ -62,6 +64,19 @@ const zh = {
 	chineseDraftPost: '直接发',
 };
 
+// By voice id (backend misc/lojo-voices.ts); a voice added there without a line here shows its Chinese line.
+const VOICE_LABELS_EN: Record<string, string> = {
+	'us-sarah': 'Female · friendly, chatty',
+	'us-energetic': 'Male · upbeat',
+	'us-ethan': 'Male · clear explainer',
+	'us-hannah': 'Female · confident, professional',
+	'us-selene': 'Female · gentle, a little slow',
+	'uk-historian': 'Male · calm, steady',
+	'uk-brit': 'Female · warm',
+	'au-friendly': 'Female · young',
+	'au-felix': 'Male · relaxed',
+};
+
 const en: typeof zh = {
 	listen: 'Listen',
 	stop: 'Stop',
@@ -71,6 +86,7 @@ const en: typeof zh = {
 	accents: { us: 'US', uk: 'UK', au: 'Australian' },
 	voiceChanged: (name: string) => `Reading voice changed to ${name}`,
 	voiceGreeting: (name: string) => `Hi, I'm ${name}. I'll read posts out loud for you.`,
+	voiceLabel: (id: string, label: string) => VOICE_LABELS_EN[id] ?? label,
 	speechFailed: 'Couldn\'t read it out this time. Try again later.',
 	explain: 'Explain',
 	creatorNotes: 'Creator notes',

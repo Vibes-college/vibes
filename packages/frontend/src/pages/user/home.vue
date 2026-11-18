@@ -83,7 +83,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<div class="description">
 							<MkOmit>
-								<Mfm v-if="user.description" :text="user.description" :isNote="false" :author="user" class="_selectable"/>
+								<Mfm v-if="user.description" :text="personaBioFor(user) ?? user.description" :isNote="false" :author="user" class="_selectable"/>
 								<p v-else class="empty">{{ i18n.ts.noAccountDescription }}</p>
 							</MkOmit>
 						</div>
@@ -187,6 +187,7 @@ import MkSparkle from '@/components/MkSparkle.vue';
 import { prefer } from '@/preferences.js';
 import MkPullToRefresh from '@/components/MkPullToRefresh.vue';
 import { isBirthday } from '@/utility/is-birthday.js';
+import { personaBioFor } from '@/lojo/tutor/persona.js';
 import type XTimeline_TypeReferenceOnly from './index.timeline.vue';
 
 function calcAge(birthdate: string): number {

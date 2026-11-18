@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import type { UiLang } from '@/misc/lojo-ui-lang.js';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
@@ -237,15 +238,17 @@ export class LojoAppsService {
 		return { ok: true, pending: true, actionId: id, confirm: action.text.zh, note: 'A confirm card is shown under your reply. Nothing is written until the learner taps 确认; do not say it is done.' };
 	}
 
-	/** The marker messages for the writes Vibi asked for in this reply (sent after her words). */
-	public async actionCards(userId: string): Promise<string[]> {
+	/** The marker messages for the writes Vibi asked for in this reply (sent after her words), with the sentence in the
+	 * learner's interface language (the card shows it in that language anyway; this is what the chat list and a card
+	 * that cannot load show). */
+	public async actionCards(userId: string, lang: UiLang = 'zh'): Promise<string[]> {
 		const key = actionNewKey(userId);
 		const ids = await this.redisClient.lrange(key, 0, APP_ACTION_PER_REPLY - 1).catch(() => [] as string[]);
 		await this.redisClient.del(key).catch(() => {});
 		const out: string[] = [];
 		for (const id of ids) {
 			const a = await this.loadAction(id);
-			if (a != null && a.userId === userId) out.push(appActionText(a.text.zh, a.id));
+			if (a != null && a.userId === userId) out.push(appActionText(a.text[lang] || a.text.zh, a.id));
 		}
 		return out;
 	}

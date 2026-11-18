@@ -13,9 +13,12 @@ import { ref } from 'vue';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { openAppOverlay } from '@/lojo/app-overlay.js';
 import { hasSeenMiniApp } from '@/lojo/miniapps/state.js';
+import { vibesLang } from '@/lojo/locales/lang.js';
+import type { VibesLang } from '@/lojo/locales/lang.js';
 
 export const MINI_APPS_KIND = 'apps';
-const LOCAL_KEY = 'lojo:miniApps:roster';
+// The copy is kept in the interface language it was made for (界面语言第②批); Chinese keeps the key it always had.
+const LOCAL_KEY = vibesLang === 'zh' ? 'lojo:miniApps:roster' : `lojo:miniApps:roster:${vibesLang}`;
 
 export interface MiniAppDef {
 	id: string;
@@ -38,24 +41,35 @@ type Kept = { hash: string; apps: MiniAppDef[] };
 const isStr = (v: unknown): v is string => typeof v === 'string' && v !== '';
 const isStrs = (v: unknown): v is string[] => Array.isArray(v) && v.every(s => typeof s === 'string');
 
-function asApp(v: unknown): MiniAppDef | null {
+const asObj = (v: unknown): Record<string, unknown> => (v != null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {});
+
+// The name and intro in the interface language: an interface that is not Chinese gets the roster's `en` part, field by
+// field, and the Chinese one where the English is not filled in (never an empty name or step list).
+function asApp(v: unknown, lang: VibesLang): MiniAppDef | null {
 	if (v == null || typeof v !== 'object') return null;
 	const a = v as Record<string, unknown>;
 	const intro = a.intro as Record<string, unknown> | null | undefined;
 	if (!isStr(a.id) || !isStr(a.name) || !isStr(a.icon) || !isStr(a.href) || intro == null || typeof intro !== 'object') return null;
 	if (!isStr(intro.summary) || !isStr(intro.audience) || !isStrs(intro.steps) || !isStrs(intro.caveats)) return null;
+	const en = lang === 'zh' ? {} : asObj(a.en);
+	const enIntro = asObj(en.intro);
 	return {
-		id: a.id, name: a.name, icon: a.icon, href: a.href,
+		id: a.id, name: isStr(en.name) ? en.name : a.name, icon: a.icon, href: a.href,
 		formerIds: isStrs(a.formerIds) ? a.formerIds : [],
-		intro: { summary: intro.summary, audience: intro.audience, steps: intro.steps, caveats: intro.caveats },
+		intro: {
+			summary: isStr(enIntro.summary) ? enIntro.summary : intro.summary,
+			audience: isStr(enIntro.audience) ? enIntro.audience : intro.audience,
+			steps: isStrs(enIntro.steps) && enIntro.steps.length > 0 ? enIntro.steps : intro.steps,
+			caveats: isStrs(enIntro.caveats) ? enIntro.caveats : intro.caveats,
+		},
 	};
 }
 
-/** The entries of a roster answer that have every part the launcher draws; anything else is left out. */
-export function rosterApps(data: unknown): MiniAppDef[] | null {
+/** The entries of a roster answer that have every part the launcher draws, in the interface language; anything else is left out. */
+export function rosterApps(data: unknown, lang: VibesLang = vibesLang): MiniAppDef[] | null {
 	const apps = (data as { apps?: unknown } | null | undefined)?.apps;
 	if (!Array.isArray(apps)) return null;
-	return apps.map(asApp).filter((a): a is MiniAppDef => a != null);
+	return apps.map(a => asApp(a, lang)).filter((a): a is MiniAppDef => a != null);
 }
 
 function readLocal(): Kept | null {
@@ -136,6 +150,11 @@ export function pickMiniApps(apps: readonly MiniAppDef[], ids: readonly string[]
 /** Where a mini app opens, from the roster; null when the roster does not have it (or is not read yet). */
 export function miniAppHref(id: string): string | null {
 	return miniApps.value.find(a => a.id === id)?.href ?? null;
+}
+
+/** A mini app's name in the interface language, from the roster; null when the roster does not have it (or is not read yet). */
+export function miniAppName(id: string): string | null {
+	return miniApps.value.find(a => a.id === id || (a.formerIds ?? []).includes(id))?.name ?? null;
 }
 
 /** The name of the mini app an address in the overlay belongs to. */

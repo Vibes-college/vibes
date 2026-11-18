@@ -29,6 +29,7 @@ import { updateCurrentAccount } from '@/accounts.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
 import { prefetchCommonPages } from '@/lojo/prefetch.js';
+import { syncUiLang } from '@/lojo/ui-lang.js';
 import { currentInstallOffer } from '@/lojo/install/prompt.js';
 import { showsMisskeyUpdatedPopup } from '@/lojo/boot-notices.js';
 
@@ -69,6 +70,8 @@ export async function mainBoot() {
 	reactionPicker.init();
 	emojiPicker.init();
 	prefetchCommonPages($i != null);
+	// Vibes：把设置里选的界面语言告诉服务器，Momo 主动发的话和任务页报错跟着走（lojo/ui-lang.ts）
+	if ($i) void syncUiLang();
 
 	// Vibes：升级后的英文「Misskey has been updated!」弹窗不弹（lojo/boot-notices.ts）
 	if (isClientUpdated && $i && showsMisskeyUpdatedPopup()) {

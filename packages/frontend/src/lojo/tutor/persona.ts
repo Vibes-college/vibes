@@ -13,6 +13,7 @@ import { computed, ref } from 'vue';
 import { DEFAULT_TUTOR_NAME, defaultPersonaSeed, personaHeadUrl } from './persona-rules.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { vt } from '@/lojo/locales/index.js';
 
 export type TutorPersona = {
 	seed: string;
@@ -114,6 +115,12 @@ export function personaNameFor(user: { id: string }): string | null {
 // For MkAvatar: the learner's own Momo's head, or null.
 export function personaHeadFor(user: { id: string }): string | null {
 	return $i != null && isTutorUser(user) ? personaHeadUrl(myTutorSeed.value) : null;
+}
+
+// For the profile page: Momo's bio in the interface language and with the learner's name for her, or null for anyone
+// else (界面语言第②批: the account is shared by everyone, so its own bio can only be in one language, Chinese).
+export function personaBioFor(user: { id: string }): string | null {
+	return isTutorUser(user) ? vt.momo.profileBio($i != null ? myTutorName.value : DEFAULT_TUTOR_NAME) : null;
 }
 
 // Whether to show 「认识你的 Momo」 first in the sign-up dialog (components/MkUserSetupDialog.vue): only when the site

@@ -11,9 +11,12 @@ import { LoggerService } from '@/core/LoggerService.js';
 import { RegistryApiService } from '@/core/RegistryApiService.js';
 import { LojoAppsService } from '@/core/LojoAppsService.js';
 import type { MiMeta } from '@/models/_.js';
+import { planText } from '@/misc/lojo-plan-text.js';
+import type { PlanText } from '@/misc/lojo-plan-text.js';
+import { learnerUiLang } from '@/misc/lojo-ui-lang.js';
 import type Logger from '@/logger.js';
 import {
-	addDays, ANSWER_APPS, autoCheck, checkinsOn, cnDate, computeStages, dayProblem, dayTally, delayDays, diffDays, fillDays, isDate, lastDayOfMonth,
+	addDays, ANSWER_APPS, autoCheck, checkinsOn, computeStages, dayProblem, dayTally, delayDays, diffDays, fillDays, isDate, lastDayOfMonth,
 	hourIn, maxDate, mondayOf, planListProblems, PLAN_APPS, rollover, stageOn, startOfDay, streak, tasksOn, todayIn, typingReport, validTz, weekday,
 } from '@/misc/lojo-plan.js';
 import type { AnswerApp, AnswerTally, CheckinRow, DayCtx, PlanAutoDone, PlanList, PlanRow, TaskDraft, TaskRow, TaskStatus } from '@/misc/lojo-plan.js';
@@ -27,7 +30,7 @@ type Snap = { plan?: PlanRow | null; tasks: TaskRow[]; checkins: CheckinRow[] };
 export type PlanWho = 'self' | 'vibi' | 'planner';
 type PlanEventRow = { userId: string; tz: string; notifyWeekly: boolean; seenAt: Date | null; createdAt: Date };
 export type PlanEvent = { userId: string; kind: 'weekPlanned' | 'overdue' | 'replanOffer'; today: string; summary: string; tasks: { id?: string; title: string; date?: string; delayDays?: number }[]; seenAt?: string };
-export type PlanResult = { ok: true; changeId: string; summary: string; [k: string]: unknown } | { ok: false; reason: string };
+export type PlanResult = { ok: true; changeId: string; summary: string; [k: string]: unknown } | { ok: false; reason: string; code?: 'alreadyUndone' };
 
 const ADMIN_SCOPE = ['lojo', 'planAdmin'];
 const LIST_KEY = 'list:ielts';
@@ -110,6 +113,11 @@ export class LojoPlanService {
 
 	private async checkinsOf(m: Q, userId: string, since: string): Promise<CheckinRow[]> {
 		return await m.query('SELECT * FROM "lojo_plan_checkin" WHERE "userId" = $1 AND "date" >= $2', [userId, since]);
+	}
+
+	// The words for this learner's reasons and change summaries, in their interface language (misc/lojo-plan-text.ts).
+	private async text(userId: string): Promise<PlanText> {
+		return planText(await learnerUiLang(this.registryApiService, userId));
 	}
 
 	private ctx(plan: PlanRow): DayCtx {
@@ -335,24 +343,25 @@ export class LojoPlanService {
 	// ---------- writes (each writes one change, so it can be undone) ----------
 
 	public async setPlan(userId: string, who: PlanWho, p: { examDate?: string | null; dailyMinutes?: number | null; target?: string | null; current?: string | null; restDay?: number | null; focus?: string | null; tz?: string | null }): Promise<PlanResult> {
+		const tx = await this.text(userId);
 		const missing = (['examDate', 'dailyMinutes', 'target', 'current'] as const).filter(k => p[k] == null || p[k] === '');
-		if (missing.length > 0) return { ok: false, reason: `还缺：${missing.join('、')}。四个都要有才能排` };
+		if (missing.length > 0) return { ok: false, reason: tx.reason.missing(missing) };
 		const list = await this.list();
-		if (list == null) return { ok: false, reason: '备考清单还没导入这个站，排不了' };
+		if (list == null) return { ok: false, reason: tx.reason.noList };
 		let examDate = String(p.examDate); let tentative = false;
 		if (/^\d{4}-\d{2}$/.test(examDate)) { examDate = lastDayOfMonth(`${examDate}-01`); tentative = true; }
-		if (!isDate(examDate)) return { ok: false, reason: '考试日要写成 2026-12-14，没报名可以写 2026-12' };
+		if (!isDate(examDate)) return { ok: false, reason: tx.reason.examDateFormat };
 		const daily = Number(p.dailyMinutes);
-		if (!Number.isInteger(daily) || daily < 15 || daily > 600) return { ok: false, reason: '每天能学多久要在 15 到 600 分钟之间' };
+		if (!Number.isInteger(daily) || daily < 15 || daily > 600) return { ok: false, reason: tx.reason.dailyMinutes };
 		const restDay = p.restDay ?? 0;
-		if (!Number.isInteger(restDay) || restDay < 0 || restDay > 6) return { ok: false, reason: '休息日要写 0 到 6（0 是周日）' };
+		if (!Number.isInteger(restDay) || restDay < 0 || restDay > 6) return { ok: false, reason: tx.reason.restDay };
 		const current = String(p.current).slice(0, 16);
 		return await this.locked(userId, async m => {
 			const old = await this.planOf(m, userId);
 			const tz = p.tz != null && validTz(p.tz) ? p.tz : old?.tz ?? 'Asia/Shanghai';
 			const today = todayIn(tz);
-			if (examDate <= today) return { ok: false, reason: '考试日要在今天以后' };
-			if (diffDays(examDate, today) > 730) return { ok: false, reason: '考试日太远了，两年以内才排' };
+			if (examDate <= today) return { ok: false, reason: tx.reason.examPast };
+			if (diffDays(examDate, today) > 730) return { ok: false, reason: tx.reason.examFar };
 			const stages = computeStages(list, today, examDate, current);
 			const tasks = old ? await this.tasksOf(m, userId) : [];
 			const before: Snap = { plan: old, tasks: [], checkins: [] };
@@ -367,10 +376,10 @@ export class LojoPlanService {
 			plan.plannedUntil = until;
 			await this.putPlan(m, plan);
 			const after: Snap = { plan, tasks: [...before.tasks.map(t => ({ ...t, ...this.cleared(t, today) })), ...made], checkins: [] };
-			const exam = `考试 ${cnDate(examDate)}${tentative ? '（暂定）' : ''}`;
-			const summary = stages.length === 0 ? `计划存好了；${exam}`
-				: stages[0].no === 0 ? `排好了摸底期：${cnDate(stages[0].start)}到${cnDate(stages[0].end)}，先摸个底，分数出来再排全程；${exam}`
-				: `排好了全程：${stages.map(s => `${s.name}段 ${cnDate(s.start)}起`).join('，')}；${exam}`;
+			const exam = tx.summary.exam(tx.date(examDate), tentative);
+			const summary = stages.length === 0 ? tx.summary.saved(exam)
+				: stages[0].no === 0 ? tx.summary.placement(tx.date(stages[0].start), tx.date(stages[0].end), exam)
+				: tx.summary.full(stages.map(s => ({ name: s.name, start: tx.date(s.start) })), exam);
 			const changeId = await this.record(m, userId, who, summary, before, after);
 			return { ok: true, changeId, summary, stages, thisWeek: made.filter(t => t.kind === 'task').length };
 		});
@@ -407,96 +416,100 @@ export class LojoPlanService {
 	}
 
 	public async addTask(userId: string, who: PlanWho, p: { title: string; date?: string | null; minutes: number; kind?: string | null; app?: string | null; ref?: string | null; autoDone?: unknown }): Promise<PlanResult> {
+		const tx = await this.text(userId);
 		const title = String(p.title ?? '').trim().slice(0, 128);
-		if (title === '') return { ok: false, reason: '要有事名' };
+		if (title === '') return { ok: false, reason: tx.reason.noTitle };
 		const minutes = Number(p.minutes);
-		if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) return { ok: false, reason: '分钟数要在 1 到 600 之间' };
+		if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) return { ok: false, reason: tx.reason.minutes };
 		const kind = p.kind === 'checkin' ? 'checkin' : 'task';
-		if (p.app != null && !APP_ID.test(p.app)) return { ok: false, reason: `没有叫 ${p.app} 的小程序` };
+		if (p.app != null && !APP_ID.test(p.app)) return { ok: false, reason: tx.reason.noApp(p.app) };
 		return await this.locked(userId, async m => {
 			const pr = await this.prepare(m, userId);
-			if (pr == null) return { ok: false, reason: '还没有计划，先排一个' };
+			if (pr == null) return { ok: false, reason: tx.reason.noPlanYet };
 			const { plan, today, tasks } = pr;
 			const date = p.date ?? today;
-			if (!isDate(date)) return { ok: false, reason: '日子要写成 2026-11-20' };
-			const why = dayProblem(this.ctx(plan), tasks, date, today, minutes, kind);
+			if (!isDate(date)) return { ok: false, reason: tx.reason.dateFormat('2026-11-20') };
+			const why = dayProblem(this.ctx(plan), tasks, date, today, minutes, kind, undefined, tx.lang);
 			if (why) return { ok: false, reason: why };
 			const stage = stageOn(plan.stages, date)?.no ?? plan.stages.at(-1)?.no ?? 0;
 			const [row] = await this.insertDrafts(m, userId, [{
 				title, kind, stage, date, endDate: null, minutes, app: p.app ?? null, ref: p.ref ? String(p.ref).slice(0, 32) : null, autoDone: cleanAutoDone(p.autoDone), itemId: null,
 			}], who, true);
-			const summary = kind === 'checkin' ? `加了 1 项打卡：${title}，${cnDate(date)}起每天` : `加了 1 件：${title} → ${cnDate(date)}`;
+			const summary = kind === 'checkin' ? tx.summary.addCheckin(title, tx.date(date)) : tx.summary.addTask(title, tx.date(date));
 			const changeId = await this.record(m, userId, who, summary, { tasks: [], checkins: [] }, { tasks: [row], checkins: [] });
 			return { ok: true, changeId, summary, taskId: row.id };
 		});
 	}
 
 	public async moveTask(userId: string, who: PlanWho, p: { taskId: string; toDate: string }): Promise<PlanResult> {
-		if (!isDate(p.toDate)) return { ok: false, reason: '日子要写成 2026-11-20' };
+		const tx = await this.text(userId);
+		if (!isDate(p.toDate)) return { ok: false, reason: tx.reason.dateFormat('2026-11-20') };
 		return await this.locked(userId, async m => {
 			const pr = await this.prepare(m, userId);
-			if (pr == null) return { ok: false, reason: '还没有计划' };
+			if (pr == null) return { ok: false, reason: tx.reason.noPlan };
 			const { plan, today, tasks } = pr;
 			const t = tasks.find(x => x.id === p.taskId);
-			if (t == null) return { ok: false, reason: '找不到这件事' };
-			if (t.kind !== 'task') return { ok: false, reason: '打卡每天都有，不用挪' };
-			if (t.status === 'done') return { ok: false, reason: '这件已经做完了' };
-			if (t.date === p.toDate) return { ok: false, reason: `这件本来就在${cnDate(p.toDate)}` };
-			const why = dayProblem(this.ctx(plan), tasks, p.toDate, today, t.minutes, 'task', t.id);
+			if (t == null) return { ok: false, reason: tx.reason.noTask };
+			if (t.kind !== 'task') return { ok: false, reason: tx.reason.checkinNoMove };
+			if (t.status === 'done') return { ok: false, reason: tx.reason.taskDone };
+			if (t.date === p.toDate) return { ok: false, reason: tx.reason.alreadyOn(tx.date(p.toDate)) };
+			const why = dayProblem(this.ctx(plan), tasks, p.toDate, today, t.minutes, 'task', t.id, tx.lang);
 			if (why) return { ok: false, reason: why };
 			const moved = { ...t, date: p.toDate, pinned: true };
 			await this.putTask(m, moved);
-			const summary = `挪了 1 件：${t.title} → ${cnDate(p.toDate)}`;
+			const summary = tx.summary.move(t.title, tx.date(p.toDate));
 			const changeId = await this.record(m, userId, who, summary, { tasks: [t], checkins: [] }, { tasks: [moved], checkins: [] });
 			return { ok: true, changeId, summary };
 		});
 	}
 
 	public async setStatus(userId: string, who: PlanWho, p: { taskId: string; status: string; date?: string | null; via?: string | null }): Promise<PlanResult> {
-		if (!['todo', 'doing', 'done', 'removed'].includes(p.status)) return { ok: false, reason: '状态只能是 todo、doing、done、removed' };
+		const tx = await this.text(userId);
+		if (!['todo', 'doing', 'done', 'removed'].includes(p.status)) return { ok: false, reason: tx.reason.status };
 		const status = p.status as TaskStatus;
 		return await this.locked(userId, async m => {
 			const pr = await this.prepare(m, userId);
-			if (pr == null) return { ok: false, reason: '还没有计划' };
+			if (pr == null) return { ok: false, reason: tx.reason.noPlan };
 			const { plan, today, tasks } = pr;
 			const t = tasks.find(x => x.id === p.taskId);
-			if (t == null) return { ok: false, reason: '找不到这件事' };
+			if (t == null) return { ok: false, reason: tx.reason.noTask };
 			// 「勾上这件吗？」 → 勾上: the learner's own tick, shown as 「刚练完，你勾上的」
 			const doneBy = who === 'vibi' ? 'vibi' : p.via === 'ask' ? 'ask' : 'self';
 			if (t.kind === 'checkin' && status !== 'removed') {
 				const date = p.date ?? today;
-				if (!isDate(date) || date > today) return { ok: false, reason: '只能勾今天和以前的打卡' };
-				if (!checkinsOn([t], date, plan.restDay).length) return { ok: false, reason: `${cnDate(date)}没有这项打卡` };
+				if (!isDate(date) || date > today) return { ok: false, reason: tx.reason.checkinPast };
+				if (!checkinsOn([t], date, plan.restDay).length) return { ok: false, reason: tx.reason.noCheckinOn(tx.date(date)) };
 				const old: CheckinRow | undefined = (await m.query('SELECT * FROM "lojo_plan_checkin" WHERE "taskId" = $1 AND "date" = $2', [t.id, date]))[0];
 				// unticked by hand: kept as a row without doneAt, so it is not ticked back automatically today
 				const row: CheckinRow = { taskId: t.id, userId, date, doneAt: status === 'done' ? new Date() : null, doneBy: status === 'done' ? doneBy : 'off' };
 				await this.putCheckin(m, row);
-				const summary = status === 'done' ? `打卡：${t.title}` : `取消打卡：${t.title}`;
+				const summary = tx.summary.checkin(t.title, status === 'done');
 				const changeId = await this.record(m, userId, who, summary, { tasks: [], checkins: old ? [old] : [] }, { tasks: [], checkins: [row] });
 				return { ok: true, changeId, summary };
 			}
-			if (t.status === status) return { ok: false, reason: '已经是这个状态了' };
+			if (t.status === status) return { ok: false, reason: tx.reason.sameStatus };
 			const next: TaskRow = { ...t, status };
 			if (status === 'done') Object.assign(next, { doneBy, doneAt: new Date(), offDate: null, askedAt: null });
 			else if (t.status === 'done') Object.assign(next, { doneBy: null, doneAt: null, offDate: today });
 			await this.putTask(m, next);
-			const summary = { done: `勾上了：${t.title}`, todo: `改回没做：${t.title}`, doing: `开始做：${t.title}`, removed: t.kind === 'checkin' ? `删掉了打卡：${t.title}` : `删掉了：${t.title}` }[status];
+			const summary = tx.summary.status(status, t.title, t.kind === 'checkin');
 			const changeId = await this.record(m, userId, who, summary, { tasks: [t], checkins: [] }, { tasks: [next], checkins: [] });
 			return { ok: true, changeId, summary };
 		});
 	}
 
 	public async planWeek(userId: string, who: PlanWho, p: { weekStart?: string | null }): Promise<PlanResult> {
-		if (p.weekStart != null && !isDate(p.weekStart)) return { ok: false, reason: '日子要写成 2026-11-17' };
+		const tx = await this.text(userId);
+		if (p.weekStart != null && !isDate(p.weekStart)) return { ok: false, reason: tx.reason.dateFormat('2026-11-17') };
 		const list = await this.list();
-		if (list == null) return { ok: false, reason: '备考清单还没导入这个站，排不了' };
+		if (list == null) return { ok: false, reason: tx.reason.noList };
 		return await this.locked(userId, async m => {
 			const pr = await this.prepare(m, userId);
-			if (pr == null) return { ok: false, reason: '还没有计划，先排一个' };
+			if (pr == null) return { ok: false, reason: tx.reason.noPlanYet };
 			const { plan, today, tasks } = pr;
 			const ws = p.weekStart != null ? mondayOf(p.weekStart) : addDays(mondayOf(today), 7);
 			const from = maxDate(ws, today); const to = addDays(ws, 6);
-			if (to < today) return { ok: false, reason: '那一周已经过去了' };
+			if (to < today) return { ok: false, reason: tx.reason.weekPast };
 			const before: Snap = { tasks: [], checkins: [] };
 			const kept: TaskRow[] = [];
 			for (const t of tasks) {
@@ -508,8 +521,8 @@ export class LojoPlanService {
 			const made = await this.insertDrafts(m, userId, fillDays(list, plan, plan.stages, kept, from, to), 'planner', false);
 			if (plan.plannedUntil == null || plan.plannedUntil < to) await m.query('UPDATE "lojo_plan" SET "plannedUntil" = $2 WHERE "userId" = $1', [userId, to]);
 			const n = made.filter(t => t.kind === 'task').length;
-			if (n === 0 && before.tasks.length === 0) return { ok: false, reason: plan.stages.every(s => s.no === 0) ? '摸底期之外先不排，等分数出来再排全程' : '这一周没有可以排的' };
-			const summary = `排好了 ${cnDate(ws)}起这一周：${n} 件`;
+			if (n === 0 && before.tasks.length === 0) return { ok: false, reason: plan.stages.every(s => s.no === 0) ? tx.reason.onlyPlacement : tx.reason.nothingThisWeek };
+			const summary = tx.summary.week(tx.date(ws), n);
 			const after: Snap = { tasks: [...before.tasks.map(t => ({ ...t, status: 'removed' as const })), ...made], checkins: [] };
 			const changeId = await this.record(m, userId, who, summary, before, after);
 			const days = [...Array(7).keys()].map(i => addDays(ws, i)).map(d => ({ date: d, tasks: tasksOn([...kept, ...made], d).map(t => t.title) }));
@@ -518,11 +531,12 @@ export class LojoPlanService {
 	}
 
 	public async replanFromToday(userId: string, who: PlanWho): Promise<PlanResult> {
+		const tx = await this.text(userId);
 		const list = await this.list();
-		if (list == null) return { ok: false, reason: '备考清单还没导入这个站，排不了' };
+		if (list == null) return { ok: false, reason: tx.reason.noList };
 		return await this.locked(userId, async m => {
 			const pr = await this.prepare(m, userId);
-			if (pr == null) return { ok: false, reason: '还没有计划，先排一个' };
+			if (pr == null) return { ok: false, reason: tx.reason.noPlanYet };
 			const { plan, today, tasks } = pr;
 			const stages = computeStages(list, today, plan.examDate, plan.current);
 			const before: Snap = { plan: { ...plan }, tasks: [], checkins: [] };
@@ -533,8 +547,8 @@ export class LojoPlanService {
 			await this.putPlan(m, next);
 			const n = made.filter(t => t.kind === 'task').length;
 			const last = stages.at(-1);
-			const where = stages.length > 1 && last ? `，${last.name}段从${cnDate(last.start)}开始` : last?.no === 3 ? '，离考试不到 3 周，只排冲刺' : '';
-			const summary = `从今天起重排了 ${n} 件${where}`;
+			const where = stages.length > 1 && last ? tx.summary.replanStage(last.name, tx.date(last.start)) : last?.no === 3 ? tx.summary.replanSprint : '';
+			const summary = tx.summary.replan(n, where);
 			const after: Snap = { plan: next, tasks: [...before.tasks.map(t => ({ ...t, ...this.cleared(t, today) })), ...made], checkins: [] };
 			const changeId = await this.record(m, userId, who, summary, before, after);
 			return { ok: true, changeId, summary };
@@ -543,11 +557,13 @@ export class LojoPlanService {
 
 	// Writes `before` back. Tasks the change made are taken out (status removed, never deleted).
 	public async undo(userId: string, who: PlanWho, p: { changeId: string }): Promise<PlanResult> {
+		const tx = await this.text(userId);
 		return await this.locked(userId, async m => {
 			const c = (await m.query('SELECT * FROM "lojo_plan_change" WHERE "id" = $1 AND "userId" = $2', [p.changeId, userId]))[0];
-			if (c == null) return { ok: false, reason: '找不到这次改动' };
-			if (c.undoneAt != null) return { ok: false, reason: '这次改动已经撤销过了' };
-			if (Date.now() - new Date(c.at).getTime() > UNDO_DAYS * 86400_000) return { ok: false, reason: `超过 ${UNDO_DAYS} 天的改动不能撤销` };
+			if (c == null) return { ok: false, reason: tx.reason.noChange };
+			// code: the web app tells 「already undone」 apart by this, not by the words (they follow the language)
+			if (c.undoneAt != null) return { ok: false, reason: tx.reason.alreadyUndone, code: 'alreadyUndone' };
+			if (Date.now() - new Date(c.at).getTime() > UNDO_DAYS * 86400_000) return { ok: false, reason: tx.reason.tooOld(UNDO_DAYS) };
 			const before = c.before as Snap; const after = c.after as Snap;
 			const now: Snap = { tasks: [], checkins: [] };
 			if ('plan' in before) {
@@ -569,7 +585,7 @@ export class LojoPlanService {
 				else await m.query('DELETE FROM "lojo_plan_checkin" WHERE "taskId" = $1 AND "date" = $2 AND "userId" = $3', [k.taskId, k.date, userId]);
 			}
 			await m.query('UPDATE "lojo_plan_change" SET "undoneAt" = now() WHERE "id" = $1', [c.id]);
-			const summary = `撤销了：${c.summary}`;
+			const summary = tx.summary.undo(c.summary);
 			const changeId = await this.record(m, userId, who, summary, now, before);
 			return { ok: true, changeId, summary };
 		});
@@ -676,7 +692,7 @@ export class LojoPlanService {
 
 	// Page settings: the learner's time zone (read from the browser) and 「周日排完告诉我」. Not a change.
 	public async settings(userId: string, p: { tz?: string | null; notifyWeekly?: boolean | null }) {
-		if (p.tz != null && !validTz(p.tz)) return { ok: false, reason: '认不得这个时区' };
+		if (p.tz != null && !validTz(p.tz)) return { ok: false, reason: (await this.text(userId)).reason.timezone };
 		await this.db.query('UPDATE "lojo_plan" SET "tz" = coalesce($2, "tz"), "notifyWeekly" = coalesce($3, "notifyWeekly") WHERE "userId" = $1', [userId, p.tz ?? null, p.notifyWeekly ?? null]);
 		return { ok: true };
 	}

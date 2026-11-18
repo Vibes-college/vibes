@@ -59,7 +59,9 @@ import {
 import { normalizeTutorPrompts, PROMPTS_KEY } from '@/misc/lojo-tutor-prompts.js';
 import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
-import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection, TUTOR_AWAY_PREFIX } from '@/misc/lojo-tutor-quest.js';
+import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection } from '@/misc/lojo-tutor-quest.js';
+import { tutorText } from '@/misc/lojo-tutor-text.js';
+import { learnerUiLang } from '@/misc/lojo-ui-lang.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 import { progressCardText, RECALL_MIN_SCORE, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
 import type { ChatHit, QuestMistakes, QuestProgressFacts, WordbookFacts } from '@/misc/lojo-tutor-progress.js';
@@ -360,7 +362,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		await this.chargeMastra(learner.id, res);
 		const answer = normalizeTutorReply(res);
 		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
-		const out = [...await this.withNextLink(tutor.id, answer, questTry ?? undefined), ...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id), ...await this.lojoAppsService.actionCards(learner.id).catch(() => [] as string[])];
+		const out = [...await this.withNextLink(tutor.id, answer, questTry ?? undefined), ...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id), ...await this.lojoAppsService.actionCards(learner.id, await learnerUiLang(this.registryApiService, learner.id)).catch(() => [] as string[])];
 		await this.redisClient.set(key, `${lastLearner.id}|${out.length}`, 'EX', 90 * 24 * 60 * 60);
 		await this.send(tutor, learner, out, answer.voice, card.extensions.vibes?.voice);
 		await this.markAnswered(tutor.id, learner.id, lastLearner.id);
@@ -516,9 +518,10 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: ev.userId }),
 			]);
-			const [card, persona, cards] = await Promise.all([this.card(tutorId), this.persona(learner.id), this.recentCards(learner.id)]);
+			const [card, persona, cards, uiLang] = await Promise.all([this.card(tutorId), this.persona(learner.id), this.recentCards(learner.id), learnerUiLang(this.registryApiService, learner.id)]);
+			// uiLang: she writes this one first, so in the learner's interface language (界面语言第②批)
 			const res = await this.whileTyping(learner.id, tutor.id, () => this.postMastra('/event', learner.id, {
-				kind: ev.kind, summary: ev.summary, tasks, now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards,
+				kind: ev.kind, summary: ev.summary, tasks, now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards, uiLang,
 			}));
 			await this.chargeMastra(learner.id, res);
 			const answer = normalizeTutorReply(res);
@@ -661,8 +664,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [{ card, prompts }, memory, history, recentPosts, progress, persona, recent] = await Promise.all([
+			const [{ card, prompts }, memory, history, recentPosts, progress, persona, recent, uiLang] = await Promise.all([
 				this.setup(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.recentPosts(), this.progressCard(learnerId), this.persona(learnerId), this.recentMessages(tutorId, learnerId),
+				learnerUiLang(this.registryApiService, learnerId),
 			]);
 			if (prompts == null) return false;
 			// If the learner's last message is still unanswered, answer it instead of opening a new topic.
@@ -674,6 +678,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				tutorName: persona.name,
 				opener: unanswered ? undefined : { reason: this.openerReason(prompts, memory, history), recentPosts },
 				progress,
+				// only when she opens a new topic; an unanswered message is answered in the language it was written in
+				uiLang: unanswered ? undefined : uiLang,
 			});
 			// The model answers the last turn. After the tutor's own messages that has to be a cue, not her last reply,
 			// or she repeats it; an empty chat starts from a neutral cue too.
@@ -724,8 +730,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: learnerId }),
 			]);
-			const [{ card, prompts }, memory, history, progress, quest, persona, recent] = await Promise.all([
+			const [{ card, prompts }, memory, history, progress, quest, persona, recent, uiLang] = await Promise.all([
 				this.setup(tutorId), this.sessionMemory(tutorId, learnerId), this.sessionHistory(tutorId, learnerId), this.progressCard(learnerId), this.questContext(tutorId, learnerId), this.persona(learnerId), this.recentMessages(tutorId, learnerId),
+				learnerUiLang(this.registryApiService, learnerId),
 			]);
 			if (quest == null) return;
 			// Without her words, the same as when the model is away: where to go next, built from this try.
@@ -734,7 +741,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				return;
 			}
 			const system = tutorSystemPrompt(prompts, card, memory, { questKnowledge: questKnowledgeSection(quest.knowledge) });
-			const context = tutorContextMessage(prompts, { now: this.nowText(), learnerName: this.nameOf(learner), tutorName: persona.name, progress, quest: questTrySection(prompts, quest.knowledge, quest.questTry) });
+			const context = tutorContextMessage(prompts, { now: this.nowText(), learnerName: this.nameOf(learner), tutorName: persona.name, progress, quest: questTrySection(prompts, quest.knowledge, quest.questTry), uiLang });
 			// As in writeFirst, the model answers the last turn, so it ends with a cue (added to an unanswered message if there is one).
 			const cue = prompts.cueQuest;
 			const turns: ChatTurn[] = history.at(-1)?.role === 'user'
@@ -777,11 +784,11 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		await this.redisClient.sadd(PENDING_KEY, `${tutor.id}:${learner.id}`);
 		if (await this.redisClient.set(`lojoTutor:awayNote:${tutor.id}:${learner.id}`, '1', 'EX', AWAY_NOTE_TTL_SECONDS, 'NX') !== 'OK') return;
 		const map = `${this.config.url.replace(/\/$/, '')}/quest`;
-		await this.send(tutor, learner, [`${TUTOR_AWAY_PREFIX}，你的消息我回来会先看 🙏 想先练的话，👉 闯关地图 ${map}`], false, undefined);
+		await this.send(tutor, learner, [tutorText(await learnerUiLang(this.registryApiService, learner.id)).away(map)], false, undefined);
 	}
 
 	private async sayAwayForQuest(tutor: MiUser, learner: MiUser, knowledge: QuestKnowledge, questTry: QuestTry): Promise<void> {
-		const away = questAwayMessage(knowledge, questTry);
+		const away = questAwayMessage(knowledge, questTry, await learnerUiLang(this.registryApiService, learner.id));
 		await this.send(tutor, learner, await this.withNextLink(tutor.id, { ...away, voice: false }, questTry), false, undefined);
 	}
 
@@ -1126,7 +1133,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		if ((await this.chatService.userTimeline(tutorId, learner.id, 1)).length > 0) return false;
 		const tutor = await this.usersRepository.findOneBy({ id: tutorId });
 		if (tutor == null) return false;
-		await this.send(tutor, learner, [personaHello(name)], false, undefined);
+		await this.send(tutor, learner, [personaHello(name, await learnerUiLang(this.registryApiService, learner.id))], false, undefined);
 		return true;
 	}
 

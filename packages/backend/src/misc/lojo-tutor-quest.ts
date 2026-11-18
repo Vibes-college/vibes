@@ -9,6 +9,8 @@
 // maintained by the AI tutor team; without it there is no quest mode. Plan: 闯关上线/Mia接入.md (2026-11-10).
 // The lines that tell her what to do with it are private too (TutorPrompts questNextHead, questNextNone, questFollowUp).
 
+import { TUTOR_AWAY_PREFIXES, tutorText } from '@/misc/lojo-tutor-text.js';
+import type { UiLang } from '@/misc/lojo-ui-lang.js';
 import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 
 const str = (value: unknown, max: number): string => (typeof value === 'string' ? value.trim().slice(0, max) : '');
@@ -185,18 +187,19 @@ export function questNextLine(questTry: QuestTry, nextId: string | undefined, ba
 // When the model cannot be reached (no balance or a bad key), "Ask Vibi" still gets one fixed message built from this try
 // and the quest knowledge: the cause, its one-line Chinese tip (tipZh), and the next step by the hearts rules she
 // follows. No answers, no error words. Spec: 冲刺1111/Mia/兜底规格.md F2 (AI tutor, 2026-11-11).
-// In the first person since every learner names her (Momo, 2026-11-17), so it is the same whatever her name is.
-export const TUTOR_AWAY_PREFIX = '我这会儿不在线';
+// The words, Chinese or English by the learner's interface language: misc/lojo-tutor-text.ts.
+export const TUTOR_AWAY_PREFIX = TUTOR_AWAY_PREFIXES.zh;
 // Away messages sent before (named Mia until 2026-11-12, then Vibi) still start with these; they are left out of her context too.
 const LEGACY_AWAY_PREFIXES = ['Mia 这会儿不在线', 'Vibi 这会儿不在线'];
 export function isTutorAwayText(text: string | null | undefined): boolean {
 	if (text == null) return false;
-	return text.startsWith(TUTOR_AWAY_PREFIX) || LEGACY_AWAY_PREFIXES.some(prefix => text.startsWith(prefix));
+	return Object.values(TUTOR_AWAY_PREFIXES).some(prefix => text.startsWith(prefix)) || LEGACY_AWAY_PREFIXES.some(prefix => text.startsWith(prefix));
 }
 
-export function questAwayMessage(knowledge: QuestKnowledge | null, questTry: QuestTry): { messages: string[]; next?: string } {
+export function questAwayMessage(knowledge: QuestKnowledge | null, questTry: QuestTry, lang: UiLang = 'zh'): { messages: string[]; next?: string } {
+	const t = tutorText(lang).quest;
 	const cause = questTry.cause != null ? knowledge?.causes[questTry.cause] : undefined;
-	const lines = [cause?.zh ? `${TUTOR_AWAY_PREFIX}，先给你留个路标：这一关主要卡在「${cause.zh}」。` : `${TUTOR_AWAY_PREFIX}，先给你留个路标。`];
+	const lines = [cause?.zh ? t.causeLead(cause.zh) : t.lead];
 	// The tip in Chinese written for this (AI tutor, ch1-2026-11-11f); without one the line is left out, never the English technique.
 	if (cause?.tipZh) lines.push(cause.tipZh);
 	const { now, nextRefill, refilledToday } = questTry.hearts;
@@ -205,16 +208,16 @@ export function questAwayMessage(knowledge: QuestKnowledge | null, questTry: Que
 	const retry = questTry.next.find(n => n.id === 'retry');
 	let next: QuestNext | undefined;
 	if (now >= 3 && retry) {
-		lines.push(`你还有 ${now} 颗心，再打这一关会换新题。`);
+		lines.push(t.retry(now));
 		next = retry;
 	} else if (!refilledToday.guide && book) {
-		lines.push('先读这本锦囊，读完过小测能补 1 颗心。');
+		lines.push(t.book);
 		next = book;
 	} else if (!refilledToday.gear && gear) {
-		lines.push('练一组这个装备，能补 1 颗心。');
+		lines.push(t.gear);
 		next = gear;
 	} else if (book) {
-		lines.push(nextRefill ? `心 ${nextRefill} 回满，先读读这本锦囊。` : '心明天回满，先读读这本锦囊。');
+		lines.push(nextRefill ? t.refillAt(nextRefill) : t.refillTomorrow);
 		next = book;
 	}
 	return { messages: [lines.join('\n')], ...(next ? { next: next.id } : {}) };

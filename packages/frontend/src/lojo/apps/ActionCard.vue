@@ -10,8 +10,8 @@ in every tab and after a reload. -->
 <div :class="[$style.card, $style[state]]" data-app-action :data-app-action-state="state">
 	<div :class="$style.head">
 		<i :class="[$style.icon, icon]"></i>
-		<span :class="$style.title">{{ state === 'done' ? (view?.appName ?? S.done) : S.title }}</span>
-		<span v-if="view?.appName && state !== 'done'" :class="$style.app">{{ view.appName }}</span>
+		<span :class="$style.title">{{ state === 'done' ? (appName ?? S.done) : S.title }}</span>
+		<span v-if="appName && state !== 'done'" :class="$style.app">{{ appName }}</span>
 	</div>
 	<div :class="$style.text">{{ state === 'done' ? doneText : sentence }}</div>
 
@@ -30,7 +30,7 @@ in every tab and after a reload. -->
 			<button class="_button" :class="$style.confirm" :disabled="busy" data-app-action-confirm @click="decide('confirm')">{{ S.retry }}</button>
 		</div>
 	</template>
-	<a v-else-if="state === 'done' && view?.appUrl" :href="view.appUrl" :class="$style.open" data-app-action-open>{{ S.open(view.appName) }} <i class="ti ti-chevron-right"></i></a>
+	<a v-else-if="state === 'done' && view?.appUrl" :href="view.appUrl" :class="$style.open" data-app-action-open>{{ S.open(appName ?? view.appName) }} <i class="ti ti-chevron-right"></i></a>
 	<div v-else-if="state === 'cancelled'" :class="$style.note">{{ S.cancelled }}</div>
 	<div v-else-if="state === 'expired'" :class="$style.note">{{ S.expired }}</div>
 	<div v-else-if="state === 'gone'" :class="$style.note">{{ S.gone }}</div>
@@ -42,12 +42,13 @@ import { computed, onMounted, ref } from 'vue';
 import { appActionErrorKind, decideAppAction, showAppAction } from './actionCard.js';
 import type { AppActionView } from './actionCard.js';
 import { vt, vibesLang } from '@/lojo/locales/index.js';
+import { miniAppName } from '@/lojo/miniapps/roster.js';
 import * as os from '@/os.js';
 
 const S = vt.appAction;
 
 const props = defineProps<{
-	/** the sentence in the message (Chinese), shown until the card's state has loaded */
+	/** the sentence in the message (in the learner's interface language when it was sent), shown until the card's state has loaded */
 	sentence: string;
 	actionId: string;
 }>();
@@ -59,6 +60,8 @@ const busy = ref(false);
 
 const state = computed(() => (gone.value ? 'gone' : view.value?.status ?? 'pending'));
 const sentence = computed(() => view.value?.text[vibesLang] || props.sentence);
+// the app's name in the interface language from the roster; the server's (Chinese) name if the roster has not got it
+const appName = computed(() => (view.value ? miniAppName(view.value.app) ?? view.value.appName : null));
 const doneText = computed(() => view.value?.done[vibesLang] ?? S.done);
 const icon = computed(() => ({
 	pending: 'ti ti-hand-finger',

@@ -70,6 +70,8 @@ export const planStrings = zh ? {
 	nextWeek: '下一周',
 	open: (app: string) => `打开${app}`,
 	weekday: (d: string) => `周${WEEK_ZH[wd(d)]}`,
+	/** one character for the 本周 circles: 「三」 */
+	weekdayLetter: (d: string) => WEEK_ZH[wd(d)],
 	dateLong: (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日 周${WEEK_ZH[wd(d)]}`,
 	dateShort: (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日`,
 	restDayName: (n: number) => `周${WEEK_ZH[n]}`,
@@ -160,6 +162,8 @@ export const planStrings = zh ? {
 	nextWeek: 'Next week',
 	open: (app: string) => `Open ${app}`,
 	weekday: (d: string) => WEEK_EN[wd(d)],
+	/** one letter for the This week circles: "W" */
+	weekdayLetter: (d: string) => WEEK_EN[wd(d)].charAt(0),
 	dateLong: (d: string) => `${WEEK_EN[wd(d)]}, ${MONTH_EN[Number(d.slice(5, 7)) - 1]} ${Number(d.slice(8, 10))}`,
 	dateShort: (d: string) => `${MONTH_EN[Number(d.slice(5, 7)) - 1]} ${Number(d.slice(8, 10))}`,
 	restDayName: (n: number) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][n],

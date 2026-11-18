@@ -61,5 +61,10 @@ describe('每个学员自己的 Momo', () => {
 		const hello = personaHello('豆豆');
 		expect(hello.startsWith('嗨，我是 豆豆，你的学搭子。我是 AI，不是真人')).toBe(true);
 		expect(hello).not.toContain('Momo');
+		// 界面语言第②批: English for an English interface, the same words as the sign-up step
+		const en = personaHello('Pip', 'en');
+		expect(en.startsWith('Hi, I\'m Pip. I\'m an AI, not a real person.')).toBe(true);
+		expect(en).not.toMatch(/[\u3400-\u9fff]/);
+		expect(personaHello('豆豆', 'zh')).toBe(hello);
 	});
 });

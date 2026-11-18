@@ -5,7 +5,8 @@
 
 import { describe, expect, test } from 'vitest';
 import { emptyMemory, normalizeTutorReply, tutorSystemPrompt } from '@/misc/lojo-tutor.js';
-import { normalizeQuestKnowledge, normalizeQuestTry, pickQuestKnowledge, questChapterNo, questAwayMessage, questKnowledgeSection, questNextLine, questPromptSection, questTrySection } from '@/misc/lojo-tutor-quest.js';
+import { isTutorAwayText, normalizeQuestKnowledge, normalizeQuestTry, pickQuestKnowledge, questChapterNo, questAwayMessage, questKnowledgeSection, questNextLine, questPromptSection, questTrySection } from '@/misc/lojo-tutor-quest.js';
+import { tutorText } from '@/misc/lojo-tutor-text.js';
 import { testPrompts } from '../misc/lojo-tutor-prompts.js';
 
 // Sample data (示例), shaped like 闯关上线/Mia接入.md section 2.
@@ -96,6 +97,26 @@ describe('Vibes AI tutor in the quest map', () => {
 		const used = { ...low, hearts: { ...low.hearts, refilledToday: { guide: true, gear: true } } };
 		expect(questAwayMessage(k, used).messages[0]).toContain('20:00 回满');
 		expect(questAwayMessage(null, low).messages[0].split('\n')).toHaveLength(2);
+	});
+
+	test('away message in English for an English interface; the cause and tip are quest content and stay as written', () => {
+		const k = normalizeQuestKnowledge(knowledge)!;
+		const t = normalizeQuestTry(sampleTry)!;
+		const en = questAwayMessage(k, t, 'en');
+		expect(en.next).toBe('retry');
+		expect(en.messages[0]).toMatch(/^I'm offline right now, so here's a pointer first: this level mostly tripped you up on 「/);
+		expect(en.messages[0]).toContain('先想两种别的说法');
+		expect(en.messages[0]).toContain('Play this level again');
+		const low = { ...t, hearts: { ...t.hearts, now: 1 } };
+		expect(questAwayMessage(k, low, 'en').messages[0]).toContain('Pass its short quiz to get 1 heart back.');
+		const used = { ...low, hearts: { ...low.hearts, refilledToday: { guide: true, gear: true } } };
+		expect(questAwayMessage(k, used, 'en').messages[0]).toContain('Your hearts refill at 20:00.');
+		expect(questAwayMessage(null, low, 'en').messages[0].startsWith('I\'m offline right now, so here\'s a pointer first.')).toBe(true);
+		// both languages' away lines are kept out of her context
+		expect(isTutorAwayText(en.messages[0])).toBe(true);
+		expect(isTutorAwayText(tutorText('en').away('https://lan.example/quest'))).toBe(true);
+		expect(isTutorAwayText(tutorText('zh').away('https://lan.example/quest'))).toBe(true);
+		expect(isTutorAwayText('I\'m online')).toBe(false);
 	});
 
 	describe('reads the knowledge of the try\'s chapter (按章读知识-需求.md)', () => {

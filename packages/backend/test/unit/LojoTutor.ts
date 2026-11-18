@@ -102,6 +102,12 @@ describe('Vibes AI tutor', () => {
 		expect(tutorContextMessage(testPrompts, { now: 'x', learnerName: 'Lin' })).toBe('NOW x\nLEARNER Lin');
 		expect(tutorContextMessage(testPrompts, { now: 'x', tutorName: 'Kiki' })).toBe('NOW x\nTUTOR NAME Kiki');
 		expect(tutorContextMessage(testPrompts, { now: 'x' })).toBe('NOW x');
+		// 界面语言第②批: what she writes first is in the learner's interface language, told last; no cue in the words, no line
+		const cue = { ...testPrompts, uiLanguage: 'WRITE IN {{language}}' };
+		expect(tutorContextMessage(cue, { now: 'x', uiLang: 'en' })).toBe('NOW x\n\nWRITE IN English');
+		expect(tutorContextMessage(cue, { now: 'x', uiLang: 'zh' })).toBe('NOW x\n\nWRITE IN Chinese');
+		expect(tutorContextMessage(cue, { now: 'x' })).toBe('NOW x');
+		expect(tutorContextMessage(testPrompts, { now: 'x', uiLang: 'en' })).toBe('NOW x');
 		expect(prompt).not.toContain('Kiki');
 		const context = tutorContextMessage(testPrompts, {
 			now: '2026-10-25 Sunday afternoon (Beijing time)', opener: { reason: 'DAILY', recentPosts: ['Vibes 编辑部: Quick fix: "We discussed the plan"'] },

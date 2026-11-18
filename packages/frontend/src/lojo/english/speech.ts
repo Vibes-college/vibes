@@ -95,7 +95,7 @@ export function openVoiceMenu(ev: MouseEvent): void {
 		for (const v of group) {
 			items.push({
 				text: v.name,
-				caption: v.label,
+				caption: vt.post.voiceLabel(v.id, v.label),
 				icon: 'ti ti-microphone',
 				active: computed(() => currentVoice.value?.id === v.id),
 				action: () => {

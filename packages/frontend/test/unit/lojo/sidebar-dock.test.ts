@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/utility/misskey-api.js', () => ({ misskeyApi: vi.fn() }));
 vi.mock('@/lojo/app-overlay.js', () => ({ openAppOverlay: vi.fn() }));
 vi.mock('@/lojo/miniapps/state.js', () => ({ hasSeenMiniApp: () => false }));
-vi.mock('@@/js/config.js', () => ({ host: 'example.test' }));
+vi.mock('@@/js/config.js', () => ({ host: 'example.test', lang: 'en-US' }));
 vi.mock('@/instance.js', () => ({ instance: { name: '示例站' } }));
 vi.mock('@/i18n.js', () => ({
 	i18n: {

@@ -78,6 +78,22 @@ describe('小程序名册：导入前查格式', () => {
 		expect(appsRosterProblems(file([app({ tags: Array.from({ length: APPS_ROSTER_RULES.maxList + 1 }, (_, i) => `t${i}`) })]))[0]).toContain('tags');
 	});
 
+	test('界面语言第②批: an English name and intro are optional, field by field; what is there must be right', () => {
+		const en = { name: 'Example', intro: { summary: 'What it is', audience: 'Who it is for', steps: ['Step one'], caveats: [] } };
+		expect(appsRosterProblems(file([app({ en })]))).toEqual([]);
+		expect(appsRosterProblems(file([app({ en: { name: 'Example' } }), app({ id: 'example-b', en: { intro: { summary: 'Only this' } } })]))).toEqual([]);
+		expect(appsRosterProblems(file([app({ en: 'Example' })]))[0]).toContain('en');
+		expect(appsRosterProblems(file([app({ en: { name: ' ' } })]))[0]).toContain('en.name');
+		expect(appsRosterProblems(file([app({ en: { name: 'x'.repeat(APPS_ROSTER_RULES.maxName + 1) } })]))[0]).toContain('en.name');
+		expect(appsRosterProblems(file([app({ en: { title: 'Example' } })]))[0]).toContain('title');
+		expect(appsRosterProblems(file([app({ en: { intro: { sumary: 'x' } } })]))[0]).toContain('sumary');
+		expect(appsRosterProblems(file([app({ en: { intro: { steps: [] } } })]))[0]).toContain('en.intro.steps');
+		expect(appsRosterProblems(file([app({ en: { intro: { caveats: 'none' } } })]))[0]).toContain('en.intro.caveats');
+		expect(appsRosterProblems(file([app({ en: { intro: 'x' } })]))[0]).toContain('en.intro');
+		// what the launcher reads keeps it
+		expect(appsRosterPublic(file([app({ en })])).apps[0].en).toEqual(en);
+	});
+
 	test('the launcher reads only the entries that are on, in the order of the file', () => {
 		const roster = file([app({ id: 'example-a' }), app({ id: 'example-b', visible: false }), app({ id: 'example-c' })]);
 		expect(appsRosterPublic(roster).apps.map(a => a.id)).toEqual(['example-a', 'example-c']);
