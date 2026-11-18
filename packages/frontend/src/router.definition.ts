@@ -118,7 +118,7 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/to-app.vue')),
 }, {
 	// 路线图下线（11-10）：/map 跳到闯关。旧的站号链接（/map#2.1）对得上某一关就打开那一关，对不上就到地图。
-	// AP 的 /map/<course>、/maps、/gate/… 不动。
+	// /map/<course>、/maps、/gate/… 不动（AP 线路图 11-17 删了）。
 	path: '/map',
 	hash: 'station',
 	redirect: props => questUrlForStation(props.get('station')),
@@ -128,7 +128,8 @@ export const ROUTE_DEF = [{
 	hash: 'station',
 	redirect: props => questUrlForStation(props.get('station')),
 }, {
-	// One route map per course: /map/ap-calc-ab#2.2. Station hashes are kept by RouterView.
+	// One route map per course: /map/<course>#2.2. Station hashes are kept by RouterView. Only gate maps are left
+	// (the AP topic maps were removed 2026-11-17); a course with no map goes back to /map.
 	name: 'lojo',
 	path: '/map/:course',
 	component: page(() => import('@/pages/lojo/route.vue')),
@@ -139,10 +140,10 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/lojo/gate.vue')),
 	loginRequired: true,
 }, {
-	// The old 落脚地图 is off the navigation; old links still land here.
-	name: 'lojo-map',
+	// The old 落脚地图 (rent, food, events, travel) was removed on 2026-11-17; old links go to 闯关.
+	// A function redirect drops the old #building/... hash, which 闯关 does not use.
 	path: '/lojo/map',
-	component: page(() => import('@/pages/lojo/map.vue')),
+	redirect: () => '/quest',
 }, {
 	// Pre-Vibes addresses. Static redirects keep the query and #hash.
 	path: '/lojo/guides/new',

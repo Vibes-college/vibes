@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions">
 	<div ref="pageRoot" :class="$style.layout" data-testid="guide-detail">
 		<MkLoading v-if="loading"/>
+		<div v-else-if="gone" :class="$style.empty" role="alert" data-testid="guide-gone"><p>这篇攻略已经下架了</p><MkButton type="routerLink" to="/guides" inline>回攻略</MkButton></div>
 		<div v-else-if="failed" :class="$style.empty" role="alert"><p>攻略暂时无法加载</p><MkButton @click="load">{{ i18n.ts.retry }}</MkButton></div>
 		<template v-else-if="guide">
 			<article :class="$style.article" class="_panel">
@@ -76,6 +77,10 @@ const guide = ref<Guide | null>(null);
 const threads = ref<GuideThread[]>([]);
 const loading = ref(true);
 const failed = ref(false);
+// Vibes: the server says there is no such guide (taken down, i.e. made a draft again, or never there). Not a network
+// error, so no retry, and a copy kept from an earlier visit is not shown either.
+const gone = ref(false);
+const isGone = (error: unknown) => (error as { code?: string } | null)?.code === 'NO_SUCH_GUIDE';
 const saving = ref(false);
 const liking = ref(false);
 const activeThreadId = ref<string>();
@@ -112,6 +117,7 @@ async function load() {
 	const current = ++generation;
 	loading.value = true;
 	failed.value = false;
+	gone.value = false;
 	clearSelection();
 	try {
 		// /guides/ielts-listening-gaps (a link from a course pack): the guide lives at its id
@@ -142,8 +148,13 @@ async function load() {
 		const loaded = await marks;
 		if (current !== generation) return;
 		if (loaded != null) threads.value = loaded;
-	} catch {
-		if (current === generation) failed.value = true;
+	} catch (error) {
+		if (current !== generation) return;
+		if (isGone(error)) {
+			guide.value = null;
+			gone.value = true;
+			keep(`guide:${props.guideId}`, null);
+		} else failed.value = true;
 	} finally {
 		if (current === generation) loading.value = false;
 	}
@@ -204,7 +215,13 @@ async function refreshGuide() {
 		guide.value = value;
 		threads.value = marks;
 		keep(`guide:${id}`, value);
-	} catch { /* A cached article remains readable while temporarily offline. */ }
+	} catch (error) {
+		// A cached article remains readable while temporarily offline, but not once the guide has been taken down.
+		if (current !== generation || !isGone(error)) return;
+		guide.value = null;
+		gone.value = true;
+		keep(`guide:${id}`, null);
+	}
 }
 
 async function openThreads(ids: string[]) {

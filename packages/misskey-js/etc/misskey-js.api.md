@@ -2050,6 +2050,8 @@ declare namespace entities {
         LojoConnReportRequest,
         LojoContentImportRequest,
         LojoContentImportResponse,
+        LojoContentPackRequest,
+        LojoContentPackResponse,
         LojoContentRollbackRequest,
         LojoContentRollbackResponse,
         LojoContentVersionsRequest,
@@ -2070,12 +2072,6 @@ declare namespace entities {
         LojoEnglishSpeechRequest,
         LojoEnglishSpeechResponse,
         LojoEnglishStatusResponse,
-        LojoEntitiesImportRequest,
-        LojoEntitiesImportResponse,
-        LojoEntitiesListRequest,
-        LojoEntitiesListResponse,
-        LojoEntitiesShowRequest,
-        LojoEntitiesShowResponse,
         LojoFunnelRequest,
         LojoGatesImportRequest,
         LojoGatesImportResponse,
@@ -2117,10 +2113,6 @@ declare namespace entities {
         LojoGuidesThreadsLikeResponse,
         LojoGuidesThreadsListRequest,
         LojoGuidesThreadsListResponse,
-        LojoNotesLinkRequest,
-        LojoNotesLinkResponse,
-        LojoNotesListRequest,
-        LojoNotesListResponse,
         LojoPlanListImportRequest,
         LojoPlanListImportResponse,
         LojoPlanReplanResponse,
@@ -2186,9 +2178,6 @@ declare namespace entities {
         LojoQuestTrialShowRequest,
         LojoQuestTrialShowResponse,
         LojoQuestTrialStartResponse,
-        LojoStateShowResponse,
-        LojoStateUpdateRequest,
-        LojoStateUpdateResponse,
         LojoTutorIdsResponse,
         LojoTutorPersonaShowResponse,
         LojoTutorPersonaUpdateRequest,
@@ -3111,6 +3100,12 @@ type LojoContentImportRequest = operations['lojo___content___import']['requestBo
 type LojoContentImportResponse = operations['lojo___content___import']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoContentPackRequest = operations['lojo___content___pack']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoContentPackResponse = operations['lojo___content___pack']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoContentRollbackRequest = operations['lojo___content___rollback']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3169,24 +3164,6 @@ type LojoEnglishSpeechResponse = operations['lojo___english___speech']['response
 
 // @public (undocumented)
 type LojoEnglishStatusResponse = operations['lojo___english___status']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoEntitiesImportRequest = operations['lojo___entities___import']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoEntitiesImportResponse = operations['lojo___entities___import']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoEntitiesListRequest = operations['lojo___entities___list']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoEntitiesListResponse = operations['lojo___entities___list']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoEntitiesShowRequest = operations['lojo___entities___show']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoEntitiesShowResponse = operations['lojo___entities___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoFunnelRequest = operations['lojo___funnel']['requestBody']['content']['application/json'];
@@ -3310,18 +3287,6 @@ type LojoGuidesThreadsListRequest = operations['lojo___guides___threads___list']
 
 // @public (undocumented)
 type LojoGuidesThreadsListResponse = operations['lojo___guides___threads___list']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoNotesLinkRequest = operations['lojo___notes___link']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoNotesLinkResponse = operations['lojo___notes___link']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoNotesListRequest = operations['lojo___notes___list']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoNotesListResponse = operations['lojo___notes___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoPlanListImportRequest = operations['lojo___plan___list-import']['requestBody']['content']['application/json'];
@@ -3517,15 +3482,6 @@ type LojoQuestTrialShowResponse = operations['lojo___quest___trial-show']['respo
 
 // @public (undocumented)
 type LojoQuestTrialStartResponse = operations['lojo___quest___trial-start']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoStateShowResponse = operations['lojo___state___show']['responses']['200']['content']['application/json'];
-
-// @public (undocumented)
-type LojoStateUpdateRequest = operations['lojo___state___update']['requestBody']['content']['application/json'];
-
-// @public (undocumented)
-type LojoStateUpdateResponse = operations['lojo___state___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorIdsResponse = operations['lojo___tutor___ids']['responses']['200']['content']['application/json'];

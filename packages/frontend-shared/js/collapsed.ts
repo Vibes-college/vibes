@@ -16,14 +16,14 @@ export function shouldCollapsed(note: Misskey.entities.Note, urls: string[]): bo
 			note.text.includes('$[x3') ||
 			note.text.includes('$[x4') ||
 			note.text.includes('$[scale') ||
-			note.text.split('\n').length > 9 ||
-			note.text.length > 500
+			note.text.split('\n').length > 30 ||
+			note.text.length > 1500
 		) {
 			return true;
 		}
 	}
 
-	if (urls.length >= 4) {
+	if (urls.length >= 12) {
 		return true;
 	}
 

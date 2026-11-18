@@ -111,7 +111,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</div>
 					<MkLojoEnglishBar v-if="appearNote.text" :note="appearNote"/>
-					<MkLojoEntityLink :text="appearNote.text"/>
 					<div v-if="appearNote.files && appearNote.files.length > 0">
 						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
 					</div>
@@ -241,7 +240,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import MkLojoEntityLink from '@/components/MkLojoEntityLink.vue';
 import MkLojoEnglishBar from '@/components/MkLojoEnglishBar.vue';
 import { inject, provide, ref, useTemplateRef, markRaw, computed } from 'vue';
 import * as Misskey from 'misskey-js';

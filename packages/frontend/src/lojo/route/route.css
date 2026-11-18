@@ -198,11 +198,6 @@ table.mx td.ne{background:var(--ctaBg);box-shadow:inset 0 0 0 1.5px var(--cta)}
 .gate.on{display:block}
 .gate b{display:block;font-family:var(--serif);color:var(--ink);font-size:16px;margin-bottom:10px}
 .gate.ok{background:var(--okBg)}
-.moss{display:flex;gap:12px;align-items:center;background:var(--hi);border-radius:16px;padding:12px;margin-bottom:14px}
-.moss img{width:46px;height:46px;border-radius:50%}
-.moss b{color:var(--ink);font-size:14.5px}
-.moss .ai{font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accentBg);border-radius:6px;padding:1px 6px;margin-left:6px}
-.moss small{display:block;color:var(--weak);font-size:12px;line-height:1.5;margin-top:2px}
 .chat{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
 .msg{max-width:88%;padding:10px 13px;border-radius:16px;line-height:1.65;font-size:13.5px}
 .msg.me{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:6px}

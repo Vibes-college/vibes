@@ -46,13 +46,13 @@ import { pleaseLogin } from '@/utility/please-login.js';
 // /map shows the default course; /map/<id> any other course in courses/index.js.
 const props = defineProps<{ course?: string }>();
 
-// Two runtimes share this page: runtime.js for topic maps (AP), gate-map.js for gate maps (META.kind 'gates', IELTS).
+// One runtime draws every map: gate-map.js (META.kind 'gates', IELTS). The topic-map runtime of the AP maps (offline since
+// 10-26) was removed with their videos and posters on 2026-11-17 (founder: 「AP 删」); a pack of another kind is not opened.
 type RouteRuntime = {
 	fit(): void; legend(): void; pause(): void; resume(): void; resize(): void; destroy(): void;
-	tour?: () => void; // maps with a tour: the AP maps, and the IELTS map (TOUR in its text.js)
-	refresh?: () => Promise<void>; // gate maps: progress lives on the server, re-read it when the page comes back
+	tour?: () => void; // maps with a tour: the IELTS map (TOUR in its text.js)
+	refresh?: () => Promise<void>; // progress lives on the server, re-read it when the page comes back
 };
-const loadRuntime = (kind: string | undefined) => kind === 'gates' ? import('@/lojo/route/gate-map.js') : import('@/lojo/route/runtime.js');
 
 const router = useRouter();
 const mapHost = useTemplateRef('mapHost');
@@ -63,7 +63,7 @@ let observer: ResizeObserver | null = null;
 let generation = 0;
 let active = true;
 
-// Topic-map progress (and the gate map's welcome flag) lives in the account's registry, one key per course; gate progress lives on the server.
+// The gate map's flags (welcome card seen, tour watched) live in the account's registry, one key per course; gate progress lives on the server.
 // The last copies of both are kept on the device (lojo/kept.ts) so the IELTS map draws without waiting.
 const REGISTRY_NAME = 'route:registry';
 const WARM_NAME = 'route:typing';
@@ -79,7 +79,7 @@ const isZh = lang.startsWith('zh');
 const courseLang = (c: { subject?: string } | null | undefined): 'zh' | 'en' => (isZh || c?.subject === 'english' ? 'zh' : 'en');
 const pageTitle = ref<string>(lojoLabels.map);
 // The course tabs in the page header. Icons are listed here (not in the generated catalog) so the icon font subset picks them up.
-const COURSE_ICON: Record<string, string> = { ielts: 'ti ti-headphones', 'ap-micro': 'ti ti-chart-line', 'ap-calc-ab': 'ti ti-math-function' };
+const COURSE_ICON: Record<string, string> = { ielts: 'ti ti-headphones' };
 const courseId = computed(() => props.course ?? DEFAULT_COURSE);
 // Only the student's own courses ("my maps") become tabs; every other course is one tap away in /maps.
 const myList = ref<string[]>([]);
@@ -93,8 +93,6 @@ function switchCourse(id: string) {
 
 // /map on its own reopens the course you looked at last; links with a station (#1.6) keep meaning the default course.
 const LAST_COURSE_KEY = 'vibes:route:lastCourse';
-// Hashes that belong to the old 落脚地图 keep working: they move to /lojo/map.
-const LEGACY_HASH = /^#(map|building|rental|housing|place|animal|capture|card|event|invite|trip|travel|planner|me)\b/;
 
 const headerActions: PageHeaderItem[] = [{
 	icon: 'ti ti-layout-grid',
@@ -135,11 +133,12 @@ async function start() {
 		const [pack, keptRegistry, keptProgress, keptWarm] = await Promise.all([
 			loader(), readKept<RouteRegistry>(REGISTRY_NAME), readKept<unknown>(progressName), readKept<unknown>(WARM_NAME),
 		]);
-		// Vibes: a gate map (IELTS) draws at once from the copies kept last time and refreshes in the background; it saves
-		// only two flags of its own. A topic map saves its whole state back, so it waits for the server's copy as before.
-		const fromKept = pack.META.kind === 'gates' && keptRegistry != null && keptProgress != null;
+		if (pack.META.kind !== 'gates') { router.replaceByPath('/map'); return; }
+		// Vibes: the gate map (IELTS) draws at once from the copies kept last time and refreshes in the background; it saves
+		// only two flags of its own.
+		const fromKept = keptRegistry != null && keptProgress != null;
 		const all = fromKept ? keptRegistry : await fetchRegistry().catch(() => ({}) as RouteRegistry);
-		const { mount } = await loadRuntime(pack.META.kind);
+		const { mount } = await import('@/lojo/route/gate-map.js');
 		if (current !== generation) return;
 		const registry = { scope: ROUTE_SCOPE, key: pack.META.storeKey };
 		// The map saves its own flags (welcome card seen, tour watched). They go into the kept copy too, or the next visit,
@@ -242,10 +241,6 @@ async function start() {
 }
 
 onMounted(() => {
-	if (!props.course && LEGACY_HASH.test(window.location.hash)) {
-		router.replaceByPath(`/lojo/map${window.location.hash}`);
-		return;
-	}
 	if (!props.course && !window.location.hash) {
 		let last: string | null = null;
 		try { last = window.localStorage.getItem(LAST_COURSE_KEY); } catch { /* private mode */ }

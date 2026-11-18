@@ -56,9 +56,6 @@ import { MiPromoRead } from '@/models/PromoRead.js';
 import { MiRegistrationTicket } from '@/models/RegistrationTicket.js';
 import { MiRegistryItem } from '@/models/RegistryItem.js';
 import { MiLojoGuide, MiLojoGuideThread, MiLojoGuideComment, MiLojoGuideLike, MiLojoGuideBookmark } from '@/models/LojoGuide.js';
-import { MiLojoState } from '@/models/LojoState.js';
-import { MiLojoEntity } from '@/models/LojoEntity.js';
-import { MiLojoEntityNote } from '@/models/LojoEntityNote.js';
 import { MiLojoGateAttempt, MiLojoGateCourse } from '@/models/LojoGate.js';
 import { MiLojoWord, MiLojoWordCard, MiLojoWordReview } from '@/models/LojoWord.js';
 import { MiLojoQuest, MiLojoQuestAttempt, MiLojoQuestContent, MiLojoQuestLog } from '@/models/LojoQuest.js';
@@ -248,9 +245,6 @@ export const entities = [
 	MiLojoGuideComment,
 	MiLojoGuideLike,
 	MiLojoGuideBookmark,
-	MiLojoState,
-	MiLojoEntity,
-	MiLojoEntityNote,
 	MiLojoGateCourse,
 	MiLojoGateAttempt,
 	MiLojoWord,

@@ -48,8 +48,8 @@ const current = router.current;
 const currentPageComponent = shallowRef('component' in current.route ? current.route.component : MkLoadingPage);
 const currentPageProps = ref(current.props);
 let currentRoutePath = current.route.path;
-// LOJO map pages navigate with the URL hash; keep one instance per page instead of one per hash.
-const hashRoutes = ['/map', '/map/:course', '/lojo/map'];
+// Route map pages navigate with the URL hash; keep one instance per page instead of one per hash.
+const hashRoutes = ['/map', '/map/:course'];
 const key = ref(hashRoutes.includes(current.route.path) ? current.route.path : router.getCurrentFullPath());
 
 router.useListener('change', ({ resolved }) => {

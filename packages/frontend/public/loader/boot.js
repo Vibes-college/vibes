@@ -82,6 +82,52 @@
 		return true;
 	}
 
+	// Vibes: a deploy removes code files the server got more than a day ago (apps/community/deploy/deploy.sh, old_chunks;
+	// keeping them all made every script request slow, 2026-11-17), but the copy of the app kept on the device
+	// (packages/sw/src/sw.ts, respondWithApp) can still name them: someone back after a few days, or a page left open,
+	// asks for a file that is gone. When the server runs a newer version than this page, drop the kept copy so the next
+	// load comes from the server, and reload: the student gets the page they asked for, in the new version, instead of
+	// an error. A failure while the server runs this same version (a dropped connection) is left as before.
+	async function serverHasNewerApp() {
+		if (!CLIENT_ENTRY || navigator.onLine === false) return false;
+		try {
+			const res = await fetch('/', { cache: 'no-store', credentials: 'same-origin' });
+			const entry = /const CLIENT_ENTRY = "([^"]+)"/.exec(await res.text())?.[1];
+			return entry != null && entry !== CLIENT_ENTRY;
+		} catch {
+			return false;
+		}
+	}
+
+	async function dropKeptApp() {
+		try {
+			const cache = await caches.open('vibes-home'); // HOME_CACHE in packages/sw/src/sw.ts
+			await cache.delete(new URL('/', location.origin).href, { ignoreVary: true });
+		} catch {
+			// No Cache Storage (private browsing): there is no kept copy either.
+		}
+	}
+
+	// vite's loader sends vite:preloadError when a script or stylesheet of a page opened later cannot be loaded.
+	// At most one such reload a minute, so a server that keeps failing shows the error rather than reloading over and over.
+	const STALE_RELOAD_KEY = 'vibesStaleReload';
+	let staleChecking = false;
+	window.addEventListener('vite:preloadError', async () => {
+		if (staleChecking) return;
+		staleChecking = true;
+		try {
+			if (Date.now() - Number(sessionStorage.getItem(STALE_RELOAD_KEY) ?? '0') < 60000) return;
+			if (!await serverHasNewerApp()) return;
+			sessionStorage.setItem(STALE_RELOAD_KEY, String(Date.now()));
+			await dropKeptApp();
+			location.reload();
+		} catch {
+			// No sessionStorage: leave the error as it is.
+		} finally {
+			staleChecking = false;
+		}
+	});
+
 	async function importAppScript() {
 		await import(CLIENT_ENTRY ? `/vite/${CLIENT_ENTRY.replace('scripts', lang)}` : '/vite/src/_boot_.ts')
 			.then(() => {
@@ -95,6 +141,9 @@
 			})
 			.catch(async e => {
 				console.error(e);
+				// Vibes: started from a kept copy that names files a deploy has removed (see serverHasNewerApp): the reload
+				// below then gets the new version from the server instead of the same copy.
+				if (await serverHasNewerApp()) await dropKeptApp();
 				if (retryBoot()) return;
 				renderError('APP_IMPORT', e);
 			});

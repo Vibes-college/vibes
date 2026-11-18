@@ -1893,6 +1893,30 @@ function doitLabel(b) {
 	if (b.app.path == null) return D.tutorId ? (b.app.id === 'mia' ? `找 ${momoName()} 练` : `找 ${momoName()} 练 · ${esc(b.app.zh)}`) : null;
 	return /^https?:/.test(b.app.path) ? `打开「${esc(b.app.zh)}」↗` : `去「${esc(b.app.zh)}」`;
 }
+/* 锦囊的「读全文」是社区里的一篇攻略。攻略下架了（2026-11-17 旧攻略全部下架）或还没发，就不放这个按钮，免得点进去是空页；
+   书、小验证、补心照旧。问过的记下来，只有「没有这篇」才记成不能读，断网之类下次再问。
+   不走社区那头的 Q.api：它只放闯关自己的接口（quest.vue 的 bridge），问攻略会被挡（NOT_ALLOWED），按钮就永远不出来。
+   攻略不登录也能看，所以这里直接问、不带账号。 */
+const guideOk = new Map();
+function guideReadable(path) {
+	const slug = /^\/guides\/([a-z0-9-]+)$/.exec(path ?? '')?.[1];
+	if (slug == null) return Promise.resolve(path != null);
+	if (PREVIEW) return Promise.resolve(true);
+	if (!guideOk.has(slug)) {
+		guideOk.set(slug, fetch('/api/lojo/guides/show', {
+			method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit', body: JSON.stringify({ slug }),
+		}).then(async res => {
+			if (res.ok) return true;
+			const body = await res.json().catch(() => null);
+			if (body?.error?.code !== 'NO_SUCH_GUIDE') guideOk.delete(slug);
+			return false;
+		}, () => {
+			guideOk.delete(slug);
+			return false;
+		}));
+	}
+	return guideOk.get(slug);
+}
 function openBook(s) {
 	const b = bookBySlug(s.dataset.slug); if (!b) return;
 	shelf.picked = true; shelf.book = b; shelf.spine = s; stopLoops();
@@ -1901,12 +1925,14 @@ function openBook(s) {
 	$('#bt').textContent = b.title; $('#bw').textContent = b.summary;
 	const dl = doitLabel(b);
 	$('#ba').innerHTML = `${esc(b.app?.zh ?? '')}${b.when ? '' : ''}` + (dl ? `<button class="doit" data-a="do">${dl}</button>` : '');
-	$('#bl').innerHTML = `${esc(b.verify ?? '')}<button class="doit alt" data-a="read">读全文</button>`;
+	$('#bl').innerHTML = `${esc(b.verify ?? '')}<button class="doit alt" data-a="read" style="display:none">读全文</button>`;
 	$('#bk').textContent = `锦囊 ${b.no} · ${b.kind ?? ''}${b.evidence ? ' · ' + b.evidence : ''}`;
 	$('#cK').textContent = `锦囊 ${b.no} · ${b.kind ?? ''}`; $('#cT').textContent = b.title;
 	const cv = $('#book .cover'); cv.style.background = b.color; cv.style.color = isDark(b.color) ? '#fff' : '#141E52';
 	$('#ba [data-a="do"]')?.addEventListener('click', () => { play('whoosh', 0.6); if (b.app.path == null) go(`/chat/user/${D.tutorId}`); else go(b.app.path); });
-	$('#bl [data-a="read"]').onclick = () => { play('whoosh', 0.6); go(b.path); };
+	const read = $('#bl [data-a="read"]');
+	read.onclick = () => { play('whoosh', 0.6); go(b.path); };
+	guideReadable(b.path).then(ok => { if (ok && shelf.book === b) read.style.display = ''; });
 	const book = $('#book'), a = AR(), sp = ctr(s);
 	const p0 = { x: sp.x - a.width / 2, y: sp.y - (BOOK_TOP + BH / 2) }, p1 = { x: 0, y: 0 }, c = { x: p0.x * 0.25, y: Math.min(p0.y, 0) - 170 };
 	gsap.to('.recTag,.hadTag', { opacity: 0, duration: 0.2 });

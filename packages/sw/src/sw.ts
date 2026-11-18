@@ -50,7 +50,7 @@ async function respondToNavigation(request: Request): Promise<Response> {
 // mini apps at /apps/<id>/, which run on their own (小程序搬出社区, 2026-11-12).
 // The copy is dropped when a new service worker activates.
 const HOME_CACHE = 'vibes-home';
-const SERVER_PATHS = /^\/(?:apps|api|api-doc|api\.json|files|proxy|avatar|identicon|emoji|emojis|notes\/[^/]+\/activity|users|likes|follows|inbox|nodeinfo|\.well-known|oauth|healthz|streaming|url|vite|embed_vite|embed|assets|static-assets|client-assets|lojo-assets|lojo-amap|lojo-places|_AMapService|tarball|fluent-emoji|twemoji|twemoji-badge|_info_card_|bios|cli|flush)(?:\/|$)/;
+const SERVER_PATHS = /^\/(?:apps|api|api-doc|api\.json|files|proxy|avatar|identicon|emoji|emojis|notes\/[^/]+\/activity|users|likes|follows|inbox|nodeinfo|\.well-known|oauth|healthz|streaming|url|vite|embed_vite|embed|assets|static-assets|client-assets|lojo-assets|tarball|fluent-emoji|twemoji|twemoji-badge|_info_card_|bios|cli|flush)(?:\/|$)/;
 
 function isAppPage(request: Request, url: URL): boolean {
 	return request.method === 'GET'

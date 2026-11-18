@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { QUEST_BOOK_RULES, bookForCause, clearQuestBooks, questBooks, questBooksProblems, questBooksVersion, setQuestBooks } from '@/misc/lojo-quest-books.js';
 import type { QuestBook, QuestBooksFile } from '@/misc/lojo-quest-books.js';
-import { questBookByRef, questBookOf, questKnownRefs, questShelfOf } from '@/misc/lojo-quest-learner.js';
+import { questBookByRef, questBookOf, questGuidePath, questKnownRefs, questShelfOf } from '@/misc/lojo-quest-learner.js';
 
 // 锦囊书屋的书在数据库里（2026-11-17 起）：这里只用示例书，查导入前的格式检查和「正在用的那一版」。
 const book = (no: number, over: Partial<QuestBook> = {}): QuestBook => ({
@@ -47,6 +47,15 @@ describe('锦囊书屋：导入前查格式', () => {
 		expect(questBooksProblems(file([book(1, { app: { id: 'x' } as QuestBook['app'] })]))).toContain('j1: app 要有 id、zh、path');
 		expect(questBooksProblems(file([book(1, { causeKeys: 'same-word' as unknown as string[] })]))).toContain('j1: causeKeys 要是文字列表');
 		expect(questBooksProblems(file([book(1, { givesHeart: 'yes' as unknown as boolean })]))).toContain('j1: givesHeart 要是 true 或 false');
+	});
+
+	test('guide: a guide slug or null; 读全文 opens it, else the book\'s own slug', () => {
+		expect(questBooksProblems(file([book(1, { guide: 'ielts-reading' }), book(2, { guide: null }), book(3)]))).toEqual([]);
+		expect(questBooksProblems(file([book(1, { guide: 'Has Space' })]))).toContain('j1: guide 要是攻略的 slug（小写字母、数字和 -）或 null');
+		expect(questBooksProblems(file([book(1, { guide: 7 as unknown as string })]))).toContain('j1: guide 要是攻略的 slug（小写字母、数字和 -）或 null');
+		expect(questGuidePath(book(1, { guide: 'ielts-reading' }))).toBe('/guides/ielts-reading');
+		expect(questGuidePath(book(1, { guide: null }))).toBe('/guides/example-1');
+		expect(questGuidePath(book(1))).toBe('/guides/example-1');
 	});
 
 	test('no, ref, id, slug and question ids are unique', () => {

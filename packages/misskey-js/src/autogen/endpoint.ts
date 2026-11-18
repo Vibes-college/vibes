@@ -525,12 +525,6 @@ import type {
 	LojoEnglishSpeechRequest,
 	LojoEnglishSpeechResponse,
 	LojoEnglishStatusResponse,
-	LojoEntitiesImportRequest,
-	LojoEntitiesImportResponse,
-	LojoEntitiesListRequest,
-	LojoEntitiesListResponse,
-	LojoEntitiesShowRequest,
-	LojoEntitiesShowResponse,
 	LojoFunnelRequest,
 	LojoGatesImportRequest,
 	LojoGatesImportResponse,
@@ -572,10 +566,6 @@ import type {
 	LojoGuidesThreadsLikeResponse,
 	LojoGuidesThreadsListRequest,
 	LojoGuidesThreadsListResponse,
-	LojoNotesLinkRequest,
-	LojoNotesLinkResponse,
-	LojoNotesListRequest,
-	LojoNotesListResponse,
 	LojoPlanListImportRequest,
 	LojoPlanListImportResponse,
 	LojoPlanReplanResponse,
@@ -641,9 +631,6 @@ import type {
 	LojoQuestTrialShowRequest,
 	LojoQuestTrialShowResponse,
 	LojoQuestTrialStartResponse,
-	LojoStateShowResponse,
-	LojoStateUpdateRequest,
-	LojoStateUpdateResponse,
 	LojoTutorIdsResponse,
 	LojoTutorPersonaShowResponse,
 	LojoTutorPersonaUpdateRequest,
@@ -1198,9 +1185,6 @@ export type Endpoints = {
 	'lojo/english/reply-ideas': { req: LojoEnglishReplyIdeasRequest; res: LojoEnglishReplyIdeasResponse };
 	'lojo/english/speech': { req: LojoEnglishSpeechRequest; res: LojoEnglishSpeechResponse };
 	'lojo/english/status': { req: EmptyRequest; res: LojoEnglishStatusResponse };
-	'lojo/entities/import': { req: LojoEntitiesImportRequest; res: LojoEntitiesImportResponse };
-	'lojo/entities/list': { req: LojoEntitiesListRequest; res: LojoEntitiesListResponse };
-	'lojo/entities/show': { req: LojoEntitiesShowRequest; res: LojoEntitiesShowResponse };
 	'lojo/funnel': { req: LojoFunnelRequest; res: EmptyResponse };
 	'lojo/gates/import': { req: LojoGatesImportRequest; res: LojoGatesImportResponse };
 	'lojo/gates/peers': { req: LojoGatesPeersRequest; res: LojoGatesPeersResponse };
@@ -1222,8 +1206,6 @@ export type Endpoints = {
 	'lojo/guides/show': { req: LojoGuidesShowRequest; res: LojoGuidesShowResponse };
 	'lojo/guides/threads/like': { req: LojoGuidesThreadsLikeRequest; res: LojoGuidesThreadsLikeResponse };
 	'lojo/guides/threads/list': { req: LojoGuidesThreadsListRequest; res: LojoGuidesThreadsListResponse };
-	'lojo/notes/link': { req: LojoNotesLinkRequest; res: LojoNotesLinkResponse };
-	'lojo/notes/list': { req: LojoNotesListRequest; res: LojoNotesListResponse };
 	'lojo/plan/list-import': { req: LojoPlanListImportRequest; res: LojoPlanListImportResponse };
 	'lojo/plan/replan': { req: EmptyRequest; res: LojoPlanReplanResponse };
 	'lojo/plan/settings': { req: LojoPlanSettingsRequest; res: LojoPlanSettingsResponse };
@@ -1260,8 +1242,6 @@ export type Endpoints = {
 	'lojo/quest/trial-claim': { req: LojoQuestTrialClaimRequest; res: LojoQuestTrialClaimResponse };
 	'lojo/quest/trial-show': { req: LojoQuestTrialShowRequest; res: LojoQuestTrialShowResponse };
 	'lojo/quest/trial-start': { req: EmptyRequest; res: LojoQuestTrialStartResponse };
-	'lojo/state/show': { req: EmptyRequest; res: LojoStateShowResponse };
-	'lojo/state/update': { req: LojoStateUpdateRequest; res: LojoStateUpdateResponse };
 	'lojo/tutor/ids': { req: EmptyRequest; res: LojoTutorIdsResponse };
 	'lojo/tutor/persona/show': { req: EmptyRequest; res: LojoTutorPersonaShowResponse };
 	'lojo/tutor/persona/update': { req: LojoTutorPersonaUpdateRequest; res: LojoTutorPersonaUpdateResponse };

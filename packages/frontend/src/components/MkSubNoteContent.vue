@@ -60,7 +60,7 @@ const collapsed = ref(isLong);
 
 	&.collapsed {
 		position: relative;
-		max-height: 9em;
+		max-height: 27em;
 		overflow: clip;
 
 		> .fade {

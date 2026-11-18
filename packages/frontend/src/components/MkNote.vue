@@ -87,7 +87,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</div>
 					<MkLojoEnglishBar v-if="appearNote.text && !collapsed" :note="appearNote"/>
-					<MkLojoEntityLink :text="appearNote.text"/>
 					<div v-if="appearNote.files && appearNote.files.length > 0" style="margin-top: 8px;">
 						<MkMediaList ref="galleryEl" :mediaList="appearNote.files" :user="appearNote.user"/>
 					</div>
@@ -198,7 +197,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import MkLojoEntityLink from '@/components/MkLojoEntityLink.vue';
 import MkLojoEnglishBar from '@/components/MkLojoEnglishBar.vue';
 import { inject, ref, useTemplateRef, provide, computed } from 'vue';
 import type { Ref } from 'vue';
@@ -621,7 +619,7 @@ const keymap = {
 
 .contentCollapsed {
 	position: relative;
-	max-height: 9em;
+	max-height: 27em;
 	overflow: clip;
 }
 

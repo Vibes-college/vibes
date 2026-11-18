@@ -24,7 +24,8 @@ export const questBookOf = (slug: string): QuestBook | undefined => questBooks()
 export const questBookByRef = (ref: string): QuestBook | undefined => questBooks().find(b => b.ref === ref);
 // 锦囊还没导进来的（j11 起）照 shelfRule 跳过
 export const questKnownRefs = (refs: readonly string[]) => refs.filter(r => questBookByRef(r) != null);
-export const questGuidePath = (b: QuestBook) => `/guides/${b.slug}`;
+// 「读全文」：书写了 guide 就开那篇攻略（2026-11-17 起书指到四篇新攻略），没写就开和书同名的那篇
+export const questGuidePath = (b: QuestBook) => `/guides/${b.guide ?? b.slug}`;
 
 // every level of a chapter in map order, the Boss last (for 落后提醒)
 export const questLevelName = (id: string): string => {

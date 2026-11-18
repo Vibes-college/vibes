@@ -449,13 +449,6 @@ export * as 'chat/history' from './endpoints/chat/history.js';
 export * as 'chat/read-all' from './endpoints/chat/read-all.js';
 export * as 'v2/admin/emoji/list' from './endpoints/v2/admin/emoji/list.js';
 
-export * as 'lojo/state/show' from './endpoints/lojo/state/show.js';
-export * as 'lojo/state/update' from './endpoints/lojo/state/update.js';
-export * as 'lojo/entities/list' from './endpoints/lojo/entities/list.js';
-export * as 'lojo/entities/show' from './endpoints/lojo/entities/show.js';
-export * as 'lojo/entities/import' from './endpoints/lojo/entities/import.js';
-export * as 'lojo/notes/link' from './endpoints/lojo/notes/link.js';
-export * as 'lojo/notes/list' from './endpoints/lojo/notes/list.js';
 export * as 'lojo/english/status' from './endpoints/lojo/english/status.js';
 export * as 'lojo/english/explain' from './endpoints/lojo/english/explain.js';
 export * as 'lojo/english/compose' from './endpoints/lojo/english/compose.js';

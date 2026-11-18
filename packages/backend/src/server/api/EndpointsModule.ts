@@ -7,7 +7,6 @@ import { Module } from '@nestjs/common';
 
 import { CoreModule } from '@/core/CoreModule.js';
 import { LojoGuideService } from '@/core/LojoGuideService.js';
-import { LojoService } from '@/core/LojoService.js';
 import { LojoEnglishService } from '@/core/LojoEnglishService.js';
 import { LojoCreateService } from '@/core/LojoCreateService.js';
 import { LojoSpeechService } from '@/core/LojoSpeechService.js';
@@ -32,7 +31,6 @@ const endpointProviders = endpoints.map(([path, endpoint]): Provider => ({ provi
 		CoreModule,
 	],
 	providers: [
-		LojoService,
 		LojoGuideService,
 		LojoEnglishService,
 		LojoCreateService,

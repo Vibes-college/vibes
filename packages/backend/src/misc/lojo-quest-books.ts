@@ -12,6 +12,8 @@
 
 export type QuestBook = {
 	no: number; ref: string; id: string; slug: string; spine: string; title: string; summary: string; kind: string; evidence: string; color: string;
+	/** 「读全文」打开哪篇攻略（攻略 slug）；没写或 null 就用书自己的 slug。2026-11-17 旧攻略下架后指到四篇新攻略（雅思听力、阅读、口语、写作） */
+	guide?: string | null;
 	app: { id: string; zh: string; path: string | null };
 	verify: string; verifyUrl: string | null;
 	/** 去哪几关验证（关卡 id，"*" = 任何一关） */
@@ -73,6 +75,7 @@ function bookProblems(b: unknown, i: number): string[] {
 	if (!Number.isInteger(b.no) || (b.no as number) < 1) p.push(`${at}: 编号 no 不对`);
 	if (!isStr(b.ref) || !/^j\d+$/.test(b.ref)) p.push(`${at}: ref 要写成 j<数字>`);
 	if (!isStr(b.slug) || !/^[a-z0-9-]+$/.test(b.slug)) p.push(`${at}: slug 只能有小写字母、数字和 -`);
+	if (b.guide !== undefined && b.guide !== null && !(isStr(b.guide) && /^[a-z0-9-]+$/.test(b.guide))) p.push(`${at}: guide 要是攻略的 slug（小写字母、数字和 -）或 null`);
 	for (const k of ['id', 'spine', 'title', 'summary', 'kind', 'color']) if (!isStr(b[k])) p.push(`${at}: 缺 ${k}`);
 	for (const k of ['evidence', 'verify', 'when']) if (!isText(b[k])) p.push(`${at}: ${k} 要是文字（可以是空的）`);
 	if (!isObj(b.app) || !isStr(b.app.id) || !isStr(b.app.zh) || !strOrNull(b.app.path)) p.push(`${at}: app 要有 id、zh、path`);
