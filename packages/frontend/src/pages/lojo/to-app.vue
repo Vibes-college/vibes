@@ -14,10 +14,15 @@ shows for a moment, to send the learner there:
 </template>
 
 <script lang="ts" setup>
+import { learnTabPath } from '@/lojo/app-overlay.js';
+
 const at = window.location;
 const parts = at.pathname.split('/');
-const target = parts[1] === 'apps'
+// 个人主页小程序的旧地址：去资料页「学习」标签（2026-11-17 起）
+const learn = learnTabPath(`${at.pathname}${at.search}${at.hash}`);
+const target = learn != null ? null : parts[1] === 'apps'
 	? (/\.[a-z][a-z0-9]*$/i.test(at.pathname) ? at.pathname : `${at.pathname.replace(/\/?$/, '/')}index.html`)
 	: `/apps/${encodeURIComponent(parts[1] ?? '')}/${parts.slice(2).join('/')}`;
-if (target !== at.pathname) window.location.replace(`${target}${at.search}${at.hash}`);
+if (learn != null) window.location.replace(learn);
+else if (target !== at.pathname) window.location.replace(`${target}${at.search}${at.hash}`);
 </script>

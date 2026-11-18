@@ -28,6 +28,8 @@ import type { MiMeta } from '@/models/Meta.js';
 import { defaultPersona, normalizePersona, PERSONA_KEY, personaHello } from '@/misc/lojo-tutor-persona.js';
 import type { TutorPersona } from '@/misc/lojo-tutor-persona.js';
 import { LojoPlanService } from '@/core/LojoPlanService.js';
+import { LojoAppsService } from '@/core/LojoAppsService.js';
+import type { AppActionRecent } from '@/misc/lojo-apps-action.js';
 import type { PlanEvent } from '@/core/LojoPlanService.js';
 import { hourIn, todayIn } from '@/misc/lojo-plan.js';
 import { randomBytes } from 'node:crypto';
@@ -172,6 +174,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		private notificationService: NotificationService,
 		private lojoPlanService: LojoPlanService,
 		private utilityService: UtilityService,
+		private lojoAppsService: LojoAppsService,
 	) {
 		this.logger = this.loggerService.getLogger('lojo-tutor');
 	}
@@ -343,20 +346,21 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const turns = this.toTurns(tutor.id, mastraFreshMessages(messages, tutor.id, seen));
 		const quest = await this.questContext(tutor.id, learner.id);
 		const questTry = quest && await this.withFreshHearts(learner.id, quest.questTry);
-		const [{ card, prompts }, persona] = await Promise.all([this.setup(tutor.id), this.persona(learner.id)]);
+		const [{ card, prompts }, persona, cards] = await Promise.all([this.setup(tutor.id), this.persona(learner.id), this.recentCards(learner.id)]);
 		// The quest lines need her words; without them the usual Mia answers (with the away line).
 		if (quest && questTry && prompts == null) throw new Error(`no prompts on the tutor account (registry ${PROMPTS_KEY})`);
 		if (!(await this.spendBudget())) return true;
 		const started = Date.now();
 		// you: the name this learner gave her (mia-mastra v0.7.8+ puts it in the bracket line; older ones ignore it)
+		// cards: this learner's latest confirm cards and what became of them (第 6 步返工, mia-mastra v0.8.1+ reads it)
 		const res = await this.whileTyping(learner.id, tutor.id, () => this.postMastra('/chat', learner.id, {
-			turns, now: this.nowText(), name: this.nameOf(learner), you: persona.name,
+			turns, now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards,
 			extra: quest && questTry && prompts ? questTrySection(prompts, quest.knowledge, questTry, true).replace(/\s*\n\s*/g, ' ') : undefined,
 		}));
 		await this.chargeMastra(learner.id, res);
 		const answer = normalizeTutorReply(res);
 		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
-		const out = [...await this.withNextLink(tutor.id, answer, questTry ?? undefined), ...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id)];
+		const out = [...await this.withNextLink(tutor.id, answer, questTry ?? undefined), ...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id), ...await this.lojoAppsService.actionCards(learner.id).catch(() => [] as string[])];
 		await this.redisClient.set(key, `${lastLearner.id}|${out.length}`, 'EX', 90 * 24 * 60 * 60);
 		await this.send(tutor, learner, out, answer.voice, card.extensions.vibes?.voice);
 		await this.markAnswered(tutor.id, learner.id, lastLearner.id);
@@ -512,9 +516,9 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 				this.usersRepository.findOneByOrFail({ id: tutorId }),
 				this.usersRepository.findOneByOrFail({ id: ev.userId }),
 			]);
-			const [card, persona] = await Promise.all([this.card(tutorId), this.persona(learner.id)]);
+			const [card, persona, cards] = await Promise.all([this.card(tutorId), this.persona(learner.id), this.recentCards(learner.id)]);
 			const res = await this.whileTyping(learner.id, tutor.id, () => this.postMastra('/event', learner.id, {
-				kind: ev.kind, summary: ev.summary, tasks, now: this.nowText(), name: this.nameOf(learner), you: persona.name,
+				kind: ev.kind, summary: ev.summary, tasks, now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards,
 			}));
 			await this.chargeMastra(learner.id, res);
 			const answer = normalizeTutorReply(res);
@@ -1089,11 +1093,17 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// For the Mastra pilot (endpoint lojo/tutor/pilot-tool): Mia's fixed system prompt word for word, without her notes
 	// (the pilot keeps its own working memory), and the "Now:" line and name of the last message.
-	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string; you: string }> {
-		const [{ card, prompts }, learner, persona] = await Promise.all([this.setup(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId }), this.persona(learnerId)]);
+	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string; you: string; cards: AppActionRecent[] }> {
+		const [{ card, prompts }, learner, persona, cards] = await Promise.all([this.setup(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId }), this.persona(learnerId), this.recentCards(learnerId)]);
 		// (the pilot keeps the prompt it read last when this fails)
 		if (prompts == null) throw new Error(`no prompts on the tutor account (registry ${PROMPTS_KEY})`);
-		return { system: tutorFixedPrompt(prompts, card).trimEnd(), now: this.nowText(), name: this.nameOf(learner), you: persona.name };
+		return { system: tutorFixedPrompt(prompts, card).trimEnd(), now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards };
+	}
+
+	// 第 6 步返工 (11-17): the learner's latest confirm cards and their state, for Vibi to speak by. Empty when redis
+	// does not answer (she then says nothing about earlier cards, as before).
+	private async recentCards(learnerId: string): Promise<AppActionRecent[]> {
+		return await this.lojoAppsService.recentActions(learnerId).catch(() => [] as AppActionRecent[]);
 	}
 
 	// 每个学员自己的 Momo (misc/lojo-tutor-persona.ts): the face and name the learner picked, checked again on every read

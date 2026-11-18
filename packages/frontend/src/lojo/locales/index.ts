@@ -9,7 +9,9 @@
 // New words go here in both languages; scripts/check-vibes-i18n.mjs fails on new Chinese written straight into the
 // system files.
 import { agentText } from './agent.js';
+import { appActionText } from './appAction.js';
 import { chatText } from './chat.js';
+import { learnText } from './learn.js';
 import { miniAppsText } from './miniapps.js';
 import { momoText } from './momo.js';
 import { navText } from './nav.js';
@@ -20,7 +22,9 @@ import { vibiText } from './vibi.js';
 
 export const vt = {
 	agent: agentText,
+	appAction: appActionText,
 	chat: chatText,
+	learn: learnText,
 	miniapps: miniAppsText,
 	momo: momoText,
 	nav: navText,

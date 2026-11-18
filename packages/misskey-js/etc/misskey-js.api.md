@@ -2038,6 +2038,10 @@ declare namespace entities {
         LojoAgentEnglishResponse,
         LojoAgentPromptRequest,
         LojoAgentPromptResponse,
+        LojoAppsActionsDecideRequest,
+        LojoAppsActionsDecideResponse,
+        LojoAppsActionsShowRequest,
+        LojoAppsActionsShowResponse,
         LojoAppsListResponse,
         LojoAppsRecentRequest,
         LojoAppsRecentResponse,
@@ -2109,6 +2113,17 @@ declare namespace entities {
         LojoGuidesThreadsLikeResponse,
         LojoGuidesThreadsListRequest,
         LojoGuidesThreadsListResponse,
+        LojoLearnDeleteWorkRequest,
+        LojoLearnDeleteWorkResponse,
+        LojoLearnMeResponse,
+        LojoLearnSaveWorkRequest,
+        LojoLearnSaveWorkResponse,
+        LojoLearnShowRequest,
+        LojoLearnShowResponse,
+        LojoLearnTakedownRequest,
+        LojoLearnTakedownResponse,
+        LojoLearnUpdateRequest,
+        LojoLearnUpdateResponse,
         LojoPlanListImportRequest,
         LojoPlanListImportResponse,
         LojoPlanReplanResponse,
@@ -3060,6 +3075,18 @@ type LojoAgentPromptRequest = operations['lojo___agent___prompt']['requestBody']
 type LojoAgentPromptResponse = operations['lojo___agent___prompt']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoAppsActionsDecideRequest = operations['lojo___apps___actions___decide']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsActionsDecideResponse = operations['lojo___apps___actions___decide']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsActionsShowRequest = operations['lojo___apps___actions___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoAppsActionsShowResponse = operations['lojo___apps___actions___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoAppsListResponse = operations['lojo___apps___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
@@ -3271,6 +3298,39 @@ type LojoGuidesThreadsListRequest = operations['lojo___guides___threads___list']
 
 // @public (undocumented)
 type LojoGuidesThreadsListResponse = operations['lojo___guides___threads___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnDeleteWorkRequest = operations['lojo___learn___delete-work']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnDeleteWorkResponse = operations['lojo___learn___delete-work']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnMeResponse = operations['lojo___learn___me']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnSaveWorkRequest = operations['lojo___learn___save-work']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnSaveWorkResponse = operations['lojo___learn___save-work']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnShowRequest = operations['lojo___learn___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnShowResponse = operations['lojo___learn___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnTakedownRequest = operations['lojo___learn___takedown']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnTakedownResponse = operations['lojo___learn___takedown']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnUpdateRequest = operations['lojo___learn___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoLearnUpdateResponse = operations['lojo___learn___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoPlanListImportRequest = operations['lojo___plan___list-import']['requestBody']['content']['application/json'];

@@ -17,6 +17,7 @@ import { RoleService } from '@/core/RoleService.js';
 import { LojoAppsService } from '@/core/LojoAppsService.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
 import { LojoPlanService, restDayNo } from '@/core/LojoPlanService.js';
+import { APP_ACTION_METHODS } from '@/misc/lojo-apps-action.js';
 
 // The shared secret, compared in constant time; with no secret set, only admins get in.
 function secretOk(given: string | null | undefined): boolean {
@@ -33,7 +34,7 @@ const PLAN_TOOLS = ['plan', 'setPlan', 'addTask', 'moveTask', 'setStatus', 'plan
 export const meta = {
 	tags: ['lojo', 'admin'],
 	requireCredential: false,
-	description: 'Mia on Mastra: Mia\'s fixed prompt, the progress card, keyword search of the learner\'s chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). Needs the shared secret, or an admin.',
+	description: 'Mia on Mastra: Mia\'s fixed prompt, the progress card, keyword search of the learner\'s chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher\'s roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.',
 	errors: {
 		noSuchTutor: { message: 'No such tutor.', code: 'NO_SUCH_TUTOR', id: '0b6d1b8e-3a0c-4a51-9a8e-6a0f5c2d7e11' },
 		forbidden: { message: 'Forbidden.', code: 'FORBIDDEN', id: '5c1f3f0e-8f7a-4b8e-9f43-2b1d6f9a0c77' },
@@ -54,6 +55,10 @@ export const paramDef = {
 		app: { type: 'string', maxLength: 32, nullable: true },
 		path: { type: 'string', maxLength: 100, nullable: true },
 		params: { type: 'object', nullable: true },
+		// 第 6 步: listApps narrows to one shelf; appCall's method and, for a write, its JSON body
+		category: { type: 'string', maxLength: 20, nullable: true },
+		method: { type: 'string', enum: [...APP_ACTION_METHODS], default: 'GET' },
+		body: { type: 'object', nullable: true },
 		days: { type: 'integer', minimum: 1, maximum: 90, default: 7 },
 		// the task tab tools
 		turnToken: { type: 'string', maxLength: 100, nullable: true },
@@ -94,7 +99,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (tutorId == null || !lojoTutorIds().includes(tutorId)) throw new ApiError(meta.errors.noSuchTutor);
 			// A write needs this conversation's turn token: on time, for this learner, who is talking with Vibi. An admin
 			// checking by hand needs none. Refused writes answer like the scheduler does, so Vibi can say why.
-			if (ps.tool !== 'plan' && ([...PLAN_TOOLS, 'draftAgentTask'] as readonly string[]).includes(ps.tool) && !(me != null && await this.roleService.isAdministrator(me))) {
+			const writes = (ps.tool !== 'plan' && ([...PLAN_TOOLS, 'draftAgentTask'] as readonly string[]).includes(ps.tool)) || (ps.tool === 'appCall' && ps.method !== 'GET');
+			if (writes && !(me != null && await this.roleService.isAdministrator(me))) {
 				const why = await this.lojoTutorService.checkTurnToken(ps.turnToken ?? null, ps.learnerId);
 				if (why != null) return { ok: false, reason: why };
 			}
@@ -140,8 +146,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				case 'levelMistakes':
 					return { mistakes: await this.lojoTutorService.questMistakes?.(ps.learnerId, ps.levelId ?? null) ?? null };
 				// The mini app tools. Vibi is the only caller for now; what it may read is the directory's grants.
+				// listApps: with query (the learner's words), only the matching apps, best first; total 0 = there is none
 				case 'listApps':
-					return { apps: await this.lojoAppsService.listFor('vibi') };
+					return await this.lojoAppsService.listFor('vibi', { query: ps.query?.slice(0, 100) ?? null, category: ps.category ?? null });
 				case 'appSpec': {
 					const app = ps.app ? await this.lojoAppsService.get(ps.app) : null;
 					return app ? this.lojoAppsService.specFor(app, 'vibi') : { error: { code: 'NO_SUCH_APP', message: `no app ${ps.app ?? ''}` } };
@@ -149,7 +156,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				case 'appCall': {
 					const query: Record<string, string> = {};
 					for (const [k, v] of Object.entries(ps.params ?? {})) if (v != null && typeof v !== 'object') query[k] = String(v);
-					return await this.lojoAppsService.call('vibi', ps.learnerId, ps.app ?? '', ps.path ?? '', query);
+					// a write is not sent: it becomes a 「确认」 card under the reply (LojoAppsService.propose)
+					return await this.lojoAppsService.call('vibi', ps.learnerId, ps.app ?? '', ps.path ?? '', query, ps.method, ps.body ?? null);
 				}
 				case 'recentActivity':
 					return { lines: await this.lojoAppsService.recent(ps.learnerId, { since: new Date(Date.now() - ps.days * 86400_000), app: ps.app ?? null, limit: ps.limit * 4 }) };

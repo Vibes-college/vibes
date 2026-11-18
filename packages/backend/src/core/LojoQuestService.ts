@@ -371,6 +371,16 @@ export class LojoQuestService implements OnModuleInit, OnApplicationShutdown {
 		return questLastFail(row);
 	}
 
+	// 资料页「学习」标签 (core/LojoLearnService.ts): the chapter a learner is in and the chapters whose Boss they beat.
+	// null: never opened the map.
+	public async learnFacts(userId: string): Promise<{ chapterTitle: string; beaten: string[] } | null> {
+		const row = await this.db.getRepository(MiLojoQuest).findOneBy({ userId });
+		if (row == null) return null;
+		const cur = this.currentChapter(row);
+		const name = (c: QuestChapter) => c.title || `第 ${c.no} 章`;
+		return { chapterTitle: name(cur), beaten: questChapters().filter(c => this.bossBeaten(row, c.no)).map(name) };
+	}
+
 	// Where a learner is on the map, for Mia's progress card (misc/lojo-tutor-progress.ts). null: never opened the map.
 	public async progressFacts(userId: string): Promise<QuestProgressFacts | null> {
 		const row = await this.db.getRepository(MiLojoQuest).findOneBy({ userId });

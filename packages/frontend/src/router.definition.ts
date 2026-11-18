@@ -668,6 +668,11 @@ export const ROUTE_DEF = [{
 		component: page(() => import('@/pages/_empty_.vue')),
 	}],
 }, {
+	// 交 / 管理毕业作品：资料页「学习」标签的本人管理页（2026-11-17 从个人主页小程序 /apps/works/ 搬进社区）
+	path: '/my/learn',
+	component: page(() => import('@/pages/lojo/learn-manage.vue')),
+	loginRequired: true,
+}, {
 	path: '/my/notifications',
 	component: page(() => import('@/pages/notifications.vue')),
 	loginRequired: true,

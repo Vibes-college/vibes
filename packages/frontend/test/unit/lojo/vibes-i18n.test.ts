@@ -10,7 +10,9 @@
 import { describe, expect, test } from 'vitest';
 import { vibesLangOf } from '@/lojo/locales/lang.js';
 import { agentTable } from '@/lojo/locales/agent.js';
+import { appActionTable } from '@/lojo/locales/appAction.js';
 import { chatTable } from '@/lojo/locales/chat.js';
+import { learnTable } from '@/lojo/locales/learn.js';
 import { miniAppsTable } from '@/lojo/locales/miniapps.js';
 import { momoTable } from '@/lojo/locales/momo.js';
 import { navTable } from '@/lojo/locales/nav.js';
@@ -19,7 +21,7 @@ import { settingsTable } from '@/lojo/locales/settings.js';
 import { signupTable } from '@/lojo/locales/signup.js';
 import { vibiTable } from '@/lojo/locales/vibi.js';
 
-const TABLES = { agent: agentTable, chat: chatTable, miniapps: miniAppsTable, momo: momoTable, nav: navTable, post: postTable, settings: settingsTable, signup: signupTable, vibi: vibiTable };
+const TABLES = { agent: agentTable, appAction: appActionTable, chat: chatTable, learn: learnTable, miniapps: miniAppsTable, momo: momoTable, nav: navTable, post: postTable, settings: settingsTable, signup: signupTable, vibi: vibiTable };
 const HAN = /[㐀-鿿]/;
 
 // Call a word that takes values (a count, a name, a list of files) with sample values until one fits.
@@ -82,6 +84,13 @@ describe('English that needs care', () => {
 		expect(agentTable.en.groupRead(1)).toBe('Read 1 file');
 		expect(agentTable.en.groupRead(2)).toBe('Read 2 files');
 		expect(agentTable.en.groupSearch(1)).toBe('Searched once');
+		expect(learnTable.en.gridLearned(1)).toBe('Learned on 1 day in the past year');
+		expect(learnTable.en.gridLearned(5)).toBe('Learned on 5 days in the past year');
+	});
+	test('the learning grid names months and days in English', () => {
+		expect(learnTable.en.month(1)).toBe('Jan');
+		expect(learnTable.en.month(12)).toBe('Dec');
+		expect(learnTable.en.dayTip(learnTable.en.day(11, 3), learnTable.en.noRecord)).toBe('Nov 3: Nothing recorded');
 	});
 	test('the agent summary handed to Momo reads as one English line', () => {
 		const parts = [agentTable.en.groupRead(2), agentTable.en.filesChanged(['a.ts'], 1)];

@@ -19,6 +19,8 @@ export const APPS_ROSTER_RULES = {
 	maxName: 20,
 	maxText: 400,
 	maxList: 12,
+	/** a category or one tag (第 6 步: what Vibi searches when a learner asks for an app) */
+	maxTag: 20,
 } as const;
 
 /** server: its own container at /apps/<id>/; static: files served at /apps/<id>/…; external: another site */
@@ -33,12 +35,16 @@ export type AppsRosterEntry = {
 	visible: boolean;
 	/** ids this entry had before, so people who already saw the intro under the old id do not see it again */
 	formerIds?: string[];
+	/** one word for the shelf it sits on (听力, 单词…); Vibi can narrow a search to it */
+	category?: string;
+	/** words a learner might use for it, in Chinese and English (听写, dictation…); searched with the name and the intro */
+	tags?: string[];
 	intro: { summary: string; audience: string; steps: string[]; caveats: string[] };
 };
 
 const ID = /^[a-z][a-z0-9-]{1,30}$/;
 const ICON = /^ti ti-[a-z0-9-]+$/;
-const ENTRY_KEYS = ['id', 'name', 'icon', 'href', 'type', 'visible', 'formerIds', 'intro'];
+const ENTRY_KEYS = ['id', 'name', 'icon', 'href', 'type', 'visible', 'formerIds', 'category', 'tags', 'intro'];
 const INTRO_KEYS = ['summary', 'audience', 'steps', 'caveats'];
 
 type Obj = Record<string, unknown>;
@@ -71,6 +77,10 @@ function entryProblems(v: unknown, where: string): string[] {
 	if (typeof v.visible !== 'boolean') out.push(`${where}: visible 要写 true 或 false`);
 	if (v.formerIds != null && (!Array.isArray(v.formerIds) || !v.formerIds.every(f => typeof f === 'string' && ID.test(f)))) {
 		out.push(`${where}: formerIds 要是旧 id 的列表`);
+	}
+	if (v.category != null && !isStr(v.category, APPS_ROSTER_RULES.maxTag)) out.push(`${where}: category（分类）要是一个词，最多 ${APPS_ROSTER_RULES.maxTag} 字`);
+	if (v.tags != null && !(Array.isArray(v.tags) && v.tags.length <= APPS_ROSTER_RULES.maxList && v.tags.every(t => isStr(t, APPS_ROSTER_RULES.maxTag)))) {
+		out.push(`${where}: tags（学员可能怎么叫它）要是词的列表，最多 ${APPS_ROSTER_RULES.maxList} 个、每个最多 ${APPS_ROSTER_RULES.maxTag} 字`);
 	}
 	const intro = v.intro;
 	if (!isObj(intro)) {

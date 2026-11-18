@@ -69,6 +69,15 @@ describe('小程序名册：导入前查格式', () => {
 		expect(intro).toHaveLength(3);
 	});
 
+	test('category and tags are optional words Vibi searches; anything else in them is refused', () => {
+		expect(appsRosterProblems(file([app({ category: '示例分类', tags: ['示例', 'example'] })]))).toEqual([]);
+		expect(appsRosterProblems(file([app({ category: '' })]))[0]).toContain('category');
+		expect(appsRosterProblems(file([app({ category: ['示例'] })]))[0]).toContain('category');
+		expect(appsRosterProblems(file([app({ tags: '示例' })]))[0]).toContain('tags');
+		expect(appsRosterProblems(file([app({ tags: ['示'.repeat(APPS_ROSTER_RULES.maxTag + 1)] })]))[0]).toContain('tags');
+		expect(appsRosterProblems(file([app({ tags: Array.from({ length: APPS_ROSTER_RULES.maxList + 1 }, (_, i) => `t${i}`) })]))[0]).toContain('tags');
+	});
+
 	test('the launcher reads only the entries that are on, in the order of the file', () => {
 		const roster = file([app({ id: 'example-a' }), app({ id: 'example-b', visible: false }), app({ id: 'example-c' })]);
 		expect(appsRosterPublic(roster).apps.map(a => a.id)).toEqual(['example-a', 'example-c']);

@@ -13,6 +13,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<!-- Vibes: 发到我的电脑 — Vibi's draft for the learner's computer (only the learner can send it), and the result they hand back. -->
 		<XAgentDraft v-else-if="agentDraft" :draftId="agentDraft.draftId" :text="agentDraft.text" :tutorId="message.fromUserId"/>
 		<XAgentResult v-else-if="agentResult" :did="agentResult.did" :body="agentResult.body"/>
+		<!-- Vibes 第 6 步: a change Vibi asked for in a mini app; written only when the learner taps 确认. -->
+		<XAppAction v-else-if="appAction" :sentence="appAction.sentence" :actionId="appAction.actionId"/>
 		<MkFukidashi v-else :class="$style.fukidashi" :tail="isMe ? 'right' : 'left'" :fullWidth="message.file != null && voiceFile == null" :accented="isMe">
 			<!-- Vibes: a voice message plays as a voice bubble; the text below it is the transcript. -->
 			<MkChatVoice v-if="voiceFile" :class="$style.voice" :file="voiceFile"/>
@@ -28,8 +30,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			/>
 			<MkMediaList v-if="message.file && voiceFile == null" :mediaList="[message.file]" :user="message.fromUser"/>
 		</MkFukidashi>
-		<MkLojoEnglishBar v-if="message.text && !planChange && !agentDraft && !agentResult" :text="message.text" :align="isMe ? 'end' : 'start'" :noListen="voiceFile != null"/>
-		<MkUrlPreview v-for="url in (planChange || agentDraft || agentResult ? [] : urls)" :key="url" :url="url" style="margin: 8px 0;"/>
+		<MkLojoEnglishBar v-if="message.text && !planChange && !agentDraft && !agentResult && !appAction" :text="message.text" :align="isMe ? 'end' : 'start'" :noListen="voiceFile != null"/>
+		<MkUrlPreview v-for="url in (planChange || agentDraft || agentResult || appAction ? [] : urls)" :key="url" :url="url" style="margin: 8px 0;"/>
 		<div :class="$style.footer">
 			<button class="_textButton" style="color: currentColor;" @click="showMenu"><i class="ti ti-dots-circle-horizontal"></i></button>
 			<MkTime :class="$style.time" :time="message.createdAt"/>
@@ -87,6 +89,7 @@ import { isVoiceFile } from '@/lojo/audio.js';
 import { loadPlanTutorIds, parsePlanChange, planTutorIds } from '@/lojo/plan/changeCard.js';
 import XPlanChange from '@/lojo/plan/ChangeCard.vue';
 import { parseAgentDraft, parseAgentResult } from '@/lojo/agent/draftCard.js';
+import { parseAppAction } from '@/lojo/apps/actionCard.js';
 import { shouldHideFileByDefault } from '@/utility/sensitive-file.js';
 
 const $i = ensureSignin();
@@ -100,6 +103,9 @@ const isMe = computed(() => props.message.fromUserId === $i.id);
 // Vibes: only Vibi's own marker messages are drawn as change cards (anyone else typing the same words gets a bubble).
 if (props.message.text?.startsWith('【任务改动】')) loadPlanTutorIds(); // vibes-i18n-keep: message protocol
 if (props.message.text?.startsWith('【给电脑的指令】')) loadPlanTutorIds(); // vibes-i18n-keep: message protocol
+if (props.message.text?.startsWith('【请确认】')) loadPlanTutorIds(); // vibes-i18n-keep: message protocol
+const appAction = computed(() => (!isMe.value && planTutorIds.value.includes(props.message.fromUserId) ? parseAppAction(props.message.text) : null));
+const XAppAction = defineAsyncComponent(() => import('@/lojo/apps/ActionCard.vue'));
 const agentDraft = computed(() => (!isMe.value && planTutorIds.value.includes(props.message.fromUserId) ? parseAgentDraft(props.message.text) : null));
 const agentResult = computed(() => (isMe.value ? parseAgentResult(props.message.text) : null));
 const XAgentDraft = defineAsyncComponent(() => import('@/lojo/agent/DraftCard.vue'));

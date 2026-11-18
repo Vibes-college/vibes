@@ -491,6 +491,10 @@ import type {
 	LojoAgentEnglishResponse,
 	LojoAgentPromptRequest,
 	LojoAgentPromptResponse,
+	LojoAppsActionsDecideRequest,
+	LojoAppsActionsDecideResponse,
+	LojoAppsActionsShowRequest,
+	LojoAppsActionsShowResponse,
 	LojoAppsListResponse,
 	LojoAppsRecentRequest,
 	LojoAppsRecentResponse,
@@ -564,6 +568,17 @@ import type {
 	LojoGuidesThreadsLikeResponse,
 	LojoGuidesThreadsListRequest,
 	LojoGuidesThreadsListResponse,
+	LojoLearnDeleteWorkRequest,
+	LojoLearnDeleteWorkResponse,
+	LojoLearnMeResponse,
+	LojoLearnSaveWorkRequest,
+	LojoLearnSaveWorkResponse,
+	LojoLearnShowRequest,
+	LojoLearnShowResponse,
+	LojoLearnTakedownRequest,
+	LojoLearnTakedownResponse,
+	LojoLearnUpdateRequest,
+	LojoLearnUpdateResponse,
 	LojoPlanListImportRequest,
 	LojoPlanListImportResponse,
 	LojoPlanReplanResponse,
@@ -1163,6 +1178,8 @@ export type Endpoints = {
 	'lojo/agent/bridge': { req: LojoAgentBridgeRequest; res: LojoAgentBridgeResponse };
 	'lojo/agent/english': { req: LojoAgentEnglishRequest; res: LojoAgentEnglishResponse };
 	'lojo/agent/prompt': { req: LojoAgentPromptRequest; res: LojoAgentPromptResponse };
+	'lojo/apps/actions/decide': { req: LojoAppsActionsDecideRequest; res: LojoAppsActionsDecideResponse };
+	'lojo/apps/actions/show': { req: LojoAppsActionsShowRequest; res: LojoAppsActionsShowResponse };
 	'lojo/apps/list': { req: EmptyRequest; res: LojoAppsListResponse };
 	'lojo/apps/recent': { req: LojoAppsRecentRequest; res: LojoAppsRecentResponse };
 	'lojo/apps/register': { req: LojoAppsRegisterRequest; res: LojoAppsRegisterResponse };
@@ -1203,6 +1220,12 @@ export type Endpoints = {
 	'lojo/guides/show': { req: LojoGuidesShowRequest; res: LojoGuidesShowResponse };
 	'lojo/guides/threads/like': { req: LojoGuidesThreadsLikeRequest; res: LojoGuidesThreadsLikeResponse };
 	'lojo/guides/threads/list': { req: LojoGuidesThreadsListRequest; res: LojoGuidesThreadsListResponse };
+	'lojo/learn/delete-work': { req: LojoLearnDeleteWorkRequest; res: LojoLearnDeleteWorkResponse };
+	'lojo/learn/me': { req: EmptyRequest; res: LojoLearnMeResponse };
+	'lojo/learn/save-work': { req: LojoLearnSaveWorkRequest; res: LojoLearnSaveWorkResponse };
+	'lojo/learn/show': { req: LojoLearnShowRequest; res: LojoLearnShowResponse };
+	'lojo/learn/takedown': { req: LojoLearnTakedownRequest; res: LojoLearnTakedownResponse };
+	'lojo/learn/update': { req: LojoLearnUpdateRequest; res: LojoLearnUpdateResponse };
 	'lojo/plan/list-import': { req: LojoPlanListImportRequest; res: LojoPlanListImportResponse };
 	'lojo/plan/replan': { req: EmptyRequest; res: LojoPlanReplanResponse };
 	'lojo/plan/settings': { req: LojoPlanSettingsRequest; res: LojoPlanSettingsResponse };

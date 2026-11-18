@@ -47,6 +47,21 @@ export function miniAppTarget(fullPath: string): string | null {
 	return null;
 }
 
+/** 个人主页小程序的旧地址（2026-11-17 搬进社区）：/apps/works/u/<用户名>(/<专业>) → 资料页「学习」标签，
+ * /apps/works/（管理页）→ /my/learn；不是就 null */
+export function learnTabPath(fullPath: string): string | null {
+	let u: URL;
+	try {
+		u = new URL(fullPath, window.location.origin);
+	} catch {
+		return null;
+	}
+	if (u.origin !== window.location.origin) return null;
+	if (/^\/apps\/works(?:\/(?:index\.html)?)?$/.test(u.pathname)) return `/my/learn${u.hash === '#work' ? '#work' : ''}`;
+	const m = /^\/apps\/works\/u\/([A-Za-z0-9_]{1,128})\/?(?:([a-z0-9-]{1,32})\/?)?(?:index\.html)?$/.exec(u.pathname);
+	return m ? `/@${m[1]}/learn${m[2] != null && m[2] !== 'index' ? `?work=${m[2]}` : ''}` : null;
+}
+
 export function openAppOverlay(target: string): void {
 	const src = miniAppTarget(target);
 	if (src == null) {
@@ -132,6 +147,11 @@ export function installAppOverlay(): void {
 	// 别的界面（deck）自己的 navHook 照常接在后面。
 	const previous = mainRouter.navHook;
 	mainRouter.navHook = (fullPath, flag) => {
+		const learn = learnTabPath(fullPath);
+		if (learn != null) {
+			mainRouter.pushByPath(learn);
+			return true;
+		}
 		if (flag !== 'forcePage' && miniAppTarget(fullPath) != null) {
 			openAppOverlay(fullPath);
 			return true;
@@ -145,9 +165,14 @@ export function installAppOverlay(): void {
 		const a = (ev.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
 		// SVG 里的 <a> 的 href 不是字符串，不管它
 		if (a == null || typeof a.href !== 'string' || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
-		if (miniAppTarget(a.href) == null) return;
+		const learn = learnTabPath(a.href);
+		if (learn == null && miniAppTarget(a.href) == null) return;
 		ev.preventDefault();
 		ev.stopPropagation();
+		if (learn != null) {
+			mainRouter.pushByPath(learn);
+			return;
+		}
 		const u = new URL(a.href);
 		openAppOverlay(`${u.pathname}${u.search}${u.hash}`);
 	}, true);

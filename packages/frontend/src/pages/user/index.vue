@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader v-model:tab="tab" :tabs="headerTabs" :actions="headerActions" :swipable="true">
 	<div v-if="user">
 		<XHome v-if="tab === 'home'" :user="user" :refreshUser="refreshUser" @showMoreFiles="() => { tab = 'files'; }"/>
+		<XLearn v-else-if="tab === 'learn' && user.host == null" :user="user"/>
 		<XNotes v-else-if="tab === 'notes'" :user="user"/>
 		<XFiles v-else-if="tab === 'files'" :user="user"/>
 		<XActivity v-else-if="tab === 'activity'" :user="user"/>
@@ -34,8 +35,11 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { serverContext, assertServerContext } from '@/server-context.js';
 import { keep, markShown, readKept } from '@/lojo/kept.js';
+import { learnTab } from '@/lojo/locales/learn.js';
 
 const XHome = defineAsyncComponent(() => import('./home.vue'));
+// Vibes: 「学习」标签（学习格子、毕业作品），本站用户才有，排第二（2026-11-17）
+const XLearn = defineAsyncComponent(() => import('@/lojo/learn/LearnTab.vue'));
 const XNotes = defineAsyncComponent(() => import('./notes.vue'));
 const XFiles = defineAsyncComponent(() => import('./files.vue'));
 const XActivity = defineAsyncComponent(() => import('./activity.vue'));
@@ -118,7 +122,7 @@ const headerTabs = computed(() => user.value ? [{
 	key: 'home',
 	title: i18n.ts.overview,
 	icon: 'ti ti-home',
-}, {
+}, ...(user.value.host == null ? [learnTab] : []), {
 	key: 'notes',
 	title: i18n.ts.notes,
 	icon: 'ti ti-pencil',
