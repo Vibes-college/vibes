@@ -105,11 +105,19 @@ export function closeAppOverlay(): void {
 	window.history.go(-steps);
 }
 
+/**
+ * 小程序要去的社区地址，是不是就等于「关掉浮层、回到打开前那一页」：
+ * 要去的就是下面这一页；或者是首页「/」——小程序左上角的「<」（回社区）都指向「/」，
+ * 从 Momo 聊天、资料页等地方点开时，学员要回的是原来那一页，不是首页（创始人 11-18「小程序返回改回原页」）。
+ */
+export function overlayGoesBack(fullPath: string, here: string): boolean {
+	return fullPath === here || fullPath === '/';
+}
+
 /** 小程序要去社区里的另一页（「回闯关」等）：收起浮层，社区在原地换过去 */
 export function leaveAppOverlayTo(fullPath: string): void {
 	if (appOverlay.value == null) return;
-	const here = mainRouter.getCurrentFullPath();
-	if (fullPath === here || (fullPath === '/' && here === '/timeline')) {
+	if (overlayGoesBack(fullPath, mainRouter.getCurrentFullPath())) {
 		closeAppOverlay();
 		return;
 	}
