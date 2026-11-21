@@ -582,6 +582,8 @@ import type {
 	LojoPlanListImportRequest,
 	LojoPlanListImportResponse,
 	LojoPlanReplanResponse,
+	LojoPlanScoreCreateRequest,
+	LojoPlanScoreCreateResponse,
 	LojoPlanSettingsRequest,
 	LojoPlanSettingsResponse,
 	LojoPlanSetupRequest,
@@ -645,6 +647,9 @@ import type {
 	LojoQuestTrialShowResponse,
 	LojoQuestTrialStartResponse,
 	LojoTutorIdsResponse,
+	LojoTutorModeShowResponse,
+	LojoTutorModeUpdateRequest,
+	LojoTutorModeUpdateResponse,
 	LojoTutorPersonaShowResponse,
 	LojoTutorPersonaUpdateRequest,
 	LojoTutorPersonaUpdateResponse,
@@ -1228,6 +1233,7 @@ export type Endpoints = {
 	'lojo/learn/update': { req: LojoLearnUpdateRequest; res: LojoLearnUpdateResponse };
 	'lojo/plan/list-import': { req: LojoPlanListImportRequest; res: LojoPlanListImportResponse };
 	'lojo/plan/replan': { req: EmptyRequest; res: LojoPlanReplanResponse };
+	'lojo/plan/score/create': { req: LojoPlanScoreCreateRequest; res: LojoPlanScoreCreateResponse };
 	'lojo/plan/settings': { req: LojoPlanSettingsRequest; res: LojoPlanSettingsResponse };
 	'lojo/plan/setup': { req: LojoPlanSetupRequest; res: LojoPlanSetupResponse };
 	'lojo/plan/show': { req: LojoPlanShowRequest; res: LojoPlanShowResponse };
@@ -1263,6 +1269,8 @@ export type Endpoints = {
 	'lojo/quest/trial-show': { req: LojoQuestTrialShowRequest; res: LojoQuestTrialShowResponse };
 	'lojo/quest/trial-start': { req: EmptyRequest; res: LojoQuestTrialStartResponse };
 	'lojo/tutor/ids': { req: EmptyRequest; res: LojoTutorIdsResponse };
+	'lojo/tutor/mode/show': { req: EmptyRequest; res: LojoTutorModeShowResponse };
+	'lojo/tutor/mode/update': { req: LojoTutorModeUpdateRequest; res: LojoTutorModeUpdateResponse };
 	'lojo/tutor/persona/show': { req: EmptyRequest; res: LojoTutorPersonaShowResponse };
 	'lojo/tutor/persona/update': { req: LojoTutorPersonaUpdateRequest; res: LojoTutorPersonaUpdateResponse };
 	'lojo/tutor/pilot-tool': { req: LojoTutorPilotToolRequest; res: LojoTutorPilotToolResponse };

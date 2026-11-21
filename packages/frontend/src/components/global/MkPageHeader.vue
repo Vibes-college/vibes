@@ -16,7 +16,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="!thin_ && narrow && !hideTitle" :class="$style.buttons"></div>
 
 		<template v-if="pageMetadata">
-			<div v-if="!hideTitle" :class="$style.titleContainer" @click="top">
+			<div
+				v-if="!hideTitle"
+				:class="[$style.titleContainer, { [$style.titleMenu]: pageMetadata.titleMenu }]"
+				:role="pageMetadata.titleMenu ? 'button' : undefined"
+				:tabindex="pageMetadata.titleMenu ? 0 : undefined"
+				:aria-haspopup="pageMetadata.titleMenu ? 'menu' : undefined"
+				@click="onTitleClick"
+				@keydown.enter="onTitleKey"
+				@keydown.space="onTitleKey"
+			>
 				<div v-if="pageMetadata.avatar" :class="$style.titleAvatarContainer">
 					<MkAvatar :class="$style.titleAvatar" :user="pageMetadata.avatar" indicator/>
 				</div>
@@ -27,9 +36,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<MkUserName :user="pageMetadata.userName" :nowrap="true"/>
 						<span v-if="pageMetadata.nameSuffix" :class="$style.nameSuffix">· {{ pageMetadata.nameSuffix }}</span>
 						<span v-if="pageMetadata.badge" :class="$style.badge">{{ pageMetadata.badge }}</span>
+						<i v-if="pageMetadata.titleMenu && !pageMetadata.titleAccent" class="ti ti-chevron-down" :class="$style.titleChevron"></i>
 					</div>
 					<div v-else-if="pageMetadata.title" class="_nowrap">{{ pageMetadata.title }}</div>
-					<div v-if="pageMetadata.subtitle" :class="$style.subtitle">
+					<div v-if="pageMetadata.titleAccent" :class="$style.titleAccent">
+						<i :class="pageMetadata.titleAccent.icon"></i>
+						<span>{{ pageMetadata.titleAccent.text }}</span>
+						<i class="ti ti-chevron-down"></i>
+					</div>
+					<div v-else-if="pageMetadata.subtitle" :class="$style.subtitle">
 						{{ pageMetadata.subtitle }}
 					</div>
 				</div>
@@ -111,6 +126,18 @@ const top = () => {
 		scrollToTop(el.value as HTMLElement, { behavior: 'smooth' });
 	}
 };
+
+// Vibes 聊天模式: a page can make its title open a menu (pageMetadata.titleMenu) instead of scrolling to the top.
+function onTitleClick(ev: Event) {
+	if (pageMetadata.value?.titleMenu) pageMetadata.value.titleMenu(ev);
+	else top();
+}
+
+function onTitleKey(ev: KeyboardEvent) {
+	if (!pageMetadata.value?.titleMenu) return;
+	ev.preventDefault();
+	pageMetadata.value.titleMenu(ev);
+}
 
 async function openAccountMenu(ev: PointerEvent) {
 	const menuItems = await getAccountMenu({
@@ -336,6 +363,43 @@ onUnmounted(() => {
 	line-height: 1.3;
 	letter-spacing: 0.04em;
 	opacity: 0.6;
+}
+
+// Vibes 聊天模式 (see onTitleClick)
+.titleMenu {
+	cursor: pointer;
+	border-radius: 8px;
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-focus);
+		outline-offset: 2px;
+	}
+}
+
+.titleChevron {
+	flex-shrink: 0;
+	font-size: 0.8em;
+	opacity: 0.45;
+}
+
+.titleAccent {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	margin-top: 3px;
+	color: var(--MI_THEME-cta);
+	font-size: 0.75em;
+	font-weight: bold;
+	white-space: nowrap;
+
+	> span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+.slim .titleAccent {
+	justify-content: center;
 }
 
 .subtitle {

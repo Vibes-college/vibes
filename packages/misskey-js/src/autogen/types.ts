@@ -3423,6 +3423,15 @@ export type paths = {
          */
         post: operations['lojo___plan___replan'];
     };
+    '/lojo/plan/score/create': {
+        /**
+         * lojo/plan/score/create
+         * @description Record an IELTS score per skill (a mock, the real exam or a teacher's), optionally ticking the mock task it belongs to. The weak skill is judged again. Returns ok false with a reason when it cannot.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___plan___score___create'];
+    };
     '/lojo/plan/settings': {
         /**
          * lojo/plan/settings
@@ -3435,7 +3444,7 @@ export type paths = {
     '/lojo/plan/setup': {
         /**
          * lojo/plan/setup
-         * @description Make or remake the exam plan from the exam date, minutes per day, target and current score. Returns ok false with a reason when it cannot.
+         * @description Make or remake the exam plan from the exam date and target (minutes per day, current score, rest day and focus keep what the plan had; per-skill targets and school minimums: {} clears). Returns ok false with a reason when it cannot.
          *
          *     **Credential required**: *Yes* / **Permission**: *write:account*
          */
@@ -3738,6 +3747,24 @@ export type paths = {
          */
         post: operations['lojo___tutor___ids'];
     };
+    '/lojo/tutor/mode/show': {
+        /**
+         * lojo/tutor/mode/show
+         * @description How my Momo talks to me in the chat (聊天模式): normal, roast (毒舌), chinglish (catches my Chinglish) or subtext (British subtext). available: whether my replies come from the Momo who knows the modes (the menu under her name shows only then).
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['lojo___tutor___mode___show'];
+    };
+    '/lojo/tutor/mode/update': {
+        /**
+         * lojo/tutor/mode/update
+         * @description Pick how my Momo talks to me in the chat (聊天模式, the menu under her name). When it changed, one grey line goes into the chat from her.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['lojo___tutor___mode___update'];
+    };
     '/lojo/tutor/persona/show': {
         /**
          * lojo/tutor/persona/show
@@ -3759,7 +3786,7 @@ export type paths = {
     '/lojo/tutor/pilot-tool': {
         /**
          * lojo/tutor/pilot-tool
-         * @description Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher's roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.
+         * @description Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; recordScore: 学习计划第一版, 2026-11-20; the writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher's roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.
          *
          *     **Credential required**: *No*
          */
@@ -34501,6 +34528,80 @@ export interface operations {
             };
         };
     };
+    lojo___plan___score___create: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    source: 'mock' | 'real' | 'teacher';
+                    date?: string | null;
+                    listening?: number | null;
+                    reading?: number | null;
+                    writing?: number | null;
+                    speaking?: number | null;
+                    estimated?: ('listening' | 'reading' | 'writing' | 'speaking')[] | null;
+                    /** Format: misskey:id */
+                    taskId?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___plan___settings: {
         requestBody: {
             content: {
@@ -34572,12 +34673,24 @@ export interface operations {
             content: {
                 'application/json': {
                     examDate: string;
-                    dailyMinutes: number;
+                    dailyMinutes?: number;
                     target: string;
-                    current: string;
+                    current?: string;
                     restDay?: number | null;
                     focus?: string | null;
                     tz?: string | null;
+                    targets?: {
+                        listening?: number | null;
+                        reading?: number | null;
+                        writing?: number | null;
+                        speaking?: number | null;
+                    } | null;
+                    minimums?: {
+                        listening?: number | null;
+                        reading?: number | null;
+                        writing?: number | null;
+                        speaking?: number | null;
+                    } | null;
                 };
             };
         };
@@ -37003,6 +37116,155 @@ export interface operations {
             };
         };
     };
+    lojo___tutor___mode___show: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** @enum {string} */
+                        mode: 'normal' | 'roast' | 'chinglish' | 'subtext';
+                        available: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    lojo___tutor___mode___update: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    mode: 'normal' | 'roast' | 'chinglish' | 'subtext';
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** @enum {string} */
+                        mode: 'normal' | 'roast' | 'chinglish' | 'subtext';
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     lojo___tutor___persona___show: {
         responses: {
             /** @description OK (with results) */
@@ -37152,7 +37414,7 @@ export interface operations {
             content: {
                 'application/json': {
                     /** @enum {string} */
-                    tool: 'prompt' | 'progress' | 'searchChat' | 'wordbook' | 'levelMistakes' | 'listApps' | 'appSpec' | 'appCall' | 'recentActivity' | 'plan' | 'setPlan' | 'addTask' | 'moveTask' | 'setStatus' | 'planWeek' | 'replanFromToday' | 'undo' | 'draftAgentTask';
+                    tool: 'prompt' | 'progress' | 'searchChat' | 'wordbook' | 'levelMistakes' | 'listApps' | 'appSpec' | 'appCall' | 'recentActivity' | 'plan' | 'setPlan' | 'addTask' | 'moveTask' | 'setStatus' | 'planWeek' | 'replanFromToday' | 'undo' | 'recordScore' | 'draftAgentTask';
                     secret?: string | null;
                     /** Format: misskey:id */
                     learnerId: string;
@@ -37194,6 +37456,30 @@ export interface operations {
                     status?: 'todo' | 'doing' | 'done' | 'removed' | null;
                     weekStart?: string | null;
                     changeId?: string | null;
+                    targets?: {
+                        listening?: number | null;
+                        reading?: number | null;
+                        writing?: number | null;
+                        speaking?: number | null;
+                    } | null;
+                    minimums?: {
+                        listening?: number | null;
+                        reading?: number | null;
+                        writing?: number | null;
+                        speaking?: number | null;
+                    } | null;
+                    focus?: string | null;
+                    /** @enum {string|null} */
+                    source?: 'mock' | 'real' | 'teacher' | null;
+                    listening?: number | null;
+                    reading?: number | null;
+                    writing?: number | null;
+                    speaking?: number | null;
+                    overall?: number | null;
+                    estimated?: ('listening' | 'reading' | 'writing' | 'speaking')[] | null;
+                    /** @enum {string|null} */
+                    skill?: 'listening' | 'reading' | 'writing' | 'speaking' | 'vocab' | 'grammar' | 'mixed' | null;
+                    mock?: boolean | null;
                     instruction?: string | null;
                 };
             };

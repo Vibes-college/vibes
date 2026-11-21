@@ -11,9 +11,12 @@ export const meta = {
 	tags: ['lojo'],
 	requireCredential: true,
 	kind: 'write:account',
-	description: 'Make or remake the exam plan from the exam date, minutes per day, target and current score. Returns ok false with a reason when it cannot.',
+	description: 'Make or remake the exam plan from the exam date and target (minutes per day, current score, rest day and focus keep what the plan had; per-skill targets and school minimums: {} clears). Returns ok false with a reason when it cannot.',
 	res: { type: 'object', optional: false, nullable: false },
 } as const;
+
+const band = { type: 'number', minimum: 0, maximum: 9, nullable: true } as const;
+const skillMap = { type: 'object', nullable: true, properties: { listening: band, reading: band, writing: band, speaking: band } } as const;
 
 export const paramDef = {
 	type: 'object',
@@ -25,8 +28,10 @@ export const paramDef = {
 		restDay: { type: 'integer', minimum: 0, maximum: 6, nullable: true },
 		focus: { type: 'string', maxLength: 64, nullable: true },
 		tz: { type: 'string', maxLength: 64, nullable: true },
+		targets: skillMap,
+		minimums: skillMap,
 	},
-	required: ['examDate', 'dailyMinutes', 'target', 'current'],
+	required: ['examDate', 'target'],
 } as const;
 
 @Injectable()

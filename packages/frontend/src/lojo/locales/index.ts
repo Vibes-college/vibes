@@ -13,6 +13,7 @@ import { appActionText } from './appAction.js';
 import { chatText } from './chat.js';
 import { learnText } from './learn.js';
 import { miniAppsText } from './miniapps.js';
+import { modeText } from './mode.js';
 import { momoText } from './momo.js';
 import { navText } from './nav.js';
 import { postText } from './post.js';
@@ -26,6 +27,7 @@ export const vt = {
 	chat: chatText,
 	learn: learnText,
 	miniapps: miniAppsText,
+	mode: modeText,
 	momo: momoText,
 	nav: navText,
 	post: postText,

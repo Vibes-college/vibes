@@ -63,6 +63,11 @@ Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md §九 
 				</div>
 				<button :class="$style.arrow" :aria-label="S.nextWeek" @click="shiftWeek(7)"><i class="ti ti-chevron-right"></i></button>
 			</div>
+			<!-- 本周做完 per skill, and which skill gets the most practice (学习计划第一版 2026-11-20) -->
+			<div v-if="view === 'week'" :class="$style.weekInfo" data-plan-week-info>
+				<div data-plan-week-done>{{ weekDoneText }}</div>
+				<div :class="$style.weakLine" data-plan-weak>{{ weakLine(data.plan) }}</div>
+			</div>
 
 			<template v-if="day">
 				<!-- check-ins -->
@@ -135,10 +140,19 @@ Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md §九 
 									<template v-if="t.app">
 										· <a :href="appHref(t.app, t.ref)" :class="$style.app" @click.stop>{{ appName(t.app) }}{{ t.ref && t.app === 'vocab' ? ` ${t.ref}` : '' }}</a>
 									</template>
+									<template v-if="t.guide">
+										· <a :href="guideHref(t.guide)" :title="S.howToTitle(t.guide.section)" :class="$style.app" data-plan-guide @click.stop>{{ S.howTo }}</a>
+									</template>
 								</template>
+							</div>
+							<!-- a mock's score once recorded; 「撤销」 right after recording it here -->
+							<div v-if="t.score" :class="$style.scoreLine" data-plan-score>
+								{{ S.scored(scoreParts(t.score)) }}<template v-if="t.score.overall != null"> · {{ S.overall(t.score.overall) }}</template>
+								<button v-if="lastScore?.taskId === t.id" :class="$style.scoreUndo" :disabled="busy.has(t.id)" @click.stop="undoScore">{{ S.undo }}</button>
 							</div>
 						</div>
 						<span v-if="t.delayDays > 0 && t.status !== 'done'" :class="$style.late">{{ S.delayed(t.delayDays) }}</span>
+						<button v-if="t.mock && t.score == null && day.date <= data.today" :class="$style.scoreBtn" :disabled="busy.has(t.id)" data-plan-score-button @click.stop="scoreTask(t)" @pointerdown.stop>{{ S.scoreButton }}</button>
 					</div>
 					<button v-if="overCount > 0 && day.date === data.today" :class="$style.over" @click="openMove(lastOpen)">{{ S.over(overCount) }}</button>
 				</section>
@@ -148,6 +162,32 @@ Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md §九 
 
 			<!-- 全程: one line from top to bottom, a station per stage in its line color, ending at the exam (design: 攻略
 			草图.html, founder 11-16). Tapping a stage opens what comes next in it and what was just done. -->
+			<!-- 分数: each skill now against its target (and the school's minimum), which to train most, the last scores -->
+			<section v-if="view === 'all'" :class="$style.scores" data-plan-scores>
+				<div :class="$style.cTitle"><span>{{ S.scoresTitle }}</span></div>
+				<div v-for="k in P_SKILLS" :key="k" :class="[$style.skill, { [$style.skillWeak]: data.plan.weak?.skill === k || data.plan.weak?.second === k }]" data-plan-skill>
+					<span :class="$style.skillName">{{ S.skills[k] }}</span>
+					<span :class="$style.skillNow">
+						<template v-if="data.plan.skills[k].current != null">{{ data.plan.skills[k].current }}<small v-if="data.plan.skills[k].estimated">{{ S.scoreEst }}</small></template>
+						<template v-else><span :class="$style.skillNone">{{ S.scoreNone }}</span></template>
+						<i v-if="data.plan.skills[k].prev != null && (data.plan.skills[k].current ?? 0) > data.plan.skills[k].prev!" class="ti ti-arrow-up-right" :class="$style.skillUp" :title="S.scoreUp"></i>
+					</span>
+					<span :class="$style.skillTarget">
+						{{ S.scoreTarget }} {{ data.plan.skills[k].target ?? '—' }}
+						<template v-if="data.plan.skills[k].min != null"> · {{ S.scoreMin(data.plan.skills[k].min!) }}</template>
+					</span>
+				</div>
+				<div :class="$style.weakNote">{{ weakLine(data.plan) }}</div>
+				<template v-if="data.scores.length">
+					<div :class="$style.stSub">{{ S.recentScores }}</div>
+					<div v-for="r in data.scores" :key="r.id" :class="$style.scoreItem" data-plan-score-item>
+						<span :class="$style.scoreItemWhen">{{ S.dateShort(r.date) }} · {{ S.sourceShort[r.source] }}</span>
+						<span>{{ scoreParts(r).join(' · ') }}<template v-if="r.overall != null"> · {{ S.overall(r.overall) }}</template></span>
+					</div>
+				</template>
+				<button :class="[$style.ghost, $style.scoreAdd]" data-plan-score-add @click="scoreTask(null)">{{ S.scoreFormTitle }}</button>
+			</section>
+
 			<section v-if="view === 'all'" :class="$style.line" data-plan-all>
 				<div
 					v-for="st in data.plan.stages" :key="st.no"
@@ -273,8 +313,8 @@ import { scrollToTop } from '@@/js/scroll.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import * as os from '@/os.js';
 import { planStrings as S } from '@/lojo/plan/strings.js';
-import { addDays, appHref, appName, lineColor, planAsk, planMoveOptions, planOverCount, planStageLists, ringClass, vibiAll, vibiToday, vibiWeek } from '@/lojo/plan/planView.js';
-import type { PBoard, PCheckin, PDay, PShow, PSync, PTask, PView, VibiHooks, VibiSay } from '@/lojo/plan/planView.js';
+import { addDays, appHref, appName, BANDS, guideHref, lineColor, P_SKILLS, planAsk, planMoveOptions, planOverCount, planStageLists, ringClass, scoreParts, vibiAll, vibiToday, vibiWeek, weakLine, weekDoneParts } from '@/lojo/plan/planView.js';
+import type { PBoard, PCheckin, PDay, PScoreSource, PShow, PSkill, PSync, PTask, PView, VibiHooks, VibiSay } from '@/lojo/plan/planView.js';
 import { refreshMiniApps } from '@/lojo/miniapps/roster.js';
 import XMomoHead from '@/lojo/tutor/MomoHead.vue';
 import { myTutorName } from '@/lojo/tutor/persona.js';
@@ -553,6 +593,64 @@ watch(notify, v => {
 	}
 });
 
+// ---- 本周做完 / 记分 (学习计划第一版 2026-11-20) ----
+const weekDoneText = computed(() => {
+	const parts = weekDoneParts(data.value?.weekDone);
+	return parts.length ? S.weekDone(parts) : S.weekDoneNone;
+});
+
+// the score just recorded on this page, so its card offers 「撤销」 (Vibi's changes are undone from her card in the messages)
+const lastScore = ref<{ taskId: string | null; changeId: string } | null>(null);
+
+// 「记分」: on a mock's card (t), or 「记一次分数」 under 分数 (t null: a real exam or a teacher's, by default)
+async function scoreTask(t: PTask | null) {
+	const d = data.value;
+	if (d?.plan == null || (t != null && busy.value.has(t.id))) return;
+	const bands = [{ label: S.bandNone, value: null }, ...BANDS.map(b => ({ label: String(b), value: b }))];
+	const band = (label: string) => ({ type: 'enum' as const, label, enum: bands, default: null });
+	const sources: PScoreSource[] = ['mock', 'real', 'teacher'];
+	const { canceled, result } = await os.form(S.scoreFormTitle, {
+		source: { type: 'radio', label: S.scoreSource, default: t ? 'mock' : 'real', options: sources.map(v => ({ label: S.sources[v], value: v })) },
+		date: { type: 'string', label: S.scoreDate, description: S.scoreDateHint, default: t != null && t.date <= d.today ? t.date : d.today },
+		listening: band(S.skills.listening),
+		reading: band(S.skills.reading),
+		writing: band(S.skills.writing),
+		writingEstimated: { type: 'boolean', label: S.writingEstimated, default: true },
+		speaking: band(S.speakingLabel),
+	});
+	if (canceled) return;
+	const given = { listening: result.listening, reading: result.reading, writing: result.writing, speaking: result.speaking } as Record<PSkill, number | null>;
+	if (P_SKILLS.every(k => given[k] == null)) { os.toast(S.scoreNeedOne); return; }
+	const date = String(result.date ?? '').trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { os.toast(S.scoreDateBad); return; }
+	if (t) busy.value.add(t.id);
+	try {
+		const r = await misskeyApi('lojo/plan/score/create', {
+			source: result.source as PScoreSource, date, ...given,
+			estimated: (result.writingEstimated && given.writing != null ? ['writing'] : []) as PSkill[],
+			taskId: t?.id ?? null,
+		}) as unknown as { ok: boolean; reason?: string; summary?: string; note?: string; changeId?: string };
+		if (!r.ok) { os.toast(r.reason ?? S.loadFailed); return; }
+		lastScore.value = r.changeId ? { taskId: t?.id ?? null, changeId: r.changeId } : null;
+		os.toast(r.note && r.summary ? S.withNote(r.summary, r.note) : r.summary ?? r.note ?? '');
+		await load();
+		if (board.value != null) loadBoard();
+	} catch {
+		os.toast(S.loadFailed);
+	} finally {
+		if (t) busy.value.delete(t.id);
+	}
+}
+
+async function undoScore() {
+	const last = lastScore.value;
+	if (last == null) return;
+	if (last.taskId) busy.value.add(last.taskId);
+	const ok = await call('lojo/plan/undo', { changeId: last.changeId });
+	if (last.taskId) busy.value.delete(last.taskId);
+	if (ok) { lastScore.value = null; os.toast(S.undone); load(); }
+}
+
 // ---- 挪到哪天 (press and hold; right click on a computer) ----
 let pressTimer: number | null = null;
 
@@ -769,6 +867,25 @@ async function doMove(toDate: string) {
 .stItemDate { flex: none; font-size: 12px; color: var(--weak); }
 .stItemDone .stItemTitle { color: var(--weak); text-decoration: line-through; }
 .stMore { padding: 6px 0 2px; font-size: 12px; color: var(--weak); }
+
+// 分数 (全程) and the week's lines (本周), 学习计划第一版 2026-11-20
+.weekInfo { margin: -6px 2px 14px; font-size: 13px; color: var(--weak); line-height: 1.5; }
+.weakLine { color: var(--ink); }
+.scores { padding: 14px 16px; background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); margin-bottom: 12px; }
+.skill { display: flex; align-items: baseline; gap: 10px; min-height: 34px; padding: 4px 0; & + & { border-top: 1px solid var(--line); } }
+.skillName { flex: none; width: 5.5em; font-size: 14px; color: var(--ink); }
+.skillWeak .skillName { color: var(--cta); font-weight: 700; }
+.skillNow { flex: none; min-width: 4.5em; font-family: var(--serif); font-size: 18px; font-weight: 700; color: var(--ink); small { margin-left: 3px; font-family: var(--sans); font-size: 11px; font-weight: 400; color: var(--weak); } }
+.skillNone { font-family: var(--sans); font-size: 13px; font-weight: 400; color: var(--weak); }
+.skillUp { margin-left: 4px; font-size: 14px; color: var(--ok); }
+.skillTarget { flex: 1; min-width: 0; font-size: 12px; color: var(--weak); text-align: right; }
+.weakNote { margin: 8px 0 4px; font-size: 13px; color: var(--ink); line-height: 1.5; }
+.scoreItem { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 4px 0; font-size: 13px; color: var(--fg); }
+.scoreItemWhen { color: var(--weak); }
+.scoreAdd { margin-top: 10px; }
+.scoreLine { margin: 4px 0 0 14px; font-size: 13px; color: var(--ok); }
+.scoreUndo { margin-left: 8px; font-size: 12px; color: var(--weak); text-decoration: underline; text-underline-offset: 3px; &:hover { color: var(--ink); } }
+.scoreBtn { flex: none; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--cta); color: #fff; font-size: 13px; font-weight: 700; &:disabled { opacity: .6; } }
 .stEnd { position: relative; display: flex; align-items: baseline; gap: 8px; min-height: 24px; padding-left: 36px; }
 .stEnd .stStation { border-color: var(--ink); background: var(--mustard); }
 .stEnd .stName { line-height: 24px; }

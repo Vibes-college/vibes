@@ -15,16 +15,42 @@ export type PTask = {
 	id: string; title: string; kind: 'task'; stage: number; date: string; origDate: string; minutes: number;
 	app: string | null; appName: string | null; ref: string | null; status: 'todo' | 'doing' | 'done'; doneBy: string | null;
 	by: string; pinned: boolean; delayDays: number; asked: boolean; long: boolean;
+	// 学习计划第一版 (2026-11-20): what it trains, the guide that says how, and for a full mock 「记分」 and its score
+	skill: PTaskSkill | null; guide: PGuide | null; mock: boolean; score: PScore | null;
 };
-export type PCheckin = { id: string; title: string; app: string | null; appName: string | null; ref: string | null; minutes: number; done: boolean; doneBy: string | null };
+export type PCheckin = {
+	id: string; title: string; app: string | null; appName: string | null; ref: string | null; minutes: number; done: boolean; doneBy: string | null;
+	skill: PTaskSkill | null; guide: PGuide | null;
+};
 export type PDay = { date: string; rest: boolean; past: boolean; total: number; done: number; minutes: number; tasks: PTask[]; checkins: PCheckin[] };
 export type PStage = { no: number; name: string; goal: string; start: string; end: string; done: number; total: number };
 export type PBoard = { todo: PTask[]; doing: PTask[]; done: PTask[] };
 export type PShow = {
-	plan: null | { examDate: string; examTentative: boolean; dailyMinutes: number; restDay: number; tz: string; notifyWeekly: boolean; stages: PStage[] };
+	plan: null | {
+		examDate: string; examTentative: boolean; dailyMinutes: number; restDay: number; tz: string; notifyWeekly: boolean; stages: PStage[];
+		target: string; current: string | null; focus: string | null;
+		// per skill: the learner's own target and the school's minimum (null: the overall target, no minimum), the scores now
+		// and which skill to train most (judged when a score comes in)
+		targets: PSkillMap | null; minimums: PSkillMap | null; weak: PWeak | null; skills: Record<PSkill, PSkillState>;
+	};
 	today: string; daysToExam: number; stageNow: number | null; diagnostic: boolean; streak: number; weekStart: string;
 	days: PDay[]; todayView: PDay | null; board: PBoard | null;
+	// 「本周做完」: tasks done per skill in the week shown; the last 5 scores, newest first
+	weekDone: Record<PTaskSkill, number>; scores: PScore[];
 };
+export const P_SKILLS = ['listening', 'reading', 'writing', 'speaking'] as const;
+export type PSkill = typeof P_SKILLS[number];
+export const P_TASK_SKILLS = [...P_SKILLS, 'vocab', 'grammar', 'mixed'] as const;
+export type PTaskSkill = typeof P_TASK_SKILLS[number];
+export type PSkillMap = Partial<Record<PSkill, number>>;
+export type PGuide = { slug: string; section: string | null; block: string | null };
+export type PScoreSource = 'mock' | 'real' | 'teacher';
+export type PScore = {
+	id: string; date: string; source: PScoreSource; listening: number | null; reading: number | null; writing: number | null; speaking: number | null;
+	overall: number | null; estimated: PSkill[]; taskId: string | null;
+};
+export type PSkillState = { target: number | null; min: number | null; current: number | null; estimated: boolean; date: string | null; source: PScoreSource | null; prev: number | null };
+export type PWeak = { skill: PSkill | null; second: PSkill | null; keep: boolean; lowest: PSkill | null; judgedAt: string };
 export type PSync = { autoCheck: 'ok' | 'skipped'; ticked: string[]; progress: Record<string, { answered: number; need: number }>; asks: { app: string; appName: string; taskIds: string[] }[] };
 export type PView = 'today' | 'week' | 'all' | 'board';
 
@@ -65,6 +91,33 @@ export function appHref(app: string, ref: string | null) {
 	// where the 小程序 roster opens it (vocab and grammar open their first stop); before the roster is read, the app's home
 	return miniAppHref(app) ?? `/apps/${app}/`;
 }
+
+// 「怎么做」: the guide page (by slug; the section is said in the link's title, the page has no jump to it yet)
+export function guideHref(g: PGuide) {
+	return `/guides/${encodeURIComponent(g.slug)}`;
+}
+
+// A score's skills in order, as 「听力 6.5 · 写作 6（估）」; speaking from a mock is shown but marked as not counted.
+export function scoreParts(s: PScore) {
+	return P_SKILLS.filter(k => s[k] != null).map(k => S.scorePart(S.skills[k], s[k] as number, s.estimated.includes(k), k === 'speaking' && s.source === 'mock'));
+}
+
+// 「本周做完」: the skills with something done this week, in the list's order (听 读 写 说, then 词汇 语法 综合)
+export function weekDoneParts(w: PShow['weekDone'] | undefined) {
+	if (w == null) return [];
+	return P_TASK_SKILLS.filter(k => (w[k] ?? 0) > 0).map(k => S.weekDonePart(S.skills[k], w[k]));
+}
+
+// The weak-skill line under the week: which skill gets the most practice, or 「保持」, or how to find out.
+export function weakLine(plan: NonNullable<PShow['plan']>) {
+	const w = plan.weak;
+	if (w?.skill) return S.weakLine(S.skills[w.skill], w.second ? S.skills[w.second] : null);
+	if (w?.keep) return S.keepLine;
+	return S.noWeakYet;
+}
+
+// 「记分」 bands: 9 down to 1 in half steps
+export const BANDS = [...Array(17).keys()].map(i => 9 - i / 2);
 
 // 「大概」 minutes: to the nearest 5 past 10
 export function about(m: number) {

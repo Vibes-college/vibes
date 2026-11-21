@@ -5,27 +5,34 @@
 
 import { describe, expect, test, vi } from 'vitest';
 import {
-	about, addDays, appHref, appName, dayDiff, lineColor, planAsk, planMoveOptions, planOverCount, planStageLists, ringClass,
-	vibiAll, vibiToday, vibiWeek,
+	about, addDays, appHref, appName, BANDS, dayDiff, guideHref, lineColor, planAsk, planMoveOptions, planOverCount, planStageLists, ringClass,
+	scoreParts, vibiAll, vibiToday, vibiWeek, weakLine, weekDoneParts,
 } from '@/lojo/plan/planView.js';
-import type { PCheckin, PDay, PShow, PStage, PTask } from '@/lojo/plan/planView.js';
+import type { PCheckin, PDay, PScore, PShow, PSkillState, PStage, PTask } from '@/lojo/plan/planView.js';
 import { planAppNames, planStrings as S } from '@/lojo/plan/strings.js';
 import { rosterApps, setMiniApps } from '@/lojo/miniapps/roster.js';
 
 const TODAY = '2026-11-18'; // a Wednesday
 const task = (id: string, o: Partial<PTask> = {}): PTask => ({
 	id, title: `Task ${id}`, kind: 'task', stage: 1, date: TODAY, origDate: TODAY, minutes: 20, app: null, appName: null, ref: null,
-	status: 'todo', doneBy: null, by: 'plan', pinned: false, delayDays: 0, asked: false, long: false, ...o,
+	status: 'todo', doneBy: null, by: 'plan', pinned: false, delayDays: 0, asked: false, long: false,
+	skill: null, guide: null, mock: false, score: null, ...o,
 });
-const checkin = (id: string, o: Partial<PCheckin> = {}): PCheckin => ({ id, title: `Check ${id}`, app: null, appName: null, ref: null, minutes: 10, done: false, doneBy: null, ...o });
+const checkin = (id: string, o: Partial<PCheckin> = {}): PCheckin => ({ id, title: `Check ${id}`, app: null, appName: null, ref: null, minutes: 10, done: false, doneBy: null, skill: null, guide: null, ...o });
+const noScore: PSkillState = { target: 7, min: null, current: null, estimated: false, date: null, source: null, prev: null };
 const day = (date: string, tasks: PTask[], o: Partial<PDay> = {}): PDay => ({
 	date, rest: false, past: false, total: tasks.length, done: tasks.filter(t => t.status === 'done').length,
 	minutes: tasks.reduce((n, t) => n + t.minutes, 0), tasks, checkins: [], ...o,
 });
 const stage = (o: Partial<PStage> = {}): PStage => ({ no: 1, name: 'Base', goal: '', start: '2026-11-10', end: '2026-11-30', done: 2, total: 20, ...o });
 const show = (o: Partial<PShow> = {}, plan: Partial<NonNullable<PShow['plan']>> = {}): PShow => ({
-	plan: { examDate: '2026-12-31', examTentative: false, dailyMinutes: 60, restDay: 0, tz: 'Asia/Shanghai', notifyWeekly: true, stages: [stage()], ...plan },
-	today: TODAY, daysToExam: 43, stageNow: 1, diagnostic: false, streak: 0, weekStart: '2026-11-16', days: [], todayView: null, board: null, ...o,
+	plan: {
+		examDate: '2026-12-31', examTentative: false, dailyMinutes: 60, restDay: 0, tz: 'Asia/Shanghai', notifyWeekly: true, stages: [stage()],
+		target: '7', current: null, focus: null, targets: null, minimums: null, weak: null,
+		skills: { listening: noScore, reading: noScore, writing: noScore, speaking: noScore }, ...plan,
+	},
+	today: TODAY, daysToExam: 43, stageNow: 1, diagnostic: false, streak: 0, weekStart: '2026-11-16', days: [], todayView: null, board: null,
+	weekDone: { listening: 0, reading: 0, writing: 0, speaking: 0, vocab: 0, grammar: 0, mixed: 0 }, scores: [], ...o,
 });
 const hooks = () => ({ move: vi.fn(), talk: vi.fn(), dismiss: vi.fn() });
 
@@ -177,5 +184,46 @@ describe('what Vibi says', () => {
 		expect(vibiAll(show(), stage())).toEqual({ id: `behind:1:${TODAY}`, text: S.vibiBehind(S.stage('Base')), strong: S.vibiBehindAsk, chips: [] });
 		expect(vibiAll(show(), stage({ done: 5 }))?.id).toBe(`on:1:${TODAY}`);
 		expect(vibiAll(show(), stage({ done: 0, start: '2026-11-16' }))).toEqual({ id: `on:1:${TODAY}`, text: S.vibiOnTrack(S.stage('Base'), 0, 20), strong: S.vibiOnTrackTail, chips: [] });
+	});
+});
+
+describe('学习计划第一版: scores, skills and guides on the page', () => {
+	const score = (o: Partial<PScore> = {}): PScore => ({
+		id: 's1', date: TODAY, source: 'mock', listening: 6.5, reading: null, writing: 6, speaking: 6, overall: null, estimated: ['writing'], taskId: 't1', ...o,
+	});
+
+	test('a guide link is the guide page by slug', () => {
+		expect(guideHref({ slug: 'ielts-writing', section: 'Task 2', block: null })).toBe('/guides/ielts-writing');
+	});
+
+	test('a score lists its skills in order; writing marked estimated, mock speaking marked not counted', () => {
+		expect(scoreParts(score())).toEqual([
+			S.scorePart(S.skills.listening, 6.5, false, false),
+			S.scorePart(S.skills.writing, 6, true, false),
+			S.scorePart(S.skills.speaking, 6, false, true),
+		]);
+		// a teacher's speaking counts
+		expect(scoreParts(score({ source: 'teacher', listening: null, writing: null, estimated: [] }))).toEqual([S.scorePart(S.skills.speaking, 6, false, false)]);
+	});
+
+	test('本周做完 lists only the skills with something done, 听 读 写 说 first', () => {
+		const w = { listening: 2, reading: 0, writing: 1, speaking: 0, vocab: 3, grammar: 0, mixed: 0 };
+		expect(weekDoneParts(w)).toEqual([S.weekDonePart(S.skills.listening, 2), S.weekDonePart(S.skills.writing, 1), S.weekDonePart(S.skills.vocab, 3)]);
+		expect(weekDoneParts(undefined)).toEqual([]);
+	});
+
+	test('the weak line: one skill, with a second, 保持, or not judged yet', () => {
+		const p = show().plan!;
+		expect(weakLine(p)).toBe(S.noWeakYet);
+		expect(weakLine({ ...p, weak: { skill: 'writing', second: null, keep: false, lowest: null, judgedAt: TODAY } })).toBe(S.weakLine(S.skills.writing, null));
+		expect(weakLine({ ...p, weak: { skill: 'writing', second: 'listening', keep: false, lowest: null, judgedAt: TODAY } })).toBe(S.weakLine(S.skills.writing, S.skills.listening));
+		expect(weakLine({ ...p, weak: { skill: null, second: null, keep: true, lowest: 'reading', judgedAt: TODAY } })).toBe(S.keepLine);
+	});
+
+	test('the bands to pick are 9 down to 1 in half steps', () => {
+		expect(BANDS[0]).toBe(9);
+		expect(BANDS.at(-1)).toBe(1);
+		expect(BANDS).toHaveLength(17);
+		expect(BANDS.every(b => Number.isInteger(b * 2))).toBe(true);
 	});
 });

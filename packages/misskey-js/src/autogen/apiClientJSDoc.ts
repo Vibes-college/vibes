@@ -4175,6 +4175,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Record an IELTS score per skill (a mock, the real exam or a teacher's), optionally ticking the mock task it belongs to. The weak skill is judged again. Returns ok false with a reason when it cannot.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/plan/score/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * The plan's page settings: the learner's time zone and whether Vibi says so when next week is planned.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
@@ -4186,7 +4197,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Make or remake the exam plan from the exam date, minutes per day, target and current score. Returns ok false with a reason when it cannot.
+     * Make or remake the exam plan from the exam date and target (minutes per day, current score, rest day and focus keep what the plan had; per-skill targets and school minimums: {} clears). Returns ok false with a reason when it cannot.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
      */
@@ -4560,6 +4571,28 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * How my Momo talks to me in the chat (聊天模式): normal, roast (毒舌), chinglish (catches my Chinglish) or subtext (British subtext). available: whether my replies come from the Momo who knows the modes (the menu under her name shows only then).
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'lojo/tutor/mode/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Pick how my Momo talks to me in the chat (聊天模式, the menu under her name). When it changed, one grey line goes into the chat from her.
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'lojo/tutor/mode/update', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * My own Momo (the AI 学搭子): the face (seed for /lojo-head/<seed>) and the name I gave it, the default ones until I pick.
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
@@ -4582,7 +4615,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher's roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.
+     * Mia on Mastra: Mia's fixed prompt, the progress card, keyword search of the learner's chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; recordScore: 学习计划第一版, 2026-11-20; the writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher's roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.
      * 
      * **Credential required**: *No*
      */

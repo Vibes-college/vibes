@@ -2127,6 +2127,8 @@ declare namespace entities {
         LojoPlanListImportRequest,
         LojoPlanListImportResponse,
         LojoPlanReplanResponse,
+        LojoPlanScoreCreateRequest,
+        LojoPlanScoreCreateResponse,
         LojoPlanSettingsRequest,
         LojoPlanSettingsResponse,
         LojoPlanSetupRequest,
@@ -2190,6 +2192,9 @@ declare namespace entities {
         LojoQuestTrialShowResponse,
         LojoQuestTrialStartResponse,
         LojoTutorIdsResponse,
+        LojoTutorModeShowResponse,
+        LojoTutorModeUpdateRequest,
+        LojoTutorModeUpdateResponse,
         LojoTutorPersonaShowResponse,
         LojoTutorPersonaUpdateRequest,
         LojoTutorPersonaUpdateResponse,
@@ -3342,6 +3347,12 @@ type LojoPlanListImportResponse = operations['lojo___plan___list-import']['respo
 type LojoPlanReplanResponse = operations['lojo___plan___replan']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type LojoPlanScoreCreateRequest = operations['lojo___plan___score___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoPlanScoreCreateResponse = operations['lojo___plan___score___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type LojoPlanSettingsRequest = operations['lojo___plan___settings']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3529,6 +3540,15 @@ type LojoQuestTrialStartResponse = operations['lojo___quest___trial-start']['res
 
 // @public (undocumented)
 type LojoTutorIdsResponse = operations['lojo___tutor___ids']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorModeShowResponse = operations['lojo___tutor___mode___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorModeUpdateRequest = operations['lojo___tutor___mode___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LojoTutorModeUpdateResponse = operations['lojo___tutor___mode___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LojoTutorPersonaShowResponse = operations['lojo___tutor___persona___show']['responses']['200']['content']['application/json'];

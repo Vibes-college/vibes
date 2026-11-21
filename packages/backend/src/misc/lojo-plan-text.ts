@@ -55,9 +55,17 @@ export type PlanText = {
 		dayPast: string;
 		afterExam: (date: string) => string;
 		restDayOn: (day: string) => string;
+		// addTask on a day only a full mock and the check-ins go on, with no other day that has room (学习计划第一版补)
+		aloneDay: (date: string) => string;
 		checkinsFull: (max: number) => string;
 		dayFull: (date: string, max: number) => string;
 		overMinutes: (used: number, daily: number) => string;
+		// scores (学习计划第一版, 2026-11-20)
+		scoreSource: string;
+		scoreBand: string;
+		scoreNone: string;
+		scoreFuture: string;
+		skillMap: (problem: string) => string;
 	};
 	summary: {
 		exam: (date: string, tentative: boolean) => string;
@@ -66,6 +74,7 @@ export type PlanText = {
 		full: (stages: { name: string; start: string }[], exam: string) => string;
 		addCheckin: (title: string, date: string) => string;
 		addTask: (title: string, date: string) => string;
+		addTaskMoved: (title: string, date: string, asked: string) => string;
 		move: (title: string, date: string) => string;
 		checkin: (title: string, done: boolean) => string;
 		status: (status: 'todo' | 'doing' | 'done' | 'removed', title: string, checkin: boolean) => string;
@@ -74,6 +83,16 @@ export type PlanText = {
 		replanSprint: string;
 		replan: (n: number, where: string) => string;
 		undo: (summary: string) => string;
+		skills: Record<'listening' | 'reading' | 'writing' | 'speaking', string>;
+		sources: Record<'mock' | 'real' | 'teacher', string>;
+		/** 「听力 6.5」, 「写作 6（估）」 */
+		scorePart: (skill: string, band: number, estimated: boolean) => string;
+		score: (date: string, source: string, parts: string[], after: string) => string;
+		/** only 「哪科差得最多，接下来两周多练它」, never a promise of a higher score (攻略, 2026-11-20) */
+		weak: (skill: string) => string;
+		keep: string;
+		mockSpeaking: string;
+		noSpeaking: string;
 	};
 };
 
@@ -82,7 +101,7 @@ const zh: PlanText = {
 	date: d => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日（周${WEEK_ZH[weekdayOf(d)]}）`,
 	day: d => `周${WEEK_ZH[weekdayOf(d)]}`,
 	reason: {
-		missing: fields => `还缺：${fields.join('、')}。四个都要有才能排`,
+		missing: fields => `还缺：${fields.join('、')}。考试日和目标分都要有才能排`,
 		noList: '备考清单还没导入这个站，排不了',
 		examDateFormat: '考试日要写成 2026-12-14，没报名可以写 2026-12',
 		dailyMinutes: '每天能学多久要在 15 到 600 分钟之间',
@@ -113,9 +132,15 @@ const zh: PlanText = {
 		dayPast: '不能排到已经过去的日子',
 		afterExam: date => `${date}已经过了考试日`,
 		restDayOn: day => `${day}是休息日`,
+		aloneDay: date => `${date}是整套模考那天，只排模考和打卡；考试前也没有别的日子放得下`,
 		checkinsFull: max => `打卡最多 ${max} 项，已经有 ${max} 项了`,
 		dayFull: (date, max) => `${date}已经排满 ${max} 件了`,
 		overMinutes: (used, daily) => `这天已经 ${used} 分钟，超出你每天的 ${daily} 分钟`,
+		scoreSource: '来源只能是 mock（模考）、real（真考）、teacher（老师给的）',
+		scoreBand: '分数要在 0 到 9 之间，按 0.5 一档',
+		scoreNone: '至少要有一科的分数',
+		scoreFuture: '还没到的日子不能记分',
+		skillMap: problem => `单项分数写得不对：${problem}`,
 	},
 	summary: {
 		exam: (date, tentative) => `考试 ${date}${tentative ? '（暂定）' : ''}`,
@@ -124,6 +149,7 @@ const zh: PlanText = {
 		full: (stages, exam) => `排好了全程：${stages.map(s => `${s.name}段 ${s.start}起`).join('，')}；${exam}`,
 		addCheckin: (title, date) => `加了 1 项打卡：${title}，${date}起每天`,
 		addTask: (title, date) => `加了 1 件：${title} → ${date}`,
+		addTaskMoved: (title, date, asked) => `加了 1 件：${title} → ${date}（${asked}是整套模考那天，只排模考和打卡，所以挪到这天）`,
 		move: (title, date) => `挪了 1 件：${title} → ${date}`,
 		checkin: (title, done) => (done ? `打卡：${title}` : `取消打卡：${title}`),
 		status: (status, title, checkin) => ({ done: `勾上了：${title}`, todo: `改回没做：${title}`, doing: `开始做：${title}`, removed: checkin ? `删掉了打卡：${title}` : `删掉了：${title}` })[status],
@@ -132,6 +158,14 @@ const zh: PlanText = {
 		replanSprint: '，离考试不到 3 周，只排冲刺',
 		replan: (n, where) => `从今天起重排了 ${n} 件${where}`,
 		undo: summary => `撤销了：${summary}`,
+		skills: { listening: '听力', reading: '阅读', writing: '写作', speaking: '口语' },
+		sources: { mock: '模考', real: '真考', teacher: '老师给的' },
+		scorePart: (skill, band, estimated) => `${skill} ${band}${estimated ? '（估）' : ''}`,
+		score: (date, source, parts, after) => `记下 ${date}的${source}分：${parts.join('、')}${after}`,
+		weak: skill => `；${skill}差得最多，接下来两周多练它`,
+		keep: '；四科都到目标了，接下来照常保持',
+		mockSpeaking: '模考的口语分不算进判弱项，只用真考或老师给的分',
+		noSpeaking: '口语还没有真考或老师给的分，这次不参与判弱项',
 	},
 };
 
@@ -142,7 +176,7 @@ const en: PlanText = {
 	date: d => `${WEEK_EN[weekdayOf(d)]}, ${MONTH_EN[Number(d.slice(5, 7)) - 1]} ${Number(d.slice(8, 10))}`,
 	day: d => `${WEEK_EN[weekdayOf(d)]}`,
 	reason: {
-		missing: fields => `Still missing: ${fields.join(', ')}. All four are needed to make a plan`,
+		missing: fields => `Still missing: ${fields.join(', ')}. The exam date and target score are needed to make a plan`,
 		noList: 'The exam checklist is not on this site yet, so no plan can be made',
 		examDateFormat: 'Write the exam date like 2026-12-14, or 2026-12 if you have not booked it',
 		dailyMinutes: 'Minutes a day must be between 15 and 600',
@@ -173,9 +207,15 @@ const en: PlanText = {
 		dayPast: 'You cannot plan for a day that has passed',
 		afterExam: date => `${date} is after the exam`,
 		restDayOn: day => `${day} is your rest day`,
+		aloneDay: date => `${date} is a full mock day (only the mock and check-ins), and no other day before the exam has room`,
 		checkinsFull: max => `At most ${max} check-ins a day, and there are already ${max}`,
 		dayFull: (date, max) => `${date} already has ${max} tasks`,
 		overMinutes: (used, daily) => `That day would come to ${used} minutes, more than your ${daily} a day`,
+		scoreSource: 'The source can only be mock, real (the exam) or teacher',
+		scoreBand: 'Scores go from 0 to 9 in steps of 0.5',
+		scoreNone: 'At least one skill needs a score',
+		scoreFuture: 'You cannot record a score for a day still to come',
+		skillMap: problem => `The per-skill scores are not right: ${problem}`,
 	},
 	summary: {
 		exam: (date, tentative) => `exam ${date}${tentative ? ' (tentative)' : ''}`,
@@ -184,6 +224,7 @@ const en: PlanText = {
 		full: (stages, exam) => `Full plan made: ${stages.map(s => `${s.name} from ${s.start}`).join(', ')}; ${exam}`,
 		addCheckin: (title, date) => `Added 1 check-in: ${title}, every day from ${date}`,
 		addTask: (title, date) => `Added 1 task: ${title} → ${date}`,
+		addTaskMoved: (title, date, asked) => `Added 1 task: ${title} → ${date} (${asked} is a full mock day, only the mock and check-ins, so it went here)`,
 		move: (title, date) => `Moved 1 task: ${title} → ${date}`,
 		checkin: (title, done) => (done ? `Checked in: ${title}` : `Check-in undone: ${title}`),
 		status: (status, title, checkin) => ({ done: `Ticked: ${title}`, todo: `Back to not done: ${title}`, doing: `Started: ${title}`, removed: checkin ? `Removed check-in: ${title}` : `Removed: ${title}` })[status],
@@ -192,6 +233,14 @@ const en: PlanText = {
 		replanSprint: '; less than 3 weeks to the exam, so only the final sprint',
 		replan: (n, where) => `Replanned ${plural(n, 'task', 'tasks')} from today${where}`,
 		undo: summary => `Undone: ${summary}`,
+		skills: { listening: 'Listening', reading: 'Reading', writing: 'Writing', speaking: 'Speaking' },
+		sources: { mock: 'mock', real: 'exam', teacher: 'teacher' },
+		scorePart: (skill, band, estimated) => `${skill} ${band}${estimated ? ' (est.)' : ''}`,
+		score: (date, source, parts, after) => `Recorded the ${source} score of ${date}: ${parts.join(', ')}${after}`,
+		weak: skill => `; ${skill} is furthest behind, so the next two weeks train it more`,
+		keep: '; every skill is at target, so keep going as you are',
+		mockSpeaking: 'Speaking from a mock does not count toward the weak skill: only the real exam or a teacher\'s score does',
+		noSpeaking: 'Speaking has no score from the real exam or a teacher yet, so it is left out this time',
 	},
 };
 

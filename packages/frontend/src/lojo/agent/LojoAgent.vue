@@ -64,7 +64,15 @@ or another height; this device remembers where (./dock.ts).
 		@keydown.esc.stop="minimize"
 	>
 		<header :class="$style.bar">
-			<div :class="$style.who">
+			<!-- 聊天模式: her name opens 「<名字> 怎么回你」, like the chat page's header (lojo/tutor/mode.ts). -->
+			<button v-if="modesAvailable" class="_button" :class="[$style.who, $style.whoButton]" :aria-label="vt.mode.changeAria(myTutorName)" aria-haspopup="menu" data-mode-trigger @click="openModeMenu($event, myTutorName)">
+				<img :class="$style.whoHead" :src="headUrl" alt="" draggable="false">
+				<span :class="$style.whoText">
+					<span :class="$style.whoName">{{ myTutorName }}<i v-if="modeAccent == null" class="ti ti-chevron-down" :class="$style.whoChevron"></i></span>
+					<span v-if="modeAccent" :class="$style.whoAccent"><i :class="modeAccent.icon"></i> {{ modeAccent.text }} <i class="ti ti-chevron-down"></i></span>
+				</span>
+			</button>
+			<div v-else :class="$style.who">
 				<img :class="$style.whoHead" :src="headUrl" alt="" draggable="false">
 				<span>{{ myTutorName }}</span>
 			</div>
@@ -96,6 +104,8 @@ import type { Side, Spot } from './dock.js';
 import { cornerHeldBack, forgetPanelOpen, justShown, rememberPanelOpen, setShowVibi, shouldReopenPanel } from './state.js';
 import { personaHeadUrl } from '@/lojo/tutor/persona-rules.js';
 import { loadTutorIds, myTutorName, myTutorSeed } from '@/lojo/tutor/persona.js';
+import { loadTutorMode, modeAccent, modesAvailable, openModeMenu } from '@/lojo/tutor/mode.js';
+import { vt } from '@/lojo/locales/index.js';
 import * as os from '@/os.js';
 import { DI } from '@/di.js';
 import { mainRouter } from '@/router.js';
@@ -283,6 +293,7 @@ watch([waitingLine, hiddenHere, panelOpen], ([line, hidden, open]) => {
 async function openPanel() {
 	bubble.value = '';
 	panelOpen.value = true;
+	void loadTutorMode(true);
 	fitViewport();
 	void nextTick(() => minimizeEl.value?.focus({ preventScroll: true }));
 	if (!chatStarted.value) {
@@ -588,6 +599,41 @@ onBeforeUnmount(() => {
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+}
+
+.whoButton {
+	text-align: left;
+	border-radius: 10px;
+	padding: 2px 6px 2px 0;
+
+	&:hover {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+}
+
+.whoText {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	line-height: 1.2;
+}
+
+.whoName,
+.whoAccent {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.whoChevron {
+	margin-left: 4px;
+	font-size: 0.8em;
+	opacity: 0.45;
+}
+
+.whoAccent {
+	color: var(--MI_THEME-cta);
+	font-size: 0.75em;
 }
 
 .whoHead {

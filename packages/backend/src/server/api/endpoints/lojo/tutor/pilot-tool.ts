@@ -18,6 +18,7 @@ import { LojoAppsService } from '@/core/LojoAppsService.js';
 import { LojoWordService } from '@/core/LojoWordService.js';
 import { LojoPlanService, restDayNo } from '@/core/LojoPlanService.js';
 import { APP_ACTION_METHODS } from '@/misc/lojo-apps-action.js';
+import { SCORE_SOURCES, SKILLS, TASK_SKILLS } from '@/misc/lojo-plan-score.js';
 
 // The shared secret, compared in constant time; with no secret set, only admins get in.
 function secretOk(given: string | null | undefined): boolean {
@@ -28,13 +29,16 @@ function secretOk(given: string | null | undefined): boolean {
 	return a.length === b.length && timingSafeEqual(a, b);
 }
 
-// 私信任务标签: Vibi's tools on the learner's plan. plan only reads; the other seven change it.
-const PLAN_TOOLS = ['plan', 'setPlan', 'addTask', 'moveTask', 'setStatus', 'planWeek', 'replanFromToday', 'undo'] as const;
+// 私信任务标签: Vibi's tools on the learner's plan. plan only reads; the others change it. recordScore: 学习计划第一版
+// (2026-11-20), a mock / real exam / teacher's score per skill.
+const PLAN_TOOLS = ['plan', 'setPlan', 'addTask', 'moveTask', 'setStatus', 'planWeek', 'replanFromToday', 'undo', 'recordScore'] as const;
+const band = { type: 'number', minimum: 0, maximum: 9, nullable: true } as const;
+const skillMap = { type: 'object', nullable: true, properties: { listening: band, reading: band, writing: band, speaking: band } } as const;
 
 export const meta = {
 	tags: ['lojo', 'admin'],
 	requireCredential: false,
-	description: 'Mia on Mastra: Mia\'s fixed prompt, the progress card, keyword search of the learner\'s chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; the seven writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher\'s roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.',
+	description: 'Mia on Mastra: Mia\'s fixed prompt, the progress card, keyword search of the learner\'s chat with Mia, their wordbook, the mistakes of a quest level, the mini app tools (listApps, appSpec, appCall, recentActivity: 小程序搬出社区, 2026-11-12), and the task tab tools (plan, setPlan, addTask, moveTask, setStatus, planWeek, replanFromToday, undo: 私信任务标签, 2026-11-15; recordScore: 学习计划第一版, 2026-11-20; the writes need the turn token sent with /chat or /event), and draftAgentTask (发到我的电脑, 2026-11-15: a card the learner sends from their own browser; needs the turn token too). 第 6 步 (2026-11-17): listApps takes query/category and searches the launcher\'s roster; appCall with a method other than GET (and a body) asks for a write the learner confirms on a card under the reply (needs the turn token). Needs the shared secret, or an admin.',
 	errors: {
 		noSuchTutor: { message: 'No such tutor.', code: 'NO_SUCH_TUTOR', id: '0b6d1b8e-3a0c-4a51-9a8e-6a0f5c2d7e11' },
 		forbidden: { message: 'Forbidden.', code: 'FORBIDDEN', id: '5c1f3f0e-8f7a-4b8e-9f43-2b1d6f9a0c77' },
@@ -78,6 +82,21 @@ export const paramDef = {
 		status: { type: 'string', enum: ['todo', 'doing', 'done', 'removed'], nullable: true },
 		weekStart: { type: 'string', maxLength: 10, nullable: true },
 		changeId: { type: 'string', maxLength: 32, nullable: true },
+		// 学习计划第一版 (2026-11-20): setPlan's per-skill targets and school minimums ({} clears, null/left out keeps)
+		// and the question type to work on (focus); recordScore's score (date = the day of the mock or exam); addTask's
+		// skill and mock
+		targets: skillMap,
+		minimums: skillMap,
+		focus: { type: 'string', maxLength: 64, nullable: true },
+		source: { type: 'string', enum: [...SCORE_SOURCES], nullable: true },
+		listening: band,
+		reading: band,
+		writing: band,
+		speaking: band,
+		overall: band,
+		estimated: { type: 'array', nullable: true, maxItems: 4, items: { type: 'string', enum: [...SKILLS] } },
+		skill: { type: 'string', enum: [...TASK_SKILLS], nullable: true },
+		mock: { type: 'boolean', nullable: true },
 		// 发到我的电脑: the instruction Vibi drafts (draftAgentTask)
 		instruction: { type: 'string', maxLength: 4000, nullable: true },
 	},
@@ -110,14 +129,20 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					return await this.lojoPlanService.vibiPlan(L);
 				case 'setPlan': {
 					const restDay = ps.restDay != null ? restDayNo(ps.restDay) : undefined;
-					// current 0 = never taken it: the placement week first (需求 第二节「没考过雅思」)
+					// current 0 = never taken it: the placement week first (需求 第二节「没考过雅思」); left out: what the plan had
 					const current = ps.current == null ? null : ps.current === 0 ? 'unknown' : String(ps.current);
 					return await this.lojoPlanService.setPlan(L, 'vibi', {
 						examDate: ps.examDate ?? null, dailyMinutes: ps.dailyMinutes ?? null, target: ps.target == null ? null : String(ps.target), current, ...(restDay != null ? { restDay } : {}),
+						targets: ps.targets ?? null, minimums: ps.minimums ?? null, ...(ps.focus != null ? { focus: ps.focus } : {}),
 					});
 				}
+				case 'recordScore':
+					return await this.lojoPlanService.recordScore(L, 'vibi', {
+						date: ps.date ?? null, source: ps.source ?? null, listening: ps.listening ?? null, reading: ps.reading ?? null, writing: ps.writing ?? null,
+						speaking: ps.speaking ?? null, overall: ps.overall ?? null, estimated: ps.estimated ?? null, taskId: ps.taskId ?? null,
+					});
 				case 'addTask':
-					return await this.lojoPlanService.addTask(L, 'vibi', { title: ps.title ?? '', date: ps.date ?? null, minutes: ps.minutes ?? 0, kind: ps.kind ?? null, app: ps.app ?? null, ref: ps.ref ?? null, autoDone: ps.autoDone ?? null });
+					return await this.lojoPlanService.addTask(L, 'vibi', { title: ps.title ?? '', date: ps.date ?? null, minutes: ps.minutes ?? 0, kind: ps.kind ?? null, app: ps.app ?? null, ref: ps.ref ?? null, autoDone: ps.autoDone ?? null, skill: ps.skill ?? null, mock: ps.mock ?? null });
 				case 'moveTask':
 					return await this.lojoPlanService.moveTask(L, 'vibi', { taskId: ps.taskId ?? '', toDate: ps.toDate ?? '' });
 				case 'setStatus':

@@ -129,6 +129,7 @@ import { isZhUi, vt } from '@/lojo/locales/index.js';
 import { myTutorName, personaNameFor } from '@/lojo/tutor/persona.js';
 import { openMomoEdit } from '@/lojo/tutor/momo-setup.js';
 import { vibiShown } from '@/lojo/agent/state.js';
+import { loadTutorMode, modeAccent, modesAvailable, openModeMenu } from '@/lojo/tutor/mode.js';
 
 const $i = ensureSignin();
 const router = useRouter();
@@ -159,6 +160,8 @@ const tutorIds = ref<string[]>([]);
 const tutorTitle = ref('');
 misskeyApi('lojo/tutor/public').then(res => { tutorIds.value = res.ids; tutorTitle.value = res.title; }, () => {});
 const isTutorChat = computed(() => user.value != null && tutorIds.value.includes(user.value.id));
+// Vibes 聊天模式: in her chat, her name opens 「<名字> 怎么回你」 (lojo/tutor/mode.ts).
+watch(isTutorChat, on => { if (on) void loadTutorMode(true); }, { immediate: true });
 // The AI's title only in the Chinese UI; in other languages just the name (founder, 2026-11-11: English shows only "Vibi").
 const showTutorTitle = isZhUi;
 const room = ref<Misskey.entities.ChatRoom | null>(null);
@@ -648,6 +651,7 @@ definePage(computed(() => {
 				avatar: user.value,
 				// Vibes: the AI tutor gets 「· 学搭子」 (Chinese UI only).
 				...(tutorIds.value.includes(user.value.id) && showTutorTitle && tutorTitle.value !== '' ? { nameSuffix: tutorTitle.value } : {}),
+				...(isTutorChat.value && modesAvailable.value ? { titleMenu: (ev: Event) => openModeMenu(ev, myTutorName.value), titleAccent: modeAccent.value } : {}),
 			};
 		} else if (room.value) {
 			return {

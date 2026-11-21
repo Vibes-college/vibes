@@ -9,14 +9,27 @@
 // Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md in the Vibes workspace.
 
 import { planText } from '@/misc/lojo-plan-text.js';
+import { isSkill, isTaskSkill, s1Skills } from '@/misc/lojo-plan-score.js';
+import type { Skill, SkillMap, TaskSkill, Weak } from '@/misc/lojo-plan-score.js';
 import type { UiLang } from '@/misc/lojo-ui-lang.js';
 
 export type PlanAutoDone = { answered?: number; report?: boolean } | null;
 
+// The guide that says how to do a task: /guides/<slug>; section is only shown on the card (a page cannot jump to it),
+// block is the section's number in the article. S1 has one per skill and takes the one of the skill it trains that day.
+export type PlanGuide = { slug: string; section?: string | null; block?: string | null };
+
+// 学习计划第一版 (2026-11-20) added: skill, guide, mock (a full mock: the card offers 「记分」), alone (that day only it
+// and the check-ins), cadence (every N days of the stage instead of perWeek: the stage mocks P1), after + offsetDays
+// (the day after another item, before the day's minutes are counted: P2, P3, R2), fillFrom 'weak' (S1, see
+// misc/lojo-plan-score.ts). perWeek is left out when cadence or after is given.
+export type PlanCadence = { everyDays: number; startDay: number; skipWithinDaysOfNextStage?: number };
 export type PlanItem = {
 	id: string; name: string; minutes: number; kind: 'task' | 'checkin'; app: string | null;
-	ref: string | string[] | null; perWeek: number | 'once' | 'rotate'; priority: number;
+	ref: string | string[] | null; perWeek?: number | 'once' | 'rotate'; priority: number;
 	autoDone: PlanAutoDone | 'manual'; fillFrom?: string; fallbackName?: string; note?: string;
+	skill?: TaskSkill; guide?: PlanGuide | SkillMap<PlanGuide>; mock?: boolean; alone?: boolean;
+	cadence?: PlanCadence; after?: string; offsetDays?: number;
 };
 export type PlanStageDef = { stageNo: number; name: string; goal: string; share?: number; lengthDays?: number; items: PlanItem[] };
 export type PlanList = { track: string; from?: string; stages: PlanStageDef[] };
@@ -27,6 +40,8 @@ export type PlanRow = {
 	userId: string; examDate: string; examTentative: boolean; dailyMinutes: number; target: string; current: string | null;
 	restDay: number; tz: string; stages: PlanStage[]; focus: string | null; notifyWeekly: boolean; plannedUntil: string | null;
 	seenAt: Date | null; createdAt: Date; updatedAt: Date;
+	// per skill: the learner's own target and the school's minimum (null: the overall target, no minimum); the weak skill
+	targets: SkillMap<number> | null; minimums: SkillMap<number> | null; weak: Weak | null;
 };
 
 export type TaskStatus = 'todo' | 'doing' | 'done' | 'removed';
@@ -35,6 +50,7 @@ export type TaskRow = {
 	endDate: string | null; minutes: number; app: string | null; ref: string | null; autoDone: PlanAutoDone; itemId: string | null;
 	status: TaskStatus; doneBy: string | null; doneAt: Date | null; by: string; pinned: boolean; askedAt: Date | null;
 	offDate: string | null; createdAt: Date;
+	skill: TaskSkill | null; guide: PlanGuide | null; mock: boolean | null;
 };
 export type CheckinRow = { taskId: string; userId: string; date: string; doneAt: Date | null; doneBy: string | null };
 
@@ -120,13 +136,48 @@ export function planListProblems(raw: unknown): string[] {
 			if (typeof it.name !== 'string' || it.name === '') out.push(`${at}：没有 name`);
 			if (!Number.isInteger(it.minutes) || it.minutes < 1 || it.minutes > 600) out.push(`${at}：minutes 不对`);
 			if (it.kind !== 'task' && it.kind !== 'checkin') out.push(`${at}：kind 不对`);
-			if (!(typeof it.perWeek === 'number' || it.perWeek === 'once' || it.perWeek === 'rotate')) out.push(`${at}：perWeek 不对`);
+			const timed = it.cadence != null || it.after != null;
+			if (it.perWeek == null ? !timed : !(typeof it.perWeek === 'number' || it.perWeek === 'once' || it.perWeek === 'rotate')) out.push(`${at}：perWeek 不对`);
 			if (!Number.isInteger(it.priority)) out.push(`${at}：priority 不对`);
 			if (/\{(?!ref\}|focus\}|setName\})[^}]*\}/.test(it.name)) out.push(`${at}：事名里有认不得的 {}`);
 			if (/\{(focus|setName)\}/.test(it.name) && !it.fallbackName) out.push(`${at}：有 {} 但没有 fallbackName`);
+			out.push(...itemProblems(it, s.items).map(p => `${at}：${p}`));
 		}
 	}
 	if (!l.stages.some(s => s.stageNo === 3)) out.push('没有冲刺段');
+	return out;
+}
+
+function guideProblem(g: unknown): string | null {
+	const one = (x: unknown) => x != null && typeof x === 'object' && typeof (x as PlanGuide).slug === 'string' && /^[a-z0-9-]{1,64}$/.test((x as PlanGuide).slug)
+		&& ['section', 'block'].every(k => (x as Record<string, unknown>)[k] == null || typeof (x as Record<string, unknown>)[k] === 'string');
+	if (g == null || one(g)) return null;
+	if (typeof g !== 'object' || Array.isArray(g)) return 'guide 不对';
+	for (const [k, v] of Object.entries(g)) if (!isSkill(k) || !one(v)) return `guide 的 ${k} 不对（要 {slug, section}，按科写只能是 listening/reading/writing/speaking）`;
+	return null;
+}
+
+// The fields of 学习计划第一版 (one item; `items` = its stage's items).
+function itemProblems(it: PlanItem, items: PlanItem[]): string[] {
+	const out: string[] = [];
+	if (it.skill != null && !isTaskSkill(it.skill)) out.push('skill 不对（listening/speaking/reading/writing/vocab/grammar/mixed）');
+	const g = guideProblem(it.guide); if (g) out.push(g);
+	for (const k of ['mock', 'alone'] as const) if (it[k] != null && typeof it[k] !== 'boolean') out.push(`${k} 要写 true 或 false`);
+	if (it.cadence != null) {
+		const c = it.cadence;
+		if (!Number.isInteger(c.everyDays) || c.everyDays < 1 || c.everyDays > 90) out.push('cadence.everyDays 不对');
+		if (!Number.isInteger(c.startDay) || c.startDay < 1 || c.startDay > 365) out.push('cadence.startDay 不对');
+		if (c.skipWithinDaysOfNextStage != null && (!Number.isInteger(c.skipWithinDaysOfNextStage) || c.skipWithinDaysOfNextStage < 0 || c.skipWithinDaysOfNextStage > 90)) out.push('cadence.skipWithinDaysOfNextStage 不对');
+		if (it.perWeek != null || it.after != null) out.push('写了 cadence 就不写 perWeek、after');
+	}
+	if (it.after != null) {
+		const a = items.find(x => x.id === it.after);
+		if (a == null) out.push(`after 的 ${it.after} 不在这一段`);
+		else if (a.cadence == null && typeof a.perWeek !== 'number') out.push(`after 的 ${it.after} 要是按天数（cadence）或每周几次（perWeek 数字）排的`);
+		if (it.offsetDays != null && (!Number.isInteger(it.offsetDays) || it.offsetDays < 0 || it.offsetDays > 14)) out.push('offsetDays 不对');
+		if (it.perWeek != null) out.push('写了 after 就不写 perWeek');
+	}
+	if (it.fillFrom === 'weak' && typeof it.perWeek !== 'number') out.push('fillFrom weak 要配每周几次（perWeek 数字）');
 	return out;
 }
 
@@ -183,13 +234,43 @@ export function dayProblem(c: DayCtx, tasks: TaskRow[], d: string, today: string
 	return null;
 }
 
+// 学习计划第一版补 (2026-11-20, AI tutor): a day only an `alone` item (P1, R1: a full mock) and the check-ins go on.
+// Up to plannedUntil what is on the day counts (the learner may have moved or removed the mock); after it, what the
+// list will put there.
+export function aloneOn(list: PlanList, plan: Pick<PlanRow, 'restDay' | 'dailyMinutes' | 'examDate' | 'focus' | 'stages' | 'plannedUntil'>, tasks: TaskRow[], d: string, ex: FillExtra = {}): boolean {
+	const ids = new Set(list.stages.flatMap(s => s.items.filter(x => x.alone === true).map(x => x.id)));
+	if (tasksOn(tasks, d).some(t => t.itemId != null && ids.has(t.itemId))) return true;
+	if (plan.plannedUntil != null && d <= plan.plannedUntil) return false;
+	const s = stageOn(plan.stages, d);
+	const def = s && list.stages.find(x => x.stageNo === s.no);
+	if (s == null || def == null) return false;
+	const c: DayCtx = { restDay: plan.restDay, dailyMinutes: plan.dailyMinutes, lastDay: addDays(plan.examDate, -1) };
+	return dueOn(def, s, c, d, plan.focus, ex).some(x => x.item.alone === true);
+}
+
+// Where a task asked for on such a day goes instead: the next day it fits (not alone, and dayProblem has nothing);
+// with none up to the exam (冲刺's last days), the nearest earlier one from today. null: nowhere.
+export function dayOffAlone(c: DayCtx, tasks: TaskRow[], d: string, today: string, minutes: number, isAlone: (x: string) => boolean): string | null {
+	const fits = (x: string) => !isAlone(x) && dayProblem(c, tasks, x, today, minutes, 'task') == null;
+	for (let x = addDays(d, 1); x <= c.lastDay; x = addDays(x, 1)) if (fits(x)) return x;
+	for (let x = addDays(d, -1); x >= today; x = addDays(x, -1)) if (fits(x)) return x;
+	return null;
+}
+
 // ---------- filling days from the list ----------
 
-export type TaskDraft = Pick<TaskRow, 'title' | 'kind' | 'stage' | 'date' | 'endDate' | 'minutes' | 'app' | 'ref' | 'autoDone' | 'itemId'>;
+export type TaskDraft = Pick<TaskRow, 'title' | 'kind' | 'stage' | 'date' | 'endDate' | 'minutes' | 'app' | 'ref' | 'autoDone' | 'itemId' | 'skill' | 'guide' | 'mock'>;
 
-type Candidate = { item: PlanItem; ref: string | null; title: string };
+type Candidate = { item: PlanItem; ref: string | null; title: string; skill: TaskSkill | null };
+
+// What the filling needs besides the list: the dates of real exams the learner reported (a real exam counts as a stage
+// mock, the next one 14 days later) and the weak skill (S1). onDrop hears of a one-off thing no day of its stage had
+// room for (fillDays).
+export type FillExtra = { realDates?: string[]; weak?: Weak | null; onDrop?: (x: { itemId: string; title: string; stage: number; date: string }) => void };
 
 const refsOf = (it: PlanItem): (string | null)[] => (Array.isArray(it.ref) ? it.ref : [it.ref ?? null]);
+
+export const SKILL_ZH: Record<Skill, string> = { listening: '听力', reading: '阅读', writing: '写作', speaking: '口语' };
 
 function titleOf(it: PlanItem, ref: string | null, focus: string | null): string {
 	let t = it.name;
@@ -199,8 +280,44 @@ function titleOf(it: PlanItem, ref: string | null, focus: string | null): string
 	return t.slice(0, 128);
 }
 
+// The guide of an item for the skill it trains that day (S1 has one per skill).
+export function guideOf(it: Pick<PlanItem, 'guide'>, skill: TaskSkill | null): PlanGuide | null {
+	const g = it.guide;
+	if (g == null) return null;
+	const one = 'slug' in g ? g as PlanGuide : (skill && isSkill(skill) ? (g as SkillMap<PlanGuide>)[skill] : null);
+	return one ? { slug: one.slug, section: one.section ?? null, block: one.block ?? null } : null;
+}
+
+const nextStudyDay = (c: DayCtx, d: string, end: string) => {
+	let x = d;
+	while (x <= end && !isStudyDay(c, x)) x = addDays(x, 1);
+	return x <= end ? x : null;
+};
+
+// The days of a stage an every-N-days item (P1, the stage mock) falls on: the stage's day startDay, then every
+// everyDays days, each moved to the next study day; none within skipWithinDaysOfNextStage days before the next stage
+// starts (the first sprint mock takes its place), so none when the stage is shorter than startDay. A real exam counts as
+// one: the next comes everyDays days after it.
+export function cadenceDates(cad: PlanCadence, stage: PlanStage, c: DayCtx, realDates: string[] = []): string[] {
+	const out: string[] = [];
+	const nextStage = addDays(stage.end, 1);
+	const reals = realDates.filter(r => r >= stage.start && r <= stage.end).sort();
+	let prev = addDays(stage.start, -1);
+	let next = addDays(stage.start, cad.startDay - 1);
+	for (let guard = 0; guard < 60; guard++) {
+		const real = reals.find(r => r > prev && r <= next);
+		if (real) { prev = real; next = addDays(real, cad.everyDays); continue; }
+		if (next > stage.end) break;
+		const d = nextStudyDay(c, next, stage.end);
+		if (d == null || diffDays(nextStage, d) < (cad.skipWithinDaysOfNextStage ?? 0)) break;
+		out.push(d);
+		prev = d; next = addDays(next, cad.everyDays);
+	}
+	return out;
+}
+
 // What the list puts on day d. Deterministic: the same day of the same stage always gets the same things.
-export function dueOn(def: PlanStageDef, stage: PlanStage, c: DayCtx, d: string, focus: string | null): Candidate[] {
+export function dueOn(def: PlanStageDef, stage: PlanStage, c: DayCtx, d: string, focus: string | null, ex: FillExtra = {}): Candidate[] {
 	const studyInStage = daysBetween(stage.start, stage.end).filter(x => isStudyDay(c, x));
 	const nth = studyInStage.indexOf(d);
 	if (nth < 0) return [];
@@ -208,18 +325,42 @@ export function dueOn(def: PlanStageDef, stage: PlanStage, c: DayCtx, d: string,
 	const k = week.length; const i = week.indexOf(d);
 	const weekNo = Math.floor(diffDays(mondayOf(d), mondayOf(stage.start)) / 7);
 	const tasks = def.items.filter(it => it.kind === 'task');
-	const slotsOf = (it: PlanItem): number[] => {
+	// The slots (0 = the week's first study day) of a weekly item in a week of kk study days.
+	const slotsIn = (it: PlanItem, kk: number): number[] => {
 		const n = typeof it.perWeek === 'number' ? it.perWeek : 0;
-		if (it.note && /每周最后一个学习日/.test(it.note)) return [k - 1];
-		const after = it.note?.match(/排在 ([A-Z]\d+) 第二天/);
+		if (it.note && /每周最后一个学习日/.test(it.note)) return [kk - 1];
+		const after = it.after ?? it.note?.match(/排在 ([A-Z]\d+) 第二天/)?.[1];
 		if (after) {
-			const first = tasks.find(x => x.id === after[1]);
-			return first ? slotsOf(first).map(s => s + 1).filter(s => s < k) : [];
+			const first = tasks.find(x => x.id === after);
+			const off = it.after ? (it.offsetDays ?? 1) : 1;
+			return first && first.cadence == null ? slotsIn(first, kk).map(s => s + off).filter(s => s < kk) : [];
 		}
-		if (n >= k) return [...Array(k).keys()];
-		return [...new Set([...Array(n).keys()].map(j => Math.floor((j + 0.5) * k / n)))];
+		if (n >= kk) return [...Array(kk).keys()];
+		return [...new Set([...Array(n).keys()].map(j => Math.floor((j + 0.5) * kk / n)))];
+	};
+	const slotsOf = (it: PlanItem): number[] => slotsIn(it, k);
+	// Every day of the stage a weekly item falls on, and every day an `alone` item (P1, R1: a full mock) falls on.
+	const weeklyDays = (it: PlanItem): string[] => {
+		const out: string[] = [];
+		for (let w = mondayOf(stage.start); w <= stage.end; w = addDays(w, 7)) {
+			const wk = daysBetween(w, addDays(w, 6)).filter(x => x >= stage.start && x <= stage.end && isStudyDay(c, x));
+			for (const s of slotsIn(it, wk.length)) if (wk[s] != null) out.push(wk[s]);
+		}
+		return out;
+	};
+	const aloneDays = new Set(tasks.filter(x => x.alone === true)
+		.flatMap(x => (x.cadence != null ? cadenceDates(x.cadence, stage, c, ex.realDates) : weeklyDays(x))));
+	// 学习计划第一版补 (2026-11-20, AI tutor): a one-off thing (once; what follows another item: P2, P3, R2) is never lost
+	// to an alone day: it moves to the stage's next study day that is not one; with none later (冲刺's last days),
+	// to the nearest earlier one, except what must follow (back false: a review before its mock means nothing).
+	const offAlone = (x: string | null | undefined, back = true): string | null => {
+		if (x == null || !aloneDays.has(x)) return x ?? null;
+		const later = studyInStage.find(y => y > x && !aloneDays.has(y));
+		if (later != null || !back) return later ?? null;
+		return studyInStage.filter(y => y < x && !aloneDays.has(y)).at(-1) ?? null;
 	};
 	const out: Candidate[] = [];
+	const cand = (it: PlanItem, ref: string | null, skill: TaskSkill | null = it.skill ?? null, title = titleOf(it, ref, focus)): Candidate => ({ item: it, ref, title, skill });
 	// 'rotate': one a day per mini app, taking turns (B1 through 5.1–5.9; B2–B4 through the three dictation sets)
 	const rotating = new Map<string, { it: PlanItem; ref: string | null }[]>();
 	for (const it of tasks.filter(x => x.perWeek === 'rotate')) {
@@ -229,64 +370,167 @@ export function dueOn(def: PlanStageDef, stage: PlanStage, c: DayCtx, d: string,
 	}
 	for (const g of rotating.values()) {
 		const pick = g[nth % g.length];
-		out.push({ item: pick.it, ref: pick.ref, title: titleOf(pick.it, pick.ref, focus) });
+		out.push(cand(pick.it, pick.ref));
 	}
 	// 'once': the 摸底 tests on the last study days of the week; the rest early in the stage, two days apart
 	const once = tasks.filter(x => x.perWeek === 'once');
 	once.forEach((it, j) => {
 		const at = stage.no === 0 ? studyInStage.length - once.length + j : Math.min(2 + 2 * j, studyInStage.length - 1);
-		if (at === nth) { const ref = refsOf(it)[0]; out.push({ item: it, ref, title: titleOf(it, ref, focus) }); }
+		if (offAlone(studyInStage[at]) === d) out.push(cand(it, refsOf(it)[0]));
 	});
-	for (const it of tasks.filter(x => typeof x.perWeek === 'number')) {
-		if (!slotsOf(it).includes(i)) continue;
+	// every N days (P1), and what follows such an item (P2, P3: offsetDays later, moved to the next study day)
+	for (const it of tasks.filter(x => x.cadence != null)) {
+		if (cadenceDates(it.cadence!, stage, c, ex.realDates).includes(d)) out.push(cand(it, refsOf(it)[0]));
+	}
+	// (R2 after a weekly R1 is worked out the same way, so an R1 on the week's last study day gets its review on the
+	// next week's first one, not none)
+	for (const it of tasks.filter(x => x.after != null)) {
+		const first = tasks.find(x => x.id === it.after);
+		if (first == null) continue;
+		const firstDays = first.cadence != null ? cadenceDates(first.cadence, stage, c, ex.realDates) : weeklyDays(first);
+		const days = firstDays.map(x => offAlone(nextStudyDay(c, addDays(x, it.offsetDays ?? 1), stage.end), false));
+		if (days.includes(d)) out.push(cand(it, refsOf(it)[0]));
+	}
+	const s1 = s1Skills(ex.weak ?? null, weekNo);
+	// Where a weekly item does not go: the day of an `alone` item (R1: that day only it and the check-ins), or
+	// (「和 S1 写作专项不重复排」) a day that other item trains the same skill. Such a slot moves to the nearest free day of
+	// the week (later first); none free: left out that week.
+	const aloneSlots = new Set(tasks.filter(x => x.alone === true && x.cadence == null).flatMap(x => slotsOf(x)));
+	const slotsFor = (it: PlanItem, withNote = true): number[] => {
+		const base = slotsOf(it);
+		if (it.alone === true || it.after != null) return base;
+		const otherId = withNote ? it.note?.match(/和 ([A-Z]\d+) \S*?专项不重复/)?.[1] : null;
+		const other = otherId ? tasks.find(x => x.id === otherId) : null;
+		const blocked = (x: number) => aloneSlots.has(x) || (other != null && it.skill != null && skillAt(other, x) === it.skill);
+		const out = base.filter(x => !blocked(x));
+		for (const x of base.filter(blocked)) {
+			const alt = [...Array(k).keys()].filter(y => !blocked(y) && !out.includes(y))
+				.sort((a, b) => Math.abs(a - x) - Math.abs(b - x) || b - a)[0];
+			if (alt != null) out.push(alt);
+		}
+		return out;
+	};
+	// The skill an item trains on slot s of this week (S1: the split above).
+	const skillAt = (other: PlanItem, s: number): TaskSkill | null => {
+		const j = slotsFor(other, false).indexOf(s);
+		if (j < 0) return null;
+		return other.fillFrom === 'weak' && s1 ? s1[j % s1.length] : (other.skill ?? null);
+	};
+	for (const it of tasks.filter(x => typeof x.perWeek === 'number' && x.after == null)) {
+		const slots = slotsFor(it);
+		if (!slots.includes(i)) continue;
 		const refs = refsOf(it); const ref = refs[weekNo % refs.length];
-		out.push({ item: it, ref, title: titleOf(it, ref, focus) });
+		if (it.fillFrom === 'weak' && s1) {
+			// S1: the skill of this slot (6 a week: the weak skill, 4 : 2 with a second one, or 保持); the weak skill's slots
+			// also carry the question type to work on (plan.focus, from the P2 review)
+			const skill = s1[slots.indexOf(i) % s1.length];
+			const name = ex.weak?.skill === skill && focus ? `${SKILL_ZH[skill]} · ${focus}` : SKILL_ZH[skill];
+			out.push(cand(it, ref, skill, titleOf(it, ref, name)));
+			continue;
+		}
+		out.push(cand(it, ref));
 	}
 	return out;
 }
 
 // The new things for days from..to. Keeps what is already there (counts toward the 5 and the minutes) and adds the
 // stage check-ins (one row per stage, not one per day). Too much for a day: cut from the largest priority number;
-// check-ins are never cut. A single thing longer than a day (R1 170 minutes): that day only it and the check-ins.
-export function fillDays(list: PlanList, plan: Pick<PlanRow, 'restDay' | 'dailyMinutes' | 'examDate' | 'focus'>, stages: PlanStage[], existing: TaskRow[], from: string, to: string): TaskDraft[] {
+// check-ins are never cut. An `alone` item (P1, R1: a full mock) or a single thing longer than a day: that day only it
+// and the check-ins. What follows another item (`after`: P2, P3, R2) goes in first, whatever the day's minutes.
+// 学习计划第一版补 2 (2026-11-20, AI tutor): a one-off thing this leaves out (once; what follows another item) is not
+// lost: it goes on the next study day of its stage that still has room once that day's own things are in (a free one
+// of the 5, and the minutes; what follows needs only the free one, as on its own day), not a full mock's day and not a
+// day it is on already, so it never pushes out anything. The days after `to` are worked out (not returned: the next
+// filling puts the same things there) only to find that day. None up to the stage's end: the nearest earlier day from
+// `from` with room, except what follows (a review before its mock means nothing). None either: left out, and
+// ex.onDrop hears of it. Weekly things are cut as before.
+export function fillDays(list: PlanList, plan: Pick<PlanRow, 'restDay' | 'dailyMinutes' | 'examDate' | 'focus'>, stages: PlanStage[], existing: TaskRow[], from: string, to: string, ex: FillExtra = {}): TaskDraft[] {
 	const c: DayCtx = { restDay: plan.restDay, dailyMinutes: plan.dailyMinutes, lastDay: addDays(plan.examDate, -1) };
 	const out: TaskDraft[] = [];
-	const asRow = (t: TaskDraft) => ({ ...t, id: `new${out.length}`, status: 'todo', origDate: t.date } as TaskRow);
-	const all = () => [...existing, ...out.map(asRow)];
+	const shadow: TaskDraft[] = []; // the days after `to`, worked out to find where a waiting one-off thing goes
+	const asRow = (t: TaskDraft, id: string) => ({ ...t, id, status: 'todo', origDate: t.date } as TaskRow);
+	const all = () => [...existing, ...out.map((t, i) => asRow(t, `new${i}`)), ...shadow.map((t, i) => asRow(t, `ahead${i}`))];
+	const aloneIds = new Set(list.stages.flatMap(s => s.items.filter(x => x.alone === true).map(x => x.id)));
+	const draft = (x: Candidate, s: PlanStage, d: string): TaskDraft => ({ title: x.title, kind: 'task', stage: s.no, date: d, endDate: null, minutes: x.item.minutes, app: x.item.app, ref: x.ref, autoDone: x.item.autoDone === 'manual' ? null : x.item.autoDone, itemId: x.item.id, skill: x.skill, guide: guideOf(x.item, x.skill), mock: x.item.mock === true ? true : null });
 	for (const s of stages) {
 		if (s.end < from || s.start > to) continue;
 		const def = list.stages.find(x => x.stageNo === s.no);
 		for (const it of def?.items.filter(x => x.kind === 'checkin') ?? []) {
 			if (existing.some(t => t.kind === 'checkin' && active(t) && t.itemId === it.id && t.stage === s.no && (t.endDate == null || t.endDate >= maxDate(s.start, from)))) continue;
 			const ref = refsOf(it)[0];
-			out.push({ title: titleOf(it, ref, plan.focus), kind: 'checkin', stage: s.no, date: maxDate(s.start, from), endDate: s.end, minutes: it.minutes, app: it.app, ref, autoDone: it.autoDone === 'manual' ? null : it.autoDone, itemId: it.id });
+			out.push({ title: titleOf(it, ref, plan.focus), kind: 'checkin', stage: s.no, date: maxDate(s.start, from), endDate: s.end, minutes: it.minutes, app: it.app, ref, autoDone: it.autoDone === 'manual' ? null : it.autoDone, itemId: it.id, skill: it.skill ?? null, guide: guideOf(it, it.skill ?? null), mock: null });
 		}
 	}
-	for (const d of daysBetween(from, to)) {
-		if (!isStudyDay(c, d)) continue;
+	type Wait = { x: Candidate; s: PlanStage; cut: string };
+	// One day from the list into `sink`; the one-off things it left out.
+	const fillDay = (d: string, sink: TaskDraft[]): Wait[] => {
+		if (!isStudyDay(c, d)) return [];
 		const s = stageOn(stages, d);
 		const def = s && list.stages.find(x => x.stageNo === s.no);
-		if (s == null || def == null) continue;
+		if (s == null || def == null) return [];
 		const now = all();
 		const onDay = tasksOn(now, d);
 		const fresh = c.dailyMinutes - checkinsOn(now, d, c.restDay).reduce((n, t) => n + t.minutes, 0);
 		let slots = MAX_TASKS_PER_DAY - onDay.length;
 		let budget = fresh - onDay.reduce((n, t) => n + t.minutes, 0);
 		const taken = new Set(onDay.map(t => `${t.app}|${t.ref}`));
-		const cands = dueOn(def, s, c, d, plan.focus)
+		const cands = dueOn(def, s, c, d, plan.focus, ex)
 			.filter(x => !(x.item.perWeek === 'once' && now.some(t => active(t) && t.itemId === x.item.id && t.stage === s.no)))
+			.filter(x => !((x.item.cadence != null || x.item.after != null) && onDay.some(t => t.itemId === x.item.id)))
 			.sort((a, b) => a.item.priority - b.item.priority);
+		const added = new Set<Candidate>();
+		const left = () => cands.filter(x => !added.has(x) && (x.item.perWeek === 'once' || x.item.after != null)).map(x => ({ x, s, cut: d }));
 		const add = (x: Candidate) => {
-			out.push({ title: x.title, kind: 'task', stage: s.no, date: d, endDate: null, minutes: x.item.minutes, app: x.item.app, ref: x.ref, autoDone: x.item.autoDone === 'manual' ? null : x.item.autoDone, itemId: x.item.id });
+			sink.push(draft(x, s, d)); added.add(x);
 			slots--; budget -= x.item.minutes; if (x.item.app) taken.add(`${x.item.app}|${x.ref}`);
 		};
-		const long = cands.find(x => x.item.minutes > fresh);
-		if (long && onDay.length === 0) { add(long); continue; }
+		const alone = cands.find(x => x.item.alone === true);
+		if (alone) { if (slots > 0 && !onDay.some(t => t.itemId === alone.item.id)) add(alone); return left(); }
+		const must = cands.filter(x => x.item.after != null);
+		for (const x of must) if (slots > 0) add(x);
+		const long = cands.find(x => x.item.minutes > fresh && x.item.after == null);
+		if (must.length === 0 && long && onDay.length === 0) { add(long); return left(); }
 		for (const x of cands) {
+			if (x.item.after != null) continue;
 			if (x.item.minutes > fresh || slots <= 0 || x.item.minutes > budget) continue;
 			if (x.item.app && taken.has(`${x.item.app}|${x.ref}`)) continue;
 			add(x);
 		}
+		return left();
+	};
+	// Whether a waiting one-off thing fits on day d as it is now.
+	const roomFor = (w: Wait, d: string): boolean => {
+		if (d < w.s.start || d > w.s.end || !isStudyDay(c, d)) return false;
+		const now = all();
+		const day = tasksOn(now, d);
+		const fresh = c.dailyMinutes - checkinsOn(now, d, c.restDay).reduce((n, t) => n + t.minutes, 0);
+		if (day.length >= MAX_TASKS_PER_DAY) return false;
+		if (day.some(t => (t.itemId != null && aloneIds.has(t.itemId)) || t.minutes > fresh || t.itemId === w.x.item.id)) return false;
+		if (w.x.item.app && day.some(t => t.app === w.x.item.app && t.ref === w.x.ref)) return false;
+		return w.x.item.after != null || day.reduce((n, t) => n + t.minutes, 0) + w.x.item.minutes <= fresh;
+	};
+	let waiting: Wait[] = [];
+	let end = to;
+	for (let d = from; d <= end; d = addDays(d, 1)) {
+		const left = fillDay(d, d <= to ? out : shadow);
+		waiting = waiting.filter(w => {
+			if (!roomFor(w, d)) return true;
+			out.push(draft(w.x, w.s, d));
+			return false;
+		});
+		if (d <= to) waiting.push(...left);
+		// its stage is over: back from the day it was cut, then left out
+		waiting = waiting.filter(w => {
+			if (d < w.s.end) return true;
+			if (w.x.item.after == null) {
+				for (let y = addDays(w.cut, -1); y >= maxDate(from, w.s.start); y = addDays(y, -1)) {
+					if (roomFor(w, y)) { out.push(draft(w.x, w.s, y)); return false; }
+				}
+			}
+			ex.onDrop?.({ itemId: w.x.item.id, title: w.x.title, stage: w.s.no, date: w.cut });
+			return false;
+		});
+		if (d === to) end = waiting.reduce((e, w) => maxDate(e, w.s.end), to);
 	}
 	return out;
 }

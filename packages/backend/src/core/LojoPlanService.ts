@@ -16,17 +16,19 @@ import type { PlanText } from '@/misc/lojo-plan-text.js';
 import { learnerUiLang } from '@/misc/lojo-ui-lang.js';
 import type Logger from '@/logger.js';
 import {
-	addDays, ANSWER_APPS, autoCheck, checkinsOn, computeStages, dayProblem, dayTally, delayDays, diffDays, fillDays, isDate, lastDayOfMonth,
+	addDays, aloneOn, ANSWER_APPS, autoCheck, checkinsOn, computeStages, dayOffAlone, dayProblem, dayTally, delayDays, diffDays, fillDays, isDate, lastDayOfMonth,
 	hourIn, maxDate, mondayOf, planListProblems, PLAN_APPS, rollover, stageOn, startOfDay, streak, tasksOn, todayIn, typingReport, validTz, weekday,
 } from '@/misc/lojo-plan.js';
-import type { AnswerApp, AnswerTally, CheckinRow, DayCtx, PlanAutoDone, PlanList, PlanRow, TaskDraft, TaskRow, TaskStatus } from '@/misc/lojo-plan.js';
+import type { AnswerApp, AnswerTally, CheckinRow, DayCtx, FillExtra, PlanAutoDone, PlanList, PlanRow, TaskDraft, TaskRow, TaskStatus } from '@/misc/lojo-plan.js';
+import { cleanSkillMap, counts, ieltsOverall, isBand, isScoreSource, isSkill, isTaskSkill, judgeWeak, skillMapProblem, skillState, SKILLS, weekDone } from '@/misc/lojo-plan-score.js';
+import type { ScoreRow, Skill, SkillMap, SkillState } from '@/misc/lojo-plan-score.js';
 
 // 私信「任务」标签 (2026-11-15): one exam plan per learner, made and changed by Vibi's tools and by the learner on the
 // task tab of the chat with Vibi. Both go through here, so the rules are the same. Everything is program: no model
 // is called. Rules: src/misc/lojo-plan.ts. Design: 冲刺1111/社区工程/私信任务标签/需求-社区工程.md (Vibes workspace).
 
 type Q = { query: (sql: string, params?: unknown[]) => Promise<any> };
-type Snap = { plan?: PlanRow | null; tasks: TaskRow[]; checkins: CheckinRow[] };
+type Snap = { plan?: PlanRow | null; tasks: TaskRow[]; checkins: CheckinRow[]; scores?: ScoreRow[] };
 export type PlanWho = 'self' | 'vibi' | 'planner';
 type PlanEventRow = { userId: string; tz: string; notifyWeekly: boolean; seenAt: Date | null; createdAt: Date };
 export type PlanEvent = { userId: string; kind: 'weekPlanned' | 'overdue' | 'replanOffer'; today: string; summary: string; tasks: { id?: string; title: string; date?: string; delayDays?: number }[]; seenAt?: string };
@@ -39,9 +41,11 @@ const UNDO_DAYS = 30;
 const REST_DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export const restDayNo = (d: unknown): number | null => (typeof d === 'number' ? d : REST_DAYS.indexOf(d as typeof REST_DAYS[number]) >= 0 ? REST_DAYS.indexOf(d as typeof REST_DAYS[number]) : null);
 
-const TASK_COLS = ['id', 'userId', 'title', 'kind', 'stage', 'origDate', 'date', 'endDate', 'minutes', 'app', 'ref', 'autoDone', 'itemId', 'status', 'doneBy', 'doneAt', 'by', 'pinned', 'askedAt', 'offDate', 'createdAt'] as const;
-const PLAN_COLS = ['userId', 'examDate', 'examTentative', 'dailyMinutes', 'target', 'current', 'restDay', 'tz', 'stages', 'focus', 'notifyWeekly', 'plannedUntil', 'seenAt', 'createdAt', 'updatedAt'] as const;
-const JSON_COLS = new Set(['autoDone', 'stages']);
+const TASK_COLS = ['id', 'userId', 'title', 'kind', 'stage', 'origDate', 'date', 'endDate', 'minutes', 'app', 'ref', 'autoDone', 'itemId', 'status', 'doneBy', 'doneAt', 'by', 'pinned', 'askedAt', 'offDate', 'createdAt', 'skill', 'guide', 'mock'] as const;
+const PLAN_COLS = ['userId', 'examDate', 'examTentative', 'dailyMinutes', 'target', 'current', 'restDay', 'tz', 'stages', 'focus', 'notifyWeekly', 'plannedUntil', 'seenAt', 'createdAt', 'updatedAt', 'targets', 'minimums', 'weak'] as const;
+const SCORE_COLS = ['id', 'userId', 'date', 'source', 'listening', 'reading', 'writing', 'speaking', 'overall', 'estimated', 'taskId', 'by', 'removedAt', 'createdAt'] as const;
+const JSON_COLS = new Set(['autoDone', 'stages', 'guide', 'targets', 'minimums', 'weak', 'estimated']);
+const band = (x: string | null) => (x != null && /^\d+(\.\d+)?$/.test(x) && isBand(Number(x)) ? Number(x) : null);
 
 function upsertSql(table: string, cols: readonly string[], key: string) {
 	const q = (c: string) => `"${c}"`;
@@ -115,6 +119,23 @@ export class LojoPlanService {
 		return await m.query('SELECT * FROM "lojo_plan_checkin" WHERE "userId" = $1 AND "date" >= $2', [userId, since]);
 	}
 
+	private async scoresOf(m: Q, userId: string): Promise<ScoreRow[]> {
+		return await m.query('SELECT * FROM "lojo_plan_score" WHERE "userId" = $1 AND "removedAt" IS NULL ORDER BY "date", "createdAt", "id"', [userId]);
+	}
+
+	// What filling needs besides the list: real exams (each counts as a stage mock) and the weak skill (S1).
+	private async extra(m: Q, plan: PlanRow, scores?: ScoreRow[]): Promise<FillExtra> {
+		const rows = scores ?? await this.scoresOf(m, plan.userId);
+		return {
+			realDates: rows.filter(r => r.source === 'real').map(r => r.date), weak: plan.weak ?? null,
+			onDrop: x => this.logger.info(`plan of ${plan.userId}: no day of stage ${x.stage} had room for ${x.itemId} (cut on ${x.date}); left out`),
+		};
+	}
+
+	private skills(plan: PlanRow, scores: ScoreRow[]): Record<Skill, SkillState> {
+		return skillState(scores, band(plan.target), plan.targets, plan.minimums);
+	}
+
 	// The words for this learner's reasons and change summaries, in their interface language (misc/lojo-plan-text.ts).
 	private async text(userId: string): Promise<PlanText> {
 		return planText(await learnerUiLang(this.registryApiService, userId));
@@ -157,7 +178,7 @@ export class LojoPlanService {
 		if (from <= sunday) {
 			const list = await this.list();
 			if (list != null) {
-				const drafts = fillDays(list, plan, plan.stages, tasks, from, sunday);
+				const drafts = fillDays(list, plan, plan.stages, tasks, from, sunday, await this.extra(m, plan));
 				tasks = [...tasks, ...await this.insertDrafts(m, userId, drafts, 'planner', false)];
 			}
 			await m.query('UPDATE "lojo_plan" SET "plannedUntil" = $2 WHERE "userId" = $1', [userId, sunday]);
@@ -182,6 +203,10 @@ export class LojoPlanService {
 
 	private async putPlan(m: Q, row: PlanRow) {
 		await m.query(upsertSql('lojo_plan', PLAN_COLS, '"userId"'), values(row, PLAN_COLS));
+	}
+
+	private async putScore(m: Q, row: ScoreRow) {
+		await m.query(upsertSql('lojo_plan_score', SCORE_COLS, '"id"'), values(row, SCORE_COLS));
 	}
 
 	private async putCheckin(m: Q, row: CheckinRow) {
@@ -215,13 +240,17 @@ export class LojoPlanService {
 		const doneSet = new Set(checkins.filter(c => c.doneAt != null).map(c => `${c.taskId}|${c.date}`));
 		const ws = mondayOf(weekOf);
 		const daily = plan.dailyMinutes;
+		const scores = await this.scoresOf(m, userId);
+		const scoreView = (r: ScoreRow) => ({ id: r.id, date: r.date, source: r.source, listening: r.listening, reading: r.reading, writing: r.writing, speaking: r.speaking, overall: r.overall, estimated: r.estimated, taskId: r.taskId });
 		const taskView = (t: TaskRow) => {
 			const ci = checkinsOn(tasks, t.date, plan.restDay).reduce((n, x) => n + x.minutes, 0);
+			const score = t.mock ? scores.filter(r => r.taskId === t.id).at(-1) : undefined;
 			return {
 				id: t.id, title: t.title, kind: t.kind, stage: t.stage, date: t.date, origDate: t.origDate, minutes: t.minutes,
 				app: t.app, appName: t.app ? PLAN_APPS[t.app] ?? t.app : null, ref: t.ref, autoDone: t.autoDone,
 				status: t.status, doneBy: t.doneBy, by: t.by, pinned: t.pinned,
 				delayDays: delayDays(t, today), asked: t.askedAt != null, long: t.minutes > daily - ci,
+				skill: t.skill ?? null, guide: t.guide ?? null, mock: t.mock === true, score: score ? scoreView(score) : null,
 			};
 		};
 		const dayOf = (d: string) => {
@@ -233,7 +262,7 @@ export class LojoPlanService {
 				tasks: ts.map(taskView),
 				checkins: cs.map(t => {
 					const row = checkins.find(x => x.taskId === t.id && x.date === d);
-					return { id: t.id, title: t.title, app: t.app, appName: t.app ? PLAN_APPS[t.app] ?? t.app : null, ref: t.ref, autoDone: t.autoDone, minutes: t.minutes, done: row?.doneAt != null, doneBy: row?.doneBy ?? null };
+					return { id: t.id, title: t.title, app: t.app, appName: t.app ? PLAN_APPS[t.app] ?? t.app : null, ref: t.ref, autoDone: t.autoDone, minutes: t.minutes, done: row?.doneAt != null, doneBy: row?.doneBy ?? null, skill: t.skill ?? null, guide: t.guide ?? null };
 				}),
 			};
 		};
@@ -245,6 +274,9 @@ export class LojoPlanService {
 			plan: {
 				examDate: plan.examDate, examTentative: plan.examTentative, dailyMinutes: daily, target: plan.target, current: plan.current,
 				restDay: plan.restDay, tz: plan.tz, focus: plan.focus, notifyWeekly: plan.notifyWeekly,
+				targets: plan.targets ?? null, minimums: plan.minimums ?? null,
+				weak: plan.weak ? { skill: plan.weak.skill, second: plan.weak.second, keep: plan.weak.keep, lowest: plan.weak.lowest, judgedAt: plan.weak.judgedAt } : null,
+				skills: this.skills(plan, scores),
 				stages: plan.stages.map(s => ({
 					...s,
 					done: all.filter((r: any) => r.stage === s.no && r.status === 'done').reduce((n: number, r: any) => n + r.n, 0),
@@ -255,6 +287,9 @@ export class LojoPlanService {
 			diagnostic: plan.stages.length > 0 && plan.stages.every(s => s.no === 0),
 			streak: streak(today, since, plan.restDay, tasks, doneSet),
 			weekStart: ws,
+			// 「本周做完」: done tasks per skill in the week shown
+			weekDone: weekDone(tasks, ws, addDays(ws, 6)),
+			scores: scores.slice(-5).reverse().map(scoreView),
 			days: [...Array(7).keys()].map(i => dayOf(addDays(ws, i))),
 			todayView: ws === mondayOf(today) ? null : dayOf(today),
 			// 看板: every task by status (the latest 60 done); only when the page asks for it
@@ -342,37 +377,49 @@ export class LojoPlanService {
 
 	// ---------- writes (each writes one change, so it can be undone) ----------
 
-	public async setPlan(userId: string, who: PlanWho, p: { examDate?: string | null; dailyMinutes?: number | null; target?: string | null; current?: string | null; restDay?: number | null; focus?: string | null; tz?: string | null }): Promise<PlanResult> {
+	// examDate and target are needed; the rest keeps what the plan had (first plan: 60 minutes a day, score unknown =
+	// the 7-day 摸底). targets / minimums: per skill ({} clears, null or left out keeps). The weak skill is judged again from the
+	// scores so far (the targets may have changed).
+	public async setPlan(userId: string, who: PlanWho, p: { examDate?: string | null; dailyMinutes?: number | null; target?: string | null; current?: string | null; restDay?: number | null; focus?: string | null; tz?: string | null; targets?: unknown; minimums?: unknown }): Promise<PlanResult> {
 		const tx = await this.text(userId);
-		const missing = (['examDate', 'dailyMinutes', 'target', 'current'] as const).filter(k => p[k] == null || p[k] === '');
+		const missing = (['examDate', 'target'] as const).filter(k => p[k] == null || p[k] === '');
 		if (missing.length > 0) return { ok: false, reason: tx.reason.missing(missing) };
 		const list = await this.list();
 		if (list == null) return { ok: false, reason: tx.reason.noList };
 		let examDate = String(p.examDate); let tentative = false;
 		if (/^\d{4}-\d{2}$/.test(examDate)) { examDate = lastDayOfMonth(`${examDate}-01`); tentative = true; }
 		if (!isDate(examDate)) return { ok: false, reason: tx.reason.examDateFormat };
-		const daily = Number(p.dailyMinutes);
-		if (!Number.isInteger(daily) || daily < 15 || daily > 600) return { ok: false, reason: tx.reason.dailyMinutes };
-		const restDay = p.restDay ?? 0;
-		if (!Number.isInteger(restDay) || restDay < 0 || restDay > 6) return { ok: false, reason: tx.reason.restDay };
-		const current = String(p.current).slice(0, 16);
+		for (const k of ['targets', 'minimums'] as const) {
+			const bad = skillMapProblem(p[k]);
+			if (bad) return { ok: false, reason: tx.reason.skillMap(`${k}: ${bad}`) };
+		}
 		return await this.locked(userId, async m => {
 			const old = await this.planOf(m, userId);
+			const daily = Number(p.dailyMinutes ?? old?.dailyMinutes ?? 60);
+			if (!Number.isInteger(daily) || daily < 15 || daily > 600) return { ok: false, reason: tx.reason.dailyMinutes };
+			const restDay = p.restDay ?? old?.restDay ?? 0;
+			if (!Number.isInteger(restDay) || restDay < 0 || restDay > 6) return { ok: false, reason: tx.reason.restDay };
+			const current = p.current != null && p.current !== '' ? String(p.current).slice(0, 16) : old?.current ?? 'unknown';
 			const tz = p.tz != null && validTz(p.tz) ? p.tz : old?.tz ?? 'Asia/Shanghai';
 			const today = todayIn(tz);
 			if (examDate <= today) return { ok: false, reason: tx.reason.examPast };
 			if (diffDays(examDate, today) > 730) return { ok: false, reason: tx.reason.examFar };
 			const stages = computeStages(list, today, examDate, current);
 			const tasks = old ? await this.tasksOf(m, userId) : [];
+			const scores = await this.scoresOf(m, userId);
 			const before: Snap = { plan: old, tasks: [], checkins: [] };
 			const kept = await this.clearFrom(m, tasks, today, before, true);
 			const plan: PlanRow = {
 				userId, examDate, examTentative: tentative, dailyMinutes: daily, target: String(p.target).slice(0, 16), current, restDay, tz, stages,
 				focus: p.focus !== undefined ? (p.focus ? String(p.focus).slice(0, 64) : null) : old?.focus ?? null,
 				notifyWeekly: old?.notifyWeekly ?? true, plannedUntil: null, seenAt: old?.seenAt ?? null, createdAt: old?.createdAt ?? new Date(), updatedAt: new Date(),
+				targets: p.targets != null ? cleanSkillMap(p.targets) : old?.targets ?? null,
+				minimums: p.minimums != null ? cleanSkillMap(p.minimums) : old?.minimums ?? null,
+				weak: null,
 			};
+			plan.weak = judgeWeak(this.skills(plan, scores), today, scores.at(-1)?.id ?? null);
 			const until = this.fillEnd(today);
-			const made = await this.insertDrafts(m, userId, fillDays(list, plan, stages, kept, today, until), 'planner', false);
+			const made = await this.insertDrafts(m, userId, fillDays(list, plan, stages, kept, today, until, await this.extra(m, plan, scores)), 'planner', false);
 			plan.plannedUntil = until;
 			await this.putPlan(m, plan);
 			const after: Snap = { plan, tasks: [...before.tasks.map(t => ({ ...t, ...this.cleared(t, today) })), ...made], checkins: [] };
@@ -381,7 +428,70 @@ export class LojoPlanService {
 				: stages[0].no === 0 ? tx.summary.placement(tx.date(stages[0].start), tx.date(stages[0].end), exam)
 				: tx.summary.full(stages.map(s => ({ name: s.name, start: tx.date(s.start) })), exam);
 			const changeId = await this.record(m, userId, who, summary, before, after);
-			return { ok: true, changeId, summary, stages, thisWeek: made.filter(t => t.kind === 'task').length };
+			return { ok: true, changeId, summary, stages, thisWeek: made.filter(t => t.kind === 'task').length, dailyMinutes: daily, current, weak: plan.weak };
+		});
+	}
+
+	// A score: a mock (the learner's own count, writing maybe estimated), the real exam or a teacher's. Bands per skill
+	// (at least one); overall is worked out when all four are there. taskId: the mock task it belongs to, ticked done in
+	// the same change. The weak skill is judged again at once; the new split of S1 starts with the next week filled
+	// (replanFromToday to start it today). Undo takes the score back out and puts the plan's weak skill back.
+	public async recordScore(userId: string, who: PlanWho, p: { date?: string | null; source?: string | null; listening?: number | null; reading?: number | null; writing?: number | null; speaking?: number | null; overall?: number | null; estimated?: string[] | null; taskId?: string | null }): Promise<PlanResult> {
+		const tx = await this.text(userId);
+		if (!isScoreSource(p.source)) return { ok: false, reason: tx.reason.scoreSource };
+		const source = p.source;
+		const given: SkillMap<number> = {};
+		for (const k of SKILLS) {
+			const v = p[k];
+			if (v == null) continue;
+			if (!isBand(v)) return { ok: false, reason: tx.reason.scoreBand };
+			given[k] = v;
+		}
+		if (Object.keys(given).length === 0) return { ok: false, reason: tx.reason.scoreNone };
+		if (p.overall != null && !isBand(p.overall)) return { ok: false, reason: tx.reason.scoreBand };
+		const estimated = [...new Set((p.estimated ?? []).filter(isSkill))].filter(k => given[k] != null) as Skill[];
+		return await this.locked(userId, async m => {
+			const pr = await this.prepare(m, userId);
+			if (pr == null) return { ok: false, reason: tx.reason.noPlanYet };
+			const { plan, today, tasks } = pr;
+			const date = p.date ?? today;
+			if (!isDate(date)) return { ok: false, reason: tx.reason.dateFormat('2026-11-20') };
+			if (date > today) return { ok: false, reason: tx.reason.scoreFuture };
+			const task = p.taskId != null ? tasks.find(t => t.id === p.taskId && t.kind === 'task') : undefined;
+			if (p.taskId != null && task == null) return { ok: false, reason: tx.reason.noTask };
+			const row: ScoreRow = {
+				id: this.idService.gen(), userId, date, source,
+				listening: given.listening ?? null, reading: given.reading ?? null, writing: given.writing ?? null, speaking: given.speaking ?? null,
+				overall: p.overall ?? ieltsOverall(given), estimated, taskId: task?.id ?? null, by: who, removedAt: null, createdAt: new Date(),
+			};
+			await this.putScore(m, row);
+			const scores = [...await this.scoresOf(m, userId)];
+			const skills = this.skills(plan, scores);
+			const weak = judgeWeak(skills, today, row.id);
+			const next: PlanRow = { ...plan, weak, updatedAt: new Date() };
+			await this.putPlan(m, next);
+			const before: Snap = { plan: { ...plan }, tasks: [], checkins: [], scores: [] };
+			const after: Snap = { plan: next, tasks: [], checkins: [], scores: [row] };
+			if (task && task.status !== 'done' && task.status !== 'removed') {
+				const done: TaskRow = { ...task, status: 'done', doneBy: who === 'vibi' ? 'vibi' : 'self', doneAt: new Date(), offDate: null, askedAt: null };
+				await this.putTask(m, done);
+				before.tasks.push(task); after.tasks.push(done);
+			}
+			const parts = SKILLS.filter(k => given[k] != null).map(k => tx.summary.scorePart(tx.summary.skills[k], given[k]!, estimated.includes(k)));
+			const changed = weak != null && (weak.skill !== plan.weak?.skill || weak.keep !== (plan.weak?.keep ?? false));
+			const tail = !changed ? '' : weak.skill ? tx.summary.weak(tx.summary.skills[weak.skill]) : weak.keep ? tx.summary.keep : '';
+			const summary = tx.summary.score(tx.date(date), tx.summary.sources[source], parts, tail);
+			const changeId = await this.record(m, userId, who, summary, before, after);
+			// One note about speaking at most: a mock's speaking is not counted, else speaking has no counted score yet.
+			const notes = given.speaking != null && !counts(row, 'speaking') ? [tx.summary.mockSpeaking]
+				: skills.speaking.current == null ? [tx.summary.noSpeaking] : [];
+			return {
+				ok: true, changeId, summary, scoreId: row.id, overall: row.overall, skills,
+				weak: weak ? { skill: weak.skill, second: weak.second, keep: weak.keep, lowest: weak.lowest } : null,
+				weakChanged: changed, appliesFrom: addDays(maxDate(plan.plannedUntil ?? today, today), 1),
+				...(task ? { taskDone: task.id } : {}),
+				...(notes.length ? { note: notes.join(tx.lang === 'zh' ? '；' : '; ') } : {}),
+			};
 		});
 	}
 
@@ -415,7 +525,7 @@ export class LojoPlanService {
 		return out;
 	}
 
-	public async addTask(userId: string, who: PlanWho, p: { title: string; date?: string | null; minutes: number; kind?: string | null; app?: string | null; ref?: string | null; autoDone?: unknown }): Promise<PlanResult> {
+	public async addTask(userId: string, who: PlanWho, p: { title: string; date?: string | null; minutes: number; kind?: string | null; app?: string | null; ref?: string | null; autoDone?: unknown; skill?: string | null; mock?: boolean | null }): Promise<PlanResult> {
 		const tx = await this.text(userId);
 		const title = String(p.title ?? '').trim().slice(0, 128);
 		if (title === '') return { ok: false, reason: tx.reason.noTitle };
@@ -427,17 +537,33 @@ export class LojoPlanService {
 			const pr = await this.prepare(m, userId);
 			if (pr == null) return { ok: false, reason: tx.reason.noPlanYet };
 			const { plan, today, tasks } = pr;
-			const date = p.date ?? today;
-			if (!isDate(date)) return { ok: false, reason: tx.reason.dateFormat('2026-11-20') };
-			const why = dayProblem(this.ctx(plan), tasks, date, today, minutes, kind, undefined, tx.lang);
+			const asked = p.date ?? today;
+			if (!isDate(asked)) return { ok: false, reason: tx.reason.dateFormat('2026-11-20') };
+			// 学习计划第一版补 (2026-11-20): a task on a full mock day (only the mock and check-ins) goes to the next day it
+			// fits instead (none up to the exam: the nearest earlier one), and the summary says so. Check-ins stay.
+			const ctx = this.ctx(plan);
+			let date = asked;
+			const list = kind === 'task' && asked >= today && asked <= ctx.lastDay ? await this.list() : null;
+			if (list != null) {
+				const ex = await this.extra(m, plan);
+				const isAlone = (x: string) => aloneOn(list, plan, tasks, x, ex);
+				if (isAlone(asked)) {
+					const alt = dayOffAlone(ctx, tasks, asked, today, minutes, isAlone);
+					if (alt == null) return { ok: false, reason: tx.reason.aloneDay(tx.date(asked)) };
+					date = alt;
+				}
+			}
+			const why = dayProblem(ctx, tasks, date, today, minutes, kind, undefined, tx.lang);
 			if (why) return { ok: false, reason: why };
 			const stage = stageOn(plan.stages, date)?.no ?? plan.stages.at(-1)?.no ?? 0;
 			const [row] = await this.insertDrafts(m, userId, [{
 				title, kind, stage, date, endDate: null, minutes, app: p.app ?? null, ref: p.ref ? String(p.ref).slice(0, 32) : null, autoDone: cleanAutoDone(p.autoDone), itemId: null,
+				skill: isTaskSkill(p.skill) ? p.skill : null, guide: null, mock: kind === 'task' && p.mock === true ? true : null,
 			}], who, true);
-			const summary = kind === 'checkin' ? tx.summary.addCheckin(title, tx.date(date)) : tx.summary.addTask(title, tx.date(date));
+			const summary = kind === 'checkin' ? tx.summary.addCheckin(title, tx.date(date))
+				: date !== asked ? tx.summary.addTaskMoved(title, tx.date(date), tx.date(asked)) : tx.summary.addTask(title, tx.date(date));
 			const changeId = await this.record(m, userId, who, summary, { tasks: [], checkins: [] }, { tasks: [row], checkins: [] });
-			return { ok: true, changeId, summary, taskId: row.id };
+			return { ok: true, changeId, summary, taskId: row.id, date, ...(date !== asked ? { movedFrom: asked } : {}) };
 		});
 	}
 
@@ -512,13 +638,17 @@ export class LojoPlanService {
 			if (to < today) return { ok: false, reason: tx.reason.weekPast };
 			const before: Snap = { tasks: [], checkins: [] };
 			const kept: TaskRow[] = [];
+			// once items stay where they are: one moved here from a full day of an earlier week would not come back (the
+			// filling never puts one twice in a stage). What follows another item (R2) is made again from its own day, as
+			// before: kept, it could come twice.
+			const oneOff = new Set(list.stages.flatMap(s => s.items.filter(x => x.perWeek === 'once').map(x => x.id)));
 			for (const t of tasks) {
-				if (t.kind === 'task' && t.by === 'planner' && !t.pinned && t.status === 'todo' && t.date >= from && t.date <= to) {
+				if (t.kind === 'task' && t.by === 'planner' && !t.pinned && t.status === 'todo' && t.date >= from && t.date <= to && !(t.itemId != null && oneOff.has(t.itemId))) {
 					before.tasks.push(t);
 					await m.query('UPDATE "lojo_plan_task" SET "status" = \'removed\' WHERE "id" = $1', [t.id]);
 				} else kept.push(t);
 			}
-			const made = await this.insertDrafts(m, userId, fillDays(list, plan, plan.stages, kept, from, to), 'planner', false);
+			const made = await this.insertDrafts(m, userId, fillDays(list, plan, plan.stages, kept, from, to, await this.extra(m, plan)), 'planner', false);
 			if (plan.plannedUntil == null || plan.plannedUntil < to) await m.query('UPDATE "lojo_plan" SET "plannedUntil" = $2 WHERE "userId" = $1', [userId, to]);
 			const n = made.filter(t => t.kind === 'task').length;
 			if (n === 0 && before.tasks.length === 0) return { ok: false, reason: plan.stages.every(s => s.no === 0) ? tx.reason.onlyPlacement : tx.reason.nothingThisWeek };
@@ -543,7 +673,7 @@ export class LojoPlanService {
 			const kept = await this.clearFrom(m, tasks, today, before, true);
 			const until = this.fillEnd(today);
 			const next: PlanRow = { ...plan, stages, plannedUntil: until, updatedAt: new Date() };
-			const made = await this.insertDrafts(m, userId, fillDays(list, next, stages, kept, today, until), 'planner', false);
+			const made = await this.insertDrafts(m, userId, fillDays(list, next, stages, kept, today, until, await this.extra(m, next)), 'planner', false);
 			await this.putPlan(m, next);
 			const n = made.filter(t => t.kind === 'task').length;
 			const last = stages.at(-1);
@@ -577,6 +707,15 @@ export class LojoPlanService {
 			for (const t of after.tasks) {
 				if (!before.tasks.some(x => x.id === t.id)) await m.query('UPDATE "lojo_plan_task" SET "status" = \'removed\' WHERE "id" = $1 AND "userId" = $2', [t.id, userId]);
 			}
+			// scores: the ones the change made are taken out (removedAt), the ones it took out come back
+			if (before.scores != null || after.scores != null) {
+				const sids = [...new Set([...before.scores ?? [], ...after.scores ?? []].map(r => r.id))];
+				now.scores = sids.length ? await m.query('SELECT * FROM "lojo_plan_score" WHERE "id" = ANY($1) AND "userId" = $2', [sids, userId]) : [];
+				for (const r of before.scores ?? []) await this.putScore(m, { ...r, userId });
+				for (const r of after.scores ?? []) {
+					if (!(before.scores ?? []).some(x => x.id === r.id)) await m.query('UPDATE "lojo_plan_score" SET "removedAt" = now() WHERE "id" = $1 AND "userId" = $2', [r.id, userId]);
+				}
+			}
 			for (const k of after.checkins) {
 				const old = (await m.query('SELECT * FROM "lojo_plan_checkin" WHERE "taskId" = $1 AND "date" = $2 AND "userId" = $3', [k.taskId, k.date, userId]))[0];
 				if (old) now.checkins.push(old);
@@ -609,9 +748,17 @@ export class LojoPlanService {
 			const until = addDays(mondayOf(today), 13);
 			const num = (x: string | null) => (x != null && /^\d+(\.\d+)?$/.test(x) ? Number(x) : x);
 			const changes = await m.query('SELECT "id","who","at","summary","undoneAt" FROM "lojo_plan_change" WHERE "userId" = $1 ORDER BY "at" DESC LIMIT 10', [userId]);
+			const scores = await this.scoresOf(m, userId);
+			const ws = mondayOf(today);
 			return {
 				examDate: plan.examDate, examTentative: plan.examTentative, dailyMinutes: plan.dailyMinutes, target: num(plan.target), current: num(plan.current),
 				restDay: REST_DAYS[plan.restDay], tz: plan.tz, focus: plan.focus,
+				// per skill: target (own, else the overall target), the school's minimum, the latest score that counts
+				targets: plan.targets ?? null, minimums: plan.minimums ?? null,
+				skills: this.skills(plan, scores),
+				weak: plan.weak ? { skill: plan.weak.skill, second: plan.weak.second, keep: plan.weak.keep, lowest: plan.weak.lowest, judgedAt: plan.weak.judgedAt } : null,
+				scores: scores.slice(-5).reverse().map(r => ({ scoreId: r.id, date: r.date, source: r.source, listening: r.listening, reading: r.reading, writing: r.writing, speaking: r.speaking, overall: r.overall, estimated: r.estimated, taskId: r.taskId })),
+				weekDone: weekDone(tasks, ws, addDays(ws, 6)),
 				stages: plan.stages.map(st => ({ stageNo: st.no, name: st.name, goal: st.goal, from: st.start, to: st.end })),
 				today,
 				tasks: tasks.filter(t => t.kind === 'task' && t.status !== 'removed' && t.date >= today && t.date <= until)
@@ -619,12 +766,13 @@ export class LojoPlanService {
 					.map(t => ({
 						id: t.id, title: t.title, date: t.date, stage: t.stage, minutes: t.minutes, app: t.app, ref: t.ref, autoDone: t.autoDone,
 						status: t.status, doneBy: t.doneBy, by: t.by, pinned: t.pinned, delayDays: delayDays(t, today),
+						skill: t.skill ?? null, guide: t.guide ?? null, mock: t.mock === true,
 						...(t.date === today && progress[t.id] ? { answeredToday: progress[t.id]!.answered, need: progress[t.id]!.need } : {}),
 						pendingAsk: asking.has(t.id),
 					})),
 				checkins: checkinsOn(tasks, today, plan.restDay).map(c => {
 					const row = checkins.find(x => x.taskId === c.id && x.date === today);
-					return { id: c.id, title: c.title, app: c.app, ref: c.ref, doneToday: row?.doneAt != null, ...(progress[c.id] ? { answeredToday: progress[c.id]!.answered, need: progress[c.id]!.need } : {}) };
+					return { id: c.id, title: c.title, app: c.app, ref: c.ref, skill: c.skill ?? null, doneToday: row?.doneAt != null, ...(progress[c.id] ? { answeredToday: progress[c.id]!.answered, need: progress[c.id]!.need } : {}) };
 				}),
 				autoCheck: s.autoCheck,
 				recentChanges: changes.map((c: any) => ({ changeId: c.id, summary: c.summary, by: c.who, at: new Date(c.at).toISOString(), undone: c.undoneAt != null })),

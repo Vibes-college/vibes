@@ -61,6 +61,8 @@ import type { TutorPrompts } from '@/misc/lojo-tutor-prompts.js';
 import type { ProactiveState, TutorCard, TutorMemory, TutorReply } from '@/misc/lojo-tutor.js';
 import { normalizeQuestTry, pickQuestKnowledge, questAwayMessage, questKnowledgeSection, questNextLine, questTrySection } from '@/misc/lojo-tutor-quest.js';
 import { tutorText } from '@/misc/lojo-tutor-text.js';
+import { MODE_KEY, modeCardText, modeNoticeText, normalizeModeCard, normalizeTutorMode } from '@/misc/lojo-tutor-mode.js';
+import type { TutorMode } from '@/misc/lojo-tutor-mode.js';
 import { learnerUiLang } from '@/misc/lojo-ui-lang.js';
 import type { QuestKnowledge, QuestTry } from '@/misc/lojo-tutor-quest.js';
 import { progressCardText, RECALL_MIN_SCORE, recallText, searchTerms } from '@/misc/lojo-tutor-progress.js';
@@ -348,21 +350,34 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 		const turns = this.toTurns(tutor.id, mastraFreshMessages(messages, tutor.id, seen));
 		const quest = await this.questContext(tutor.id, learner.id);
 		const questTry = quest && await this.withFreshHearts(learner.id, quest.questTry);
-		const [{ card, prompts }, persona, cards] = await Promise.all([this.setup(tutor.id), this.persona(learner.id), this.recentCards(learner.id)]);
+		const [{ card, prompts }, persona, cards, mode] = await Promise.all([this.setup(tutor.id), this.persona(learner.id), this.recentCards(learner.id), this.mode(learner.id)]);
 		// The quest lines need her words; without them the usual Mia answers (with the away line).
 		if (quest && questTry && prompts == null) throw new Error(`no prompts on the tutor account (registry ${PROMPTS_KEY})`);
 		if (!(await this.spendBudget())) return true;
 		const started = Date.now();
 		// you: the name this learner gave her (mia-mastra v0.7.8+ puts it in the bracket line; older ones ignore it)
 		// cards: this learner's latest confirm cards and what became of them (第 6 步返工, mia-mastra v0.8.1+ reads it)
+		// mode: how the learner picked for her to talk (聊天模式 11-20, mia-mastra v0.11.0+; older ones ignore it)
 		const res = await this.whileTyping(learner.id, tutor.id, () => this.postMastra('/chat', learner.id, {
-			turns, now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards,
+			turns, now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards, mode,
 			extra: quest && questTry && prompts ? questTrySection(prompts, quest.knowledge, questTry, true).replace(/\s*\n\s*/g, ' ') : undefined,
 		}));
 		await this.chargeMastra(learner.id, res);
 		const answer = normalizeTutorReply(res);
 		this.logger.info(`mastra reply learner=${learner.id} turns=${turns.length} ms=${Date.now() - started} tools=${Array.isArray(res.toolCalls) ? res.toolCalls.join(',') : ''}`);
-		const out = [...await this.withNextLink(tutor.id, answer, questTry ?? undefined), ...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id), ...await this.lojoAppsService.actionCards(learner.id, await learnerUiLang(this.registryApiService, learner.id)).catch(() => [] as string[])];
+		const uiLang = await learnerUiLang(this.registryApiService, learner.id);
+		// 聊天模式: she switched because the learner asked (「开毒舌」「正常点」): kept, and a grey line goes first. Her card
+		// goes right under her words, in the mode she now talks in.
+		const switchTo = res.mode == null ? null : normalizeTutorMode(res.mode);
+		const switched = switchTo != null && switchTo !== mode ? await this.saveMode(learner.id, switchTo) : null;
+		const nowMode = switched ?? mode;
+		const modeCard = nowMode === 'normal' ? null : normalizeModeCard(res.card);
+		const out = [
+			...(switched != null ? [modeNoticeText(switched, uiLang)] : []),
+			...await this.withNextLink(tutor.id, answer, questTry ?? undefined),
+			...(modeCard != null && nowMode !== 'normal' ? [modeCardText(nowMode, modeCard)] : []),
+			...await this.changeCards(learner.id, new Date(started - 1000)), ...await this.agentDraftCards(learner.id), ...await this.lojoAppsService.actionCards(learner.id, uiLang).catch(() => [] as string[]),
+		];
 		await this.redisClient.set(key, `${lastLearner.id}|${out.length}`, 'EX', 90 * 24 * 60 * 60);
 		await this.send(tutor, learner, out, answer.voice, card.extensions.vibes?.voice);
 		await this.markAnswered(tutor.id, learner.id, lastLearner.id);
@@ -392,7 +407,7 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 			signal: AbortSignal.timeout(90 * 1000),
 		});
 		if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
-		return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown; usage?: unknown };
+		return await r.json() as { messages?: unknown; voice?: unknown; toolCalls?: unknown; usage?: unknown; mode?: unknown; card?: unknown };
 	}
 
 	// ---------- 私信任务标签 (2026-11-15): the turn token, the change cards, and Vibi writing first about the plan ----------
@@ -543,7 +558,8 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// Short typing pauses between messages, and the first short English message as a voice message when asked for.
 	private async send(tutor: MiUser, learner: MiUser, messages: string[], voice: boolean, voiceId: string | undefined): Promise<void> {
-		const voiced = voice ? messages.findIndex(text => looksEnglish(text) && text.length <= 300) : -1;
+		// Never a marker message (【对照卡·…】, 【说话方式】, 【任务改动】…): those are cards, not her words.
+		const voiced = voice ? messages.findIndex(text => !text.startsWith('【') && looksEnglish(text) && text.length <= 300) : -1;
 		for (const [i, text] of messages.entries()) {
 			if (i > 0) {
 				this.typing(learner.id, tutor.id);
@@ -1100,11 +1116,13 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 
 	// For the Mastra pilot (endpoint lojo/tutor/pilot-tool): Mia's fixed system prompt word for word, without her notes
 	// (the pilot keeps its own working memory), and the "Now:" line and name of the last message.
-	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string; you: string; cards: AppActionRecent[] }> {
+	// siteUrl (学习计划第一版补, 2026-11-20): the site's address for links Vibi writes in the chat (/guides/<slug>); her own
+	// COMMUNITY_URL is the address inside the server, which a learner cannot open.
+	public async pilotPrompt(tutorId: string, learnerId: string): Promise<{ system: string; now: string; name: string; you: string; cards: AppActionRecent[]; siteUrl: string }> {
 		const [{ card, prompts }, learner, persona, cards] = await Promise.all([this.setup(tutorId), this.usersRepository.findOneByOrFail({ id: learnerId }), this.persona(learnerId), this.recentCards(learnerId)]);
 		// (the pilot keeps the prompt it read last when this fails)
 		if (prompts == null) throw new Error(`no prompts on the tutor account (registry ${PROMPTS_KEY})`);
-		return { system: tutorFixedPrompt(prompts, card).trimEnd(), now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards };
+		return { system: tutorFixedPrompt(prompts, card).trimEnd(), now: this.nowText(), name: this.nameOf(learner), you: persona.name, cards, siteUrl: this.config.url.replace(/\/+$/, '') };
 	}
 
 	// 第 6 步返工 (11-17): the learner's latest confirm cards and their state, for Vibi to speak by. Empty when redis
@@ -1118,6 +1136,37 @@ export class LojoTutorService implements OnModuleInit, OnApplicationShutdown {
 	public async persona(learnerId: string): Promise<TutorPersona> {
 		const item = await this.registryApiService.getItem(learnerId, null, SCOPE, PERSONA_KEY);
 		return item == null ? defaultPersona(learnerId) : normalizePersona(item.value, learnerId, this.isProhibitedName);
+	}
+
+	// 聊天模式 (misc/lojo-tutor-mode.ts): how this learner picked for her to talk, checked again on every read.
+	public async mode(learnerId: string): Promise<TutorMode> {
+		const item = await this.registryApiService.getItem(learnerId, null, SCOPE, MODE_KEY);
+		return normalizeTutorMode(item?.value);
+	}
+
+	// Whether the learner's replies come from Momo on Mastra, the only one who knows the modes (the menu shows only then).
+	public async modesAvailable(learnerId: string): Promise<boolean> {
+		return this.tutors.length > 0 && await this.onMastra(learnerId);
+	}
+
+	private async saveMode(learnerId: string, mode: TutorMode): Promise<TutorMode> {
+		await this.registryApiService.set(learnerId, null, SCOPE, MODE_KEY, mode);
+		return mode;
+	}
+
+	// From the menu under her name (lojo/tutor/mode/update): kept, and when it changed, the grey line in the chat (from
+	// her, so her next reply sees it too).
+	public async setMode(learner: MiUser, mode: TutorMode): Promise<TutorMode> {
+		const was = await this.mode(learner.id);
+		if (was === mode) return mode;
+		await this.saveMode(learner.id, mode);
+		const tutorId = this.tutors[0];
+		const tutor = tutorId == null || tutorId === learner.id ? null : await this.usersRepository.findOneBy({ id: tutorId });
+		if (tutor != null) {
+			await this.chatService.createMessageToUser({ id: tutor.id, host: null }, learner, { text: modeNoticeText(mode, await learnerUiLang(this.registryApiService, learner.id)) })
+				.catch(err => this.logger.warn(`mode notice not sent learner=${learner.id}: ${err}`));
+		}
+		return mode;
 	}
 
 	public async setPersona(learnerId: string, persona: { seed: string; name: string }): Promise<TutorPersona> {

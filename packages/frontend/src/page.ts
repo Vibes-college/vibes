@@ -17,6 +17,10 @@ export type PageMetadata = {
 	// Vibes: after the user name in the header, e.g. the AI's title (「Vibi · 学搭子」) and a small badge (「AI」).
 	nameSuffix?: string;
 	badge?: string;
+	// Vibes 聊天模式: tapping the name opens this menu (Momo's chat: how she talks to you) instead of scrolling to the top,
+	// with a small chevron after the name; titleAccent is the orange line under the name while a mode is on.
+	titleMenu?: (ev: Event) => void;
+	titleAccent?: { icon: string; text: string } | null;
 	needWideArea?: boolean;
 	hideMobileFooter?: boolean;
 	hideSidebar?: boolean;

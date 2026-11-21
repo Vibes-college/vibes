@@ -37,7 +37,8 @@ const LIST: PlanList = {
 
 const task = (o: Partial<TaskRow>): TaskRow => ({
 	id: 'x', userId: 'u', title: 't', kind: 'task', stage: 1, origDate: '2026-11-16', date: '2026-11-16', endDate: null, minutes: 20, app: null, ref: null,
-	autoDone: null, itemId: null, status: 'todo', doneBy: null, doneAt: null, by: 'planner', pinned: false, askedAt: null, offDate: null, createdAt: new Date(), ...o,
+	autoDone: null, itemId: null, status: 'todo', doneBy: null, doneAt: null, by: 'planner', pinned: false, askedAt: null, offDate: null, createdAt: new Date(),
+	skill: null, guide: null, mock: null, ...o,
 });
 
 describe('dates', () => {
@@ -134,7 +135,7 @@ describe('every day', () => {
 		expect(en.date('2026-11-20')).toBe('Fri, Nov 20');
 		expect(en.date('2026-01-04')).toBe('Sun, Jan 4');
 		expect(zh.reason.alreadyUndone).toBe('这次改动已经撤销过了');
-		expect(en.reason.missing(['examDate', 'dailyMinutes'])).toBe('Still missing: examDate, dailyMinutes. All four are needed to make a plan');
+		expect(en.reason.missing(['examDate', 'target'])).toBe('Still missing: examDate, target. The exam date and target score are needed to make a plan');
 		expect(en.summary.week('Mon, Nov 16', 1)).toBe('Planned the week from Mon, Nov 16: 1 task');
 		expect(en.summary.replan(3, '')).toBe('Replanned 3 tasks from today');
 		expect(en.summary.status('removed', 'Read', true)).toBe('Removed check-in: Read');
@@ -142,7 +143,7 @@ describe('every day', () => {
 		const leaves = (o: object): string[] => Object.values(o).flatMap(v => typeof v === 'string' ? [v]
 			: typeof v === 'function' ? [String((v as (...a: unknown[]) => unknown)('2026-11-20', 2, 3))]
 			: typeof v === 'object' && v != null ? leaves(v) : []);
-		const enWords = leaves({ reason: { ...en.reason, missing: en.reason.missing(['examDate']) }, summary: { ...en.summary, full: en.summary.full([{ name: 'Base', start: 'Mon, Nov 16' }], 'exam') } });
+		const enWords = leaves({ reason: { ...en.reason, missing: en.reason.missing(['examDate']) }, summary: { ...en.summary, full: en.summary.full([{ name: 'Base', start: 'Mon, Nov 16' }], 'exam'), score: en.summary.score('Fri, Nov 20', 'mock', ['Listening 6.5', 'Writing 6 (est.)'], '') } });
 		expect(enWords.length).toBeGreaterThan(40);
 		expect(enWords.filter(w => han.test(w))).toEqual([]);
 		expect(Object.keys(en.reason).sort()).toEqual(Object.keys(zh.reason).sort());
